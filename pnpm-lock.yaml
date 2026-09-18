@@ -186,7 +186,26 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^3.0.7
-        version: 3.2.7(@types/node@26.6.1)(supports-color@7.2.0)
+        version: 3.2.7(@types/node@26.6.1)(supports-color@7.2.0)(tsx@4.23.13)
+
+  packages/core-vm:
+    dependencies:
+      '@vn-engine/shared-types':
+        specifier: workspace:*
+        version: link:../shared-types
+    devDependencies:
+      '@types/node':
+        specifier: ^26.6.1
+        version: 26.6.1
+      '@vn-engine/dsl-compiler':
+        specifier: workspace:*
+        version: link:../dsl-compiler
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+      vitest:
+        specifier: ^3.0.7
+        version: 3.2.7(@types/node@26.6.1)(supports-color@7.2.0)(tsx@4.23.13)
 
   packages/dsl-compiler:
     dependencies:
@@ -208,7 +227,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^3.0.7
-        version: 3.2.7(@types/node@22.20.3)(supports-color@7.2.0)
+        version: 3.2.7(@types/node@22.20.3)(supports-color@7.2.0)(tsx@4.23.13)
 
   packages/shared-types:
     devDependencies:
@@ -217,7 +236,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^3.0.7
-        version: 3.2.7(@types/node@26.6.1)(supports-color@7.2.0)
+        version: 3.2.7(@types/node@26.6.1)(supports-color@7.2.0)(tsx@4.23.13)
 
 packages:
 
@@ -1128,6 +1147,11 @@ packages:
     peerDependencies:
       typescript: '>=4.8.4'
 
+  tsx@4.23.13:
+    resolution: {integrity: sha512-BL5MGkRln6aDYhb0xbQlEAGw743BaZYWdbWtdJOBriYJboKgUUYCadFp2/FpBBZquBC/ezNBn7wMMPx7FDZUDw==}
+    engines: {node: '>=18.0.0'}
+    hasBin: true
+
   type-check@0.4.0:
     resolution: {integrity: sha512-XleUoc9uwGXqjWwXaUTZAmzMcFZ5858QA2vvx1Ur5xIcixXIP+8LnFDgRplU30us6teqdlskFfu+ae4K79Ooew==}
     engines: {node: '>= 0.8.0'}
@@ -1594,13 +1618,13 @@ snapshots:
       chai: 5.3.3
       tinyrainbow: 2.0.0
 
-  '@vitest/mocker@3.2.7(vite@7.3.6(@types/node@26.6.1))':
+  '@vitest/mocker@3.2.7(vite@7.3.6(@types/node@26.6.1)(tsx@4.23.13))':
     dependencies:
       '@vitest/spy': 3.2.7
       estree-walker: 3.0.3
       magic-string: 0.30.21
     optionalDependencies:
-      vite: 7.3.6(@types/node@26.6.1)
+      vite: 7.3.6(@types/node@26.6.1)(tsx@4.23.13)
 
   '@vitest/pretty-format@3.2.7':
     dependencies:
@@ -2052,6 +2076,13 @@ snapshots:
     dependencies:
       typescript: 5.9.3
 
+  tsx@4.23.13:
+    dependencies:
+      esbuild: 0.28.2
+    optionalDependencies:
+      fsevents: 2.3.3
+    optional: true
+
   type-check@0.4.0:
     dependencies:
       prelude-ls: 1.2.1
@@ -2066,13 +2097,13 @@ snapshots:
     dependencies:
       punycode: 2.3.1
 
-  vite-node@3.2.4(@types/node@22.20.3)(supports-color@7.2.0):
+  vite-node@3.2.4(@types/node@22.20.3)(supports-color@7.2.0)(tsx@4.23.13):
     dependencies:
       cac: 6.7.14
       debug: 4.4.3(supports-color@7.2.0)
       es-module-lexer: 1.7.0
       pathe: 2.0.3
-      vite: 7.3.6(@types/node@22.20.3)
+      vite: 7.3.6(@types/node@22.20.3)(tsx@4.23.13)
     transitivePeerDependencies:
       - '@types/node'
       - jiti
@@ -2087,13 +2118,13 @@ snapshots:
       - tsx
       - yaml
 
-  vite-node@3.2.4(@types/node@26.6.1)(supports-color@7.2.0):
+  vite-node@3.2.4(@types/node@26.6.1)(supports-color@7.2.0)(tsx@4.23.13):
     dependencies:
       cac: 6.7.14
       debug: 4.4.3(supports-color@7.2.0)
       es-module-lexer: 1.7.0
       pathe: 2.0.3
-      vite: 7.3.6(@types/node@26.6.1)
+      vite: 7.3.6(@types/node@26.6.1)(tsx@4.23.13)
     transitivePeerDependencies:
       - '@types/node'
       - jiti
@@ -2108,7 +2139,7 @@ snapshots:
       - tsx
       - yaml
 
-  vite@7.3.6(@types/node@22.20.3):
+  vite@7.3.6(@types/node@22.20.3)(tsx@4.23.13):
     dependencies:
       esbuild: 0.28.2
       fdir: 6.5.0(picomatch@4.0.7)
@@ -2119,8 +2150,9 @@ snapshots:
     optionalDependencies:
       '@types/node': 22.20.3
       fsevents: 2.3.3
+      tsx: 4.23.13
 
-  vite@7.3.6(@types/node@26.6.1):
+  vite@7.3.6(@types/node@26.6.1)(tsx@4.23.13):
     dependencies:
       esbuild: 0.28.2
       fdir: 6.5.0(picomatch@4.0.7)
@@ -2131,12 +2163,13 @@ snapshots:
     optionalDependencies:
       '@types/node': 26.6.1
       fsevents: 2.3.3
+      tsx: 4.23.13
 
-  vitest@3.2.7(@types/node@22.20.3)(supports-color@7.2.0):
+  vitest@3.2.7(@types/node@22.20.3)(supports-color@7.2.0)(tsx@4.23.13):
     dependencies:
       '@types/chai': 5.2.3
       '@vitest/expect': 3.2.7
-      '@vitest/mocker': 3.2.7(vite@7.3.6(@types/node@26.6.1))
+      '@vitest/mocker': 3.2.7(vite@7.3.6(@types/node@26.6.1)(tsx@4.23.13))
       '@vitest/pretty-format': 3.2.7
       '@vitest/runner': 3.2.7
       '@vitest/snapshot': 3.2.7
@@ -2154,8 +2187,8 @@ snapshots:
       tinyglobby: 0.2.17
       tinypool: 1.1.1
       tinyrainbow: 2.0.0
-      vite: 7.3.6(@types/node@22.20.3)
-      vite-node: 3.2.4(@types/node@22.20.3)(supports-color@7.2.0)
+      vite: 7.3.6(@types/node@22.20.3)(tsx@4.23.13)
+      vite-node: 3.2.4(@types/node@22.20.3)(supports-color@7.2.0)(tsx@4.23.13)
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 22.20.3
@@ -2173,11 +2206,11 @@ snapshots:
       - tsx
       - yaml
 
-  vitest@3.2.7(@types/node@26.6.1)(supports-color@7.2.0):
+  vitest@3.2.7(@types/node@26.6.1)(supports-color@7.2.0)(tsx@4.23.13):
     dependencies:
       '@types/chai': 5.2.3
       '@vitest/expect': 3.2.7
-      '@vitest/mocker': 3.2.7(vite@7.3.6(@types/node@26.6.1))
+      '@vitest/mocker': 3.2.7(vite@7.3.6(@types/node@26.6.1)(tsx@4.23.13))
       '@vitest/pretty-format': 3.2.7
       '@vitest/runner': 3.2.7
       '@vitest/snapshot': 3.2.7
@@ -2195,8 +2228,8 @@ snapshots:
       tinyglobby: 0.2.17
       tinypool: 1.1.1
       tinyrainbow: 2.0.0
-      vite: 7.3.6(@types/node@26.6.1)
-      vite-node: 3.2.4(@types/node@26.6.1)(supports-color@7.2.0)
+      vite: 7.3.6(@types/node@26.6.1)(tsx@4.23.13)
+      vite-node: 3.2.4(@types/node@26.6.1)(supports-color@7.2.0)(tsx@4.23.13)
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 26.6.1

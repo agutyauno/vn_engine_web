@@ -1,0 +1,95 @@
+import { describe, it, expect } from 'vitest';
+import { SnapshotRingBuffer } from '../src/ring_buffer';
+import type { VMSnapshot, VMState } from '@vn-engine/shared-types';
+
+function createMockSnapshot(dialogueIndex: number, affection: number): VMSnapshot {
+  const state: VMState = {
+    currentScene: 'intro',
+    instructionPointer: dialogueIndex,
+    callStack: [],
+    variables: { affection },
+    characterDisplayOverrides: {},
+    customScriptState: {},
+  };
+
+  return {
+    timestamp: 1000 + dialogueIndex,
+    dialogueIndex,
+    state,
+  };
+}
+
+describe('SnapshotRingBuffer (Rollback Engine ADR-022)', () => {
+  it('should push snapshots and respect max capacity', () => {
+    const buffer = new SnapshotRingBuffer(3);
+    expect(buffer.size()).toBe(0);
+    expect(buffer.canRollback()).toBe(false);
+
+    buffer.push(createMockSnapshot(1, 10));
+    buffer.push(createMockSnapshot(2, 20));
+    expect(buffer.size()).toBe(2);
+    expect(buffer.canRollback()).toBe(true);
+
+    buffer.push(createMockSnapshot(3, 30));
+    buffer.push(createMockSnapshot(4, 40)); // Snapshot 1 sẽ bị loại bỏ vì capacity = 3
+
+    expect(buffer.size()).toBe(3);
+    const history = buffer.getHistory();
+    expect(history[0]?.dialogueIndex).toBe(2);
+    expect(history[1]?.dialogueIndex).toBe(3);
+    expect(history[2]?.dialogueIndex).toBe(4);
+  });
+
+  it('should perform rollback and rollforward correctly', () => {
+    const buffer = new SnapshotRingBuffer(5);
+    buffer.push(createMockSnapshot(1, 10));
+    buffer.push(createMockSnapshot(2, 20));
+    buffer.push(createMockSnapshot(3, 30));
+
+    expect(buffer.canRollback()).toBe(true);
+    expect(buffer.canRollforward()).toBe(false);
+
+    // Rollback lần 1: từ snapshot 3 quay về snapshot 2
+    const prev1 = buffer.rollback();
+    expect(prev1).toBeDefined();
+    expect(prev1?.dialogueIndex).toBe(2);
+    expect(prev1?.state.variables['affection']).toBe(20);
+    expect(buffer.canRollforward()).toBe(true);
+
+    // Rollback lần 2: từ snapshot 2 quay về snapshot 1
+    const prev2 = buffer.rollback();
+    expect(prev2).toBeDefined();
+    expect(prev2?.dialogueIndex).toBe(1);
+    expect(prev2?.state.variables['affection']).toBe(10);
+    expect(buffer.canRollback()).toBe(false); // Đã về đầu lịch sử
+
+    // Rollforward lần 1: từ snapshot 1 tiến lên snapshot 2
+    const forward1 = buffer.rollforward();
+    expect(forward1).toBeDefined();
+    expect(forward1?.dialogueIndex).toBe(2);
+    expect(buffer.canRollback()).toBe(true);
+
+    // Rollforward lần 2: từ snapshot 2 tiến lên snapshot 3
+    const forward2 = buffer.rollforward();
+    expect(forward2).toBeDefined();
+    expect(forward2?.dialogueIndex).toBe(3);
+    expect(buffer.canRollforward()).toBe(false); // Đã ở đỉnh tiến trình
+  });
+
+  it('should clear forward history when a new action is taken after rollback', () => {
+    const buffer = new SnapshotRingBuffer(5);
+    buffer.push(createMockSnapshot(1, 10));
+    buffer.push(createMockSnapshot(2, 20));
+
+    // Rollback về 1
+    buffer.rollback();
+    expect(buffer.canRollforward()).toBe(true);
+
+    // Người chơi chọn nhánh khác, push snapshot mới
+    buffer.push(createMockSnapshot(3, 99));
+
+    // Ngăn xếp roll-forward phải bị xóa hoàn toàn
+    expect(buffer.canRollforward()).toBe(false);
+    expect(buffer.size()).toBe(2);
+  });
+});

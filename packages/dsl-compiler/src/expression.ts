@@ -32,6 +32,7 @@ function convertJsepNode(node: jsep.Expression): ExpressionAST {
       };
     }
 
+    case 'LogicalExpression':
     case 'BinaryExpression': {
       const bin = node as jsep.BinaryExpression;
       return {

@@ -4,5 +4,9 @@
     "noEmit": true
   },
   "include": ["packages/*/tests/**/*"],
-  "references": [{ "path": "./packages/shared-types" }, { "path": "./packages/dsl-compiler" }]
+  "references": [
+    { "path": "./packages/shared-types" },
+    { "path": "./packages/dsl-compiler" },
+    { "path": "./packages/core-vm" }
+  ]
 }
