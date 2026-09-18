@@ -1,0 +1,22 @@
+{
+  "name": "@vn-engine/dsl-compiler",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@vn-engine/shared-types": "workspace:*",
+    "chevrotain": "^11.0.3",
+    "jsep": "^1.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.4",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.7"
+  }
+}

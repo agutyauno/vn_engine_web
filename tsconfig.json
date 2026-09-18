@@ -3,6 +3,6 @@
   "compilerOptions": {
     "noEmit": true
   },
-  "include": [],
-  "references": [{ "path": "./packages/shared-types" }]
+  "include": ["packages/*/tests/**/*"],
+  "references": [{ "path": "./packages/shared-types" }, { "path": "./packages/dsl-compiler" }]
 }
