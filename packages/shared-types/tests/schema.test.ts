@@ -4,6 +4,7 @@ import type {
   Instruction,
   VMState,
   VMSnapshot,
+  SaveFileData,
   ExpressionAST,
   LiteralExpression,
   IdentifierExpression,
@@ -11,6 +12,7 @@ import type {
   UnaryExpression,
   CallExpression,
 } from '../src';
+import { CURRENT_SAVE_VERSION } from '../src';
 
 describe('Shared Types & Data Contracts', () => {
   it('should instantiate a valid Project schema and serialize to JSON pure', () => {
@@ -326,5 +328,31 @@ describe('Shared Types & Data Contracts', () => {
     expect(restored.state.callStack).toHaveLength(2);
     expect(restored.state.characterDisplayOverrides['bob']).toBe('Bóng Đen');
     expect(restored.state.customScriptState['minigameScore']).toBe('999');
+  });
+
+  it('should serialize and restore SaveFileData schema properly', () => {
+    const saveData: SaveFileData = {
+      version: CURRENT_SAVE_VERSION,
+      dslVersion: '1.0.0',
+      timestamp: 1710000000000,
+      dialogueCounter: 5,
+      state: {
+        currentScene: 'chapter1_scene1',
+        instructionPointer: 10,
+        callStack: [],
+        variables: { score: 100 },
+        characterDisplayOverrides: {},
+        customScriptState: {},
+      },
+    };
+
+    const serialized = JSON.stringify(saveData);
+    const restored = JSON.parse(serialized) as SaveFileData;
+
+    expect(restored.version).toBe(CURRENT_SAVE_VERSION);
+    expect(restored.dslVersion).toBe('1.0.0');
+    expect(restored.dialogueCounter).toBe(5);
+    expect(restored.state.currentScene).toBe('chapter1_scene1');
+    expect(restored.state.variables['score']).toBe(100);
   });
 });

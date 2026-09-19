@@ -5,6 +5,7 @@ import {
   InvalidChoiceError,
   EmptyCallStackError,
   VMRuntimeError,
+  SceneNotFoundError,
 } from '../src/errors';
 import type { Instruction, DialogueInstruction, StepResult } from '@vn-engine/shared-types';
 
@@ -362,5 +363,42 @@ describe('VisualNovelVM Core', () => {
     // Kiểm tra bảo vệ khi nạp dữ liệu save hỏng
     expect(() => loadedVM.restore('not-valid-json')).toThrowError(VMRuntimeError);
     expect(() => loadedVM.restore('{}')).toThrowError(/thiếu state/);
+  });
+
+  it('should resolve local dot scenes strictly and reject unqualified suffix guessing', () => {
+    const program: Instruction[] = [
+      { type: 'SCENE', name: 'chapter1' },
+      { type: 'DIALOGUE', character: 'alice', text: 'Chương 1 bắt đầu' },
+      { type: 'SCENE', name: 'chapter1.ask_question' },
+      { type: 'DIALOGUE', character: 'alice', text: 'Câu hỏi chương 1' },
+      { type: 'SCENE', name: 'chapter5' },
+      { type: 'DIALOGUE', character: 'bob', text: 'Chương 5 bắt đầu' },
+      { type: 'SCENE', name: 'chapter5.ask_question' },
+      { type: 'DIALOGUE', character: 'bob', text: 'Câu hỏi chương 5' },
+    ];
+
+    const vm = new VisualNovelVM(program);
+    vm.runUntilInteractive(); // Đang ở chapter1
+
+    // 1. Nhảy bằng local dot label trong chapter1 -> phải tới chapter1.ask_question
+    vm.jumpToScene('.ask_question');
+    expect(vm.getState().currentScene).toBe('chapter1.ask_question');
+    const res1 = vm.runUntilInteractive();
+    expect(asDialogue(res1.stepResult).text).toBe('Câu hỏi chương 1');
+
+    // 2. Chuyển sang chapter5
+    vm.jumpToScene('chapter5');
+    expect(vm.getState().currentScene).toBe('chapter5');
+    vm.runUntilInteractive();
+
+    // Nhảy bằng local dot label trong chapter5 -> phải tới chapter5.ask_question
+    vm.jumpToScene('.ask_question');
+    expect(vm.getState().currentScene).toBe('chapter5.ask_question');
+    const res2 = vm.runUntilInteractive();
+    expect(asDialogue(res2.stepResult).text).toBe('Câu hỏi chương 5');
+
+    // 3. Cố gắng nhảy tới tên chưa resolve / thiếu dấu chấm ("ask_question")
+    // Tuyệt đối không được đoán hậu tố (suffix match) mà phải quăng lỗi SceneNotFoundError
+    expect(() => vm.jumpToScene('ask_question')).toThrowError(SceneNotFoundError);
   });
 });

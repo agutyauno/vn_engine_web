@@ -29,3 +29,14 @@ export interface VMSnapshot {
   dialogueIndex: number; // Chỉ mục câu thoại (chỉ chụp snapshot khi gặp SUSPEND_DIALOGUE)
   state: VMState; // Clone sâu (JSON pure)
 }
+
+export const CURRENT_SAVE_VERSION = 1;
+
+export interface SaveFileData {
+  version: number;
+  dslVersion?: string;
+  timestamp: number;
+  state: VMState;
+  dialogueCounter: number;
+}
+

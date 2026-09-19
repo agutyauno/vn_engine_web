@@ -7,11 +7,13 @@ import type {
   VMState,
   StepResult,
   VMSnapshot,
+  SaveFileData,
   DialogueInstruction,
   BackgroundInstruction,
   ShowInstruction,
   PlayInstruction,
 } from '@vn-engine/shared-types';
+import { CURRENT_SAVE_VERSION } from '@vn-engine/shared-types';
 import { SandboxEvaluator, type AllowedFunction } from './evaluator';
 import { SnapshotRingBuffer } from './ring_buffer';
 import {
@@ -20,7 +22,9 @@ import {
   SceneNotFoundError,
   EmptyCallStackError,
   VMRuntimeError,
+  InvalidSaveDataError,
 } from './errors';
+import { migrateSaveData, validateVMState } from './migration';
 
 export interface VMOptions {
   ringBufferCapacity?: number;
@@ -102,13 +106,6 @@ export class VisualNovelVM {
       const resolved = `${parentName}${targetScene}`;
       if (this.sceneIndexMap.has(resolved)) {
         return this.sceneIndexMap.get(resolved)!;
-      }
-    }
-
-    // 3. Tìm scene có đuôi trùng
-    for (const [name, index] of this.sceneIndexMap.entries()) {
-      if (name.endsWith(`.${targetScene}`) || name === targetScene) {
-        return index;
       }
     }
 
@@ -441,26 +438,43 @@ export class VisualNovelVM {
   }
 
   /**
-   * Serialize trạng thái máy ảo thành chuỗi JSON thuần túy (Save Game)
+   * Serialize trạng thái máy ảo thành chuỗi JSON thuần túy theo cấu trúc SaveFileData (Save Game - TAD 4.4)
    */
-  public serialize(): string {
-    return JSON.stringify({
+  public serialize(dslVersion?: string): string {
+    const saveData: SaveFileData = {
+      version: CURRENT_SAVE_VERSION,
+      dslVersion: dslVersion ?? '1.0.0',
+      timestamp: Date.now(),
       state: this.state,
       dialogueCounter: this.dialogueCounter,
-    });
+    };
+    return JSON.stringify(saveData);
   }
 
   /**
-   * Khôi phục trạng thái máy ảo từ chuỗi JSON (Load Game)
+   * Khôi phục trạng thái máy ảo từ chuỗi JSON (Load Game - TAD 4.4)
+   * Tự động kiểm tra schema VMState và migrate save file nếu khác phiên bản
    */
   public restore(json: string): void {
     try {
-      const data = JSON.parse(json);
-      if (!data || typeof data !== 'object' || !data.state) {
-        throw new VMRuntimeError('Dữ liệu save game không hợp lệ: thiếu state.');
+      let data: unknown;
+      try {
+        data = JSON.parse(json);
+      } catch (parseErr) {
+        throw new InvalidSaveDataError(
+          `Chuỗi JSON không đúng định dạng: ${parseErr instanceof Error ? parseErr.message : String(parseErr)}`,
+        );
       }
-      this.state = data.state;
-      this.dialogueCounter = data.dialogueCounter ?? 0;
+
+      if (!data || typeof data !== 'object') {
+        throw new InvalidSaveDataError('thiếu state.');
+      }
+
+      const saveData = migrateSaveData(data, CURRENT_SAVE_VERSION);
+      validateVMState(saveData.state);
+
+      this.state = saveData.state;
+      this.dialogueCounter = saveData.dialogueCounter ?? 0;
       this.ringBuffer.clear();
     } catch (err: unknown) {
       if (err instanceof VMRuntimeError) {

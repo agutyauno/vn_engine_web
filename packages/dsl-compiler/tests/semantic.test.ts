@@ -131,4 +131,49 @@ describe('Semantic Validator & Multi-File Compilation', () => {
     expect(result.errors).toBeDefined();
     expect(result.errors![0]?.message).toContain('bị định nghĩa trùng lặp');
   });
+
+  it('should reject unqualified suffix references and not guess matching suffix scenes', () => {
+    const dsl = `
+      scene chapter1 {
+        scene .ask_question {
+          alice: "Câu hỏi ở chương 1"
+        }
+        goto ask_question
+      }
+      scene chapter5 {
+        scene .ask_question {
+          alice: "Câu hỏi ở chương 5"
+        }
+      }
+    `;
+
+    const result = compileString(dsl, 'test_suffix.vns');
+    expect(result.success).toBe(false);
+    expect(result.errors).toBeDefined();
+    expect(result.errors![0]?.message).toContain('Đích đến của goto "ask_question" không tồn tại');
+  });
+
+  it('should correctly resolve proper local dot labels across different chapters without conflict', () => {
+    const dsl = `
+      scene chapter1 {
+        scene .ask_question {
+          alice: "Câu hỏi ở chương 1"
+        }
+        goto .ask_question
+      }
+      scene chapter5 {
+        scene .ask_question {
+          alice: "Câu hỏi ở chương 5"
+        }
+        goto .ask_question
+      }
+    `;
+
+    const result = compileString(dsl, 'test_local_labels.vns');
+    expect(result.success).toBe(true);
+    expect(result.errors).toBeUndefined();
+    const gotos = result.program!.filter(i => i.type === 'GOTO') as { targetScene: string }[];
+    expect(gotos[0]?.targetScene).toBe('chapter1.ask_question');
+    expect(gotos[1]?.targetScene).toBe('chapter5.ask_question');
+  });
 });

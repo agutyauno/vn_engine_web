@@ -6,3 +6,5 @@ export * from './vm';
 export * from './evaluator';
 export * from './ring_buffer';
 export * from './errors';
+export * from './migration';
+

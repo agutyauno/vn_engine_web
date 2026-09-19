@@ -10,7 +10,7 @@ scene chapter1_alice_route ui: "phone_message_style" {
     ~ affection = 0
 
     while affection < 100 {
-        call ask_question
+        call .ask_question
         if affection >= 100 {
             goto good_ending
         }

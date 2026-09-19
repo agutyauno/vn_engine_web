@@ -39,43 +39,27 @@ export function validateSemantics(ast: ProgramAST): CompileError[] {
       if (stmt.type === 'GotoStatement') {
         const gt = stmt as GotoStatement;
         if (!definedSceneNames.has(gt.targetScene)) {
-          // Thử tìm xem có scene nào có đuôi trùng không
-          const candidates = Array.from(definedSceneNames).filter(
-            s => s.endsWith(`.${gt.targetScene}`) || s === gt.targetScene,
-          );
-          if (candidates.length === 0) {
-            errors.push({
-              message: `Đích đến của goto "${gt.targetScene}" không tồn tại trong kịch bản.`,
-              loc: gt.loc,
-            });
-          }
+          errors.push({
+            message: `Đích đến của goto "${gt.targetScene}" không tồn tại trong kịch bản.`,
+            loc: gt.loc,
+          });
         }
       } else if (stmt.type === 'CallStatement') {
         const cl = stmt as CallStatement;
         if (!definedSceneNames.has(cl.targetScene)) {
-          const candidates = Array.from(definedSceneNames).filter(
-            s => s.endsWith(`.${cl.targetScene}`) || s === cl.targetScene,
-          );
-          if (candidates.length === 0) {
-            errors.push({
-              message: `Đích đến của call "${cl.targetScene}" không tồn tại trong kịch bản.`,
-              loc: cl.loc,
-            });
-          }
+          errors.push({
+            message: `Đích đến của call "${cl.targetScene}" không tồn tại trong kịch bản.`,
+            loc: cl.loc,
+          });
         }
       } else if (stmt.type === 'ChoiceStatement') {
         const ch = stmt as ChoiceStatement;
         for (const opt of ch.choices) {
           if (!definedSceneNames.has(opt.targetScene)) {
-            const candidates = Array.from(definedSceneNames).filter(
-              s => s.endsWith(`.${opt.targetScene}`) || s === opt.targetScene,
-            );
-            if (candidates.length === 0) {
-              errors.push({
-                message: `Lựa chọn "${opt.text}" trỏ tới scene không tồn tại: "${opt.targetScene}".`,
-                loc: opt.loc,
-              });
-            }
+            errors.push({
+              message: `Lựa chọn "${opt.text}" trỏ tới scene không tồn tại: "${opt.targetScene}".`,
+              loc: opt.loc,
+            });
           }
         }
       } else if (stmt.type === 'IfStatement') {

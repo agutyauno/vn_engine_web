@@ -59,3 +59,11 @@ export class EmptyCallStackError extends VMRuntimeError {
     this.name = 'EmptyCallStackError';
   }
 }
+
+export class InvalidSaveDataError extends VMRuntimeError {
+  constructor(reason: string) {
+    super(`Dữ liệu save game không hợp lệ: ${reason}`);
+    this.name = 'InvalidSaveDataError';
+  }
+}
+
