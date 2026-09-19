@@ -1,0 +1,465 @@
+/* ==========================================
+   HỆ THỐNG GIAO DIỆN WIREFRAME / BLUEPRINT (CSS TOKENS)
+   Phong cách Swiss tối giản (International Typographic Style)
+   Chuẩn 2 màu đen - trắng (Monochrome), không neon, không glow.
+   ========================================== */
+
+:root {
+  --wf-font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --wf-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+
+  /* BẢNG MÀU ĐEN - TRẮNG ĐƠN SẮC CHUẨN SWISS */
+  --wf-bg: #111111;
+  --wf-viewport-bg: #ffffff;
+  --wf-panel-bg: rgba(0, 0, 0, 0.94);
+  --wf-panel-header-bg: #111111;
+  
+  --wf-border-primary: #ffffff;
+  --wf-border-secondary: #333333;
+  --wf-border-active: #ffffff;
+
+  --wf-text-primary: #ffffff;
+  --wf-text-secondary: #cccccc;
+  --wf-text-muted: #777777;
+  --wf-text-accent: #ffffff;
+
+  --wf-btn-bg: #000000;
+  --wf-btn-hover-bg: #ffffff;
+  --wf-btn-active-bg: #e5e5e5;
+  --wf-btn-border: #444444;
+  --wf-btn-border-hover: #ffffff;
+
+  --wf-choice-bg: #000000;
+  --wf-choice-hover: #ffffff;
+
+  --wf-disabled-bg: #000000;
+  --wf-disabled-text: #555555;
+  --wf-disabled-border: #222222;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+}
+
+body, html {
+  width: 100%;
+  height: 100%;
+  background-color: var(--wf-bg);
+  color: var(--wf-text-primary);
+  font-family: var(--wf-font-sans);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* KHUNG TỶ LỆ 16:9 CHÍNH */
+#game-root {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  max-width: 177.78vh; /* Ràng buộc tỷ lệ chuẩn 16:9 letterbox */
+  max-height: 56.25vw;
+  aspect-ratio: 16 / 9;
+  background-color: var(--wf-viewport-bg);
+  overflow: hidden;
+  border: 1px solid #000000;
+}
+
+/* LỚP PIXIJS CANVAS RENDERER */
+#canvas-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+/* LỚP GIAO DIỆN HTML5 OVERLAY */
+#ui-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 10;
+  pointer-events: none; /* Cho phép click xuyên qua trừ các phần tử tương tác */
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+/* KHUNG BAO HỘP THOẠI & CONTROL BAR */
+.dialogue-wrapper {
+  pointer-events: auto;
+  margin: 0 4% 14px 4%;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+/* TÊN NHÂN VẬT (NAMEPLATE GẮN LIỀN VỚI HỘP THOẠI) */
+.speaker-nameplate {
+  display: inline-block;
+  align-self: flex-start;
+  background: #ffffff;
+  color: #000000;
+  border: 1px solid #000000;
+  border-bottom: none;
+  padding: 4px 18px;
+  border-radius: 0;
+  font-family: var(--wf-font-mono);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  margin-bottom: -1px; /* Sát khít tuyệt đối với cạnh trên của hộp thoại */
+  z-index: 2;
+  position: relative;
+}
+
+.speaker-nameplate.hidden {
+  display: none;
+}
+
+/* HỘP THOẠI CHÍNH (DIALOGUE BOX) */
+.dialogue-box {
+  background: var(--wf-panel-bg);
+  border: 1px solid #000000;
+  border-radius: 0;
+  padding: 20px 26px 16px 26px;
+  min-height: 110px;
+  position: relative;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  transition: border-color 0.15s ease;
+}
+
+.dialogue-box:hover {
+  border-color: var(--wf-border-active);
+}
+
+/* NỘI DUNG VĂN BẢN THOẠI */
+.dialogue-text {
+  font-size: 19px;
+  line-height: 1.6;
+  color: var(--wf-text-primary);
+  min-height: 56px;
+  word-wrap: break-word;
+  font-weight: 400;
+  letter-spacing: 0.2px;
+}
+
+/* CON TRỎ CHỜ TIẾP TỤC (NEXT INDICATOR) */
+.dialogue-next-indicator {
+  position: absolute;
+  right: 18px;
+  bottom: 12px;
+  font-family: var(--wf-font-mono);
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: var(--wf-text-primary);
+  animation: wf-blink 0.8s infinite alternate;
+}
+
+@keyframes wf-blink {
+  from { opacity: 0.25; transform: translateY(0); }
+  to { opacity: 1; transform: translateY(2px); }
+}
+
+/* THANH ĐIỀU KHIỂN (CONTROL BAR - ĐẶT DƯỚI ĐÁY MÀN HÌNH, CĂN GIỮA) */
+.control-bar {
+  pointer-events: auto;
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+/* NÚT BẤM WIREFRAME CHUẨN SWISS */
+.wf-btn {
+  background: var(--wf-btn-bg);
+  color: var(--wf-text-secondary);
+  border: 1px solid var(--wf-btn-border);
+  padding: 5px 11px;
+  font-size: 12px;
+  font-family: var(--wf-font-mono);
+  border-radius: 0;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+  outline: none;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.wf-btn:hover:not(:disabled) {
+  background: var(--wf-btn-hover-bg);
+  color: #000000;
+  border-color: var(--wf-btn-border-hover);
+}
+
+.wf-btn:active:not(:disabled) {
+  background: var(--wf-btn-active-bg);
+  color: #000000;
+}
+
+.wf-btn:disabled {
+  opacity: 0.35;
+  border-color: var(--wf-disabled-border);
+  color: var(--wf-disabled-text);
+  cursor: not-allowed;
+}
+
+.wf-btn.active {
+  background: #ffffff;
+  color: #000000;
+  border-color: #ffffff;
+  font-weight: 700;
+}
+
+/* HỘP LỰA CHỌN RẼ NHÁNH (CHOICE MENU) - CĂN CHÍNH GIỮA MÀN HÌNH */
+#choice-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  background: rgba(0, 0, 0, 0.82);
+  z-index: 20;
+}
+
+#choice-overlay.hidden {
+  display: none;
+}
+
+#choice-buttons-list {
+  width: 85%;
+  max-width: 580px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.choice-btn {
+  width: 100%;
+  background: #000000;
+  color: #ffffff;
+  border: 1px solid #000000;
+  border-radius: 0;
+  padding: 14px 24px;
+  font-size: 16px;
+  font-weight: 500;
+  font-family: var(--wf-font-sans);
+  text-align: center;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+  letter-spacing: 0.3px;
+  outline: none;
+}
+
+.choice-btn:hover:not(:disabled),
+.choice-btn.selected:not(:disabled),
+.choice-btn:focus-visible:not(:disabled) {
+  background: #ffffff;
+  color: #000000;
+  border-color: #000000;
+  font-weight: 700;
+}
+
+.choice-btn:disabled {
+  opacity: 0.35;
+  border-color: var(--wf-disabled-border);
+  color: var(--wf-disabled-text);
+  cursor: not-allowed;
+}
+
+/* CÁC MODAL WIREFRAME (SAVE, LOAD, BACKLOG, SETTINGS, DEBUG) */
+.wf-modal-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.85);
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+}
+
+.wf-modal-backdrop.hidden {
+  display: none;
+}
+
+.wf-modal {
+  width: 80%;
+  max-width: 880px;
+  max-height: 82%;
+  background: var(--wf-panel-bg);
+  border: 1px solid var(--wf-border-primary);
+  border-radius: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.wf-modal-header {
+  background: var(--wf-panel-header-bg);
+  padding: 12px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--wf-border-secondary);
+}
+
+.wf-modal-title {
+  font-family: var(--wf-font-mono);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--wf-text-accent);
+  letter-spacing: 1px;
+}
+
+.wf-modal-body {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* LƯỚI SAVE/LOAD SLOTS */
+.save-slots-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.save-slot-card {
+  background: #0a0a0a;
+  border: 1px solid var(--wf-border-secondary);
+  border-radius: 0;
+  padding: 10px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.save-slot-card:hover {
+  border-color: var(--wf-border-primary);
+}
+
+.slot-thumbnail {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #000000;
+  border: 1px solid var(--wf-border-secondary);
+  border-radius: 0;
+  object-fit: cover;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-family: var(--wf-font-mono);
+  color: var(--wf-text-muted);
+}
+
+.slot-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--wf-text-secondary);
+  font-family: var(--wf-font-mono);
+}
+
+.slot-scene {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--wf-text-primary);
+}
+
+/* LỊCH SỬ THOẠI (BACKLOG) */
+.backlog-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.backlog-item {
+  border-left: 2px solid var(--wf-border-primary);
+  padding-left: 14px;
+}
+
+.backlog-speaker {
+  font-family: var(--wf-font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--wf-text-primary);
+  margin-bottom: 4px;
+}
+
+.backlog-text {
+  font-size: 16px;
+  color: var(--wf-text-secondary);
+  line-height: 1.5;
+}
+
+/* BẢNG DEBUG INSPECTOR */
+.debug-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--wf-font-mono);
+  font-size: 13px;
+  margin-top: 10px;
+}
+
+.debug-table th, .debug-table td {
+  border: 1px solid var(--wf-border-secondary);
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.debug-table th {
+  background: var(--wf-panel-header-bg);
+  color: var(--wf-text-primary);
+  font-weight: 600;
+}
+
+.debug-section-title {
+  font-family: var(--wf-font-mono);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--wf-text-primary);
+  margin-top: 16px;
+  margin-bottom: 6px;
+  letter-spacing: 0.5px;
+}
+
+/* SLIDER ÂM LƯỢNG */
+.audio-slider-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  font-size: 14px;
+}
+
+.audio-slider-row input[type="range"] {
+  width: 60%;
+  accent-color: #ffffff;
+}

@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Visual Novel Engine - Wireframe Player</title>
+    <link rel="stylesheet" href="/src/wireframe.css" />
+  </head>
+  <body>
+    <div id="game-root">
+      <!-- TẦNG CANVAS RENDERER (PIXIJS) -->
+      <div id="canvas-container"></div>
+
+      <!-- TẦNG GIAO DIỆN HTML5 OVERLAY -->
+      <div id="ui-layer">
+        <div class="dialogue-wrapper">
+          <!-- TÊN NHÂN VẬT (NAMEPLATE GẮN LIỀN VỚI HỘP THOẠI) -->
+          <div class="speaker-nameplate" id="speaker-nameplate">ALICE</div>
+
+          <!-- HỘP THOẠI -->
+          <div class="dialogue-box" id="dialogue-box">
+            <div class="dialogue-text" id="dialogue-text"></div>
+            <div class="dialogue-next-indicator" id="dialogue-next-indicator">▼ TIẾP TỤC [→]</div>
+          </div>
+
+          <!-- THANH ĐIỀU KHIỂN (CONTROL BAR - ĐẶT DƯỚI ĐÁY MÀN HÌNH, CĂN GIỮA) -->
+          <div class="control-bar" id="control-bar">
+            <button class="wf-btn" id="btn-back" title="Tua lại câu thoại trước (Phím ← hoặc PageUp)">[BACK ←]</button>
+            <button class="wf-btn" id="btn-next" title="Tiếp tục câu tiếp theo (Phím → hoặc Space/Enter)">[NEXT →]</button>
+            <button class="wf-btn" id="btn-auto" title="Tự động chuyển câu thoại">[AUTO]</button>
+            <button class="wf-btn" id="btn-skip" title="Tua nhanh thoại">[SKIP]</button>
+            <button class="wf-btn" id="btn-qsave" title="Lưu nhanh trạng thái">[Q.SAVE]</button>
+            <button class="wf-btn" id="btn-qload" title="Tải nhanh điểm lưu gần nhất">[Q.LOAD]</button>
+            <button class="wf-btn" id="btn-save" title="Mở danh sách lưu game">[SAVE]</button>
+            <button class="wf-btn" id="btn-load" title="Mở danh sách tải game">[LOAD]</button>
+            <button class="wf-btn" id="btn-log" title="Mở lịch sử thoại (Backlog)">[LOG]</button>
+            <button class="wf-btn" id="btn-audio" title="Cài đặt âm lượng">[AUDIO]</button>
+            <button class="wf-btn" id="btn-debug" title="Xem biến và trạng thái máy ảo">[DEBUG]</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- HỘP THOẠI LỰA CHỌN RẼ NHÁNH (CHOICE OVERLAY) -->
+      <div id="choice-overlay" class="hidden">
+        <div id="choice-buttons-list"></div>
+      </div>
+
+      <!-- MODAL LƯU / TẢI GAME (SAVE / LOAD) -->
+      <div id="modal-saveload" class="wf-modal-backdrop hidden">
+        <div class="wf-modal">
+          <div class="wf-modal-header">
+            <div class="wf-modal-title" id="saveload-title">[ SAVE GAME ]</div>
+            <button class="wf-btn" id="btn-close-saveload">[Đóng ✕]</button>
+          </div>
+          <div class="wf-modal-body">
+            <div class="save-slots-grid" id="save-slots-container"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODAL LỊCH SỬ THOẠI (BACKLOG DRAWER) -->
+      <div id="modal-backlog" class="wf-modal-backdrop hidden">
+        <div class="wf-modal">
+          <div class="wf-modal-header">
+            <div class="wf-modal-title">[ LỊCH SỬ THOẠI (BACKLOG) ]</div>
+            <button class="wf-btn" id="btn-close-backlog">[Đóng ✕]</button>
+          </div>
+          <div class="wf-modal-body">
+            <div class="backlog-list" id="backlog-container"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODAL CÀI ĐẶT ÂM THANH (AUDIO SETTINGS) -->
+      <div id="modal-audio" class="wf-modal-backdrop hidden">
+        <div class="wf-modal" style="max-width: 500px;">
+          <div class="wf-modal-header">
+            <div class="wf-modal-title">[ CÀI ĐẶT ÂM THANH ]</div>
+            <button class="wf-btn" id="btn-close-audio">[Đóng ✕]</button>
+          </div>
+          <div class="wf-modal-body">
+            <div class="audio-slider-row">
+              <span>Master Volume</span>
+              <input type="range" id="slider-master" min="0" max="1" step="0.05" value="1.0" />
+            </div>
+            <div class="audio-slider-row">
+              <span>BGM (Nhạc nền)</span>
+              <input type="range" id="slider-bgm" min="0" max="1" step="0.05" value="1.0" />
+            </div>
+            <div class="audio-slider-row">
+              <span>SFX (Hiệu ứng)</span>
+              <input type="range" id="slider-sfx" min="0" max="1" step="0.05" value="1.0" />
+            </div>
+            <div style="margin-top: 16px; text-align: center;">
+              <button class="wf-btn" id="btn-mute-toggle" style="width: 100%;">[ Mute / Tắt tiếng: TẮT ]</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODAL DEBUG INSPECTOR -->
+      <div id="modal-debug" class="wf-modal-backdrop hidden">
+        <div class="wf-modal">
+          <div class="wf-modal-header">
+            <div class="wf-modal-title">[ DEBUG INSPECTOR - TRẠNG THÁI MÁY ẢO VM ]</div>
+            <button class="wf-btn" id="btn-close-debug">[Đóng ✕]</button>
+          </div>
+          <div class="wf-modal-body">
+            <div class="debug-section-title">1. Thông tin vị trí thực thi</div>
+            <table class="debug-table">
+              <tr><th>Trường</th><th>Giá trị</th></tr>
+              <tr><td>Current Scene</td><td id="debug-scene">-</td></tr>
+              <tr><td>Instruction Pointer (IP)</td><td id="debug-ip">-</td></tr>
+              <tr><td>Call Stack Depth</td><td id="debug-callstack">-</td></tr>
+            </table>
+
+            <div class="debug-section-title">2. Bảng biến số (Variables)</div>
+            <table class="debug-table">
+              <thead><tr><th>Tên biến</th><th>Giá trị hiện tại</th><th>Kiểu</th></tr></thead>
+              <tbody id="debug-variables-body"></tbody>
+            </table>
+
+            <div class="debug-section-title">3. Kênh âm thanh đang mở</div>
+            <table class="debug-table">
+              <thead><tr><th>Kênh</th><th>Asset ID</th><th>Volume</th><th>Loop</th><th>Đang phát</th></tr></thead>
+              <tbody id="debug-audio-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "moduleResolution": "Bundler",
+    "noEmit": true
+  },
+  "include": ["src/**/*"],
+  "references": [
+    { "path": "../../packages/shared-types" },
+    { "path": "../../packages/dsl-compiler" },
+    { "path": "../../packages/core-vm" },
+    { "path": "../../packages/renderer" },
+    { "path": "../../packages/audio" }
+  ]
+}

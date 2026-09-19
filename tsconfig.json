@@ -7,6 +7,8 @@
   "references": [
     { "path": "./packages/shared-types" },
     { "path": "./packages/dsl-compiler" },
-    { "path": "./packages/core-vm" }
+    { "path": "./packages/core-vm" },
+    { "path": "./packages/audio" },
+    { "path": "./packages/renderer" }
   ]
 }

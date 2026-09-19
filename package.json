@@ -11,7 +11,8 @@
     "format": "prettier --write \"**/*.{ts,tsx,json,md,yml,yaml}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,json,md,yml,yaml}\"",
     "test": "pnpm -r run test",
-    "test:smoke": "vitest run packages/core-vm/tests/smoke.test.ts"
+    "test:smoke": "vitest run packages/core-vm/tests/smoke.test.ts",
+    "dev:player": "pnpm --filter @vn-engine/runtime-player dev"
   },
   "devDependencies": {
     "@types/node": "^26.6.1",
