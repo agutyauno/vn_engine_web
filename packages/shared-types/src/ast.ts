@@ -62,6 +62,7 @@ export type StatementAST =
   | GotoStatement
   | CallStatement
   | ReturnStatement
+  | EndStatement
   | IfStatement
   | WhileStatement
   | VarAssignStatement
@@ -142,6 +143,10 @@ export interface CallStatement extends BaseASTNode {
 
 export interface ReturnStatement extends BaseASTNode {
   type: 'ReturnStatement';
+}
+
+export interface EndStatement extends BaseASTNode {
+  type: 'EndStatement';
 }
 
 export interface IfStatement extends BaseASTNode {

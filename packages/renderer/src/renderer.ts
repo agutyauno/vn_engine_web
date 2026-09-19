@@ -35,8 +35,8 @@ export class GameRenderer {
   private isInitialized = false;
 
   constructor(options?: RendererOptions) {
-    this.baseWidth = options?.width ?? 1280;
-    this.baseHeight = options?.height ?? 720;
+    this.baseWidth = options?.width ?? 1920;
+    this.baseHeight = options?.height ?? 1080;
 
     this.app = new Application();
     this.backgroundContainer = new Container();

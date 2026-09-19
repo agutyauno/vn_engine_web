@@ -52,6 +52,7 @@ export const Choice = createToken({ name: 'Choice', pattern: /\bchoice\b/ });
 export const Goto = createToken({ name: 'Goto', pattern: /\bgoto\b/ });
 export const Call = createToken({ name: 'Call', pattern: /\bcall\b/ });
 export const Return = createToken({ name: 'Return', pattern: /\breturn\b/ });
+export const End = createToken({ name: 'End', pattern: /\bend\b/ });
 export const If = createToken({ name: 'If', pattern: /\bif\b/ });
 export const Else = createToken({ name: 'Else', pattern: /\belse\b/ });
 export const While = createToken({ name: 'While', pattern: /\bwhile\b/ });
@@ -132,6 +133,7 @@ export const allTokens: TokenType[] = [
   Goto,
   Call,
   Return,
+  End,
   If,
   Else,
   While,

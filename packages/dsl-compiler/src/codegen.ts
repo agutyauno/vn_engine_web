@@ -18,6 +18,7 @@ import type {
   GotoStatement,
   CallStatement,
   ReturnStatement,
+  EndStatement,
   WhileStatement,
   IfStatement,
   VarAssignStatement,
@@ -51,6 +52,13 @@ export class CodeGenerator {
     for (const stmt of scene.body) {
       this.generateStatement(scene.name, stmt);
     }
+
+    // Cọc mốc kết thúc Scene phục vụ tự động return an toàn nếu được gọi qua call
+    this.instructions.push({
+      type: 'SCENE_END',
+      sceneName: scene.name,
+      loc: scene.loc,
+    });
   }
 
   private generateStatement(sceneName: string, stmt: StatementAST) {
@@ -164,6 +172,15 @@ export class CodeGenerator {
         this.instructions.push({
           type: 'RETURN',
           loc: ret.loc,
+        });
+        break;
+      }
+
+      case 'EndStatement': {
+        const e = stmt as EndStatement;
+        this.instructions.push({
+          type: 'HALT',
+          loc: e.loc,
         });
         break;
       }

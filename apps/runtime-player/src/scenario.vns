@@ -1,0 +1,301 @@
+# ==============================================================
+# KỊCH BẢN MẪU: BÍ ẨN PHÒNG HỘI HỌC SINH (THE AFTER-SCHOOL MYSTERY)
+# Thể loại: Trinh thám học đường / Điều tra suy luận
+# Trình diễn đầy đủ:
+# - Sub-scenes cục bộ & điều hướng (local labels)
+# - Call stack subroutines (call & return)
+# - Vòng lặp điều kiện (while) & điều kiện đa tầng (if / else if / else)
+# - Toán tử logic (!, &&, ||) và toán học (+, -, *, /)
+# - Danh tính ẩn danh & Lộ diện tên nhân vật (reveal as)
+# - Lựa chọn rẽ nhánh có điều kiện (conditional choices)
+# - Đổi cảnh nền, hiển thị nhiều nhân vật, chuyển kênh âm thanh
+# - Nhiều nhánh kết thúc (True, Normal, Bad, Coward Endings)
+# ==============================================================
+
+# --------------------------------------------------------------
+# MÀN 1: MỞ ĐẦU HOÀNG HÔN TẠI HÀNH LANG
+# --------------------------------------------------------------
+scene prologue ui: "default" {
+    background bg_corridor transition: "fade"
+    play music "bgm_mystery" volume: 0.6 loop: true fade_in: 1.0s
+    play sound "sfx_door_creak" volume: 0.8
+
+    narrator: "17 giờ 30 phút chiều. Ánh hoàng hôn đỏ quạch trải dài trên nền gạch vắng lặng của dãy hành lang tầng 3."
+    "Mọi học sinh đã ra về từ lâu. Chỉ còn tiếng quạt thông gió rít từng hồi khô khốc."
+    "Trước mắt bạn, cánh cửa phòng Hội học sinh — nơi luôn khóa trái nghiêm ngặt — đang hé mở một khe hẹp bất thường."
+
+    show alice.serious(position: "left", duration: 0.4s)
+    alice as "???": "Này! Cậu đang làm gì thập thò trước cửa phòng Hội học sinh vậy?"
+
+    choice {
+        "Tôi thấy cửa mở nên tò mò nhìn thử": goto .explain_curious
+        "Tôi chỉ đi ngang qua trên đường về thôi": goto .explain_passby
+        "(Im lặng lùi lại và chuẩn bị bỏ chạy)": goto .run_away
+    }
+
+    scene .explain_curious {
+        alice as "???": "Cửa mở sao? Lạ thật... Chiều nay anh Hội trưởng nói đích thân anh ấy sẽ khóa cửa cơ mà."
+        ~ trust_score = 15
+        goto .meet_alice
+    }
+
+    scene .explain_passby {
+        alice as "???": "Giờ này mà vẫn còn nán lại trường sao? Cậu đáng ngờ lắm đấy."
+        ~ trust_score = 5
+        goto .meet_alice
+    }
+
+    scene .run_away {
+        alice as "???": "Đứng lại! Đừng có chạy!"
+        ~ trust_score = 0
+        goto coward_ending
+    }
+
+    scene .meet_alice {
+        reveal alice as "Alice - Hội Phó"
+        show alice.smile(position: "left")
+
+        alice: "Tôi là Alice, Hội phó phụ trách kỷ luật. Nếu cửa đã mở, chúng ta phải vào kiểm tra xem có ai đột nhập không."
+        alice: "Cậu có dám vào trong cùng tôi một lát không?"
+
+        choice {
+            "Được thôi, tôi sẽ giúp cậu kiểm tra": goto chapter1_investigation
+            "Thôi, việc này nguy hiểm lắm, tôi về trước đây": goto coward_ending
+        }
+    }
+}
+
+# --------------------------------------------------------------
+# MÀN 2: BƯỚC VÀO CĂN PHÒNG & KHỞI ĐỘNG ĐIỀU TRA
+# --------------------------------------------------------------
+scene chapter1_investigation {
+    background bg_classroom transition: "fade"
+    stop music fade_out: 1.0s
+    play music "bgm_school" volume: 0.7 loop: true
+
+    alice: "Xem kìa... Tài liệu trên bàn làm việc bị xáo trộn lung tung cả lên!"
+
+    # Nhân vật thứ hai xuất hiện trong hồi tưởng
+    show bob.serious(position: "right", duration: 0.5s)
+    bob: "Alice, hôm nay tài liệu kết quả bầu cử Hội học sinh đang được niêm phong trong phòng đấy. Tuyệt đối không để ai xem trước."
+    hide bob
+
+    show alice.serious(position: "left")
+    alice: "Két sắt đựng phong bì kết quả bầu cử có dấu hiệu bị cạy khóa!"
+    alice: "Chúng ta cần tìm ít nhất 3 manh mối để xác định xem ai là kẻ đã lén vào đây trước khi bác bảo vệ đi tuần."
+
+    # Khởi tạo các biến số điều tra & năng lượng
+    ~ clues_count = 0
+    ~ energy = 100
+    ~ has_flashlight = false
+    ~ found_diary = false
+    ~ found_footprint = false
+    ~ found_key = false
+
+    # Vòng lặp điều tra: lặp lại cho đến khi đủ 3 manh mối hoặc cạn kiệt thể lực
+    while clues_count < 3 && energy > 0 {
+        call .investigate_turn
+    }
+
+    # Đánh giá sau vòng lặp điều tra
+    if clues_count >= 3 {
+        goto chapter2_confrontation
+    } else {
+        goto exhausted_bad_ending
+    }
+
+    # ----------------------------------------------------------
+    # SUBROUTINE ĐIỀU TRA (GỌI BẰNG CALL & RETURN)
+    # ----------------------------------------------------------
+    scene .investigate_turn {
+        alice: "Cậu muốn chúng ta bắt đầu kiểm tra từ khu vực nào trước?"
+
+        choice {
+            if !found_diary {
+                "Lục soát giá sách và tập hồ sơ lưu trữ": goto .search_bookshelf
+            }
+            if !has_flashlight {
+                "Kiểm tra ngăn bàn giáo viên ở bục giảng": goto .search_desk
+            }
+            if !found_footprint {
+                "Kiểm tra dấu vết gần bệ cửa sổ thông gió": goto .search_window
+            }
+            if has_flashlight && !found_key {
+                "Dùng đèn pin soi vào khe hẹp dưới chân tủ sắt": goto .search_safe
+            }
+            "Tạm dừng nghỉ ngơi 5 phút để lấy lại sức (+25 Thể lực)": goto .take_rest
+        }
+    }
+
+    scene .search_bookshelf {
+        "Bạn cẩn thận lật từng gáy sách dày cộp bám bụi..."
+        play sound "sfx_bell" volume: 0.7
+        show alice.surprised(position: "left")
+        alice: "Nhìn này! Một cuốn nhật ký kẹp giữa đống sổ họp cũ. Có một trang bị xé dở ghi ngày hôm nay!"
+        ~ found_diary = true
+        ~ clues_count = clues_count + 1
+        ~ energy = energy - 20
+        ~ trust_score = trust_score + 10
+        return
+    }
+
+    scene .search_desk {
+        "Bạn cúi xuống mở ngăn kéo bàn giáo viên..."
+        play sound "sfx_door_creak" volume: 0.6
+        "Ngăn kéo không có tài liệu, nhưng bạn tìm thấy một chiếc đèn pin nhỏ vẫn còn pin!"
+        ~ has_flashlight = true
+        ~ energy = energy - 15
+        alice: "Chiếc đèn pin này sẽ giúp chúng ta soi được những góc tối hẹp đấy!"
+        return
+    }
+
+    scene .search_window {
+        "Bạn bước lại gần khung cửa sổ mở hé nhìn ra sân trường..."
+        show alice.serious(position: "left")
+        alice: "Cậu tinh ý thật! Nhìn lớp bụi trên bệ cửa kìa — có dấu giày thể thao dính bùn đất còn rất mới!"
+        ~ found_footprint = true
+        ~ clues_count = clues_count + 1
+        ~ energy = energy - 20
+        ~ trust_score = trust_score + 10
+        return
+    }
+
+    scene .search_safe {
+        "Bạn bật đèn pin rọi vào gầm tủ sắt bám mạng nhện..."
+        play sound "sfx_bell" volume: 0.9
+        show alice.happy(position: "center")
+        alice: "Trời ơi! Có một chiếc chìa khóa tủ dự phòng bị ai đó đánh rơi ở đây!"
+        ~ found_key = true
+        ~ clues_count = clues_count + 1
+        ~ energy = energy - 20
+        ~ trust_score = trust_score + 20
+        return
+    }
+
+    scene .take_rest {
+        "Bạn và Alice ngồi tựa vào mép bàn, uống ngụm nước để lấy lại bình tĩnh."
+        show alice.smile(position: "left")
+        alice: "Đừng quá căng thẳng nhé, chúng ta nhất định sẽ tìm ra chân tướng."
+        ~ energy = energy + 25
+        if energy > 100 {
+            ~ energy = 100
+        }
+        return
+    }
+}
+
+# --------------------------------------------------------------
+# MÀN 3: ĐỐI CHẤT & KẾT LUẬN SỰ VIỆC
+# --------------------------------------------------------------
+scene chapter2_confrontation {
+    background bg_courtyard transition: "fade"
+    play music "bgm_evening" volume: 0.8 loop: true
+
+    show alice.happy(position: "left")
+    alice: "Tuyệt vời! Chúng ta đã thu thập đủ cả 3 manh mối quan trọng:"
+    alice: "Trang nhật ký xé dở, vết giày thể thao dính bùn, và chiếc chìa khóa dự phòng!"
+
+    # Nhân vật Bob bất ngờ xuất hiện tại sân trường
+    show bob.serious(position: "right", duration: 0.5s)
+    bob: "Hai người các cậu... giờ này sao vẫn còn ở trong khu vực văn phòng Hội học sinh?"
+
+    show alice.surprised(position: "left")
+    alice: "Anh Bob... đôi giày thể thao của anh... sao mũi giày lại dính bùn đất giống hệt vết ở bệ cửa sổ?"
+
+    choice {
+        if trust_score >= 35 {
+            "Thẳng thắn đối chất: Bob chính là người tự dàn cảnh cạy tủ!": goto .accuse_bob
+        }
+        "Bình tĩnh hỏi lý do anh Bob quay lại trường lúc này": goto .calm_question
+        "Sợ hãi im lặng và giấu hết các manh mối vừa tìm được": goto .keep_silent
+    }
+
+    scene .accuse_bob {
+        bob: "Hả?! Các cậu dám nghi ngờ tôi ư... Khoan đã..."
+        show bob.angry(position: "right")
+        bob: "Được rồi... Tôi thừa nhận. Chiều nay tôi làm rơi chìa khóa két sắt khi trèo cửa sổ lấy quả bóng bị kẹt."
+        bob: "Tôi sợ mọi người chê trách mình vô trách nhiệm nên mới giả vờ là có kẻ đột nhập để trì hoãn."
+        show alice.smile(position: "left")
+        alice: "Thật là... anh làm chúng em hết hồn! May mà có bạn học sinh mới này hỗ trợ điều tra."
+        goto true_ending
+    }
+
+    scene .calm_question {
+        bob: "Thật ra... tôi quay lại để tìm chiếc chìa khóa dự phòng bị rơi lúc chiều."
+        show alice.smile(position: "left")
+        alice: "Chiếc chìa khóa này đúng không anh? Bọn em đã tìm thấy nó dưới gầm tủ rồi!"
+        show bob.smile(position: "right")
+        bob: "Cảm ơn hai cậu rất nhiều! Các cậu đã cứu tôi một bàn thua trông thấy."
+        goto normal_ending
+    }
+
+    scene .keep_silent {
+        bob: "Hai cậu ở lại muộn lại còn lén lút trong phòng Hội. Ngày mai lên phòng giám thị gặp tôi!"
+        goto bad_ending_caught
+    }
+}
+
+# --------------------------------------------------------------
+# CÁC KẾT THÚC (ENDINGS)
+# --------------------------------------------------------------
+scene true_ending {
+    background bg_courtyard transition: "fade"
+    stop music fade_out: 2.0s
+    play music "bgm_peaceful" volume: 0.7 loop: true
+
+    show alice.happy(position: "center")
+    show bob.smile(position: "right")
+    alice: "Cảm ơn cậu rất nhiều! Nhờ sự nhạy bén và dũng cảm của cậu, mọi hiểu lầm đã được giải tỏa hoàn toàn."
+    bob: "Hội học sinh rất cần những người nhiệt huyết như cậu. Cậu có muốn ứng cử vào ban điều tra của trường không?"
+
+    narrator: "Hoàng hôn buông xuống, ánh đèn đường bật sáng ấm áp."
+    narrator: "Ngày đầu tiên ở ngôi trường mới đã khép lại bằng một cuộc phiêu lưu đáng nhớ và một tình bạn đẹp."
+    narrator: "═══════════════════════════════════════════════════"
+    narrator: "          ★ KẾT THÚC HOÀN HẢO (TRUE ENDING) ★        "
+    narrator: "═══════════════════════════════════════════════════"
+    end
+}
+
+scene normal_ending {
+    stop music fade_out: 1.5s
+    show alice.smile(position: "center")
+    alice: "Mọi chuyện đã được giải quyết êm đẹp. Chúng ta về thôi kẻo muộn!"
+    narrator: "Bạn và Alice cùng nhau rảo bước ra về dưới bóng chiều tà."
+    narrator: "═══════════════════════════════════════════════════"
+    narrator: "          ◆ KẾT THÚC TỐT ĐẸP (NORMAL ENDING) ◆       "
+    narrator: "═══════════════════════════════════════════════════"
+    end
+}
+
+scene bad_ending_caught {
+    stop music fade_out: 1.0s
+    show bob.angry(position: "center")
+    narrator: "Sự im lặng và thiếu tự tin đã khiến bạn bị hiểu nhầm là kẻ có ý đồ xấu."
+    narrator: "Hình phạt: Trực nhật và dọn thư viện trường suốt một tháng!"
+    narrator: "═══════════════════════════════════════════════════"
+    narrator: "          ✖ KẾT THÚC TỆ: BỊ PHẠT TRỰC NHẬT ✖         "
+    narrator: "═══════════════════════════════════════════════════"
+    end
+}
+
+scene exhausted_bad_ending {
+    stop music fade_out: 1.0s
+    show alice.serious(position: "left")
+    "Thể lực của bạn đã giảm về 0%! Bạn ngã quỵ xuống sàn vì kiệt sức..."
+    alice: "Cậu không sao chứ?! Trời ơi, tiếng động lớn quá, bác bảo vệ đang đi lên cầu thang rồi!"
+    narrator: "Hai người bị bảo vệ lập biên bản vì ở lại trường quá giờ quy định."
+    narrator: "═══════════════════════════════════════════════════"
+    narrator: "          ✖ KẾT THÚC TỆ: KIỆT SỨC TRONG ĐÊM ✖        "
+    narrator: "═══════════════════════════════════════════════════"
+    end
+}
+
+scene coward_ending {
+    stop music fade_out: 1.0s
+    narrator: "Bạn quyết định quay lưng bỏ về nhà, không muốn dính líu vào rắc rối."
+    narrator: "Sáng hôm sau, tin tức về vụ cậy khóa phòng Hội học sinh lan truyền khắp trường, nhưng bạn sẽ không bao giờ biết được chân tướng thực sự..."
+    narrator: "═══════════════════════════════════════════════════"
+    narrator: "          ― KẾT THÚC BỎ CUỘC (COWARD ENDING) ―       "
+    narrator: "═══════════════════════════════════════════════════"
+    end
+}

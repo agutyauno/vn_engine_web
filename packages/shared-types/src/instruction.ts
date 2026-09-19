@@ -95,6 +95,15 @@ export interface ReturnInstruction extends BaseInstruction {
   type: 'RETURN';
 }
 
+export interface HaltInstruction extends BaseInstruction {
+  type: 'HALT';
+}
+
+export interface SceneEndInstruction extends BaseInstruction {
+  type: 'SCENE_END';
+  sceneName: string;
+}
+
 export interface AssignInstruction extends BaseInstruction {
   type: 'ASSIGN';
   variable: string;
@@ -131,6 +140,8 @@ export type Instruction =
   | LoopEndInstruction
   | CallInstruction
   | ReturnInstruction
+  | HaltInstruction
+  | SceneEndInstruction
   | AssignInstruction
   | RunScriptInstruction
   | SpawnScriptInstruction

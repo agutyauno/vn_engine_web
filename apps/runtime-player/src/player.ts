@@ -65,8 +65,12 @@ export class VNPlayer {
   private currentDialogueInstruction: DialogueInstruction | null = null;
 
   constructor(program: Instruction[]) {
-    this.vm = new VisualNovelVM(program);
-    this.renderer = new GameRenderer({ width: 1280, height: 720 });
+    this.vm = new VisualNovelVM(program, undefined, {
+      customFunctions: {
+        has_item: (item: unknown) => item === 'flower',
+      },
+    });
+    this.renderer = new GameRenderer({ width: 1920, height: 1080 });
     this.audio = new AudioManager();
 
     // Lấy các phần tử DOM

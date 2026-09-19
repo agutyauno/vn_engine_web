@@ -238,6 +238,30 @@ export class VisualNovelVM {
         return { type: 'SIDE_EFFECT', instruction: instr };
       }
 
+      case 'HALT': {
+        if (this.state.callStack.length > 0) {
+          console.warn(
+            `[VN Engine Warning] Kịch bản thực thi 'end' khi call stack vẫn còn phần tử (${this.state.callStack.length} frame). Trò chơi kết thúc ngay lập tức.`
+          );
+        }
+        this.state.instructionPointer = this.program.length;
+        return { type: 'HALTED' };
+      }
+
+      case 'SCENE_END': {
+        if (this.state.callStack.length > 0) {
+          console.warn(
+            `[VN Engine Warning] Scene '${instr.sceneName}' kết thúc mà không có lệnh 'return'. Đã tự động return về caller.`
+          );
+          const frame = this.state.callStack.pop()!;
+          this.state.currentScene = frame.scene;
+          this.state.instructionPointer = frame.ip;
+        } else {
+          this.state.instructionPointer++;
+        }
+        return { type: 'SIDE_EFFECT', instruction: instr };
+      }
+
       case 'CHOICE': {
         // Tạm dừng máy ảo tại hộp thoại lựa chọn, không tự động tăng instructionPointer
         return {

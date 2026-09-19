@@ -17,6 +17,7 @@ import {
   Goto,
   Call,
   Return,
+  End,
   If,
   Else,
   While,
@@ -109,6 +110,7 @@ export class VNSParser extends CstParser {
       { ALT: () => this.SUBRULE(this.gotoStatement) },
       { ALT: () => this.SUBRULE(this.callStatement) },
       { ALT: () => this.SUBRULE(this.returnStatement) },
+      { ALT: () => this.SUBRULE(this.endStatement) },
       { ALT: () => this.SUBRULE(this.whileStatement) },
       { ALT: () => this.SUBRULE(this.ifStatement) },
       { ALT: () => this.SUBRULE(this.varAssignStatement) },
@@ -289,6 +291,10 @@ export class VNSParser extends CstParser {
     this.CONSUME(Return);
   });
 
+  public endStatement = this.RULE('endStatement', () => {
+    this.CONSUME(End);
+  });
+
   public choiceStatement = this.RULE('choiceStatement', () => {
     this.CONSUME(Choice);
     this.OPTION(() => {
@@ -375,10 +381,83 @@ export class VNSParser extends CstParser {
     this.SUBRULE(this.expressionSequence, { LABEL: 'value' });
   });
 
+  private canContinueExpression(): boolean {
+    const nextTok = this.LA(1);
+    const prevTok = this.LA(0);
+
+    // 1. Dialogue statement với tên nhân vật: `alice:` hoặc `alice as "...":`
+    if (nextTok.tokenType === Identifier) {
+      const nextNextTok = this.LA(2);
+      if (nextNextTok.tokenType === Colon || nextNextTok.tokenType === As) {
+        return false;
+      }
+    }
+
+    // 2. Từ khóa bắt đầu statement mới hoặc đóng/mở block
+    const nextType = nextTok.tokenType;
+    if (
+      nextType === Scene ||
+      nextType === Reveal ||
+      nextType === Background ||
+      nextType === Show ||
+      nextType === Hide ||
+      nextType === Play ||
+      nextType === Stop ||
+      nextType === Choice ||
+      nextType === Goto ||
+      nextType === Call ||
+      nextType === Return ||
+      nextType === While ||
+      nextType === If ||
+      nextType === Tilde ||
+      nextType === RCurly ||
+      nextType === LCurly
+    ) {
+      return false;
+    }
+
+    // 3. Ranh giới toán hạng (operand boundary) và câu thoại ẩn danh:
+    // Trong cú pháp biểu thức hợp lệ, một toán hạng không thể đi liền ngay sau một toán hạng khác mà không có toán tử.
+    if (prevTok) {
+      const isPrevOperand =
+        prevTok.tokenType === Identifier ||
+        prevTok.tokenType === DotIdentifier ||
+        prevTok.tokenType === NumberLiteral ||
+        prevTok.tokenType === StringLiteral ||
+        prevTok.tokenType === DurationLiteral ||
+        prevTok.tokenType === True ||
+        prevTok.tokenType === False ||
+        prevTok.tokenType === RParen;
+
+      if (isPrevOperand) {
+        // StringLiteral đứng sau một toán hạng là câu thoại ẩn danh (hoặc cú pháp không hợp lệ)
+        if (nextType === StringLiteral) {
+          return false;
+        }
+
+        // Identifier đứng sau một toán hạng trên một dòng mới (không phải gọi hàm func(...))
+        if (nextType === Identifier && this.LA(2).tokenType !== LParen) {
+          if (
+            nextTok.startLine !== undefined &&
+            prevTok.startLine !== undefined &&
+            nextTok.startLine > prevTok.startLine
+          ) {
+            return false;
+          }
+        }
+      }
+    }
+
+    return true;
+  }
+
   // Gom các token của biểu thức để đưa sang jsep xử lý (Stage 3)
   public expressionSequence = this.RULE('expressionSequence', () => {
-    this.AT_LEAST_ONE(() => {
-      this.SUBRULE(this.expressionToken);
+    this.AT_LEAST_ONE({
+      GATE: () => this.canContinueExpression(),
+      DEF: () => {
+        this.SUBRULE(this.expressionToken);
+      },
     });
   });
 

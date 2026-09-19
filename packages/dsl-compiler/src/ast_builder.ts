@@ -20,6 +20,7 @@ import type {
   GotoStatement,
   CallStatement,
   ReturnStatement,
+  EndStatement,
   WhileStatement,
   IfStatement,
   VarAssignStatement,
@@ -146,6 +147,7 @@ export class VNSAstBuilder extends BaseVNSVisitor {
     if (ctx.gotoStatement) return this.visit(ctx.gotoStatement[0]);
     if (ctx.callStatement) return this.visit(ctx.callStatement[0]);
     if (ctx.returnStatement) return this.visit(ctx.returnStatement[0]);
+    if (ctx.endStatement) return this.visit(ctx.endStatement[0]);
     if (ctx.whileStatement) return this.visit(ctx.whileStatement[0]);
     if (ctx.ifStatement) return this.visit(ctx.ifStatement[0]);
     if (ctx.varAssignStatement) return this.visit(ctx.varAssignStatement[0]);
@@ -347,6 +349,13 @@ export class VNSAstBuilder extends BaseVNSVisitor {
     return {
       type: 'ReturnStatement',
       loc: extractLocation(ctx.Return[0], this.currentFileId),
+    };
+  }
+
+  endStatement(ctx: any): EndStatement {
+    return {
+      type: 'EndStatement',
+      loc: extractLocation(ctx.End[0], this.currentFileId),
     };
   }
 

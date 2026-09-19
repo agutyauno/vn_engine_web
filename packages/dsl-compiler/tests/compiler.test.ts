@@ -107,9 +107,24 @@ describe('DSL Compiler Core (5-Stage Pipeline)', () => {
 
     const result = compileString(dsl);
     expect(result.success).toBe(true);
-    expect(result.program).toHaveLength(2);
+    expect(result.program).toHaveLength(4);
     expect(result.program![0]?.type).toBe('SCENE');
-    expect(result.program![1]?.type).toBe('SCENE');
+    expect(result.program![1]?.type).toBe('SCENE_END');
+    expect(result.program![2]?.type).toBe('SCENE');
+    expect(result.program![3]?.type).toBe('SCENE_END');
+  });
+
+  it('should compile end statement into HALT instruction', () => {
+    const dsl = `
+      scene game_over {
+        "Hạ màn."
+        end
+      }
+    `;
+    const result = compileString(dsl);
+    expect(result.success).toBe(true);
+    const haltInstr = result.program?.find(i => i.type === 'HALT');
+    expect(haltInstr).toBeDefined();
   });
 
   it('should compile show, hide, stop with full arguments and transitions', () => {
@@ -199,4 +214,39 @@ describe('DSL Compiler Core (5-Stage Pipeline)', () => {
     const condGotos = result.program!.filter(i => i.type === 'CONDITIONAL_GOTO');
     expect(condGotos.length).toBeGreaterThanOrEqual(1);
   });
+
+  it('should compile variable assignment immediately followed by character dialogue', () => {
+    const dsl = `
+      scene test_order {
+        ~ energy = energy - 15
+        alice: "Chiếc đèn pin này sẽ giúp chúng ta soi được những góc tối hẹp đấy!"
+      }
+    `;
+    const result = compileString(dsl);
+    expect(result.success).toBe(true);
+  });
+
+  it('should compile variable assignment immediately followed by anonymous dialogue', () => {
+    const dsl = `
+      scene test_order {
+        ~ energy = energy - 15
+        "Tiếng bước chân lại gần..."
+      }
+    `;
+    const result = compileString(dsl);
+    expect(result.success).toBe(true);
+  });
+
+  it('should compile scenario.vns successfully without syntax or semantic errors', () => {
+    const scenarioPath = path.resolve(__dirname, '../../../apps/runtime-player/src/scenario.vns');
+    const content = fs.readFileSync(scenarioPath, 'utf-8');
+    const result = compileString(content, 'scenario.vns');
+    if (!result.success) {
+      console.error('scenario.vns compile errors:', result.errors);
+    }
+    expect(result.success).toBe(true);
+    expect(result.errors).toBeUndefined();
+    expect(result.program!.length).toBeGreaterThan(50);
+  });
 });
+
