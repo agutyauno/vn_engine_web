@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { VisualNovelVM } from '../src/vm';
-import { InstructionBudgetExceededError, InvalidChoiceError } from '../src/errors';
+import {
+  InstructionBudgetExceededError,
+  InvalidChoiceError,
+  EmptyCallStackError,
+  VMRuntimeError,
+} from '../src/errors';
 import type { Instruction, DialogueInstruction, StepResult } from '@vn-engine/shared-types';
 
 function asDialogue(stepResult: StepResult): DialogueInstruction {
@@ -52,11 +57,30 @@ describe('VisualNovelVM Core', () => {
     const diag2 = asDialogue(res2.stepResult);
     expect(diag2.text).toBe('Rất vui được gặp bạn.');
     expect(diag2.displayNameOverride).toBeUndefined();
-    expect(res2.sideEffects).toHaveLength(0); // Không có side-effect nào giữa 2 câu thoại
+    expect(res2.sideEffects).toHaveLength(0);
 
     // Lượt 3: hết chương trình
     const res3 = vm.runUntilInteractive();
     expect(res3.stepResult.type).toBe('HALTED');
+  });
+
+  it('should handle empty programs and programs with only side effects', () => {
+    // 1. Chương trình hoàn toàn rỗng
+    const emptyVM = new VisualNovelVM([]);
+    const emptyRes = emptyVM.runUntilInteractive();
+    expect(emptyRes.stepResult.type).toBe('HALTED');
+
+    // 2. Chương trình chỉ có side-effects (không có thoại hay lựa chọn)
+    const sideEffectProgram: Instruction[] = [
+      { type: 'SCENE', name: 'init_only' },
+      { type: 'BACKGROUND', assetId: 'bg_forest' },
+      { type: 'ASSIGN', variable: 'initialized', value: { type: 'Literal', value: true } },
+    ];
+    const sideEffectVM = new VisualNovelVM(sideEffectProgram);
+    const sideRes = sideEffectVM.runUntilInteractive();
+    expect(sideRes.stepResult.type).toBe('HALTED');
+    expect(sideRes.sideEffects).toHaveLength(3);
+    expect(sideEffectVM.getState().variables['initialized']).toBe(true);
   });
 
   it('should handle REVEAL and update characterDisplayOverrides', () => {
@@ -68,10 +92,10 @@ describe('VisualNovelVM Core', () => {
     ];
 
     const vm = new VisualNovelVM(program);
-    vm.runUntilInteractive(); // Dừng ở câu thoại 1
+    vm.runUntilInteractive();
     expect(vm.getState().characterDisplayOverrides['alice']).toBeUndefined();
 
-    vm.runUntilInteractive(); // Chạy qua REVEAL, dừng ở câu thoại 2
+    vm.runUntilInteractive();
     expect(vm.getState().characterDisplayOverrides['alice']).toBe('Alice');
   });
 
@@ -119,8 +143,9 @@ describe('VisualNovelVM Core', () => {
     expect(vm.getState().variables['counter']).toBe(3);
   });
 
-  it('should abort and throw InstructionBudgetExceededError on infinite loops', () => {
-    const program: Instruction[] = [
+  it('should abort and throw InstructionBudgetExceededError on infinite loops and infinite goto cycles', () => {
+    // 1. While loop vô hạn
+    const whileLoopProgram: Instruction[] = [
       { type: 'SCENE', name: 'infinite_scene' },
       {
         type: 'LOOP_START',
@@ -134,137 +159,208 @@ describe('VisualNovelVM Core', () => {
       { type: 'SCENE', name: 'infinite_scene.end' },
     ];
 
-    const vm = new VisualNovelVM(program, undefined, { maxInstructionBudget: 100 });
-    expect(() => vm.runUntilInteractive()).toThrowError(InstructionBudgetExceededError);
+    const vm1 = new VisualNovelVM(whileLoopProgram, undefined, { maxInstructionBudget: 100 });
+    expect(() => vm1.runUntilInteractive()).toThrowError(InstructionBudgetExceededError);
+
+    // 2. Vòng lặp chuyển scene liên tục (scene A -> goto B -> goto A)
+    const cycleProgram: Instruction[] = [
+      { type: 'SCENE', name: 'scene_a' },
+      { type: 'GOTO', targetScene: 'scene_b' },
+      { type: 'SCENE', name: 'scene_b' },
+      { type: 'GOTO', targetScene: 'scene_a' },
+    ];
+
+    const vm2 = new VisualNovelVM(cycleProgram, undefined, { maxInstructionBudget: 50 });
+    expect(() => vm2.runUntilInteractive()).toThrowError(InstructionBudgetExceededError);
   });
 
-  it('should handle CALL and RETURN with nested callStack', () => {
+  it('should handle CALL and RETURN with nested callStack and throw on empty return', () => {
     const program: Instruction[] = [
       { type: 'SCENE', name: 'main' },
-      { type: 'DIALOGUE', character: null, text: 'Trước khi call.' },
-      { type: 'CALL', targetScene: 'sub_routine' },
-      { type: 'DIALOGUE', character: null, text: 'Sau khi call trở về.' },
-      { type: 'GOTO', targetScene: 'game_end' },
+      { type: 'CALL', targetScene: 'level1' },
+      { type: 'DIALOGUE', character: null, text: 'Trở về main.' },
+      { type: 'RETURN' }, // Gọi RETURN khi callStack đã rỗng -> lỗi
 
-      { type: 'SCENE', name: 'sub_routine' },
-      { type: 'DIALOGUE', character: null, text: 'Bên trong sub_routine.' },
+      { type: 'SCENE', name: 'level1' },
+      { type: 'CALL', targetScene: 'level2' },
       { type: 'RETURN' },
 
-      { type: 'SCENE', name: 'game_end' },
+      { type: 'SCENE', name: 'level2' },
+      { type: 'DIALOGUE', character: null, text: 'Ở level 2.' },
+      { type: 'RETURN' },
     ];
 
     const vm = new VisualNovelVM(program);
 
+    // Đi sâu qua 2 cấp: main -> level1 -> level2
     const r1 = vm.runUntilInteractive();
-    expect(asDialogue(r1.stepResult).text).toBe('Trước khi call.');
+    expect(asDialogue(r1.stepResult).text).toBe('Ở level 2.');
+    expect(vm.getState().callStack).toHaveLength(2);
 
+    // Return từ level 2 về level 1, return tiếp về main
     const r2 = vm.runUntilInteractive();
-    expect(asDialogue(r2.stepResult).text).toBe('Bên trong sub_routine.');
-    expect(vm.getState().callStack).toHaveLength(1);
-
-    const r3 = vm.runUntilInteractive();
-    expect(asDialogue(r3.stepResult).text).toBe('Sau khi call trở về.');
+    expect(asDialogue(r2.stepResult).text).toBe('Trở về main.');
     expect(vm.getState().callStack).toHaveLength(0);
+
+    // Return khi callStack rỗng
+    expect(() => vm.runUntilInteractive()).toThrowError(EmptyCallStackError);
   });
 
-  it('should suspend at CHOICE and jump upon choose()', () => {
+  it('should validate choices, conditions, and error on out-of-bounds or inactive choice calls', () => {
     const program: Instruction[] = [
       { type: 'SCENE', name: 'choice_scene' },
       {
         type: 'CHOICE',
         choices: [
           {
-            text: 'Tặng hoa',
-            targetScene: 'flower_branch',
+            text: 'Cần chìa khóa',
+            targetScene: 'key_branch',
+            condition: { type: 'Identifier', name: 'hasKey' },
+          },
+          {
+            text: 'Cần 100 vàng',
+            targetScene: 'gold_branch',
             condition: {
-              type: 'CallExpression',
-              callee: { type: 'Identifier', name: 'has_item' },
-              arguments: [{ type: 'Literal', value: 'flower' }],
+              type: 'BinaryExpression',
+              operator: '>=',
+              left: { type: 'Identifier', name: 'gold' },
+              right: { type: 'Literal', value: 100 },
             },
           },
-          { text: 'Bỏ đi', targetScene: 'leave_branch' },
         ],
       },
-      { type: 'SCENE', name: 'flower_branch' },
-      { type: 'DIALOGUE', character: 'alice', text: 'Cảm ơn hoa của bạn!' },
-      { type: 'GOTO', targetScene: 'choice_end' },
-
-      { type: 'SCENE', name: 'leave_branch' },
-      { type: 'DIALOGUE', character: 'alice', text: 'Tạm biệt...' },
-
-      { type: 'SCENE', name: 'choice_end' },
+      { type: 'SCENE', name: 'key_branch' },
+      { type: 'DIALOGUE', character: null, text: 'Dùng chìa khóa.' },
+      { type: 'SCENE', name: 'gold_branch' },
+      { type: 'DIALOGUE', character: null, text: 'Dùng vàng.' },
     ];
 
-    // Khởi tạo VM không có hoa -> lựa chọn 0 bị khóa
-    const vmWithoutFlower = new VisualNovelVM(program);
-    const suspendRes = vmWithoutFlower.runUntilInteractive();
+    // VM không thỏa mãn bất kỳ điều kiện nào (hasKey=false, gold=50)
+    const vm = new VisualNovelVM(program, undefined, {
+      initialVariables: { hasKey: false, gold: 50 },
+    });
+
+    const suspendRes = vm.runUntilInteractive();
     expect(suspendRes.stepResult.type).toBe('SUSPEND_CHOICE');
 
-    const choicesInfo = vmWithoutFlower.getAvailableChoices();
-    expect(choicesInfo[0]?.enabled).toBe(false);
-    expect(choicesInfo[1]?.enabled).toBe(true);
+    const choices = vm.getAvailableChoices();
+    expect(choices[0]?.enabled).toBe(false);
+    expect(choices[1]?.enabled).toBe(false);
 
-    // Cố chọn lựa chọn bị khóa -> ném InvalidChoiceError
-    expect(() => vmWithoutFlower.choose(0)).toThrowError(InvalidChoiceError);
+    // Cố chọn lựa chọn bị khóa
+    expect(() => vm.choose(0)).toThrowError(InvalidChoiceError);
 
-    // Chọn lựa chọn 1 hợp lệ
-    vmWithoutFlower.choose(1);
-    const leaveRes = vmWithoutFlower.runUntilInteractive();
-    expect(asDialogue(leaveRes.stepResult).text).toBe('Tạm biệt...');
+    // Cố chọn chỉ mục ngoài phạm vi
+    expect(() => vm.choose(-1)).toThrowError(InvalidChoiceError);
+    expect(() => vm.choose(99)).toThrowError(InvalidChoiceError);
 
-    // Khởi tạo VM CÓ HOA qua customFunctions
-    const vmWithFlower = new VisualNovelVM(program, undefined, {
-      customFunctions: {
-        has_item: (item: unknown) => item === 'flower',
-      },
+    // Cập nhật biến để thỏa mãn điều kiện và chọn thành công
+    const vm2 = new VisualNovelVM(program, undefined, {
+      initialVariables: { hasKey: true, gold: 50 },
     });
-    vmWithFlower.runUntilInteractive();
-    expect(vmWithFlower.getAvailableChoices()[0]?.enabled).toBe(true);
+    vm2.runUntilInteractive();
+    expect(vm2.getAvailableChoices()[0]?.enabled).toBe(true);
+    vm2.choose(0);
+    const r1 = vm2.runUntilInteractive();
+    expect(asDialogue(r1.stepResult).text).toBe('Dùng chìa khóa.');
 
-    vmWithFlower.choose(0);
-    const flowerRes = vmWithFlower.runUntilInteractive();
-    expect(asDialogue(flowerRes.stepResult).text).toBe('Cảm ơn hoa của bạn!');
+    // Gọi choose() khi VM đang ở DIALOGUE (không phải CHOICE) -> ném InvalidChoiceError
+    expect(() => vm2.choose(0)).toThrowError(InvalidChoiceError);
   });
 
-  it('should support rollback, rollforward, and save/load (serialize/restore)', () => {
+  it('should accurately track visual and audio states via getStateCatchUp() across progress and rollback', () => {
     const program: Instruction[] = [
-      { type: 'SCENE', name: 'story' },
-      { type: 'ASSIGN', variable: 'points', value: { type: 'Literal', value: 10 } },
-      { type: 'DIALOGUE', character: null, text: 'Câu thoại 1.' },
-      { type: 'ASSIGN', variable: 'points', value: { type: 'Literal', value: 20 } },
-      { type: 'DIALOGUE', character: null, text: 'Câu thoại 2.' },
-      { type: 'ASSIGN', variable: 'points', value: { type: 'Literal', value: 30 } },
-      { type: 'DIALOGUE', character: null, text: 'Câu thoại 3.' },
+      { type: 'SCENE', name: 'stage1' },
+      { type: 'BACKGROUND', assetId: 'bg_day' },
+      { type: 'SHOW', character: 'alice', sprite: 'happy', position: 'left' },
+      { type: 'PLAY', channel: 'music', assetId: 'theme.mp3', volume: 1.0 },
+      { type: 'DIALOGUE', character: 'alice', text: 'Chào buổi sáng.' },
+
+      { type: 'SCENE', name: 'stage2' },
+      { type: 'BACKGROUND', assetId: 'bg_night' },
+      { type: 'SHOW', character: 'bob', sprite: 'normal', position: 'right' },
+      { type: 'HIDE', character: 'alice' },
+      { type: 'STOP', channel: 'music' },
+      { type: 'DIALOGUE', character: 'bob', text: 'Chào buổi tối.' },
     ];
 
     const vm = new VisualNovelVM(program);
-    vm.runUntilInteractive(); // Dừng ở câu 1, points = 10
-    vm.runUntilInteractive(); // Dừng ở câu 2, points = 20
-    vm.runUntilInteractive(); // Dừng ở câu 3, points = 30
-    expect(vm.getState().variables['points']).toBe(30);
 
-    // 1. Kiểm tra Rollback
+    // Điểm dừng 1: Stage 1
+    vm.runUntilInteractive();
+    const catchUp1 = vm.getStateCatchUp();
+    expect(catchUp1.background?.assetId).toBe('bg_day');
+    expect(catchUp1.sprites.has('alice')).toBe(true);
+    expect(catchUp1.sprites.has('bob')).toBe(false);
+    expect(catchUp1.audio.has('music')).toBe(true);
+    expect(catchUp1.currentDialogue?.text).toBe('Chào buổi sáng.');
+
+    // Điểm dừng 2: Stage 2
+    vm.runUntilInteractive();
+    const catchUp2 = vm.getStateCatchUp();
+    expect(catchUp2.background?.assetId).toBe('bg_night');
+    expect(catchUp2.sprites.has('alice')).toBe(false); // Alice đã bị HIDE
+    expect(catchUp2.sprites.has('bob')).toBe(true); // Bob đang hiển thị
+    expect(catchUp2.audio.has('music')).toBe(false); // Nhạc đã bị STOP
+    expect(catchUp2.currentDialogue?.text).toBe('Chào buổi tối.');
+
+    // Rollback về Stage 1
     expect(vm.canRollback()).toBe(true);
-    const rollRes1 = vm.rollback();
-    expect(rollRes1).toBe(true);
-    expect(vm.getState().variables['points']).toBe(20); // Điểm đã phục hồi về 20
+    vm.rollback();
 
-    const rollRes2 = vm.rollback();
-    expect(rollRes2).toBe(true);
-    expect(vm.getState().variables['points']).toBe(10); // Điểm phục hồi về 10
+    // Catch-up phải phản ánh đúng trạng thái quá khứ của Stage 1!
+    const catchUpRolled = vm.getStateCatchUp();
+    expect(catchUpRolled.background?.assetId).toBe('bg_day');
+    expect(catchUpRolled.sprites.has('alice')).toBe(true);
+    expect(catchUpRolled.sprites.has('bob')).toBe(false);
+    expect(catchUpRolled.audio.has('music')).toBe(true);
+    expect(catchUpRolled.currentDialogue?.text).toBe('Chào buổi sáng.');
+  });
 
-    // 2. Kiểm tra Roll-forward
-    expect(vm.canRollforward()).toBe(true);
-    vm.rollforward();
-    expect(vm.getState().variables['points']).toBe(20);
+  it('should support save/load (serialize/restore) and validate against corrupted save data', () => {
+    const program: Instruction[] = [
+      { type: 'SCENE', name: 'story' },
+      { type: 'ASSIGN', variable: 'score', value: { type: 'Literal', value: 50 } },
+      { type: 'DIALOGUE', character: 'alice', text: 'Thoại 1' },
+      { type: 'ASSIGN', variable: 'score', value: { type: 'Literal', value: 100 } },
+      {
+        type: 'CHOICE',
+        choices: [
+          { text: 'A', targetScene: 'branch_a' },
+          { text: 'B', targetScene: 'branch_b' },
+        ],
+      },
+      { type: 'SCENE', name: 'branch_a' },
+      { type: 'DIALOGUE', character: 'alice', text: 'Nhánh A' },
+      { type: 'SCENE', name: 'branch_b' },
+      { type: 'DIALOGUE', character: 'alice', text: 'Nhánh B' },
+    ];
 
-    // 3. Kiểm tra Save / Load
+    const vm = new VisualNovelVM(program);
+    vm.runUntilInteractive(); // Dừng ở Thoại 1
+    vm.runUntilInteractive(); // Dừng ở CHOICE
+
+    // Lưu game tại thời điểm đang dừng ở CHOICE
     const savedJson = vm.serialize();
     expect(typeof savedJson).toBe('string');
 
-    // Tạo máy ảo mới và restore
+    // Khôi phục trên một VM hoàn toàn mới
     const loadedVM = new VisualNovelVM(program);
     loadedVM.restore(savedJson);
-    expect(loadedVM.getState().variables['points']).toBe(20);
+
+    // Trạng thái biến được giữ nguyên
+    expect(loadedVM.getState().variables['score']).toBe(100);
+
+    // Lựa chọn CHOICE vẫn hoạt động bình thường
+    const choices = loadedVM.getAvailableChoices();
+    expect(choices).toHaveLength(2);
+    loadedVM.choose(0);
+
+    const afterChoiceRes = loadedVM.runUntilInteractive();
+    expect(asDialogue(afterChoiceRes.stepResult).text).toBe('Nhánh A');
+
+    // Kiểm tra bảo vệ khi nạp dữ liệu save hỏng
+    expect(() => loadedVM.restore('not-valid-json')).toThrowError(VMRuntimeError);
+    expect(() => loadedVM.restore('{}')).toThrowError(/thiếu state/);
   });
 });

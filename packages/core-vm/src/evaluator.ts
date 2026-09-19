@@ -139,6 +139,9 @@ export class SandboxEvaluator {
             if (typeof leftVal !== 'number' || typeof rightVal !== 'number') {
               throw new VMRuntimeError('Phép chia lấy dư "%" yêu cầu cả hai toán hạng là số học');
             }
+            if (rightVal === 0) {
+              throw new VMRuntimeError('Lỗi chia cho 0 trong biểu thức!');
+            }
             return leftVal % rightVal;
           }
           case '==':

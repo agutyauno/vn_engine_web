@@ -19,6 +19,7 @@ import {
   InvalidChoiceError,
   SceneNotFoundError,
   EmptyCallStackError,
+  VMRuntimeError,
 } from './errors';
 
 export interface VMOptions {
@@ -453,10 +454,21 @@ export class VisualNovelVM {
    * Khôi phục trạng thái máy ảo từ chuỗi JSON (Load Game)
    */
   public restore(json: string): void {
-    const data = JSON.parse(json);
-    this.state = data.state;
-    this.dialogueCounter = data.dialogueCounter ?? 0;
-    this.ringBuffer.clear();
+    try {
+      const data = JSON.parse(json);
+      if (!data || typeof data !== 'object' || !data.state) {
+        throw new VMRuntimeError('Dữ liệu save game không hợp lệ: thiếu state.');
+      }
+      this.state = data.state;
+      this.dialogueCounter = data.dialogueCounter ?? 0;
+      this.ringBuffer.clear();
+    } catch (err: unknown) {
+      if (err instanceof VMRuntimeError) {
+        throw err;
+      }
+      const msg = err instanceof Error ? err.message : String(err);
+      throw new VMRuntimeError(`Không thể tải save game: ${msg}`);
+    }
   }
 
   /**
