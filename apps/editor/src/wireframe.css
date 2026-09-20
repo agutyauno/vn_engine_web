@@ -29,7 +29,8 @@
   --studio-btn-hover-bg: #ffffff;
   --studio-btn-hover-text: #000000;
 
-  --preview-height: 58%;
+  --sidebar-width: 280px;
+  --preview-height: 52%;
 }
 
 * {
@@ -202,21 +203,83 @@ body, html {
 
 /* ================================================================
    2. BỐ CỤC LÀM VIỆC CHÍNH (#studio-workspace)
-   Director Mode: Preview Dock (trên) + Resize Handle + Editor Area (dưới)
+   Full-Height Sidebar (trái) + Resize Handle + Main Workspace (phải: Preview trên + Handle + Monaco Editor dưới)
    ================================================================ */
 #studio-workspace {
   flex: 1;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  height: calc(100vh - 48px);
   overflow: hidden;
   position: relative;
 }
 
-/* KHUNG LIVE PREVIEW DOCK (TOP) */
+/* SIDEBAR TÀI NGUYÊN (CHIẾM TOÀN BỘ BÊN TRÁI MÀN HÌNH) */
+#sidebar-resources {
+  width: var(--sidebar-width, 280px);
+  min-width: 180px;
+  max-width: 650px;
+  height: 100%;
+  border-right: 1px solid var(--studio-border);
+  background-color: var(--studio-surface);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+/* THANH KÉO ĐIỀU CHỈNH ĐỘ RỘNG SIDEBAR (VERTICAL RESIZE HANDLE) */
+#sidebar-resize-handle {
+  width: 6px;
+  height: 100%;
+  background-color: #111111;
+  border-left: 1px solid var(--studio-border);
+  border-right: 1px solid var(--studio-border);
+  cursor: col-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background-color 0.15s;
+  z-index: 10;
+}
+
+#sidebar-resize-handle:hover,
+#sidebar-resize-handle.dragging {
+  background-color: #ffffff;
+}
+
+.v-handle-grip {
+  font-family: var(--vn-font-mono);
+  font-size: 14px;
+  line-height: 8px;
+  color: var(--studio-text-muted);
+  user-select: none;
+  pointer-events: none;
+  text-align: center;
+}
+
+#sidebar-resize-handle:hover .v-handle-grip,
+#sidebar-resize-handle.dragging .v-handle-grip {
+  color: #000000;
+}
+
+/* CỤM WORKSPACE BÊN PHẢI (PREVIEW TRÊN + RESIZE HANDLE + EDITOR DƯỚI) */
+#main-workspace {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+  position: relative;
+}
+
+/* KHUNG LIVE PREVIEW DOCK (TRÊN) */
 #preview-dock {
-  height: var(--preview-height);
-  min-height: 200px;
-  max-height: 85%;
+  height: var(--preview-height, 52%);
+  min-height: 160px;
+  max-height: calc(100% - 160px);
   background-color: #000000;
   border-bottom: 1px solid var(--studio-border);
   display: flex;
@@ -283,9 +346,9 @@ body, html {
   display: block;
 }
 
-/* THANH KÉO ĐIỀU CHỈNH ĐỘ CAO (#resize-handle) */
-#resize-handle {
-  height: 8px;
+/* THANH KÉO ĐIỀU CHỈNH ĐỘ CAO PREVIEW / CODE (HORIZONTAL RESIZE HANDLE) */
+#preview-resize-handle {
+  height: 7px;
   background-color: #111111;
   border-top: 1px solid var(--studio-border);
   border-bottom: 1px solid var(--studio-border);
@@ -295,45 +358,31 @@ body, html {
   justify-content: center;
   flex-shrink: 0;
   transition: background-color 0.15s;
+  z-index: 10;
 }
 
-#resize-handle:hover,
-#resize-handle.dragging {
+#preview-resize-handle:hover,
+#preview-resize-handle.dragging {
   background-color: #ffffff;
 }
 
-.handle-grip {
+.h-handle-grip {
   font-family: var(--vn-font-mono);
   font-size: 9px;
   letter-spacing: 2px;
   color: var(--studio-text-muted);
+  user-select: none;
+  pointer-events: none;
 }
 
-#resize-handle:hover .handle-grip,
-#resize-handle.dragging .handle-grip {
+#preview-resize-handle:hover .h-handle-grip,
+#preview-resize-handle.dragging .h-handle-grip {
   color: #000000;
 }
 
 /* ================================================================
-   3. KHU VỰC DƯỚI (EDITOR & RESOURCES AREA)
-   Gồm: Sidebar 4 Tabs (trái) + Editor Area (phải) kèm Bottom Drawer
+   3. CÁC TAB CỦA SIDEBAR TÀI NGUYÊN
    ================================================================ */
-#editor-workspace {
-  flex: 1;
-  display: grid;
-  grid-template-columns: 280px 1fr;
-  overflow: hidden;
-  background-color: var(--studio-bg);
-}
-
-/* SIDEBAR TÀI NGUYÊN (#sidebar-resources) */
-#sidebar-resources {
-  border-right: 1px solid var(--studio-border);
-  background-color: var(--studio-surface);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
 
 .sidebar-tabs {
   height: 36px;
@@ -524,6 +573,8 @@ body, html {
    Tabs Bar + Line Numbers + Textarea + Bottom Drawer
    ================================================================ */
 #editor-main {
+  flex: 1;
+  min-height: 150px;
   display: flex;
   flex-direction: column;
   overflow: hidden;

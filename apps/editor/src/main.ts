@@ -4,7 +4,7 @@
 // ================================================================
 
 import * as monaco from 'monaco-editor';
-import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker.js?worker';
+import editorWorker from 'monaco-editor/editor/editor.worker?worker';
 import { Compiler, type CompileError } from '@vn-engine/dsl-compiler';
 import type {
   ScriptFile,
@@ -84,7 +84,6 @@ export class StudioApp {
   // State timers
   private compileTimerId: number | null = null;
   private toastTimerId: number | null = null;
-  private isResizing: boolean = false;
 
   constructor() {
     this.compiler = new Compiler();
@@ -138,7 +137,7 @@ export class StudioApp {
 
     // 4. Khởi tạo các module giao diện
     this.setupProjectTitleRename();
-    this.setupResizeHandle();
+    this.setupResizeHandles();
     this.setupSidebarTabs();
     this.setupDrawerTabs();
     this.setupHeaderActions();
@@ -152,21 +151,43 @@ export class StudioApp {
   /**
    * 1. KHỞI TẠO MONACO EDITOR (#monaco-container)
    */
+  private getOrCreateTextModel(fileName: string, initialContent: string = ''): monaco.editor.ITextModel {
+    const uri = monaco.Uri.parse(`inmemory://project/${fileName}`);
+    let model = monaco.editor.getModel(uri);
+    if (model) {
+      if (this.project.files[fileName] !== undefined && model.getValue() !== this.project.files[fileName]) {
+        model.setValue(this.project.files[fileName]);
+      }
+    } else {
+      model = monaco.editor.createModel(initialContent, 'vns', uri);
+    }
+    this.fileModels.set(fileName, model);
+    return model;
+  }
+
+  private disposeTextModel(fileName: string): void {
+    const uri = monaco.Uri.parse(`inmemory://project/${fileName}`);
+    const model = monaco.editor.getModel(uri);
+    if (model) {
+      model.dispose();
+    }
+    this.fileModels.delete(fileName);
+  }
+
   private initMonacoEditor(): void {
     registerVnsLanguage();
 
     // Khởi tạo TextModel cho từng file trong dự án
     for (const [fileName, content] of Object.entries(this.project.files)) {
-      const uri = monaco.Uri.parse(`inmemory://project/${fileName}`);
-      const model = monaco.editor.createModel(content, 'vns', uri);
-      this.fileModels.set(fileName, model);
+      this.getOrCreateTextModel(fileName, content);
     }
 
     let activeModel = this.fileModels.get(this.project.activeFile);
     if (!activeModel) {
-      const uri = monaco.Uri.parse(`inmemory://project/${this.project.activeFile}`);
-      activeModel = monaco.editor.createModel('', 'vns', uri);
-      this.fileModels.set(this.project.activeFile, activeModel);
+      activeModel = this.getOrCreateTextModel(
+        this.project.activeFile,
+        this.project.files[this.project.activeFile] ?? '',
+      );
     }
 
     const container = document.getElementById('monaco-container')!;
@@ -208,12 +229,12 @@ export class StudioApp {
     });
 
     window.addEventListener('resize', () => {
-      this.editorInstance.layout();
+      this.editorInstance?.layout();
     });
   }
 
   private saveCurrentFileFromEditor(): void {
-    if (this.editorInstance) {
+    if (this.editorInstance && this.project.files[this.project.activeFile] !== undefined) {
       const val = this.editorInstance.getValue();
       this.project.files[this.project.activeFile] = val;
       this.saveProjectToStorage();
@@ -309,21 +330,21 @@ export class StudioApp {
 
   private switchActiveFile(fileName: string): void {
     if (this.project.activeFile === fileName) return;
+    if (this.project.files[fileName] === undefined) return;
 
-    // Lưu nội dung file cũ từ Monaco
+    // Lưu nội dung file cũ từ Monaco nếu file cũ vẫn còn trong project
     this.saveCurrentFileFromEditor();
 
     // Chuyển activeFile
     this.project.activeFile = fileName;
 
     // Chuyển Monaco model
-    let targetModel = this.fileModels.get(fileName);
-    if (!targetModel) {
-      const uri = monaco.Uri.parse(`inmemory://project/${fileName}`);
-      targetModel = monaco.editor.createModel(this.project.files[fileName] || '', 'vns', uri);
-      this.fileModels.set(fileName, targetModel);
-    }
+    const targetModel = this.getOrCreateTextModel(
+      fileName,
+      this.project.files[fileName] || '',
+    );
     this.editorInstance.setModel(targetModel);
+    this.activeFilenameEl.textContent = fileName;
 
     this.renderFileList();
     this.showToast(`Đang mở: ${fileName}`);
@@ -331,25 +352,38 @@ export class StudioApp {
   }
 
   private addNewFile(): void {
-    const defaultName = `chapter_${Object.keys(this.project.files).length}.vns`;
+    const nextNum = Object.keys(this.project.files).length;
+    const defaultName = `chapter_${nextNum}.vns`;
     const input = window.prompt('Nhập tên file kịch bản mới (.vns):', defaultName);
     if (!input) return;
 
     let fileName = input.trim();
     if (!fileName.endsWith('.vns')) fileName += '.vns';
 
+    // Kiểm tra định dạng tên file hợp lệ
+    if (!/^[a-zA-Z0-9_-]+\.vns$/.test(fileName)) {
+      this.showToast('Tên file chỉ được chứa chữ cái, số, dấu gạch nối/dưới và đuôi .vns!');
+      return;
+    }
+
     if (this.project.files[fileName] !== undefined) {
       this.showToast(`Tệp "${fileName}" đã tồn tại!`);
       return;
     }
 
-    this.project.files[fileName] = '';
-    const uri = monaco.Uri.parse(`inmemory://project/${fileName}`);
-    const model = monaco.editor.createModel('', 'vns', uri);
-    this.fileModels.set(fileName, model);
+    // Lưu file đang mở trước khi tạo và chuyển sang file mới
+    this.saveCurrentFileFromEditor();
 
-    this.switchActiveFile(fileName);
+    this.project.files[fileName] = '';
+    const model = this.getOrCreateTextModel(fileName, '');
+
+    this.project.activeFile = fileName;
+    this.editorInstance.setModel(model);
+    this.activeFilenameEl.textContent = fileName;
+
     this.saveProjectToStorage();
+    this.renderFileList();
+    this.compileCurrentScript();
     this.showToast(`Đã tạo tệp mới: ${fileName}`);
   }
 
@@ -361,56 +395,105 @@ export class StudioApp {
 
     if (!window.confirm(`Bạn có chắc chắn muốn xóa tệp "${fileName}"?`)) return;
 
-    delete this.project.files[fileName];
-    const model = this.fileModels.get(fileName);
-    if (model) {
-      model.dispose();
-      this.fileModels.delete(fileName);
-    }
+    const wasActive = this.project.activeFile === fileName;
 
-    if (this.project.activeFile === fileName) {
-      this.switchActiveFile('main.vns');
-    } else {
-      this.renderFileList();
-      this.compileCurrentScript();
+    // 1. Xóa khỏi danh sách file
+    delete this.project.files[fileName];
+
+    // 2. Dispose Monaco model
+    this.disposeTextModel(fileName);
+
+    // 3. Nếu file bị xóa đang là file active, chuyển sang file đầu tiên mà KHÔNG lưu file bị xóa
+    if (wasActive) {
+      const fallbackFile = Object.keys(this.project.files)[0] ?? 'main.vns';
+      this.project.activeFile = fallbackFile;
+
+      const fallbackModel = this.getOrCreateTextModel(
+        fallbackFile,
+        this.project.files[fallbackFile] ?? '',
+      );
+      this.editorInstance.setModel(fallbackModel);
+      this.activeFilenameEl.textContent = fallbackFile;
     }
 
     this.saveProjectToStorage();
+    this.renderFileList();
+    this.compileCurrentScript();
     this.showToast(`Đã xóa tệp: ${fileName}`);
   }
 
   /**
-   * 3. THANH KÉO ĐIỀU CHỈNH ĐỘ CAO (#resize-handle)
+   * 3. THANH KÉO ĐIỀU CHỈNH KÍCH THƯỚC (SIDEBAR & PREVIEW RESIZE HANDLES)
    */
-  private setupResizeHandle(): void {
-    const handle = document.getElementById('resize-handle')!;
-    const workspace = document.getElementById('studio-workspace')!;
+  private setupResizeHandles(): void {
+    const sidebarHandle = document.getElementById('sidebar-resize-handle');
+    const previewHandle = document.getElementById('preview-resize-handle');
+    const workspace = document.getElementById('studio-workspace');
+    const mainWorkspace = document.getElementById('main-workspace');
 
-    handle.addEventListener('mousedown', e => {
-      e.preventDefault();
-      this.isResizing = true;
-      handle.classList.add('dragging');
+    // 1. THANH KÉO DỌC: ĐIỀU CHỈNH ĐỘ RỘNG SIDEBAR (LEFT / RIGHT)
+    if (sidebarHandle && workspace) {
+      sidebarHandle.addEventListener('mousedown', e => {
+        e.preventDefault();
+        sidebarHandle.classList.add('dragging');
+        this.previewIframe.style.pointerEvents = 'none';
 
-      const onMouseMove = (moveEvent: MouseEvent) => {
-        if (!this.isResizing) return;
-        const rect = workspace.getBoundingClientRect();
-        const relativeY = moveEvent.clientY - rect.top;
-        const percentage = Math.max(20, Math.min(80, (relativeY / rect.height) * 100));
-        document.documentElement.style.setProperty('--preview-height', `${percentage}%`);
+        const onMouseMove = (moveEvent: MouseEvent) => {
+          const workspaceRect = workspace.getBoundingClientRect();
+          const newWidth = Math.max(180, Math.min(650, moveEvent.clientX - workspaceRect.left));
+          document.documentElement.style.setProperty('--sidebar-width', `${newWidth}px`);
+          this.editorInstance?.layout();
+        };
+
+        const onMouseUp = () => {
+          sidebarHandle.classList.remove('dragging');
+          this.previewIframe.style.pointerEvents = 'auto';
+          this.editorInstance?.layout();
+          window.removeEventListener('mousemove', onMouseMove);
+          window.removeEventListener('mouseup', onMouseUp);
+        };
+
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('mouseup', onMouseUp);
+      });
+    }
+
+    // 2. THANH KÉO NGANG: ĐIỀU CHỈNH TỶ LỆ PREVIEW VÀ CODE EDITOR (TOP / BOTTOM)
+    if (previewHandle && mainWorkspace) {
+      previewHandle.addEventListener('mousedown', e => {
+        e.preventDefault();
+        previewHandle.classList.add('dragging');
+        this.previewIframe.style.pointerEvents = 'none';
+
+        const onMouseMove = (moveEvent: MouseEvent) => {
+          const mainRect = mainWorkspace.getBoundingClientRect();
+          const relativeY = moveEvent.clientY - mainRect.top;
+          const percentage = Math.max(20, Math.min(80, (relativeY / mainRect.height) * 100));
+          document.documentElement.style.setProperty('--preview-height', `${percentage}%`);
+          this.editorInstance?.layout();
+        };
+
+        const onMouseUp = () => {
+          previewHandle.classList.remove('dragging');
+          this.previewIframe.style.pointerEvents = 'auto';
+          this.editorInstance?.layout();
+          window.removeEventListener('mousemove', onMouseMove);
+          window.removeEventListener('mouseup', onMouseUp);
+        };
+
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('mouseup', onMouseUp);
+      });
+    }
+
+    // 3. TỰ ĐỘNG CẬP NHẬT LAYOUT MONACO KHI CONTAINER THAY ĐỔI KÍCH THƯỚC
+    const monacoContainer = document.getElementById('monaco-container');
+    if (monacoContainer && window.ResizeObserver) {
+      const resizeObserver = new ResizeObserver(() => {
         this.editorInstance?.layout();
-      };
-
-      const onMouseUp = () => {
-        this.isResizing = false;
-        handle.classList.remove('dragging');
-        this.editorInstance?.layout();
-        window.removeEventListener('mousemove', onMouseMove);
-        window.removeEventListener('mouseup', onMouseUp);
-      };
-
-      window.addEventListener('mousemove', onMouseMove);
-      window.addEventListener('mouseup', onMouseUp);
-    });
+      });
+      resizeObserver.observe(monacoContainer);
+    }
   }
 
   /**
