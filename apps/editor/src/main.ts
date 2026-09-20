@@ -82,7 +82,7 @@ export class StudioApp {
   private varsWatchTbody: HTMLElement;
 
   // State timers
-  private compileTimerId: number | null = null;
+  private editorDebounceTimerId: number | null = null;
   private toastTimerId: number | null = null;
 
   constructor() {
@@ -213,10 +213,9 @@ export class StudioApp {
       wordWrap: 'off',
     });
 
-    // Lắng nghe sự kiện thay đổi nội dung trên Monaco Editor
+    // Lắng nghe sự kiện thay đổi nội dung trên Monaco Editor (Debounced)
     this.editorInstance.onDidChangeModelContent(() => {
-      this.saveCurrentFileFromEditor();
-      this.triggerDebouncedCompile();
+      this.handleEditorChange();
     });
 
     // Đăng ký phím tắt trong Monaco
@@ -332,8 +331,8 @@ export class StudioApp {
     if (this.project.activeFile === fileName) return;
     if (this.project.files[fileName] === undefined) return;
 
-    // Lưu nội dung file cũ từ Monaco nếu file cũ vẫn còn trong project
-    this.saveCurrentFileFromEditor();
+    // Lưu ngay nội dung file cũ nếu đang có timer debounce dở dang
+    this.flushEditorChanges();
 
     // Chuyển activeFile
     this.project.activeFile = fileName;
@@ -348,7 +347,7 @@ export class StudioApp {
 
     this.renderFileList();
     this.showToast(`Đang mở: ${fileName}`);
-    this.triggerDebouncedCompile();
+    this.compileCurrentScript();
   }
 
   private addNewFile(): void {
@@ -371,8 +370,8 @@ export class StudioApp {
       return;
     }
 
-    // Lưu file đang mở trước khi tạo và chuyển sang file mới
-    this.saveCurrentFileFromEditor();
+    // Lưu ngay nội dung file cũ nếu đang có timer debounce dở dang
+    this.flushEditorChanges();
 
     this.project.files[fileName] = '';
     const model = this.getOrCreateTextModel(fileName, '');
@@ -548,20 +547,31 @@ export class StudioApp {
   }
 
   /**
-   * 6. BIÊN DỊCH REAL-TIME & ĐỒNG BỘ MONACO MARKERS
+   * 6. BIÊN DỊCH REAL-TIME & ĐỒNG BỘ MONACO MARKERS (DEBOUNCED)
    */
-  private triggerDebouncedCompile(): void {
+  private handleEditorChange(): void {
+    this.saveStatusPill.textContent = '● ĐANG LƯU...';
+    this.saveStatusPill.className = 'save-status-pill syncing';
+
     this.compilerIndicator.textContent = 'Đang phân tích cú pháp...';
     this.compilerIndicator.className = 'compiler-status-indicator compiling';
 
-    if (this.compileTimerId !== null) {
-      window.clearTimeout(this.compileTimerId);
+    if (this.editorDebounceTimerId !== null) {
+      window.clearTimeout(this.editorDebounceTimerId);
     }
 
-    this.compileTimerId = window.setTimeout(() => {
-      this.compileCurrentScript();
-      this.compileTimerId = null;
-    }, 300);
+    this.editorDebounceTimerId = window.setTimeout(() => {
+      this.flushEditorChanges();
+    }, 400);
+  }
+
+  private flushEditorChanges(): void {
+    if (this.editorDebounceTimerId !== null) {
+      window.clearTimeout(this.editorDebounceTimerId);
+      this.editorDebounceTimerId = null;
+    }
+    this.saveCurrentFileFromEditor();
+    this.compileCurrentScript();
   }
 
   private compileCurrentScript(): void {
@@ -592,8 +602,7 @@ export class StudioApp {
 
       this.drawerTabProblems.classList.remove('has-error');
       this.problemsSummary.textContent = '● Problems (0 lỗi)';
-      this.problemsList.innerHTML =
-        '<div class="no-problem-message">✓ Cú pháp hợp lệ, không phát hiện lỗi nào.</div>';
+      this.problemsList.innerHTML = '';
 
       if (currentModel) {
         monaco.editor.setModelMarkers(currentModel, 'vns-compiler', []);
@@ -873,6 +882,7 @@ export class StudioApp {
     });
 
     document.getElementById('btn-export-game')?.addEventListener('click', () => {
+      this.flushEditorChanges();
       this.modalExport.classList.remove('hidden');
     });
 
@@ -894,7 +904,7 @@ export class StudioApp {
   }
 
   private runFromStart(): void {
-    this.compileCurrentScript();
+    this.flushEditorChanges();
     if (this.latestProgram) {
       this.sendProgramToPreview(this.latestProgram);
       this.showToast('▶ Chạy kịch bản từ đầu!');
@@ -902,7 +912,7 @@ export class StudioApp {
   }
 
   private runFromLine(): void {
-    this.compileCurrentScript();
+    this.flushEditorChanges();
     if (!this.latestProgram || !this.editorInstance) return;
 
     const pos = this.editorInstance.getPosition();
