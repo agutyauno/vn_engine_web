@@ -188,6 +188,28 @@ importers:
         specifier: ^3.0.7
         version: 3.2.7(@types/node@26.6.1)(supports-color@7.2.0)(tsx@4.23.13)
 
+  apps/editor:
+    dependencies:
+      '@vn-engine/core-vm':
+        specifier: workspace:*
+        version: link:../../packages/core-vm
+      '@vn-engine/dsl-compiler':
+        specifier: workspace:*
+        version: link:../../packages/dsl-compiler
+      '@vn-engine/shared-types':
+        specifier: workspace:*
+        version: link:../../packages/shared-types
+    devDependencies:
+      '@types/node':
+        specifier: ^26.6.1
+        version: 26.6.1
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+      vite:
+        specifier: ^6.2.0
+        version: 6.4.3(@types/node@26.6.1)(tsx@4.23.13)
+
   apps/runtime-player:
     dependencies:
       '@vn-engine/audio':

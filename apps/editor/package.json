@@ -1,0 +1,21 @@
+{
+  "name": "@vn-engine/editor",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@vn-engine/shared-types": "workspace:*",
+    "@vn-engine/dsl-compiler": "workspace:*",
+    "@vn-engine/core-vm": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.1",
+    "typescript": "^5.7.3",
+    "vite": "^6.2.0"
+  }
+}

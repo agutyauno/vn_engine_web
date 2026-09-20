@@ -1,0 +1,751 @@
+/* ================================================================
+   VN ENGINE STUDIO - WEB EDITOR WIREFRAME STYLESHEET
+   ================================================================ */
+
+:root {
+  --vn-font-body: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --vn-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* BẢNG MÀU GIAO DIỆN CHUYÊN NGHIỆP */
+  --studio-bg: #0d0d0d;
+  --studio-surface: #141414;
+  --studio-surface-elevated: #1a1a1a;
+  --studio-surface-header: #080808;
+
+  --studio-border-primary: #ffffff;
+  --studio-border-secondary: #262626;
+  --studio-border-subtle: #1c1c1c;
+
+  --studio-text-primary: #f0f0f0;
+  --studio-text-secondary: #a0a0a0;
+  --studio-text-muted: #606060;
+  --studio-text-accent: #ffffff;
+
+  --studio-btn-bg: #141414;
+  --studio-btn-hover: #222222;
+  --studio-btn-active: #ffffff;
+  --studio-btn-active-text: #000000;
+
+  --preview-height: 55%;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+}
+
+body,
+html {
+  width: 100%;
+  height: 100%;
+  background-color: var(--studio-bg);
+  color: var(--studio-text-primary);
+  font-family: var(--vn-font-body);
+  overflow: hidden;
+}
+
+#studio-root {
+  display: flex;
+  flex-direction: column;
+  width: 100vw;
+  height: 100vh;
+}
+
+/* ================================================================
+   1. HEADER TOÀN CỤC (STUDIO HEADER)
+   ================================================================ */
+#studio-header {
+  height: 48px;
+  background: var(--studio-surface-header);
+  border-bottom: 1px solid var(--studio-border-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  z-index: 50;
+}
+
+.header-left,
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.studio-logo {
+  font-family: var(--vn-font-mono);
+  font-weight: 800;
+  font-size: 14px;
+  letter-spacing: 1px;
+  color: #ffffff;
+}
+
+.project-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--studio-text-secondary);
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.project-title:hover {
+  border-color: var(--studio-border-secondary);
+  background: var(--studio-surface);
+  color: #ffffff;
+}
+
+.save-status-pill {
+  font-family: var(--vn-font-mono);
+  font-size: 11px;
+  color: #22c55e;
+  letter-spacing: 0.5px;
+}
+
+/* BỘ CHUYỂN ĐỔI BỐ CỤC */
+.layout-switcher {
+  display: flex;
+  gap: 4px;
+  background: #000000;
+  padding: 3px;
+  border: 1px solid var(--studio-border-secondary);
+}
+
+.layout-btn {
+  background: transparent;
+  border: none;
+  color: var(--studio-text-muted);
+  padding: 4px 10px;
+  font-size: 11px;
+}
+
+.layout-btn.active {
+  background: #ffffff;
+  color: #000000;
+  font-weight: 700;
+}
+
+.header-action-btn {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.btn-accent {
+  background: #ffffff;
+  color: #000000;
+  border-color: #ffffff;
+  font-weight: 700;
+}
+
+.btn-accent:hover {
+  background: #e5e5e5;
+}
+
+/* NÚT BẤM CHUẨN WIREFRAME */
+.wf-btn {
+  background: var(--studio-btn-bg);
+  color: var(--studio-text-secondary);
+  border: 1px solid var(--studio-border-secondary);
+  padding: 5px 12px;
+  font-family: var(--vn-font-mono);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+  outline: none;
+}
+
+.wf-btn:hover:not(:disabled) {
+  background: var(--studio-btn-hover);
+  color: #ffffff;
+  border-color: var(--studio-border-primary);
+}
+
+.wf-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* ================================================================
+   2. KHUNG LÀM VIỆC CHÍNH (STUDIO WORKSPACE)
+   ================================================================ */
+#studio-workspace {
+  flex: 1;
+  display: grid;
+  overflow: hidden;
+  position: relative;
+}
+
+/* --- BỐ CỤC 1: ĐẠO DIỄN (DIRECTOR MODE - TRÊN / DƯỚI) --- */
+#studio-workspace[data-layout="director"] {
+  grid-template-rows: var(--preview-height) 8px 1fr;
+  grid-template-columns: 1fr;
+}
+
+#studio-workspace[data-layout="director"] #preview-section {
+  display: flex;
+}
+
+#studio-workspace[data-layout="director"] #resize-divider {
+  display: flex;
+  cursor: row-resize;
+}
+
+#studio-workspace[data-layout="director"] #editor-section {
+  display: flex;
+}
+
+/* --- BỐ CỤC 2: CHIA ĐÔI 50/50 (SPLIT MODE - TRÁI / PHẢI) --- */
+#studio-workspace[data-layout="split"] {
+  grid-template-columns: 1fr 8px 1.2fr;
+  grid-template-rows: 1fr;
+}
+
+#studio-workspace[data-layout="split"] #editor-section {
+  order: 1;
+  display: flex;
+}
+
+#studio-workspace[data-layout="split"] #resize-divider {
+  order: 2;
+  display: flex;
+  cursor: col-resize;
+}
+
+#studio-workspace[data-layout="split"] #preview-section {
+  order: 3;
+  display: flex;
+}
+
+/* --- BỐ CỤC 3: TẬP TRUNG VIẾT (WRITING MODE) --- */
+#studio-workspace[data-layout="writing"] {
+  grid-template-rows: 1fr;
+  grid-template-columns: 1fr;
+}
+
+#studio-workspace[data-layout="writing"] #preview-section {
+  display: none;
+}
+
+#studio-workspace[data-layout="writing"] #resize-divider {
+  display: none;
+}
+
+#studio-workspace[data-layout="writing"] #editor-section {
+  display: flex;
+}
+
+/* ================================================================
+   3. VÙNG PREVIEW 16:9
+   ================================================================ */
+#preview-section {
+  flex-direction: column;
+  background: #000000;
+  border-bottom: 1px solid var(--studio-border-secondary);
+  overflow: hidden;
+}
+
+.section-toolbar {
+  height: 32px;
+  background: var(--studio-surface);
+  border-bottom: 1px solid var(--studio-border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+}
+
+.toolbar-title {
+  font-family: var(--vn-font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--studio-text-secondary);
+}
+
+.toolbar-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.meta-tag {
+  font-family: var(--vn-font-mono);
+  font-size: 10px;
+  padding: 2px 6px;
+  border: 1px solid var(--studio-border-secondary);
+  color: var(--studio-text-muted);
+}
+
+#preview-frame-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  overflow: hidden;
+  background: #050505;
+}
+
+#preview-iframe {
+  width: 100%;
+  height: 100%;
+  max-width: 177.78vh;
+  /* Tỷ lệ 16:9 */
+  aspect-ratio: 16 / 9;
+  border: 1px solid var(--studio-border-secondary);
+  background: #ffffff;
+}
+
+/* ================================================================
+   4. THANH KÉO ĐIỀU CHỈNH ĐỘ CAO (RESIZE DIVIDER)
+   ================================================================ */
+#resize-divider {
+  background: var(--studio-surface-header);
+  border-top: 1px solid var(--studio-border-secondary);
+  border-bottom: 1px solid var(--studio-border-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  transition: background 0.15s;
+}
+
+#resize-divider:hover,
+#resize-divider.dragging {
+  background: #ffffff;
+}
+
+#resize-divider:hover .divider-handle,
+#resize-divider.dragging .divider-handle {
+  color: #000000;
+}
+
+.divider-handle {
+  font-family: var(--vn-font-mono);
+  font-size: 10px;
+  color: var(--studio-text-muted);
+  letter-spacing: 2px;
+  pointer-events: none;
+}
+
+/* ================================================================
+   5. VÙNG SOẠN THẢO (EDITOR SECTION)
+   ================================================================ */
+#editor-section {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* --- SIDEBAR BÊN TRÁI --- */
+#studio-sidebar {
+  width: 250px;
+  background: var(--studio-surface);
+  border-right: 1px solid var(--studio-border-secondary);
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--studio-border-secondary);
+  background: var(--studio-surface-header);
+}
+
+.sidebar-tab {
+  flex: 1;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--studio-text-muted);
+  font-family: var(--vn-font-mono);
+  font-size: 11px;
+  padding: 8px 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.sidebar-tab:hover {
+  color: #ffffff;
+}
+
+.sidebar-tab.active {
+  color: #ffffff;
+  border-bottom-color: #ffffff;
+  font-weight: 700;
+  background: var(--studio-surface);
+}
+
+.sidebar-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+}
+
+.tab-pane {
+  display: none;
+}
+
+.tab-pane.active {
+  display: block;
+}
+
+.pane-header {
+  font-family: var(--vn-font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--studio-text-muted);
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.file-tree {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.file-item {
+  font-family: var(--vn-font-mono);
+  font-size: 12px;
+  padding: 6px 8px;
+  color: var(--studio-text-secondary);
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.file-item .file-name-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-item .btn-delete-file {
+  background: transparent;
+  border: none;
+  color: var(--studio-text-muted);
+  font-size: 11px;
+  padding: 2px 4px;
+  cursor: pointer;
+  opacity: 0;
+  transition: all 0.15s;
+}
+
+.file-item:hover .btn-delete-file {
+  opacity: 1;
+}
+
+.file-item .btn-delete-file:hover {
+  color: #ef4444;
+}
+
+.file-item:hover {
+  background: var(--studio-surface-elevated);
+  color: #ffffff;
+}
+
+.file-item.active {
+  background: var(--studio-surface-elevated);
+  border-color: var(--studio-border-secondary);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.empty-sidebar-hint {
+  font-family: var(--vn-font-mono);
+  font-size: 11px;
+  color: var(--studio-text-muted);
+  font-style: italic;
+  padding: 8px 4px;
+}
+
+.character-item,
+.asset-item,
+.var-row {
+  font-family: var(--vn-font-mono);
+  font-size: 12px;
+  padding: 6px 8px;
+  background: #000000;
+  border: 1px solid var(--studio-border-subtle);
+  margin-bottom: 4px;
+}
+
+.char-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.char-color-dot {
+  width: 8px;
+  height: 8px;
+  display: inline-block;
+}
+
+.char-sprites {
+  font-size: 10px;
+  color: var(--studio-text-muted);
+  margin-top: 2px;
+}
+
+.asset-group-title {
+  font-family: var(--vn-font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--studio-text-muted);
+  margin-bottom: 4px;
+}
+
+.var-row {
+  display: flex;
+  justify-content: space-between;
+}
+
+/* --- VÙNG CODE CHÍNH --- */
+#code-editor-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #0a0a0a;
+  overflow: hidden;
+}
+
+.editor-tabs-bar {
+  height: 32px;
+  background: var(--studio-surface-header);
+  border-bottom: 1px solid var(--studio-border-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+}
+
+.editor-file-tab {
+  font-family: var(--vn-font-mono);
+  font-size: 12px;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tab-modified-dot {
+  color: #38bdf8;
+  font-size: 10px;
+}
+
+.compiler-status-indicator {
+  font-family: var(--vn-font-mono);
+  font-size: 11px;
+  color: #22c55e;
+}
+
+.editor-main-area {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  position: relative;
+}
+
+.line-numbers-gutter {
+  width: 44px;
+  background: #080808;
+  border-right: 1px solid var(--studio-border-secondary);
+  padding: 12px 6px;
+  font-family: var(--vn-font-mono);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--studio-text-muted);
+  text-align: right;
+  overflow: hidden;
+  user-select: none;
+}
+
+#script-code {
+  flex: 1;
+  background: #0a0a0a;
+  border: none;
+  padding: 12px 16px;
+  font-family: var(--vn-font-mono);
+  font-size: 14px;
+  line-height: 1.5;
+  color: #f0f0f0;
+  resize: none;
+  outline: none;
+  white-space: pre;
+  overflow: auto;
+  user-select: text;
+}
+
+/* --- BOTTOM PROBLEMS DRAWER --- */
+#problems-drawer {
+  background: var(--studio-surface);
+  border-top: 1px solid var(--studio-border-secondary);
+  display: flex;
+  flex-direction: column;
+}
+
+.problems-header {
+  height: 28px;
+  background: var(--studio-surface-header);
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--vn-font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: #22c55e;
+  cursor: pointer;
+}
+
+.problems-header.has-errors {
+  color: #ef4444;
+}
+
+.problems-toggle-hint {
+  color: var(--studio-text-muted);
+  font-size: 10px;
+  font-weight: 400;
+}
+
+.problems-content {
+  max-height: 110px;
+  overflow-y: auto;
+  padding: 6px 12px;
+  font-family: var(--vn-font-mono);
+  font-size: 12px;
+}
+
+.no-problems {
+  color: var(--studio-text-muted);
+  font-size: 11px;
+}
+
+.problem-item {
+  color: #ef4444;
+  padding: 3px 0;
+  cursor: pointer;
+}
+
+.problem-item:hover {
+  text-decoration: underline;
+}
+
+/* ================================================================
+   6. MODAL XUẤT BẢN & TOAST
+   ================================================================ */
+.wf-modal-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.85);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.wf-modal-backdrop.hidden {
+  display: none;
+}
+
+.wf-modal {
+  width: 80%;
+  background: var(--studio-surface);
+  border: 1px solid var(--studio-border-primary);
+  display: flex;
+  flex-direction: column;
+}
+
+.wf-modal-header {
+  background: var(--studio-surface-header);
+  padding: 12px 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--studio-border-secondary);
+}
+
+.wf-modal-title {
+  font-family: var(--vn-font-mono);
+  font-size: 14px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.wf-modal-body {
+  padding: 20px;
+}
+
+.export-option-card {
+  background: #050505;
+  border: 1px solid var(--studio-border-secondary);
+  padding: 14px;
+}
+
+.export-option-title {
+  font-family: var(--vn-font-mono);
+  font-weight: 700;
+  font-size: 13px;
+  color: #ffffff;
+  margin-bottom: 4px;
+}
+
+.export-option-desc {
+  font-size: 12px;
+  color: var(--studio-text-secondary);
+  margin-bottom: 8px;
+}
+
+.export-option-action {
+  display: flex;
+  gap: 8px;
+}
+
+.export-url-input {
+  flex: 1;
+  background: #000000;
+  border: 1px solid var(--studio-border-secondary);
+  color: #ffffff;
+  padding: 5px 8px;
+  font-family: var(--vn-font-mono);
+  font-size: 12px;
+}
+
+.toast-popup {
+  position: absolute;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #000000;
+  color: #ffffff;
+  border: 1px solid #ffffff;
+  padding: 8px 20px;
+  font-family: var(--vn-font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  z-index: 1000;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.8);
+  transition: opacity 0.25s, transform 0.25s;
+}
+
+.toast-popup.hidden {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-10px);
+  pointer-events: none;
+}

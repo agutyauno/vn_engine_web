@@ -12,7 +12,8 @@
     "format:check": "prettier --check \"**/*.{ts,tsx,json,md,yml,yaml}\"",
     "test": "pnpm -r run test",
     "test:smoke": "vitest run packages/core-vm/tests/smoke.test.ts",
-    "dev:player": "pnpm --filter @vn-engine/runtime-player dev"
+    "dev:player": "pnpm --filter @vn-engine/runtime-player dev",
+    "dev:editor": "pnpm --filter @vn-engine/editor dev"
   },
   "devDependencies": {
     "@types/node": "^26.6.1",

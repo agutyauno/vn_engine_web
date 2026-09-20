@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VN Engine Studio - Web Editor</title>
+  <link rel="stylesheet" href="/src/wireframe.css" />
+</head>
+
+<body>
+  <div id="studio-root">
+    <!-- HEADER TOÀN CỤC -->
+    <header id="studio-header">
+      <div class="header-left">
+        <div class="studio-logo">[VN-STUDIO]</div>
+        <div class="project-title" id="project-title" title="Bấm để đổi tên dự án">Dự án: Bí mật học viện</div>
+        <span class="save-status-pill" id="save-status">● ĐÃ LƯU LOCAL</span>
+      </div>
+
+      <!-- BỘ CHUYỂN ĐỔI BỐ CỤC (LAYOUT SWITCHER) -->
+      <div class="layout-switcher">
+        <button class="wf-btn layout-btn active" id="btn-layout-director" data-layout="director"
+          title="Bố cục Đạo diễn: Preview 16:9 cực lớn ở trên, Code ở dưới">[ĐẠO DIỄN 16:9]</button>
+        <button class="wf-btn layout-btn" id="btn-layout-split" data-layout="split"
+          title="Bố cục Chia đôi 50/50: Code bên trái, Preview bên phải">[CHIA ĐÔI 50/50]</button>
+        <button class="wf-btn layout-btn" id="btn-layout-writing" data-layout="writing"
+          title="Bố cục Tập trung viết: Ẩn Preview để dồn 100% diện tích cho Code">[TẬP TRUNG VIẾT]</button>
+      </div>
+
+      <div class="header-right">
+        <button class="wf-btn header-action-btn" id="btn-run-preview"
+          title="Chạy thử kịch bản (Phím F5 hoặc Ctrl+Enter)">[▶ CHẠY THỬ]</button>
+        <button class="wf-btn header-action-btn" id="btn-popout"
+          title="Tách Live Preview ra cửa sổ trình duyệt độc lập (Đa màn hình)">[↗ CỬA SỔ RỜI]</button>
+        <button class="wf-btn header-action-btn btn-accent" id="btn-export-game"
+          title="Mở menu đóng gói và xuất bản game">[XUẤT BẢN GAME]</button>
+      </div>
+    </header>
+
+    <!-- VÙNG LÀM VIỆC CHÍNH (STUDIO WORKSPACE) -->
+    <main id="studio-workspace" data-layout="director">
+      <!-- VÙNG PREVIEW 16:9 (TOP KHI Ở DIRECTOR MODE) -->
+      <section id="preview-section">
+        <div class="section-toolbar" id="preview-toolbar">
+          <div class="toolbar-title">[ LIVE PREVIEW 16:9 - RUNTIME PLAYER ]</div>
+          <div class="toolbar-meta">
+            <span class="meta-tag">CHUẨN TỶ LỆ 16:9 HD</span>
+            <span class="meta-tag" id="fps-counter">60 FPS</span>
+            <button class="wf-btn" id="btn-reload-preview" style="padding: 2px 8px; font-size: 11px;">[Làm mới
+              ↻]</button>
+          </div>
+        </div>
+        <div id="preview-frame-container">
+          <iframe id="preview-iframe" src="http://localhost:3000/" frameborder="0"
+            allow="autoplay; fullscreen"></iframe>
+        </div>
+      </section>
+
+      <!-- THANH KÉO ĐIỀU CHỈNH ĐỘ CAO (RESIZE DIVIDER) -->
+      <div id="resize-divider" title="Kéo chuột để tùy biến độ cao giữa Preview và Trình soạn thảo">
+        <div class="divider-handle">····· ↕ KÉO ĐỂ ĐIỀU CHỈNH ĐỘ CAO PREVIEW / CODE ↕ ·····</div>
+      </div>
+
+      <!-- VÙNG SOẠN THẢO (BOTTOM KHI Ở DIRECTOR MODE) -->
+      <section id="editor-section">
+        <!-- SIDEBAR TÀI NGUYÊN BÊN TRÁI -->
+        <aside id="studio-sidebar">
+          <div class="sidebar-tabs">
+            <button class="sidebar-tab active" data-tab="files">[FILES]</button>
+            <button class="sidebar-tab" data-tab="characters">[NHÂN VẬT]</button>
+            <button class="sidebar-tab" data-tab="assets">[ASSETS]</button>
+            <button class="sidebar-tab" data-tab="variables">[BIẾN]</button>
+          </div>
+
+          <div class="sidebar-content">
+            <!-- TAB FILES -->
+            <div class="tab-pane active" id="pane-files">
+              <div class="pane-header">
+                <span>DANH SÁCH FILE KỊCH BẢN (.VNS)</span>
+                <button class="wf-btn" id="btn-add-file" style="padding: 1px 6px; font-size: 11px;">[+]</button>
+              </div>
+              <ul class="file-tree" id="file-list"></ul>
+            </div>
+
+            <!-- TAB NHÂN VẬT -->
+            <div class="tab-pane" id="pane-characters">
+              <div class="pane-header">
+                <span>NHÂN VẬT & BIỂU CẢM</span>
+              </div>
+              <div id="character-list-container"></div>
+            </div>
+
+            <!-- TAB ASSETS -->
+            <div class="tab-pane" id="pane-assets">
+              <div class="pane-header">
+                <span>HÌNH NỀN & ÂM THANH</span>
+              </div>
+              <div id="asset-list-container"></div>
+            </div>
+
+            <!-- TAB BIẾN SỐ -->
+            <div class="tab-pane" id="pane-variables">
+              <div class="pane-header">
+                <span>BIẾN TRẠNG THÁI (VARIABLES)</span>
+              </div>
+              <div id="variable-list-container"></div>
+            </div>
+          </div>
+        </aside>
+
+        <!-- VÙNG SOẠN THẢO VĂN BẢN KỊCH BẢN (CODE EDITOR) -->
+        <div id="code-editor-wrapper">
+          <div class="editor-tabs-bar">
+            <div class="editor-file-tab active" id="active-file-tab">main.vns <span class="tab-modified-dot">●</span>
+            </div>
+            <div class="compiler-status-indicator" id="compiler-indicator">Biên dịch tự động: SẴN SÀNG</div>
+          </div>
+
+          <div class="editor-main-area">
+            <div class="line-numbers-gutter" id="line-numbers">1</div>
+            <textarea id="script-code" spellcheck="false" placeholder="Nhập kịch bản VNS tại đây..."></textarea>
+          </div>
+
+          <!-- BẢNG THÔNG BÁO VẤN ĐỀ / LỖI BIÊN DỊCH (BOTTOM PROBLEMS DRAWER) -->
+          <div id="problems-drawer">
+            <div class="problems-header" id="problems-header">
+              <span id="problems-summary">● 0 LỖI BIÊN DỊCH (SẴN SÀNG CHẠY)</span>
+              <span class="problems-toggle-hint">[Bấm để thu gọn/mở rộng]</span>
+            </div>
+            <div class="problems-content" id="problems-list">
+              <div class="no-problems">Cú pháp hợp lệ, không phát hiện lỗi nào.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- MODAL XUẤT BẢN GAME -->
+    <div id="modal-export" class="wf-modal-backdrop hidden">
+      <div class="wf-modal" style="max-width: 650px;">
+        <div class="wf-modal-header">
+          <div class="wf-modal-title">[ XUẤT BẢN & PHÂN PHỐI GAME ]</div>
+          <button class="wf-btn" id="btn-close-export">[Đóng ✕ (Esc)]</button>
+        </div>
+        <div class="wf-modal-body">
+          <div class="export-option-card">
+            <div class="export-option-title">1. Playable Web Link (Cloudflare Edge - MVP P0)</div>
+            <div class="export-option-desc">Tạo đường link chơi game trực tiếp trên trình duyệt web, không cần cài đặt.
+            </div>
+            <div class="export-option-action">
+              <input type="text" readonly value="https://secret-academy.usercontent-platform.com"
+                class="export-url-input" />
+              <button class="wf-btn" id="btn-copy-link">[Sao chép Link]</button>
+            </div>
+          </div>
+
+          <div class="export-option-card" style="margin-top: 14px;">
+            <div class="export-option-title">2. Gói Web ZIP HTML5 (itch.io - P1)</div>
+            <div class="export-option-desc">Nén toàn bộ game, kịch bản và tài nguyên thành file .zip tự chứa, sẵn sàng
+              tải lên itch.io.</div>
+            <div class="export-option-action" style="margin-top: 8px;">
+              <button class="wf-btn" id="btn-download-zip">[Tải file game.zip]</button>
+            </div>
+          </div>
+
+          <div class="export-option-card" style="margin-top: 14px;">
+            <div class="export-option-title">3. Đóng gói Desktop (.exe Windows / .dmg Mac - P1)</div>
+            <div class="export-option-desc">Đóng gói thành ứng dụng máy tính độc lập qua Electron & GitHub Actions.
+            </div>
+            <div class="export-option-action" style="margin-top: 8px;">
+              <button class="wf-btn" disabled>[Gửi yêu cầu Build Desktop (P1)]</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TOAST THÔNG BÁO TỨC THỜI -->
+    <div id="studio-toast" class="toast-popup hidden"></div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+
+</html>
