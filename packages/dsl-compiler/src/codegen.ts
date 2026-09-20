@@ -22,12 +22,20 @@ import type {
   WhileStatement,
   IfStatement,
   VarAssignStatement,
+  Character,
 } from '@vn-engine/shared-types';
 
 export class CodeGenerator {
   private instructions: Instruction[] = [];
   private loopIdCounter = 0;
   private ifIdCounter = 0;
+  private characters: Character[] = [];
+
+  constructor(characters?: Character[]) {
+    if (characters) {
+      this.characters = characters;
+    }
+  }
 
   public generate(ast: ProgramAST): Instruction[] {
     this.instructions = [];
@@ -100,10 +108,27 @@ export class CodeGenerator {
 
       case 'ShowStatement': {
         const s = stmt as ShowStatement;
+        let sprite = s.sprite;
+        if (!sprite || sprite.trim() === '') {
+          const charDef = this.characters.find(c => c.id.toLowerCase() === s.character.toLowerCase());
+          if (charDef && charDef.sprites) {
+            const keys = Object.keys(charDef.sprites);
+            if (keys.includes('default')) {
+              sprite = 'default';
+            } else if (keys.length > 0 && keys[0]) {
+              sprite = keys[0];
+            } else {
+              sprite = 'default';
+            }
+          } else {
+            sprite = 'default';
+          }
+        }
+
         this.instructions.push({
           type: 'SHOW',
           character: s.character,
-          sprite: s.sprite,
+          sprite,
           position: s.position,
           transition: s.transition,
           duration: s.duration,
@@ -321,7 +346,7 @@ export class CodeGenerator {
   }
 }
 
-export function generateBytecode(ast: ProgramAST): Instruction[] {
-  const generator = new CodeGenerator();
+export function generateBytecode(ast: ProgramAST, characters?: Character[]): Instruction[] {
+  const generator = new CodeGenerator(characters);
   return generator.generate(ast);
 }

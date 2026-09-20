@@ -2,13 +2,17 @@
 // ĐIỂU PHỐI PIPELINE BIÊN DỊCH (COMPILER PIPELINE ENTRY)
 // ==========================================
 
-import type { ScriptFile, Instruction, ProgramAST, SceneASTNode } from '@vn-engine/shared-types';
+import type { ScriptFile, Instruction, ProgramAST, SceneASTNode, Character } from '@vn-engine/shared-types';
 import { VNSLexer } from './lexer';
 import { parserInstance } from './parser';
 import { VNSAstBuilder } from './ast_builder';
 import { runMergePass } from './merge_pass';
 import { validateSemantics, type CompileError } from './semantic';
 import { generateBytecode } from './codegen';
+
+export interface CompilerOptions {
+  characters?: Character[];
+}
 
 export interface CompileResult {
   success: boolean;
@@ -18,7 +22,7 @@ export interface CompileResult {
 }
 
 export class Compiler {
-  public compile(files: ScriptFile[]): CompileResult {
+  public compile(files: ScriptFile[], options?: CompilerOptions): CompileResult {
     const errors: CompileError[] = [];
     const allScenes: SceneASTNode[] = [];
 
@@ -91,7 +95,7 @@ export class Compiler {
     }
 
     // Stage 5: Sinh Bytecode (Instruction Set)
-    const program = generateBytecode(mergedAst);
+    const program = generateBytecode(mergedAst, options?.characters);
 
     return {
       success: true,
@@ -103,23 +107,34 @@ export class Compiler {
   /**
    * Tiện ích biên dịch nhanh từ một chuỗi mã nguồn DSL đơn lẻ
    */
-  public compileString(content: string, fileName: string = 'main.vns'): CompileResult {
-    return this.compile([
-      {
-        id: fileName,
-        name: fileName,
-        content,
-        order: 0,
-        version: 1,
-      },
-    ]);
+  public compileString(
+    content: string,
+    fileName: string = 'main.vns',
+    options?: CompilerOptions,
+  ): CompileResult {
+    return this.compile(
+      [
+        {
+          id: fileName,
+          name: fileName,
+          content,
+          order: 0,
+          version: 1,
+        },
+      ],
+      options,
+    );
   }
 }
 
 export const defaultCompiler = new Compiler();
-export function compile(files: ScriptFile[]): CompileResult {
-  return defaultCompiler.compile(files);
+export function compile(files: ScriptFile[], options?: CompilerOptions): CompileResult {
+  return defaultCompiler.compile(files, options);
 }
-export function compileString(content: string, fileName?: string): CompileResult {
-  return defaultCompiler.compileString(content, fileName);
+export function compileString(
+  content: string,
+  fileName?: string,
+  options?: CompilerOptions,
+): CompileResult {
+  return defaultCompiler.compileString(content, fileName, options);
 }

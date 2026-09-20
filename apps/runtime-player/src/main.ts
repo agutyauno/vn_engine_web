@@ -57,20 +57,37 @@ window.addEventListener('DOMContentLoaded', async () => {
   });
 
   // Báo cho parent (Editor / Live Preview Container) biết Player đã sẵn sàng
+  const targetOrigin = window.location.hostname === 'localhost' ? 'http://localhost:3001' : '*';
   if (isEmbedded) {
-    window.parent.postMessage({ type: 'PLAYER_READY' }, '*');
+    window.parent.postMessage({ type: 'PLAYER_READY' }, targetOrigin);
   }
   if (window.opener) {
-    window.opener.postMessage({ type: 'PLAYER_READY' }, '*');
+    window.opener.postMessage({ type: 'PLAYER_READY' }, targetOrigin);
   }
 });
 
-// Lắng nghe sự kiện Hot Reload từ Editor
+// Lắng nghe sự kiện Hot Reload từ Editor có kiểm tra origin an toàn (SAD 3.6)
 window.addEventListener('message', async (event: MessageEvent) => {
+  const allowedOrigins = [
+    'http://localhost:3001',
+    'http://127.0.0.1:3001',
+    window.location.origin,
+  ];
+
+  if (!allowedOrigins.includes(event.origin) && !event.origin.endsWith('.usercontent-platform.com')) {
+    return;
+  }
+
   if (event.data?.type === 'HOT_RELOAD_PROGRAM' && Array.isArray(event.data.program)) {
-    console.log(`[RuntimePlayer] Nhận lệnh HOT_RELOAD_PROGRAM với ${event.data.program.length} instructions`);
+    console.log(`[RuntimePlayer] Nhận lệnh HOT_RELOAD_PROGRAM từ ${event.origin} với ${event.data.program.length} instructions`);
     const player = (window as unknown as { vnPlayer?: VNPlayer }).vnPlayer;
     if (player) {
+      if (event.data.characters || event.data.assets) {
+        player.updateProjectData({
+          characters: event.data.characters,
+          assets: event.data.assets,
+        });
+      }
       await player.reloadProgram(event.data.program);
     }
   }

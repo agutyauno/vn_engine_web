@@ -6,7 +6,7 @@
 import { VisualNovelVM } from '@vn-engine/core-vm';
 import { GameRenderer } from '@vn-engine/renderer';
 import { AudioManager } from '@vn-engine/audio';
-import type { Instruction, DialogueInstruction } from '@vn-engine/shared-types';
+import type { Instruction, DialogueInstruction, Character, AssetRef } from '@vn-engine/shared-types';
 import { Typewriter } from './ui/typewriter';
 import { GameStorage, type SaveSlotData, SLOTS_PER_PAGE, TOTAL_SLOTS } from './storage';
 
@@ -28,6 +28,7 @@ export class VNPlayer {
 
   private typewriter: Typewriter;
   private backlog: BacklogEntry[] = [];
+  private initialProgram: Instruction[];
 
   private isAuto: boolean = false;
   private isSkip: boolean = false;
@@ -36,6 +37,17 @@ export class VNPlayer {
   private skipTimerId: number | null = null;
   private toastTimerId: number | null = null;
   private currentSavePage: number = 0;
+
+  // Dữ liệu dự án được cập nhật từ Studio (Characters & Assets)
+  private projectData: {
+    characters?: Character[];
+    assets?: AssetRef[];
+  } = {};
+
+  public updateProjectData(data: { characters?: Character[]; assets?: AssetRef[] }): void {
+    if (data.characters) this.projectData.characters = data.characters;
+    if (data.assets) this.projectData.assets = data.assets;
+  }
 
   // DOM Elements
   private gameRoot: HTMLElement;
@@ -51,34 +63,31 @@ export class VNPlayer {
   private choiceButtons: HTMLButtonElement[] = [];
   private toastNotification: HTMLElement;
 
-  // Control Buttons
+  // Streamlined Control Buttons
   private btnBack: HTMLButtonElement;
-  private btnNext: HTMLButtonElement;
   private btnAuto: HTMLButtonElement;
   private btnSkip: HTMLButtonElement;
   private btnQSave: HTMLButtonElement;
   private btnQLoad: HTMLButtonElement;
-  private btnSave: HTMLButtonElement;
-  private btnLoad: HTMLButtonElement;
-  private btnLog: HTMLButtonElement;
-  private btnAudio: HTMLButtonElement;
   private btnHideUI: HTMLButtonElement;
-  private btnDebug: HTMLButtonElement;
+  private btnMenu: HTMLButtonElement;
 
-  // Modals
-  private modalSaveLoad: HTMLElement;
-  private saveLoadTitle: HTMLElement;
+  // Unified Settings Menu Modal
+  private modalSettingsMenu: HTMLElement;
+  private settingsTabButtons: HTMLButtonElement[] = [];
+  private settingsPanes: HTMLElement[] = [];
+  private btnCloseSettingsMenu: HTMLButtonElement | null = null;
   private saveSlotsContainer: HTMLElement;
   private savePageButtons: HTMLButtonElement[] = [];
-  private modalBacklog: HTMLElement;
+  private btnModeSave: HTMLButtonElement | null = null;
+  private btnModeLoad: HTMLButtonElement | null = null;
   private backlogContainer: HTMLElement;
-  private modalAudio: HTMLElement;
-  private modalDebug: HTMLElement;
 
   private activeModalMode: 'save' | 'load' = 'save';
   private currentDialogueInstruction: DialogueInstruction | null = null;
 
   constructor(program: Instruction[]) {
+    this.initialProgram = program;
     this.vm = new VisualNovelVM(program, undefined, {
       customFunctions: {
         has_item: (item: unknown) => item === 'flower',
@@ -87,7 +96,7 @@ export class VNPlayer {
     this.renderer = new GameRenderer({ width: 1920, height: 1080 });
     this.audio = new AudioManager();
 
-    // Lấy các phần tử DOM
+    // DOM Lớp nền
     this.gameRoot = document.getElementById('game-root')!;
     this.canvasContainer = document.getElementById('canvas-container')!;
     this.uiLayer = document.getElementById('ui-layer')!;
@@ -99,27 +108,25 @@ export class VNPlayer {
     this.choiceList = document.getElementById('choice-buttons-list')!;
     this.toastNotification = document.getElementById('toast-notification')!;
 
+    // Streamlined Control Buttons
     this.btnBack = document.getElementById('btn-back') as HTMLButtonElement;
-    this.btnNext = document.getElementById('btn-next') as HTMLButtonElement;
     this.btnAuto = document.getElementById('btn-auto') as HTMLButtonElement;
     this.btnSkip = document.getElementById('btn-skip') as HTMLButtonElement;
     this.btnQSave = document.getElementById('btn-qsave') as HTMLButtonElement;
     this.btnQLoad = document.getElementById('btn-qload') as HTMLButtonElement;
-    this.btnSave = document.getElementById('btn-save') as HTMLButtonElement;
-    this.btnLoad = document.getElementById('btn-load') as HTMLButtonElement;
-    this.btnLog = document.getElementById('btn-log') as HTMLButtonElement;
-    this.btnAudio = document.getElementById('btn-audio') as HTMLButtonElement;
     this.btnHideUI = document.getElementById('btn-hide-ui') as HTMLButtonElement;
-    this.btnDebug = document.getElementById('btn-debug') as HTMLButtonElement;
+    this.btnMenu = document.getElementById('btn-menu') as HTMLButtonElement;
 
-    this.modalSaveLoad = document.getElementById('modal-saveload')!;
-    this.saveLoadTitle = document.getElementById('saveload-title')!;
+    // Settings Menu Modal Elements
+    this.modalSettingsMenu = document.getElementById('modal-settings-menu')!;
+    this.settingsTabButtons = Array.from(document.querySelectorAll('.settings-tab-btn'));
+    this.settingsPanes = Array.from(document.querySelectorAll('.settings-pane'));
+    this.btnCloseSettingsMenu = document.getElementById('btn-close-settings-menu') as HTMLButtonElement | null;
     this.saveSlotsContainer = document.getElementById('save-slots-container')!;
     this.savePageButtons = Array.from(document.querySelectorAll('.save-page-btn'));
-    this.modalBacklog = document.getElementById('modal-backlog')!;
+    this.btnModeSave = document.getElementById('btn-mode-save') as HTMLButtonElement | null;
+    this.btnModeLoad = document.getElementById('btn-mode-load') as HTMLButtonElement | null;
     this.backlogContainer = document.getElementById('backlog-container')!;
-    this.modalAudio = document.getElementById('modal-audio')!;
-    this.modalDebug = document.getElementById('modal-debug')!;
 
     this.typewriter = new Typewriter(this.dialogueText, 22);
   }
@@ -129,10 +136,20 @@ export class VNPlayer {
    */
   public async start(): Promise<void> {
     await this.renderer.init(this.canvasContainer);
+    this.updateUiScale();
 
     window.addEventListener('resize', () => {
       this.renderer.resizeToContainer(this.canvasContainer);
+      this.updateUiScale();
     });
+
+    if (window.ResizeObserver) {
+      const resizeObserver = new ResizeObserver(() => {
+        this.renderer.resizeToContainer(this.canvasContainer);
+        this.updateUiScale();
+      });
+      resizeObserver.observe(this.gameRoot);
+    }
 
     this.setupEventListeners();
     this.updateControlsState();
@@ -142,15 +159,21 @@ export class VNPlayer {
   }
 
   /**
+   * Tự động điều chỉnh UI scale đồng nhất theo tỷ lệ màn hình/container
+   * Căn cứ trên độ phân giải ảo chuẩn 1280x720
+   */
+  private updateUiScale(): void {
+    const rect = this.gameRoot.getBoundingClientRect();
+    const scale = Math.max(0.1, (rect.width || 1280) / 1280);
+    this.gameRoot.style.setProperty('--ui-scale', scale.toString());
+  }
+
+  /**
    * Gán toàn bộ sự kiện click, phím tắt và thao tác chuột
    */
   private setupEventListeners(): void {
     // Click vào hộp thoại để tiến hoặc hoàn thành chữ gõ ngay
     this.dialogueBox.addEventListener('click', () => {
-      this.handleAdvanceAction();
-    });
-
-    this.btnNext.addEventListener('click', () => {
       this.handleAdvanceAction();
     });
 
@@ -174,28 +197,12 @@ export class VNPlayer {
       this.quickLoad();
     });
 
-    this.btnSave.addEventListener('click', () => {
-      this.openSaveLoadModal('save');
-    });
-
-    this.btnLoad.addEventListener('click', () => {
-      this.openSaveLoadModal('load');
-    });
-
-    this.btnLog.addEventListener('click', () => {
-      this.openBacklogModal();
-    });
-
-    this.btnAudio.addEventListener('click', () => {
-      this.openAudioModal();
-    });
-
     this.btnHideUI?.addEventListener('click', () => {
       this.toggleHideUI();
     });
 
-    this.btnDebug.addEventListener('click', () => {
-      this.openDebugModal();
+    this.btnMenu?.addEventListener('click', () => {
+      this.openSettingsMenu();
     });
 
     // Chuột giữa (Middle Click) để ẩn/hiện HUD thoại
@@ -206,6 +213,27 @@ export class VNPlayer {
       }
     });
 
+    // Các Tab trong Settings Menu Modal
+    this.settingsTabButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tab = btn.dataset.tab as 'audio' | 'saveload' | 'backlog' | 'debug' | 'system';
+        if (tab) this.switchSettingsTab(tab);
+      });
+    });
+
+    // Đóng Settings Menu Modal
+    this.btnCloseSettingsMenu?.addEventListener('click', () => {
+      this.closeSettingsMenu();
+    });
+
+    // Nút chuyển chế độ Lưu / Tải trong Tab SaveLoad
+    this.btnModeSave?.addEventListener('click', () => {
+      this.setSaveLoadMode('save');
+    });
+    this.btnModeLoad?.addEventListener('click', () => {
+      this.setSaveLoadMode('load');
+    });
+
     // Các nút chuyển trang Save/Load
     this.savePageButtons.forEach(btn => {
       btn.addEventListener('click', () => {
@@ -214,42 +242,49 @@ export class VNPlayer {
       });
     });
 
-    // Đóng modals
-    document.getElementById('btn-close-saveload')?.addEventListener('click', () => {
-      this.modalSaveLoad.classList.add('hidden');
-    });
-    document.getElementById('btn-close-backlog')?.addEventListener('click', () => {
-      this.modalBacklog.classList.add('hidden');
-    });
-    document.getElementById('btn-close-audio')?.addEventListener('click', () => {
-      this.modalAudio.classList.add('hidden');
-    });
-    document.getElementById('btn-close-debug')?.addEventListener('click', () => {
-      this.modalDebug.classList.add('hidden');
-    });
-
     // Audio Sliders & Hiển thị % âm lượng
     const sliderMaster = document.getElementById('slider-master') as HTMLInputElement;
+    const valMaster = document.getElementById('val-master');
     sliderMaster?.addEventListener('input', () => {
       const val = parseFloat(sliderMaster.value);
       this.audio.setMasterVolume(val);
+      if (valMaster) valMaster.textContent = `${Math.round(val * 100)}%`;
     });
 
     const sliderBgm = document.getElementById('slider-bgm') as HTMLInputElement;
+    const valBgm = document.getElementById('val-bgm');
     sliderBgm?.addEventListener('input', () => {
       const val = parseFloat(sliderBgm.value);
       this.audio.setChannelVolume('music', val);
+      if (valBgm) valBgm.textContent = `${Math.round(val * 100)}%`;
     });
 
     const sliderSfx = document.getElementById('slider-sfx') as HTMLInputElement;
+    const valSfx = document.getElementById('val-sfx');
     sliderSfx?.addEventListener('input', () => {
       const val = parseFloat(sliderSfx.value);
       this.audio.setChannelVolume('sound', val);
+      if (valSfx) valSfx.textContent = `${Math.round(val * 100)}%`;
     });
 
     const btnMute = document.getElementById('btn-mute-toggle') as HTMLButtonElement;
     btnMute?.addEventListener('click', () => {
       this.toggleMute();
+    });
+
+    // Nút Toàn màn hình & Khởi động lại trong Tab Cài đặt khác
+    document.getElementById('btn-system-fullscreen')?.addEventListener('click', () => {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else {
+        document.exitFullscreen().catch(() => {});
+      }
+    });
+
+    document.getElementById('btn-system-restart')?.addEventListener('click', () => {
+      this.closeSettingsMenu();
+      void this.reloadProgram(this.initialProgram);
+      this.showToast('Đã bắt đầu lại trò chơi!');
     });
 
     // Phím tắt toàn cầu (Keyboard Shortcuts)
@@ -258,8 +293,9 @@ export class VNPlayer {
         return;
       }
 
-      // 1. Phím Escape để đóng modal
+      // 1. Phím Escape: đóng modal nếu đang mở, hiện HUD nếu đang ẩn, hoặc mở Settings Menu
       if (e.key === 'Escape') {
+        e.preventDefault();
         if (this.isAnyModalOpen()) {
           this.closeAllModals();
           return;
@@ -268,6 +304,8 @@ export class VNPlayer {
           this.toggleHideUI();
           return;
         }
+        this.openSettingsMenu();
+        return;
       }
 
       // 2. Phím H để Ẩn/Hiện giao diện (Hide UI Mode)
@@ -346,7 +384,7 @@ export class VNPlayer {
         this.toggleSkip();
       } else if (e.key === 'l' || e.key === 'L') {
         e.preventDefault();
-        this.openBacklogModal();
+        this.openSettingsMenu('backlog');
       }
     });
   }
@@ -397,20 +435,64 @@ export class VNPlayer {
     }
   }
 
-  private isAnyModalOpen(): boolean {
-    return (
-      !this.modalSaveLoad.classList.contains('hidden') ||
-      !this.modalBacklog.classList.contains('hidden') ||
-      !this.modalAudio.classList.contains('hidden') ||
-      !this.modalDebug.classList.contains('hidden')
-    );
+  public isAnyModalOpen(): boolean {
+    return !this.modalSettingsMenu.classList.contains('hidden');
   }
 
-  private closeAllModals(): void {
-    this.modalSaveLoad.classList.add('hidden');
-    this.modalBacklog.classList.add('hidden');
-    this.modalAudio.classList.add('hidden');
-    this.modalDebug.classList.add('hidden');
+  public closeAllModals(): void {
+    this.modalSettingsMenu.classList.add('hidden');
+  }
+
+  public openSettingsMenu(initialTab: 'audio' | 'saveload' | 'backlog' | 'debug' | 'system' = 'audio'): void {
+    this.switchSettingsTab(initialTab);
+    this.modalSettingsMenu.classList.remove('hidden');
+  }
+
+  public closeSettingsMenu(): void {
+    this.modalSettingsMenu.classList.add('hidden');
+  }
+
+  public switchSettingsTab(tabName: 'audio' | 'saveload' | 'backlog' | 'debug' | 'system'): void {
+    this.settingsTabButtons.forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.tab === tabName);
+    });
+
+    this.settingsPanes.forEach(pane => {
+      pane.classList.toggle('active', pane.id === `pane-${tabName}`);
+    });
+
+    if (tabName === 'saveload') {
+      this.renderSaveSlots();
+    } else if (tabName === 'backlog') {
+      this.renderBacklog();
+    } else if (tabName === 'debug') {
+      this.renderDebugInfo();
+    }
+  }
+
+  public setSaveLoadMode(mode: 'save' | 'load'): void {
+    this.activeModalMode = mode;
+    this.btnModeSave?.classList.toggle('active', mode === 'save');
+    this.btnModeLoad?.classList.toggle('active', mode === 'load');
+    this.renderSaveSlots();
+  }
+
+  // Tương thích ngược với các lệnh gọi modal cũ
+  public openSaveLoadModal(mode: 'save' | 'load'): void {
+    this.setSaveLoadMode(mode);
+    this.openSettingsMenu('saveload');
+  }
+
+  public openBacklogModal(): void {
+    this.openSettingsMenu('backlog');
+  }
+
+  public openAudioModal(): void {
+    this.openSettingsMenu('audio');
+  }
+
+  public openDebugModal(): void {
+    this.openSettingsMenu('debug');
   }
 
   /**
@@ -461,51 +543,66 @@ export class VNPlayer {
         this.gameRoot.className = '';
       }
 
-      // Cập nhật Nameplate
-      let speakerDisplay = instr.character;
-      if (instr.character) {
-        const vmState = this.vm.getState();
-        speakerDisplay =
-          vmState.characterDisplayOverrides[instr.character] ??
-          instr.displayNameOverride ??
-          instr.character;
-      }
-
-      if (speakerDisplay) {
-        const charKey = speakerDisplay.toUpperCase();
-        const charColor = CHAR_COLOR_MAP[charKey] || '#ffffff';
-        this.speakerNameplate.textContent = charKey;
-        this.speakerNameplate.style.color = charColor;
-        this.speakerNameplate.style.borderColor = charColor;
-        this.speakerNameplate.classList.remove('hidden');
-      } else {
+      const hasText = Boolean(instr.text && instr.text.trim().length > 0);
+      if (!hasText) {
+        // Tự động ẩn hộp thoại khi không có nội dung thoại
+        this.dialogueBox.classList.add('hidden');
         this.speakerNameplate.classList.add('hidden');
+      } else {
+        this.dialogueBox.classList.remove('hidden');
+
+        // Cập nhật Nameplate
+        let speakerDisplay = instr.character;
+        if (instr.character) {
+          const vmState = this.vm.getState();
+          speakerDisplay =
+            vmState.characterDisplayOverrides[instr.character] ??
+            instr.displayNameOverride ??
+            instr.character;
+        }
+
+        if (speakerDisplay) {
+          const charKey = speakerDisplay.toUpperCase();
+          const declaredChar = this.projectData.characters?.find(
+            c => (instr.character && c.id.toLowerCase() === instr.character.toLowerCase()) ||
+                 c.name.toLowerCase() === speakerDisplay.toLowerCase()
+          );
+          const charColor = declaredChar?.colorHex || CHAR_COLOR_MAP[charKey] || '#ffffff';
+          this.speakerNameplate.textContent = charKey;
+          this.speakerNameplate.style.color = charColor;
+          this.speakerNameplate.style.borderColor = charColor;
+          this.speakerNameplate.classList.remove('hidden');
+        } else {
+          this.speakerNameplate.classList.add('hidden');
+        }
+
+        // Lưu vào Backlog
+        this.backlog.push({
+          speaker: speakerDisplay,
+          text: instr.text,
+        });
+
+        // Bắt đầu gõ chữ
+        this.nextIndicator.style.opacity = '0';
+        this.typewriter.start(instr.text, () => {
+          this.nextIndicator.style.opacity = '1';
+          this.onDialogueLineFinished();
+        });
       }
-
-      // Lưu vào Backlog
-      this.backlog.push({
-        speaker: speakerDisplay,
-        text: instr.text,
-      });
-
-      // Bắt đầu gõ chữ
-      this.nextIndicator.style.opacity = '0';
-      this.typewriter.start(instr.text, () => {
-        this.nextIndicator.style.opacity = '1';
-        this.onDialogueLineFinished();
-      });
 
       this.updateControlsState();
     } else if (step.type === 'SUSPEND_CHOICE') {
       this.clearSkip();
+      this.dialogueBox.classList.add('hidden');
+      this.speakerNameplate.classList.add('hidden');
       this.presentChoices();
     } else if (step.type === 'HALTED') {
       this.clearAutoTimer();
       this.clearSkip();
+      this.dialogueBox.classList.add('hidden');
       this.speakerNameplate.classList.add('hidden');
-      this.dialogueText.textContent = '[ KỊCH BẢN ĐÃ KẾT THÚC ]';
       this.nextIndicator.textContent = '■ Kết thúc';
-      this.nextIndicator.style.opacity = '1';
+      this.nextIndicator.style.opacity = '0';
       this.updateControlsState();
     }
   }
@@ -527,13 +624,40 @@ export class VNPlayer {
    */
   private async applySideEffect(instr: Instruction): Promise<void> {
     if (instr.type === 'BACKGROUND') {
-      await this.renderer.setBackground(instr.assetId, instr.transition);
+      const bgResolver = (assetKey: string) => {
+        const found = this.projectData.assets?.find(a => a.name === assetKey || a.id === assetKey);
+        return found?.storageUrl;
+      };
+      await this.renderer.setBackground(instr.assetId, instr.transition, bgResolver);
     } else if (instr.type === 'SHOW') {
-      await this.renderer.showCharacter(instr);
+      const assetResolver = (assetKey: string) => {
+        // 1. Khớp trực tiếp trong danh mục tài nguyên
+        const foundAsset = this.projectData.assets?.find(a => a.name === assetKey || a.id === assetKey);
+        if (foundAsset?.storageUrl) return foundAsset.storageUrl;
+
+        // 2. Khớp theo biểu cảm sprite của nhân vật
+        const charDef = this.projectData.characters?.find(c => c.id.toLowerCase() === instr.character.toLowerCase());
+        if (charDef && charDef.sprites) {
+          const spriteImg = charDef.sprites[instr.sprite] || charDef.sprites['default'] || Object.values(charDef.sprites)[0];
+          if (spriteImg && spriteImg.trim().length > 0) {
+            if (spriteImg.startsWith('data:') || spriteImg.startsWith('http') || spriteImg.startsWith('/') || spriteImg.startsWith('.')) {
+              return spriteImg;
+            }
+            const refAsset = this.projectData.assets?.find(a => a.name === spriteImg || a.id === spriteImg);
+            if (refAsset?.storageUrl) return refAsset.storageUrl;
+          }
+        }
+        return undefined;
+      };
+      await this.renderer.showCharacter(instr, assetResolver);
     } else if (instr.type === 'HIDE') {
       this.renderer.hideCharacter(instr.character);
     } else if (instr.type === 'PLAY') {
-      this.audio.play(instr.channel, instr.assetId, instr.assetId, {
+      const audioResolver = (assetKey: string) => {
+        const found = this.projectData.assets?.find(a => a.name === assetKey || a.id === assetKey);
+        return found?.storageUrl || assetKey;
+      };
+      this.audio.play(instr.channel, instr.assetId, audioResolver(instr.assetId), {
         volume: instr.volume,
         loop: instr.loop,
         fadeIn: instr.fadeIn,
@@ -599,20 +723,18 @@ export class VNPlayer {
 
   private updateChoiceVisualSelection(): void {
     this.choiceButtons.forEach((btn, idx) => {
-      if (idx === this.selectedChoiceIndex && !btn.disabled) {
-        btn.classList.add('selected');
-        btn.focus();
-      } else {
-        btn.classList.remove('selected');
-      }
+      btn.classList.toggle('selected', idx === this.selectedChoiceIndex);
     });
   }
 
   /**
-   * Tua lại 1 câu thoại trước đó (Rollback)
+   * Tua lại câu thoại trước (Rollback)
    */
   public rollback(): boolean {
-    if (!this.vm.canRollback()) return false;
+    if (!this.vm.canRollback()) {
+      this.showToast('Không thể tua lại câu thoại trước!');
+      return false;
+    }
 
     this.clearAutoTimer();
     this.clearSkip();
@@ -633,7 +755,8 @@ export class VNPlayer {
     });
     this.audio.syncStateCatchUp(catchUp.audio, (id: string) => id);
 
-    if (catchUp.currentDialogue) {
+    if (catchUp.currentDialogue && catchUp.currentDialogue.text && catchUp.currentDialogue.text.trim().length > 0) {
+      this.dialogueBox.classList.remove('hidden');
       this.currentDialogueInstruction = catchUp.currentDialogue;
       let speakerDisplay = catchUp.currentDialogue.character;
       if (catchUp.currentDialogue.character) {
@@ -658,6 +781,9 @@ export class VNPlayer {
       this.typewriter.stop();
       this.dialogueText.textContent = catchUp.currentDialogue.text;
       this.nextIndicator.style.opacity = '1';
+    } else {
+      this.dialogueBox.classList.add('hidden');
+      this.speakerNameplate.classList.add('hidden');
     }
 
     this.updateControlsState();
@@ -724,16 +850,8 @@ export class VNPlayer {
   }
 
   /**
-   * Mở Modal Lưu hoặc Tải game
+   * Render lưới ô Lưu/Tải game trong Settings Menu
    */
-  public openSaveLoadModal(mode: 'save' | 'load'): void {
-    this.activeModalMode = mode;
-    this.saveLoadTitle.textContent =
-      mode === 'save' ? '[ LƯU TRÒ CHƠI - SAVE GAME ]' : '[ TẢI TRÒ CHƠI - LOAD GAME ]';
-    this.renderSaveSlots();
-    this.modalSaveLoad.classList.remove('hidden');
-  }
-
   private renderSaveSlots(): void {
     const slots = GameStorage.getSlots();
     this.saveSlotsContainer.innerHTML = '';
@@ -741,11 +859,7 @@ export class VNPlayer {
     // Cập nhật trạng thái các nút phân trang
     this.savePageButtons.forEach(btn => {
       const pageIdx = parseInt(btn.dataset.page || '0', 10);
-      if (pageIdx === this.currentSavePage) {
-        btn.classList.add('active');
-      } else {
-        btn.classList.remove('active');
-      }
+      btn.classList.toggle('active', pageIdx === this.currentSavePage);
     });
 
     const startIndex = this.currentSavePage * SLOTS_PER_PAGE;
@@ -807,7 +921,7 @@ export class VNPlayer {
           if (slot) {
             this.loadFromSlot(index);
             this.showToast(`Đã tải thành công Ô ${index + 1}`);
-            this.modalSaveLoad.classList.add('hidden');
+            this.closeSettingsMenu();
           } else {
             this.showToast('Ô này trống, không có dữ liệu tải!');
           }
@@ -875,7 +989,8 @@ export class VNPlayer {
     });
     this.audio.syncStateCatchUp(catchUp.audio, (id: string) => id);
 
-    if (catchUp.currentDialogue) {
+    if (catchUp.currentDialogue && catchUp.currentDialogue.text && catchUp.currentDialogue.text.trim().length > 0) {
+      this.dialogueBox.classList.remove('hidden');
       this.currentDialogueInstruction = catchUp.currentDialogue;
       const speaker = catchUp.currentDialogue.character;
       if (speaker) {
@@ -891,15 +1006,18 @@ export class VNPlayer {
       this.typewriter.stop();
       this.dialogueText.textContent = catchUp.currentDialogue.text;
       this.nextIndicator.style.opacity = '1';
+    } else {
+      this.dialogueBox.classList.add('hidden');
+      this.speakerNameplate.classList.add('hidden');
     }
 
     this.updateControlsState();
   }
 
   /**
-   * Mở ngăn kéo Backlog
+   * Render danh sách lịch sử thoại (Backlog)
    */
-  public openBacklogModal(): void {
+  private renderBacklog(): void {
     this.backlogContainer.innerHTML = '';
     this.backlog.forEach(entry => {
       const item = document.createElement('div');
@@ -914,59 +1032,62 @@ export class VNPlayer {
       }
       this.backlogContainer.appendChild(item);
     });
-    this.modalBacklog.classList.remove('hidden');
 
     // Tự động cuộn xuống đáy
-    const modalBody = this.modalBacklog.querySelector('.wf-modal-body');
+    const modalBody = this.modalSettingsMenu.querySelector('.wf-modal-body');
     if (modalBody) {
       modalBody.scrollTop = modalBody.scrollHeight;
     }
   }
 
-  public openAudioModal(): void {
-    this.modalAudio.classList.remove('hidden');
-  }
-
   /**
-   * Mở bảng Debug Inspector thời gian thực
+   * Render thông tin Debug Inspector
    */
-  public openDebugModal(): void {
+  private renderDebugInfo(): void {
     const vmState = this.vm.getState();
-    document.getElementById('debug-scene')!.textContent = vmState.currentScene;
-    document.getElementById('debug-ip')!.textContent = vmState.instructionPointer.toString();
-    document.getElementById('debug-callstack')!.textContent = vmState.callStack.length.toString();
+    const sceneEl = document.getElementById('debug-scene');
+    const ipEl = document.getElementById('debug-ip');
+    const callstackEl = document.getElementById('debug-callstack');
+
+    if (sceneEl) sceneEl.textContent = vmState.currentScene;
+    if (ipEl) ipEl.textContent = vmState.instructionPointer.toString();
+    if (callstackEl) callstackEl.textContent = vmState.callStack.length.toString();
 
     // Biến
-    const varBody = document.getElementById('debug-variables-body')!;
-    varBody.innerHTML = '';
-    for (const [name, val] of Object.entries(vmState.variables)) {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${name}</td><td><strong>${val}</strong></td><td>${typeof val}</td>`;
-      varBody.appendChild(tr);
+    const varBody = document.getElementById('debug-variables-body');
+    if (varBody) {
+      varBody.innerHTML = '';
+      for (const [name, val] of Object.entries(vmState.variables)) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${name}</td><td><strong>${val}</strong></td><td>${typeof val}</td>`;
+        varBody.appendChild(tr);
+      }
     }
 
     // Audio
-    const audioBody = document.getElementById('debug-audio-body')!;
-    audioBody.innerHTML = '';
-    for (const ch of this.audio.getChannelsState()) {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td>${ch.name}</td>
-        <td>${ch.currentAssetId ?? '-'}</td>
-        <td>${Math.round(ch.volume * 100)}%</td>
-        <td>${ch.loop ? 'Có' : 'Không'}</td>
-        <td>${ch.isPlaying ? 'Đang phát' : 'Dừng'}</td>
-      `;
-      audioBody.appendChild(tr);
+    const audioBody = document.getElementById('debug-audio-body');
+    if (audioBody) {
+      audioBody.innerHTML = '';
+      for (const ch of this.audio.getChannelsState()) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${ch.name}</td>
+          <td>${ch.currentAssetId ?? '-'}</td>
+          <td>${Math.round(ch.volume * 100)}%</td>
+          <td>${ch.loop ? 'Có' : 'Không'}</td>
+          <td>${ch.isPlaying ? 'Đang phát' : 'Dừng'}</td>
+        `;
+        audioBody.appendChild(tr);
+      }
     }
-
-    this.modalDebug.classList.remove('hidden');
   }
 
   /**
    * Tải lại và bắt đầu thực thi chương trình bytecode mới (Hot Reload / Live Preview)
    */
   public async reloadProgram(program: Instruction[]): Promise<void> {
+    this.initialProgram = program;
+
     // 1. Dừng các tiến trình tự động hoặc tua nhanh
     this.clearAutoTimer();
     this.clearSkip();
@@ -991,11 +1112,11 @@ export class VNPlayer {
     this.choiceOverlay.classList.add('hidden');
     this.choiceList.innerHTML = '';
     this.choiceButtons = [];
-    this.dialogueBox.classList.remove('hidden');
+    this.dialogueBox.classList.add('hidden');
     this.dialogueText.textContent = '';
     this.speakerNameplate.textContent = '';
     this.speakerNameplate.classList.add('hidden');
-    this.nextIndicator.textContent = '▼ Tiếp tục [Space / Click]';
+    this.nextIndicator.textContent = '▼ TIẾP TỤC [→]';
     this.nextIndicator.style.opacity = '0';
     this.closeAllModals();
 
@@ -1004,7 +1125,7 @@ export class VNPlayer {
     if (program.length > 0) {
       await this.advance();
     } else {
-      this.dialogueText.textContent = '[ KỊCH BẢN TRỐNG - ĐANG CHỜ LỆNH ]';
+      this.dialogueBox.classList.add('hidden');
     }
   }
 }

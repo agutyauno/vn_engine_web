@@ -517,6 +517,26 @@ body, html {
   color: #ef4444;
 }
 
+/* Ô NHẬP TÊN TỆP INLINE (CHUẨN WINDOWS EXPLORER) */
+.file-item-editing {
+  background-color: #1a1a1a !important;
+  border-color: #ffffff !important;
+  padding: 4px 6px !important;
+}
+
+.file-rename-input {
+  background: #000000;
+  color: #ffffff;
+  border: 1px solid #ffffff;
+  padding: 2px 6px;
+  font-family: var(--vn-font-mono);
+  font-size: 12px;
+  width: 100%;
+  outline: none;
+  border-radius: 0;
+  box-sizing: border-box;
+}
+
 /* CARD DANH SÁCH NHÂN VẬT & ASSETS & BIẾN CỜ */
 .meta-card {
   background-color: #0e0e0e;
@@ -566,6 +586,541 @@ body, html {
   line-height: 1.5;
   padding: 12px 4px;
   text-align: center;
+}
+
+/* THẺ NHÂN VẬT QUẢN TRỊ */
+.character-card {
+  background-color: #0e0e0e;
+  border: 1px solid var(--studio-border);
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  transition: border-color 0.15s;
+}
+
+.character-card:hover {
+  border-color: #333333;
+}
+
+.character-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.character-identity {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.character-id-text {
+  font-family: var(--vn-font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.character-name-text {
+  font-family: var(--vn-font-mono);
+  font-size: 11px;
+  color: var(--studio-text-secondary);
+}
+
+.meta-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-card-action {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--studio-text-muted);
+  font-family: var(--vn-font-mono);
+  font-size: 11px;
+  padding: 1px 5px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-card-action:hover {
+  color: #ffffff;
+  border-color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.btn-card-delete:hover {
+  color: #ef4444;
+  border-color: #ef4444;
+}
+
+.char-sprites-section {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed #1a1a1a;
+}
+
+.sprites-label {
+  font-family: var(--vn-font-mono);
+  font-size: 10px;
+  color: var(--studio-text-muted);
+  margin-bottom: 4px;
+  display: block;
+}
+
+.sprite-pill {
+  font-family: var(--vn-font-mono);
+  font-size: 10px;
+  color: var(--studio-text-secondary);
+  background-color: #161616;
+  border: 1px solid var(--studio-border);
+  padding: 2px 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sprite-pill-thumb {
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
+  border: 1px solid #333333;
+  background: #000000;
+  display: inline-block;
+}
+
+.btn-remove-sprite {
+  background: transparent;
+  border: none;
+  color: var(--studio-text-muted);
+  font-size: 10px;
+  cursor: pointer;
+  padding: 0 1px;
+  line-height: 1;
+}
+
+.btn-remove-sprite:hover {
+  color: #ef4444;
+}
+
+.btn-add-sprite-inline {
+  font-family: var(--vn-font-mono);
+  font-size: 10px;
+  color: var(--studio-text-muted);
+  border: 1px dashed var(--studio-border);
+  padding: 2px 6px;
+  cursor: pointer;
+  background: transparent;
+  transition: all 0.15s;
+}
+
+.btn-add-sprite-inline:hover {
+  color: #ffffff;
+  border-color: #ffffff;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* THẺ TÀI NGUYÊN & BỘ LỌC */
+.asset-filter-bar {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.asset-filter-btn {
+  flex: 1;
+  background: transparent;
+  border: 1px solid var(--studio-border);
+  color: var(--studio-text-muted);
+  font-family: var(--vn-font-mono);
+  font-size: 10px;
+  padding: 4px 0;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.asset-filter-btn:hover {
+  color: #ffffff;
+  border-color: #555555;
+}
+
+.asset-filter-btn.active {
+  background-color: #ffffff;
+  color: #000000;
+  font-weight: 700;
+  border-color: #ffffff;
+}
+
+.asset-card {
+  background-color: #0e0e0e;
+  border: 1px solid var(--studio-border);
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  transition: border-color 0.15s;
+}
+
+.asset-card:hover {
+  border-color: #333333;
+}
+
+.asset-card-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  flex: 1;
+}
+
+.asset-card-icon {
+  width: 28px;
+  height: 28px;
+  background-color: #141414;
+  border: 1px solid var(--studio-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.asset-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.asset-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.asset-name-text {
+  font-family: var(--vn-font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: #ffffff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.asset-type-badge {
+  font-family: var(--vn-font-mono);
+  font-size: 9px;
+  color: var(--studio-text-muted);
+  border: 1px solid var(--studio-border);
+  padding: 1px 4px;
+  text-transform: uppercase;
+}
+
+.asset-badge-unused {
+  font-family: var(--vn-font-mono);
+  font-size: 9px;
+  color: #71717a;
+  border: 1px dashed #3f3f46;
+  padding: 1px 4px;
+}
+
+.asset-preview-btn {
+  background: transparent;
+  border: 1px solid var(--studio-border);
+  color: var(--studio-text-secondary);
+  font-family: var(--vn-font-mono);
+  font-size: 10px;
+  padding: 2px 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.asset-preview-btn:hover {
+  color: #ffffff;
+  border-color: #ffffff;
+}
+
+/* CẢNH BÁO ĐỐI CHIẾU 2 CHIỀU (RECONCILIATION ALERTS) */
+.reconciliation-alert-card {
+  background-color: #121005;
+  border: 1px solid #ca8a04;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.reconciliation-alert-title {
+  font-family: var(--vn-font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: #facc15;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.reconciliation-alert-desc {
+  font-family: var(--vn-font-mono);
+  font-size: 10px;
+  color: #e2e8f0;
+  line-height: 1.4;
+}
+
+.reconciliation-alert-btn {
+  align-self: flex-start;
+  background-color: #ca8a04;
+  color: #000000;
+  font-family: var(--vn-font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  border: none;
+  padding: 3px 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.reconciliation-alert-btn:hover {
+  background-color: #facc15;
+}
+
+/* FORM ELEMENTS CHO MODAL QUẢN LÝ */
+.wf-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.wf-form-label {
+  font-family: var(--vn-font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.wf-form-hint {
+  font-family: var(--vn-font-mono);
+  font-size: 10px;
+  color: var(--studio-text-muted);
+  line-height: 1.4;
+}
+
+.wf-form-input,
+.wf-form-select {
+  background-color: #000000;
+  border: 1px solid var(--studio-border);
+  color: #ffffff;
+  padding: 6px 8px;
+  font-family: var(--vn-font-mono);
+  font-size: 12px;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.wf-form-input:focus,
+.wf-form-select:focus {
+  border-color: #ffffff;
+}
+
+.wf-form-file {
+  font-family: var(--vn-font-mono);
+  font-size: 11px;
+  color: var(--studio-text-secondary);
+  padding: 4px 0;
+}
+
+.color-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.wf-color-input {
+  width: 32px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid #ffffff;
+  background: none;
+  cursor: pointer;
+}
+
+.color-presets {
+  display: flex;
+  gap: 6px;
+}
+
+.color-preset-btn {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1px solid #444444;
+  cursor: pointer;
+  transition: transform 0.15s, border-color 0.15s;
+}
+
+.color-preset-btn:hover {
+  transform: scale(1.15);
+  border-color: #ffffff;
+}
+
+.char-color-hex-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.char-color-preview-tag {
+  font-family: var(--vn-font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border: 1px solid currentColor;
+  background: #111111;
+  letter-spacing: 0.5px;
+  transition: all 0.15s;
+}
+
+.sprites-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+
+.sprites-manager-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+  max-height: 240px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.sprite-manager-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #0c0c0c;
+  border: 1px solid var(--studio-border);
+  padding: 6px 8px;
+  transition: border-color 0.15s;
+}
+
+.sprite-manager-row:hover {
+  border-color: #333333;
+}
+
+.sprite-row-name {
+  width: 120px;
+  flex-shrink: 0;
+}
+
+.sprite-row-thumb-box {
+  width: 32px;
+  height: 32px;
+  background: #161616;
+  border: 1px solid #333333;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.sprite-row-thumb-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.sprite-row-thumb-placeholder {
+  font-size: 14px;
+  color: #555555;
+}
+
+.sprite-upload-btn-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--vn-font-mono);
+  font-size: 10px;
+  background: #1a1a1a;
+  border: 1px solid var(--studio-border);
+  color: #ffffff;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.sprite-upload-btn-label:hover {
+  border-color: #ffffff;
+  background: #262626;
+}
+
+.sprite-row-status {
+  font-family: var(--vn-font-mono);
+  font-size: 10px;
+  color: var(--studio-text-muted);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.btn-clear-sprite-img {
+  background: transparent;
+  border: 1px solid #333333;
+  color: var(--studio-text-muted);
+  font-family: var(--vn-font-mono);
+  font-size: 10px;
+  padding: 3px 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-clear-sprite-img:hover {
+  color: #ef4444;
+  border-color: #ef4444;
+}
+
+.btn-remove-sprite-row {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--studio-text-muted);
+  font-family: var(--vn-font-mono);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 2px 6px;
+  line-height: 1;
+  transition: all 0.15s;
+}
+
+.btn-remove-sprite-row:hover {
+  color: #ef4444;
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.wf-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--studio-border);
 }
 
 /* ================================================================
@@ -639,9 +1194,32 @@ body, html {
    5. BẢNG THÔNG TIN ĐÁY (#studio-bottom-drawer)
    Tab Problems (Lỗi dòng/cột) & Tab Variables Watch
    ================================================================ */
+/* THANH KÉO ĐIỀU CHỈNH ĐỘ CAO DRAWER (#drawer-resize-handle) */
+.drawer-resize-handle {
+  height: 6px;
+  background-color: #111111;
+  border-top: 1px solid var(--studio-border);
+  border-bottom: 1px solid var(--studio-border);
+  cursor: row-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background-color 0.15s;
+  z-index: 5;
+}
+
+.drawer-resize-handle:hover,
+.drawer-resize-handle.dragging {
+  background-color: #ffffff;
+}
+
+.drawer-resize-handle.hidden {
+  display: none;
+}
+
 #studio-bottom-drawer {
   background-color: var(--studio-surface);
-  border-top: 1px solid var(--studio-border);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
@@ -699,20 +1277,28 @@ body, html {
 
 .drawer-toggle-btn {
   background: transparent;
-  border: none;
-  color: var(--studio-text-muted);
-  font-family: var(--vn-font-mono);
-  font-size: 10px;
+  border: 1px solid transparent;
+  color: var(--studio-text-secondary);
+  font-size: 14px;
+  line-height: 1;
   cursor: pointer;
-  padding: 4px;
+  padding: 2px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
 }
 
 .drawer-toggle-btn:hover {
   color: #ffffff;
+  border-color: var(--studio-border);
+  background-color: rgba(255, 255, 255, 0.06);
 }
 
 .drawer-body {
-  max-height: 120px;
+  height: var(--drawer-height, 120px);
+  max-height: 450px;
+  min-height: 50px;
   overflow-y: auto;
   padding: 8px 14px;
   font-family: var(--vn-font-mono);

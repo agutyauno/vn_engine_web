@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>VN Engine Studio - Web Editor</title>
   <link rel="stylesheet" href="/src/wireframe.css" />
 </head>
+
 <body>
   <div id="studio-root">
     <!-- HEADER ĐIỀU KHIỂN (#studio-header) -->
@@ -19,9 +21,12 @@
       </div>
 
       <div class="header-right">
-        <button class="wf-btn btn-primary" id="btn-run-from-start" title="Chạy kịch bản từ đầu (F5)">▶ Chạy từ đầu</button>
-        <button class="wf-btn" id="btn-run-from-line" title="Chạy từ cảnh tại dòng con trỏ (Ctrl+Enter)">▶ Chạy dòng này</button>
-        <button class="wf-btn btn-accent" id="btn-export-game" title="Mở cổng xuất bản và phân phối game">Xuất bản</button>
+        <button class="wf-btn btn-primary" id="btn-run-from-start" title="Chạy kịch bản từ đầu (F5)">▶ Chạy từ
+          đầu</button>
+        <button class="wf-btn" id="btn-run-from-line" title="Chạy từ cảnh tại dòng con trỏ (Ctrl+Enter)">▶ Chạy dòng
+          này</button>
+        <button class="wf-btn btn-accent" id="btn-export-game" title="Mở cổng xuất bản và phân phối game">Xuất
+          bản</button>
       </div>
     </header>
 
@@ -46,26 +51,35 @@
             <ul class="file-list" id="file-list"></ul>
           </div>
 
-          <!-- TAB 2: NHÂN VẬT -->
+          <!-- TAB 2: NHÂN VẬT (QUẢN LÝ & ĐỐI CHIẾU 2 CHIỀU) -->
           <div class="sidebar-pane" id="pane-characters">
             <div class="pane-heading">
-              <span>NHÂN VẬT ĐÃ PHÁT HIỆN</span>
+              <span>NHÂN VẬT DỰ ÁN</span>
+              <button class="wf-btn-sm" id="btn-add-character" title="Thêm nhân vật mới vào dự án">+ Thêm nhân vật</button>
             </div>
+            <div id="char-reconciliation-alerts"></div>
             <div id="character-list-container"></div>
           </div>
 
-          <!-- TAB 3: ASSETS -->
+          <!-- TAB 3: ASSETS (QUẢN LÝ & ĐỐI CHIẾU 2 CHIỀU) -->
           <div class="sidebar-pane" id="pane-assets">
             <div class="pane-heading">
-              <span>HÌNH NỀN & ÂM THANH</span>
+              <span>TÀI NGUYÊN (ASSETS)</span>
+              <button class="wf-btn-sm" id="btn-add-asset" title="Thêm tài nguyên mới vào dự án">+ Thêm asset</button>
             </div>
+            <div class="asset-filter-bar">
+              <button class="asset-filter-btn active" data-filter="all">Tất cả</button>
+              <button class="asset-filter-btn" data-filter="image">🖼 Hình ảnh</button>
+              <button class="asset-filter-btn" data-filter="audio">🎵 Âm thanh</button>
+            </div>
+            <div id="asset-reconciliation-alerts"></div>
             <div id="asset-list-container"></div>
           </div>
 
           <!-- TAB 4: BIẾN TRẠNG THÁI -->
           <div class="sidebar-pane" id="pane-variables">
             <div class="pane-heading">
-              <span>BIẾN SỐ BAN ĐẦU</span>
+              <span>BIẾN TRẠNG THÁI KỊCH BẢN</span>
             </div>
             <div id="variable-list-container"></div>
           </div>
@@ -83,63 +97,65 @@
         <section id="preview-dock">
           <div class="dock-header">
             <div class="dock-title-group">
-              <span class="dock-title">LIVE PREVIEW 16:9</span>
-              <span class="dock-meta-badge">16:9 HD</span>
-              <span class="dock-meta-badge" id="preview-hot-reload-status">HOT RELOAD: SẴN SÀNG</span>
+              <span class="dock-meta-badge">16:9</span>
             </div>
             <div class="dock-actions">
               <button class="wf-btn-sm" id="btn-reload-preview" title="Tải lại khung Live Preview">↻ Làm mới</button>
-              <button class="wf-btn-sm" id="btn-popout-preview" title="Tách Live Preview ra cửa sổ độc lập (Đa màn hình)">↗ Cửa sổ rời</button>
+              <button class="wf-btn-sm" id="btn-popout-preview"
+                title="Tách Live Preview ra cửa sổ độc lập (Đa màn hình)">↗ Cửa sổ rời</button>
             </div>
           </div>
           <div class="dock-stage">
-            <iframe id="preview-iframe" src="http://localhost:3000/" frameborder="0" allow="autoplay; fullscreen"></iframe>
+            <iframe id="preview-iframe" src="http://localhost:3000/" frameborder="0"
+              allow="autoplay; fullscreen"></iframe>
           </div>
         </section>
 
-        <!-- THANH KÉO ĐIỀU CHỈNH ĐỘ CAO PREVIEW / CODE (HORIZONTAL RESIZE HANDLE) -->
-        <div id="preview-resize-handle" title="Kéo chuột lên/xuống để thay đổi tỷ lệ độ cao Preview và Code Editor">
-          <span class="h-handle-grip">······ ↕ KÉO ĐỂ THAY ĐỔI ĐỘ CAO PREVIEW / EDITOR ↕ ······</span>
+        <div id="preview-resize-handle" title="Kéo chuột lên/xuống để thay đổi độ cao Preview và Code Editor">
+          <span class="h-handle-grip">· · ·</span>
         </div>
 
-        <!-- KHU VỰC TRÌNH SOẠN THẢO CODE Ở DƯỚI (#editor-main) -->
         <section id="editor-main">
           <div class="editor-tabs-bar">
             <div class="editor-file-tab" id="active-file-tab">
               <span id="active-filename">main.vns</span>
               <span class="tab-dirty-indicator">●</span>
             </div>
-            <div class="compiler-status-indicator" id="compiler-indicator">Biên dịch tự động: SẴN SÀNG</div>
           </div>
 
-          <!-- CONTAINER CHÍNH CHỨA MONACO EDITOR (#monaco-container) -->
           <div id="monaco-container"></div>
 
-          <!-- BẢNG THÔNG TIN ĐÁY (#studio-bottom-drawer) -->
+          <div id="drawer-resize-handle" class="drawer-resize-handle hidden"
+            title="Kéo chuột lên/xuống để thay đổi độ cao Bảng thông tin đáy">
+            <span class="h-handle-grip">· · ·</span>
+          </div>
+
           <div id="studio-bottom-drawer">
             <div class="drawer-header">
               <div class="drawer-tabs">
-                <button class="drawer-tab-btn active" id="drawer-tab-problems">
+                <button class="drawer-tab-btn" id="drawer-tab-problems">
                   <span id="problems-summary">● Problems (0 lỗi)</span>
                 </button>
                 <button class="drawer-tab-btn" id="drawer-tab-variables">
                   <span>Biến số (Watch)</span>
                 </button>
               </div>
-              <button class="drawer-toggle-btn" id="drawer-toggle-btn" title="Thu gọn / Mở rộng">[Thu gọn / Mở rộng ↕]</button>
+              <button class="drawer-toggle-btn" id="drawer-toggle-btn" title="Mở rộng bảng thông tin">▴</button>
             </div>
-            <div class="drawer-body" id="drawer-body">
-              <!-- PROBLEMS PANE -->
+            <div class="drawer-body collapsed" id="drawer-body">
               <div class="drawer-content-pane active" id="drawer-pane-problems">
                 <div id="problems-list"></div>
               </div>
 
-              <!-- VARIABLES WATCH PANE -->
               <div class="drawer-content-pane" id="drawer-pane-variables" style="display: none;">
                 <div id="vars-watch-list">
                   <table class="vars-watch-table">
                     <thead>
-                      <tr><th>Tên biến</th><th>Kiểu</th><th>Giá trị khởi tạo</th></tr>
+                      <tr>
+                        <th>Tên biến</th>
+                        <th>Kiểu</th>
+                        <th>Giá trị khởi tạo</th>
+                      </tr>
                     </thead>
                     <tbody id="vars-watch-tbody"></tbody>
                   </table>
@@ -151,7 +167,6 @@
       </section>
     </main>
 
-    <!-- MODAL XUẤT BẢN GAME (#modal-export-wizard) -->
     <div id="modal-export-wizard" class="wf-modal-backdrop hidden">
       <div class="wf-modal">
         <div class="wf-modal-header">
@@ -159,51 +174,158 @@
           <button class="wf-btn-sm" id="btn-close-export">✕ Đóng (Esc)</button>
         </div>
         <div class="wf-modal-body">
-          <!-- OPTION 1: PLAYABLE WEB LINK -->
           <div class="export-card">
-            <div class="export-card-title">1. Playable Web Link (Cloudflare Edge - MVP P0)</div>
-            <div class="export-card-desc">Đường dẫn chơi game trực tiếp trên trình duyệt web, không yêu cầu cài đặt:</div>
+            <div class="export-card-title">1. Playable Web Link <span class="dock-meta-badge" style="color: #eab308;">(P1 - Sắp ra mắt)</span></div>
+            <div class="export-card-desc">Đường dẫn chơi game trực tiếp trên CDN Edge (sẽ mở khi kết nối Backend Chặng 5):
+            </div>
             <div class="export-input-row">
-              <input type="text" id="export-url-input" readonly value="https://secret-academy.usercontent-platform.com" class="export-input" />
-              <button class="wf-btn" id="btn-copy-link">Sao chép Link</button>
-              <button class="wf-btn" id="btn-open-playable">Mở web chơi ↗</button>
+              <input type="text" id="export-url-input" readonly value="https://secret-academy.usercontent-platform.com"
+                class="export-input" style="opacity: 0.6;" />
+              <button class="wf-btn" id="btn-copy-link" disabled style="opacity: 0.5;">Sao chép Link</button>
+              <button class="wf-btn" id="btn-open-playable">Mở web chơi (Local) ↗</button>
             </div>
 
             <div style="margin-top: 12px;">
               <div class="export-card-desc">Mã nhúng iFrame (Nhúng trực tiếp vào Website hoặc Blog cá nhân):</div>
               <div class="export-input-row">
-                <input type="text" id="export-iframe-input" readonly value='<iframe src="https://secret-academy.usercontent-platform.com" width="960" height="540" frameborder="0" allowfullscreen></iframe>' class="export-input" />
-                <button class="wf-btn" id="btn-copy-iframe">Sao chép iFrame</button>
+                <input type="text" id="export-iframe-input" readonly
+                  value='<iframe src="https://secret-academy.usercontent-platform.com" width="960" height="540" frameborder="0" allowfullscreen></iframe>'
+                  class="export-input" style="opacity: 0.6;" />
+                <button class="wf-btn" id="btn-copy-iframe" disabled style="opacity: 0.5;">Sao chép iFrame</button>
               </div>
             </div>
           </div>
 
-          <!-- OPTION 2: GÓI WEB ZIP HTML5 -->
           <div class="export-card">
-            <div class="export-card-title">2. Gói Web Bundle / ZIP HTML5 (itch.io - P1)</div>
-            <div class="export-card-desc">Đóng gói toàn bộ kịch bản, bytecode và cấu hình dự án thành tệp bundle tự chứa để nạp vào runner hoặc tải lên itch.io:</div>
+            <div class="export-card-title">2. Gói Web Bundle / ZIP HTML5 (itch.io - P0 Sẵn sàng)</div>
+            <div class="export-card-desc">Đóng gói toàn bộ kịch bản, bytecode và cấu hình dự án thành tệp bundle tự chứa
+              để nạp vào runner hoặc tải lên itch.io:</div>
             <div class="export-input-row" style="margin-top: 8px;">
               <button class="wf-btn" id="btn-download-bundle">Xuất gói Game (bundle.json)</button>
               <button class="wf-btn" id="btn-download-zip">Tải file game.zip</button>
             </div>
           </div>
 
-          <!-- OPTION 3: ĐÓNG GÓI DESKTOP APP -->
           <div class="export-card">
-            <div class="export-card-title">3. Đóng gói Desktop App (.exe Windows / .dmg Mac - P1)</div>
+            <div class="export-card-title">3. Đóng gói Desktop App <span class="dock-meta-badge" style="color: #eab308;">(P1 - Sắp ra mắt)</span></div>
             <div class="export-card-desc">Đóng gói thành ứng dụng máy tính độc lập qua Electron & GitHub Actions.</div>
             <div class="export-input-row" style="margin-top: 8px;">
-              <button class="wf-btn" id="btn-build-desktop">Gửi yêu cầu Build Desktop (P1)</button>
+              <button class="wf-btn" id="btn-build-desktop" disabled style="opacity: 0.5;">Gửi yêu cầu Build Desktop (P1)</button>
             </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- TOAST POPUP THÔNG BÁO TỨC THỜI -->
+    <!-- MODAL KHAI BÁO / CHỈNH SỬA NHÂN VẬT -->
+    <div id="modal-character-form" class="wf-modal-backdrop hidden">
+      <div class="wf-modal" style="max-width: 520px;">
+        <div class="wf-modal-header">
+          <div class="wf-modal-title" id="modal-char-title">THÊM NHÂN VẬT MỚI</div>
+          <button class="wf-btn-sm" id="btn-close-char-modal">✕ Đóng (Esc)</button>
+        </div>
+        <form id="form-character" class="wf-modal-body">
+          <input type="hidden" id="char-edit-mode" value="create" />
+          <input type="hidden" id="char-original-id" value="" />
+
+          <div class="wf-form-group">
+            <label class="wf-form-label" for="char-input-id">Mã nhân vật (ID dùng trong kịch bản) *</label>
+            <div class="wf-form-hint">Dùng trong lệnh: alice:, show alice happy (chữ cái thường, số, gạch dưới)</div>
+            <input type="text" id="char-input-id" class="wf-form-input" required placeholder="ví dụ: alice, bob, thay_minh" pattern="^[a-zA-Z0-9_]+$" />
+          </div>
+
+          <div class="wf-form-group">
+            <label class="wf-form-label" for="char-input-name">Tên hiển thị trong hộp thoại *</label>
+            <div class="wf-form-hint">Tên xuất hiện trên bảng tên nhân vật khi đối thoại</div>
+            <input type="text" id="char-input-name" class="wf-form-input" required placeholder="ví dụ: Alice Carroll, Thầy Minh" />
+          </div>
+
+          <div class="wf-form-group">
+            <label class="wf-form-label">Màu sắc bảng tên thoại (Mã HEX) *</label>
+            <div class="wf-form-hint">Nhập mã HEX (ví dụ: #38BDF8) hoặc chọn trực tiếp từ bảng màu và preset</div>
+            <div class="char-color-hex-group">
+              <input type="text" id="char-input-color-hex" class="wf-form-input font-mono" value="#38BDF8" maxlength="7" placeholder="#38BDF8" style="width: 100px; text-transform: uppercase;" required />
+              <input type="color" id="char-input-color" value="#38bdf8" class="wf-color-input" title="Chọn màu từ bảng màu" />
+              <div class="color-presets">
+                <button type="button" class="color-preset-btn" style="background:#38bdf8;" data-color="#38bdf8" title="Xanh da trời (#38BDF8)"></button>
+                <button type="button" class="color-preset-btn" style="background:#f43f5e;" data-color="#f43f5e" title="Hồng đào (#F43F5E)"></button>
+                <button type="button" class="color-preset-btn" style="background:#10b981;" data-color="#10b981" title="Xanh lục (#10B981)"></button>
+                <button type="button" class="color-preset-btn" style="background:#eab308;" data-color="#eab308" title="Vàng hổ phách (#EAB308)"></button>
+                <button type="button" class="color-preset-btn" style="background:#a855f7;" data-color="#a855f7" title="Tím thạch anh (#A855F7)"></button>
+                <button type="button" class="color-preset-btn" style="background:#fb923c;" data-color="#fb923c" title="Cam tươi (#FB923C)"></button>
+                <button type="button" class="color-preset-btn" style="background:#ffffff;" data-color="#ffffff" title="Trắng sáng (#FFFFFF)"></button>
+              </div>
+              <div class="char-color-preview-tag" id="char-color-preview-tag" style="color: #38bdf8; border-color: #38bdf8;">Tên hiển thị</div>
+            </div>
+          </div>
+
+          <div class="wf-form-group">
+            <div class="sprites-header-row">
+              <label class="wf-form-label">Biểu cảm & Hình ảnh nhân vật (Mỗi ảnh là 1 biểu cảm)</label>
+              <button type="button" id="btn-add-sprite-row" class="wf-btn-sm">+ Thêm biểu cảm</button>
+            </div>
+            <div class="wf-form-hint">Mỗi biểu cảm tương ứng với một hình ảnh đại diện (PNG, JPG, WebP). Biểu cảm đầu tiên hoặc 'default' sẽ được dùng làm mặc định khi viết script (ví dụ: show alice).</div>
+            <div id="char-sprites-manager-list" class="sprites-manager-list">
+              <!-- Sẽ được render động bằng JavaScript -->
+            </div>
+          </div>
+
+          <div class="wf-modal-actions">
+            <button type="button" class="wf-btn" id="btn-cancel-char-modal">Hủy</button>
+            <button type="submit" class="wf-btn btn-accent" id="btn-save-char">Lưu nhân vật</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- MODAL KHAI BÁO / THÊM TÀI NGUYÊN (ASSET) -->
+    <div id="modal-asset-form" class="wf-modal-backdrop hidden">
+      <div class="wf-modal" style="max-width: 520px;">
+        <div class="wf-modal-header">
+          <div class="wf-modal-title" id="modal-asset-title">THÊM TÀI NGUYÊN MỚI</div>
+          <button class="wf-btn-sm" id="btn-close-asset-modal">✕ Đóng (Esc)</button>
+        </div>
+        <form id="form-asset" class="wf-modal-body">
+          <input type="hidden" id="asset-edit-mode" value="create" />
+          <input type="hidden" id="asset-original-id" value="" />
+
+          <div class="wf-form-group">
+            <label class="wf-form-label" for="asset-input-type">Loại tài nguyên *</label>
+            <select id="asset-input-type" class="wf-form-select">
+              <option value="image">🖼 Hình ảnh (Ảnh nền background, sprite, CG)</option>
+              <option value="audio">🎵 Âm thanh (Nhạc nền BGM, hiệu ứng SFX)</option>
+            </select>
+          </div>
+
+          <div class="wf-form-group">
+            <label class="wf-form-label" for="asset-input-name">Tên tài nguyên (Dùng trong script) *</label>
+            <div class="wf-form-hint">Ví dụ: background bg_courtyard hoặc play music theme_peaceful</div>
+            <input type="text" id="asset-input-name" class="wf-form-input" required placeholder="ví dụ: bg_courtyard, theme_peaceful, sfx_bell" />
+          </div>
+
+          <div class="wf-form-group">
+            <label class="wf-form-label" for="asset-input-file">Tải tệp từ máy tính (Tùy chọn)</label>
+            <div class="wf-form-hint">Dữ liệu được lưu trữ trực tiếp vào cơ sở dữ liệu IndexedDB của dự án</div>
+            <input type="file" id="asset-input-file" class="wf-form-file" accept="image/*,audio/*" />
+          </div>
+
+          <div class="wf-form-group">
+            <label class="wf-form-label" for="asset-input-url">Hoặc nhập đường dẫn / URL lưu trữ</label>
+            <input type="text" id="asset-input-url" class="wf-form-input" placeholder="assets/bg_courtyard.png hoặc https://..." />
+          </div>
+
+          <div class="wf-modal-actions">
+            <button type="button" class="wf-btn" id="btn-cancel-asset-modal">Hủy</button>
+            <button type="submit" class="wf-btn btn-accent" id="btn-save-asset">Lưu tài nguyên</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
     <div id="studio-toast" class="toast-popup hidden"></div>
   </div>
 
   <script type="module" src="/src/main.ts"></script>
 </body>
+
 </html>

@@ -173,16 +173,18 @@ export class VNSParser extends CstParser {
   public showStatement = this.RULE('showStatement', () => {
     this.CONSUME(Show);
     this.CONSUME(Identifier);
-    this.OR([
-      { ALT: () => this.CONSUME(DotIdentifier) },
-      {
-        ALT: () => {
-          this.CONSUME(Dot);
-          this.CONSUME2(Identifier);
+    this.OPTION1(() => {
+      this.OR([
+        { ALT: () => this.CONSUME(DotIdentifier) },
+        {
+          ALT: () => {
+            this.CONSUME(Dot);
+            this.CONSUME2(Identifier);
+          },
         },
-      },
-    ]);
-    this.OPTION(() => {
+      ]);
+    });
+    this.OPTION2(() => {
       this.CONSUME(LParen);
       this.MANY_SEP({
         SEP: Comma,

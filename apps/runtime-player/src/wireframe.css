@@ -146,13 +146,15 @@ body, html {
   z-index: 1;
 }
 
-/* TẦNG GIAO DIỆN HTML5 OVERLAY */
+/* TẦNG GIAO DIỆN HTML5 OVERLAY (VIRTUAL 1280x720 VỚI UI SCALING) */
 #ui-layer {
   position: absolute;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
+  width: 1280px;
+  height: 720px;
+  transform-origin: 0 0;
+  transform: scale(var(--ui-scale, 1));
   z-index: 10;
   pointer-events: none; /* Cho phép click xuyên qua trừ các phần tử tương tác */
   display: flex;
@@ -224,7 +226,7 @@ body, html {
 }
 
 .speaker-nameplate.hidden {
-  display: none;
+  display: none !important;
 }
 
 /* HỘP THOẠI CHÍNH (DIALOGUE BOX) */
@@ -238,6 +240,10 @@ body, html {
   cursor: pointer;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
   transition: border-color var(--vn-transition-fast);
+}
+
+.dialogue-box.hidden {
+  display: none !important;
 }
 
 .dialogue-box:hover {
@@ -281,10 +287,11 @@ body, html {
   pointer-events: auto;
   display: flex;
   gap: 6px;
-  margin-top: 10px;
+  margin-top: 8px;
   justify-content: center;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
   width: 100%;
 }
 
@@ -467,6 +474,100 @@ body, html {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+/* MODAL CÀI ĐẶT TỔNG HỢP (SETTINGS MENU) */
+.settings-menu-modal {
+  width: 90%;
+  max-width: 980px;
+  height: 560px;
+  max-height: 90%;
+}
+
+.settings-modal-tabs {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.settings-tab-btn {
+  background: transparent;
+  color: var(--vn-text-muted);
+  border: var(--vn-border-width) solid transparent;
+  font-family: var(--vn-font-mono);
+  font-size: 12px;
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: all var(--vn-transition-fast);
+  outline: none;
+}
+
+.settings-tab-btn:hover {
+  color: var(--vn-text-primary);
+  border-color: var(--vn-border-muted);
+}
+
+.settings-tab-btn.active {
+  color: #000000;
+  background: #ffffff;
+  border-color: #ffffff;
+  font-weight: 700;
+}
+
+.settings-pane {
+  display: none;
+}
+
+.settings-pane.active {
+  display: block;
+}
+
+.saveload-mode-bar {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-bottom: 14px;
+}
+
+.mode-tab-btn {
+  padding: 6px 18px;
+  font-size: 12px;
+}
+
+.mode-tab-btn.active {
+  background: #ffffff;
+  color: #000000;
+  border-color: #ffffff;
+  font-weight: 700;
+}
+
+.slider-val {
+  font-family: var(--vn-font-mono);
+  font-size: 12px;
+  color: var(--vn-text-secondary);
+  min-width: 48px;
+  text-align: right;
+}
+
+.shortcut-legend {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  font-family: var(--vn-font-mono);
+  font-size: 12px;
+  color: var(--vn-text-secondary);
+  margin-top: 10px;
+  line-height: 1.6;
+}
+
+kbd {
+  background: #222222;
+  border: 1px solid #555555;
+  padding: 1px 6px;
+  border-radius: 2px;
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 11px;
 }
 
 .wf-modal-header {

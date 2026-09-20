@@ -13,6 +13,7 @@ import type {
   HideInstruction,
   StopInstruction,
   AssignInstruction,
+  Character,
 } from '@vn-engine/shared-types';
 import { compileString } from '../src/compiler';
 
@@ -152,6 +153,39 @@ describe('DSL Compiler Core (5-Stage Pipeline)', () => {
     const stop = result.program!.find(i => i.type === 'STOP') as StopInstruction | undefined;
     expect(stop?.channel).toBe('music');
     expect(stop?.fadeOut).toBe(2);
+  });
+
+  it('should default to "default" or first sprite when show statement omits sprite expression', () => {
+    const dsl = `
+      scene default_sprite_test {
+        show alice
+        show bob(position: "right")
+      }
+    `;
+
+    const characters: Character[] = [
+      {
+        id: 'alice',
+        name: 'Alice',
+        sprites: { default: 'asset-1', angry: 'asset-2' },
+      },
+      {
+        id: 'bob',
+        name: 'Bob',
+        sprites: { serious: 'asset-3', happy: 'asset-4' }, // Không có default, biểu cảm đầu tiên là serious
+      },
+    ];
+
+    const result = compileString(dsl, 'test.vns', { characters });
+    expect(result.success).toBe(true);
+
+    const shows = result.program!.filter(i => i.type === 'SHOW') as ShowInstruction[];
+    expect(shows).toHaveLength(2);
+    expect(shows[0]?.character).toBe('alice');
+    expect(shows[0]?.sprite).toBe('default');
+    expect(shows[1]?.character).toBe('bob');
+    expect(shows[1]?.sprite).toBe('serious');
+    expect(shows[1]?.position).toBe('right');
   });
 
   it('should compile variable assignment with arithmetic and logical expressions', () => {

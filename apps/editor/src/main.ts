@@ -1,13 +1,16 @@
 // ================================================================
 // VN ENGINE STUDIO - WEB EDITOR CONTROLLER (MONACO POWERED)
-// Tuân thủ tài liệu đặc tả UI/UX Specification v1.0 - Mục 3.2
+// Tuân thủ tài liệu đặc tả UI/UX Specification v1.0 & SAD v1.0
 // ================================================================
 
 import * as monaco from 'monaco-editor';
 import editorWorker from 'monaco-editor/editor/editor.worker?worker';
 import { Compiler, type CompileError } from '@vn-engine/dsl-compiler';
 import type {
+  Project,
   ScriptFile,
+  Character,
+  AssetRef,
   Instruction,
   ProgramAST,
   StatementAST,
@@ -20,6 +23,8 @@ import type {
   WhileStatement,
 } from '@vn-engine/shared-types';
 import { registerVnsLanguage } from './vnsLanguage';
+import { registerVnsLanguageFeatures } from './vnsLanguageFeatures';
+import { IndexedDBProjectRepository, type IProjectRepository } from './repository/projectRepository';
 
 // Thiết lập Web Worker cho Monaco Editor trong môi trường Vite
 self.MonacoEnvironment = {
@@ -28,47 +33,82 @@ self.MonacoEnvironment = {
   },
 };
 
-export interface ProjectState {
-  title: string;
-  activeFile: string;
-  files: Record<string, string>;
-}
-
-const STORAGE_KEY = 'vn_studio_project_v1';
-
 export class StudioApp {
   private compiler: Compiler;
-  private project: ProjectState = {
+  private repository: IProjectRepository;
+
+  // Cấu trúc dự án theo chuẩn schema @vn-engine/shared-types (Project)
+  private project: Project = {
+    id: 'local_default_project',
     title: 'Bí Mật Học Viện',
-    activeFile: 'main.vns',
-    files: {
-      'main.vns': '',
-    },
+    version: 1,
+    ownerId: 'local_user',
+    defaultLanguage: 'vi',
+    files: [
+      {
+        id: 'main.vns',
+        name: 'main.vns',
+        content: '',
+        order: 0,
+        version: 1,
+      },
+    ],
+    characters: [],
+    variables: [],
+    assets: [],
+    uiScreens: [],
+    customScripts: [],
   };
 
+  private activeFile: string = 'main.vns';
   private latestProgram: Instruction[] | null = null;
   private popoutWindow: Window | null = null;
+
+  // Bộ đệm Metadata từ AST để phục vụ Autocomplete & Go-To-Definition
+  private cachedAstMetadata = {
+    scenes: [] as string[],
+    characters: new Map<string, { displayName?: string; sprites: Set<string> }>(),
+    assets: {
+      backgrounds: new Set<string>(),
+      audio: new Set<string>(),
+    },
+    variables: [] as string[],
+  };
 
   // Monaco Editor state
   private editorInstance!: monaco.editor.IStandaloneCodeEditor;
   private fileModels: Map<string, monaco.editor.ITextModel> = new Map();
 
+  // Trạng thái danh sách biểu cảm trong modal nhân vật
+  private modalSpriteRows: { name: string; imageDataUrl: string }[] = [];
+
   // DOM Elements
   private projectTitleEl: HTMLElement;
   private saveStatusPill: HTMLElement;
   private activeFilenameEl: HTMLElement;
-  private compilerIndicator: HTMLElement;
+  private compilerIndicator: HTMLElement | null;
   private previewIframe: HTMLIFrameElement;
-  private previewStatusBadge: HTMLElement;
+  private previewStatusBadge: HTMLElement | null;
   private toastEl: HTMLElement;
   private modalExport: HTMLElement;
   private fileListEl: HTMLElement;
   private btnAddFile: HTMLElement;
 
-  // Sidebar containers
+  // Sidebar containers & Reconciliation
   private charContainer: HTMLElement | null;
   private assetContainer: HTMLElement | null;
   private varContainer: HTMLElement | null;
+  private btnAddCharacter: HTMLElement | null;
+  private btnAddAsset: HTMLElement | null;
+  private charReconciliationEl: HTMLElement | null;
+  private assetReconciliationEl: HTMLElement | null;
+  private activeAssetFilter: 'all' | 'image' | 'audio' = 'all';
+
+  // Modals quản lý
+  private modalCharForm: HTMLElement | null;
+  private formCharacter: HTMLFormElement | null;
+  private modalAssetForm: HTMLElement | null;
+  private formAsset: HTMLFormElement | null;
 
   // Drawer elements
   private drawerBody: HTMLElement;
@@ -80,6 +120,7 @@ export class StudioApp {
   private problemsSummary: HTMLElement;
   private problemsList: HTMLElement;
   private varsWatchTbody: HTMLElement;
+  private drawerResizeHandle: HTMLElement;
 
   // State timers
   private editorDebounceTimerId: number | null = null;
@@ -87,6 +128,7 @@ export class StudioApp {
 
   constructor() {
     this.compiler = new Compiler();
+    this.repository = new IndexedDBProjectRepository();
 
     // DOM Header
     this.projectTitleEl = document.getElementById('project-title')!;
@@ -94,11 +136,11 @@ export class StudioApp {
 
     // DOM Preview
     this.previewIframe = document.getElementById('preview-iframe') as HTMLIFrameElement;
-    this.previewStatusBadge = document.getElementById('preview-hot-reload-status')!;
+    this.previewStatusBadge = document.getElementById('preview-hot-reload-status');
 
     // DOM Editor Status Bar
     this.activeFilenameEl = document.getElementById('active-filename')!;
-    this.compilerIndicator = document.getElementById('compiler-indicator')!;
+    this.compilerIndicator = document.getElementById('compiler-indicator');
 
     // DOM Sidebar
     this.fileListEl = document.getElementById('file-list')!;
@@ -106,6 +148,10 @@ export class StudioApp {
     this.charContainer = document.getElementById('character-list-container');
     this.assetContainer = document.getElementById('asset-list-container');
     this.varContainer = document.getElementById('variable-list-container');
+    this.btnAddCharacter = document.getElementById('btn-add-character');
+    this.btnAddAsset = document.getElementById('btn-add-asset');
+    this.charReconciliationEl = document.getElementById('char-reconciliation-alerts');
+    this.assetReconciliationEl = document.getElementById('asset-reconciliation-alerts');
 
     // DOM Drawer
     this.drawerBody = document.getElementById('drawer-body')!;
@@ -117,46 +163,103 @@ export class StudioApp {
     this.problemsSummary = document.getElementById('problems-summary')!;
     this.problemsList = document.getElementById('problems-list')!;
     this.varsWatchTbody = document.getElementById('vars-watch-tbody')!;
+    this.drawerResizeHandle = document.getElementById('drawer-resize-handle')!;
 
     // DOM Modal & Toast
     this.modalExport = document.getElementById('modal-export-wizard')!;
+    this.modalCharForm = document.getElementById('modal-character-form');
+    this.formCharacter = document.getElementById('form-character') as HTMLFormElement | null;
+    this.modalAssetForm = document.getElementById('modal-asset-form');
+    this.formAsset = document.getElementById('form-asset') as HTMLFormElement | null;
     this.toastEl = document.getElementById('studio-toast')!;
   }
 
-  public init(): void {
-    // 1. Nạp dự án từ LocalStorage
-    this.loadProjectFromStorage();
+  public async init(): Promise<void> {
+    // 1. Nạp dự án từ IndexedDB Repository
+    await this.loadProjectFromStorage();
 
-    // 2. Thiết lập tiêu đề và danh sách tệp
+    // 2. Thiết lập tiêu đề và danh sách tệp & quản lý dữ liệu
     this.projectTitleEl.textContent = this.project.title || 'Bí Mật Học Viện';
-    this.activeFilenameEl.textContent = this.project.activeFile;
+    this.activeFilenameEl.textContent = this.activeFile;
     this.renderFileList();
+    this.renderCharacterList();
+    this.renderAssetList();
 
-    // 3. Khởi tạo Monaco Editor với ngôn ngữ VNS
+    // 3. Khởi tạo Monaco Editor với ngôn ngữ VNS & Language Features
     this.initMonacoEditor();
 
     // 4. Khởi tạo các module giao diện
     this.setupProjectTitleRename();
     this.setupResizeHandles();
     this.setupSidebarTabs();
+    this.setupCharacterManagement();
+    this.setupAssetManagement();
     this.setupDrawerTabs();
     this.setupHeaderActions();
     this.setupPreviewMessaging();
     this.setupExportWizardActions();
+    this.setupGlobalKeyboardShortcuts();
+    this.setupUnloadProtection();
 
     // 5. Biên dịch lần đầu
     this.compileCurrentScript();
   }
 
-  /**
-   * 1. KHỞI TẠO MONACO EDITOR (#monaco-container)
-   */
+  // ================================================================
+  // QUẢN LÝ DỮ LIỆU TỆP (SCRIPT FILES MAP HELPER)
+  // ================================================================
+  private getFilesMap(): Record<string, string> {
+    const map: Record<string, string> = {};
+    for (const f of this.project.files) {
+      map[f.name] = f.content;
+    }
+    return map;
+  }
+
+  private getFileContent(fileName: string): string {
+    const f = this.project.files.find(item => item.name === fileName);
+    return f ? f.content : '';
+  }
+
+  private setFileContent(fileName: string, content: string): void {
+    const f = this.project.files.find(item => item.name === fileName);
+    if (f) {
+      f.content = content;
+      f.version = (f.version || 1) + 1;
+    } else {
+      this.project.files.push({
+        id: fileName,
+        name: fileName,
+        content,
+        order: this.project.files.length,
+        version: 1,
+      });
+    }
+  }
+
+  private removeFile(fileName: string): void {
+    this.project.files = this.project.files.filter(f => f.name !== fileName);
+  }
+
+  private renameFileKey(oldName: string, newName: string): void {
+    const f = this.project.files.find(item => item.name === oldName);
+    if (f) {
+      f.name = newName;
+      f.id = newName;
+      f.version = (f.version || 1) + 1;
+    }
+  }
+
+  // ================================================================
+  // 1. KHỞI TẠO MONACO EDITOR (#monaco-container)
+  // ================================================================
   private getOrCreateTextModel(fileName: string, initialContent: string = ''): monaco.editor.ITextModel {
     const uri = monaco.Uri.parse(`inmemory://project/${fileName}`);
     let model = monaco.editor.getModel(uri);
     if (model) {
-      if (this.project.files[fileName] !== undefined && model.getValue() !== this.project.files[fileName]) {
-        model.setValue(this.project.files[fileName]);
+      const currentVal = this.getFileContent(fileName);
+      if (model.getValue() !== currentVal) {
+        model.setValue(currentVal);
       }
     } else {
       model = monaco.editor.createModel(initialContent, 'vns', uri);
@@ -177,16 +280,26 @@ export class StudioApp {
   private initMonacoEditor(): void {
     registerVnsLanguage();
 
+    // Đăng ký Autocomplete & Go-To-Definition thông minh
+    registerVnsLanguageFeatures({
+      getFiles: () => this.getFilesMap(),
+      getScenes: () => this.cachedAstMetadata.scenes,
+      getCharacters: () => this.getProjectCharactersMap(),
+      getAssets: () => this.getProjectAssetsMap(),
+      getVariables: () => this.cachedAstMetadata.variables,
+      switchActiveFile: (fileName: string) => this.switchActiveFile(fileName),
+    });
+
     // Khởi tạo TextModel cho từng file trong dự án
-    for (const [fileName, content] of Object.entries(this.project.files)) {
-      this.getOrCreateTextModel(fileName, content);
+    for (const f of this.project.files) {
+      this.getOrCreateTextModel(f.name, f.content);
     }
 
-    let activeModel = this.fileModels.get(this.project.activeFile);
+    let activeModel = this.fileModels.get(this.activeFile);
     if (!activeModel) {
       activeModel = this.getOrCreateTextModel(
-        this.project.activeFile,
-        this.project.files[this.project.activeFile] ?? '',
+        this.activeFile,
+        this.getFileContent(this.activeFile),
       );
     }
 
@@ -233,50 +346,101 @@ export class StudioApp {
   }
 
   private saveCurrentFileFromEditor(): void {
-    if (this.editorInstance && this.project.files[this.project.activeFile] !== undefined) {
+    if (this.editorInstance) {
       const val = this.editorInstance.getValue();
-      this.project.files[this.project.activeFile] = val;
-      this.saveProjectToStorage();
+      this.setFileContent(this.activeFile, val);
+      void this.saveProjectToStorage();
     }
   }
 
-  /**
-   * 2. LƯU TRỮ DỰ ÁN & ĐA TỆP (STORAGE & MULTI-FILE MANAGEMENT)
-   */
-  private loadProjectFromStorage(): void {
+  // ================================================================
+  // 2. LƯU TRỮ DỰ ÁN QUA INDEXEDDB REPOSITORY
+  // ================================================================
+  private async loadProjectFromStorage(): Promise<void> {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as ProjectState;
-        if (parsed && typeof parsed.files === 'object' && Object.keys(parsed.files).length > 0) {
-          this.project = parsed;
-          if (!this.project.title) this.project.title = 'Bí Mật Học Viện';
-          if (!this.project.files[this.project.activeFile]) {
-            this.project.activeFile = Object.keys(this.project.files)[0] ?? 'main.vns';
-          }
-          return;
+      const loaded = await this.repository.getProject('local_default_project');
+      if (loaded && Array.isArray(loaded.files) && loaded.files.length > 0) {
+        this.project = loaded;
+        if (!this.project.title) this.project.title = 'Bí Mật Học Viện';
+        if (!Array.isArray(this.project.characters)) this.project.characters = [];
+        if (!Array.isArray(this.project.assets)) this.project.assets = [];
+        const fileNames = this.project.files.map(f => f.name);
+        if (!fileNames.includes(this.activeFile)) {
+          this.activeFile = fileNames[0] ?? 'main.vns';
         }
+        return;
       }
     } catch (e) {
-      console.warn('[StudioApp] Không thể nạp dự án từ LocalStorage:', e);
+      console.warn('[StudioApp] Không thể nạp dự án từ IndexedDB:', e);
     }
 
+    // Dự án mặc định ban đầu
     this.project = {
+      id: 'local_default_project',
       title: 'Bí Mật Học Viện',
-      activeFile: 'main.vns',
-      files: {
-        'main.vns': '',
-      },
+      version: 1,
+      ownerId: 'local_user',
+      defaultLanguage: 'vi',
+      files: [
+        {
+          id: 'main.vns',
+          name: 'main.vns',
+          content: '',
+          order: 0,
+          version: 1,
+        },
+      ],
+      characters: [
+        {
+          id: 'alice',
+          name: 'Alice Carroll',
+          colorHex: '#38bdf8',
+          sprites: {
+            default: '',
+            happy: '',
+            serious: '',
+            sad: '',
+          },
+        },
+      ],
+      variables: [],
+      assets: [
+        {
+          id: 'asset_bg_courtyard',
+          name: 'bg_courtyard',
+          type: 'image',
+          storageUrl: '',
+          sizeBytes: 1024 * 180,
+        },
+        {
+          id: 'asset_theme_peaceful',
+          name: 'theme_peaceful',
+          type: 'audio',
+          storageUrl: '',
+          sizeBytes: 1024 * 1024 * 2,
+        },
+      ],
+      uiScreens: [],
+      customScripts: [],
     };
+    this.activeFile = 'main.vns';
+    await this.repository.saveProject(this.project);
   }
 
-  private saveProjectToStorage(): void {
+  private async saveProjectToStorage(): Promise<void> {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.project));
+      this.saveStatusPill.textContent = '● ĐANG LƯU...';
+      this.saveStatusPill.className = 'save-status-pill syncing';
+
+      this.project.version = (this.project.version || 1) + 1;
+      await this.repository.saveProject(this.project);
+
       this.saveStatusPill.textContent = '● ĐÃ LƯU';
       this.saveStatusPill.className = 'save-status-pill';
     } catch (e) {
-      console.error('[StudioApp] Lỗi khi lưu vào LocalStorage:', e);
+      console.error('[StudioApp] Lỗi khi lưu vào IndexedDB:', e);
+      this.saveStatusPill.textContent = '● LỖI LƯU TRỮ';
+      this.saveStatusPill.className = 'save-status-pill error';
     }
   }
 
@@ -286,7 +450,7 @@ export class StudioApp {
       if (newTitle && newTitle.trim()) {
         this.project.title = newTitle.trim();
         this.projectTitleEl.textContent = this.project.title;
-        this.saveProjectToStorage();
+        void this.saveProjectToStorage();
         this.showToast(`Đã đổi tên dự án: "${this.project.title}"`);
       }
     });
@@ -294,15 +458,18 @@ export class StudioApp {
 
   private renderFileList(): void {
     this.fileListEl.innerHTML = '';
-    const fileNames = Object.keys(this.project.files);
 
-    fileNames.forEach(fileName => {
+    this.project.files.forEach(file => {
+      const fileName = file.name;
       const li = document.createElement('li');
-      li.className = `file-item ${fileName === this.project.activeFile ? 'active' : ''}`;
+      li.className = `file-item ${fileName === this.activeFile ? 'active' : ''}`;
+      li.dataset.filename = fileName;
 
       const nameGroup = document.createElement('div');
       nameGroup.className = 'file-name-group';
-      nameGroup.innerHTML = `<span class="file-icon">📄</span> <span>${fileName}</span>`;
+      nameGroup.innerHTML = `<span class="file-icon">📄</span> <span class="file-name-text"></span>`;
+      const nameSpan = nameGroup.querySelector('.file-name-text') as HTMLSpanElement;
+      nameSpan.textContent = fileName;
       li.appendChild(nameGroup);
 
       if (fileName !== 'main.vns') {
@@ -321,26 +488,33 @@ export class StudioApp {
         this.switchActiveFile(fileName);
       });
 
+      // Double click để đổi tên tệp (chuẩn Windows Explorer)
+      li.addEventListener('dblclick', e => {
+        e.stopPropagation();
+        this.startRenameFile(fileName, li);
+      });
+
       this.fileListEl.appendChild(li);
     });
 
-    this.activeFilenameEl.textContent = this.project.activeFile;
+    this.activeFilenameEl.textContent = this.activeFile;
   }
 
   private switchActiveFile(fileName: string): void {
-    if (this.project.activeFile === fileName) return;
-    if (this.project.files[fileName] === undefined) return;
+    if (this.activeFile === fileName) return;
+    const fileExists = this.project.files.some(f => f.name === fileName);
+    if (!fileExists) return;
 
     // Lưu ngay nội dung file cũ nếu đang có timer debounce dở dang
     this.flushEditorChanges();
 
     // Chuyển activeFile
-    this.project.activeFile = fileName;
+    this.activeFile = fileName;
 
     // Chuyển Monaco model
     const targetModel = this.getOrCreateTextModel(
       fileName,
-      this.project.files[fileName] || '',
+      this.getFileContent(fileName),
     );
     this.editorInstance.setModel(targetModel);
     this.activeFilenameEl.textContent = fileName;
@@ -350,40 +524,214 @@ export class StudioApp {
     this.compileCurrentScript();
   }
 
+  /**
+   * Sinh tên file mặc định tự tăng số kiểu Windows (New Script.vns, New Script (2).vns, ...)
+   */
+  private generateDefaultScriptName(): string {
+    const base = 'New Script';
+    let candidate = `${base}.vns`;
+    let counter = 2;
+    const existingNames = new Set(this.project.files.map(f => f.name));
+    while (existingNames.has(candidate)) {
+      candidate = `${base} (${counter}).vns`;
+      counter++;
+    }
+    return candidate;
+  }
+
+  /**
+   * Tạo tệp mới kiểu Windows Explorer: tạo dòng inline, tự bôi đen phần tên (trừ .vns),
+   * Enter/blur để lưu, Escape để hủy.
+   */
   private addNewFile(): void {
-    const nextNum = Object.keys(this.project.files).length;
-    const defaultName = `chapter_${nextNum}.vns`;
-    const input = window.prompt('Nhập tên file kịch bản mới (.vns):', defaultName);
-    if (!input) return;
-
-    let fileName = input.trim();
-    if (!fileName.endsWith('.vns')) fileName += '.vns';
-
-    // Kiểm tra định dạng tên file hợp lệ
-    if (!/^[a-zA-Z0-9_-]+\.vns$/.test(fileName)) {
-      this.showToast('Tên file chỉ được chứa chữ cái, số, dấu gạch nối/dưới và đuôi .vns!');
+    const existingInput = this.fileListEl.querySelector('.file-rename-input') as HTMLInputElement | null;
+    if (existingInput) {
+      existingInput.focus();
       return;
     }
 
-    if (this.project.files[fileName] !== undefined) {
-      this.showToast(`Tệp "${fileName}" đã tồn tại!`);
-      return;
-    }
+    const defaultName = this.generateDefaultScriptName();
 
-    // Lưu ngay nội dung file cũ nếu đang có timer debounce dở dang
+    const li = document.createElement('li');
+    li.className = 'file-item file-item-editing';
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'file-rename-input';
+    input.value = defaultName;
+    input.spellcheck = false;
+
+    li.appendChild(input);
+    this.fileListEl.appendChild(li);
+
+    // Bôi đen phần tên trước đuôi .vns (chuẩn Windows Explorer)
+    const dotIndex = defaultName.lastIndexOf('.');
+    const selectEnd = dotIndex !== -1 ? dotIndex : defaultName.length;
+    input.focus();
+    input.setSelectionRange(0, selectEnd);
+
+    let isHandled = false;
+
+    const commitCreation = () => {
+      if (isHandled) return;
+      isHandled = true;
+
+      let rawName = input.value.trim();
+      if (!rawName) {
+        li.remove();
+        return;
+      }
+
+      if (!rawName.endsWith('.vns')) {
+        rawName += '.vns';
+      }
+
+      // Kiểm tra ký tự cấm kiểu Windows: \ / : * ? " < > |
+      if (/[\\/:*?"<>|]/.test(rawName)) {
+        this.showToast('Tên tệp không được chứa các ký tự: \\ / : * ? " < > |');
+        li.remove();
+        return;
+      }
+
+      const fileExists = this.project.files.some(f => f.name === rawName);
+      if (fileExists) {
+        this.showToast(`Tệp "${rawName}" đã tồn tại!`);
+        li.remove();
+        return;
+      }
+
+      this.flushEditorChanges();
+
+      this.setFileContent(rawName, '');
+      const model = this.getOrCreateTextModel(rawName, '');
+
+      this.activeFile = rawName;
+      this.editorInstance.setModel(model);
+      this.activeFilenameEl.textContent = rawName;
+
+      void this.saveProjectToStorage();
+      this.renderFileList();
+      this.compileCurrentScript();
+      this.showToast(`Đã tạo tệp mới: ${rawName}`);
+    };
+
+    const cancelCreation = () => {
+      if (isHandled) return;
+      isHandled = true;
+      li.remove();
+    };
+
+    input.addEventListener('keydown', (e: KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        commitCreation();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        cancelCreation();
+      }
+    });
+
+    input.addEventListener('blur', () => {
+      commitCreation();
+    });
+  }
+
+  /**
+   * Đổi tên tệp inline chuẩn Windows Explorer (Enter/blur để lưu, Escape để hủy)
+   */
+  private startRenameFile(oldFileName: string, liElement: HTMLElement): void {
+    if (liElement.querySelector('.file-rename-input')) return;
+
     this.flushEditorChanges();
 
-    this.project.files[fileName] = '';
-    const model = this.getOrCreateTextModel(fileName, '');
+    liElement.innerHTML = '';
+    liElement.classList.add('file-item-editing');
 
-    this.project.activeFile = fileName;
-    this.editorInstance.setModel(model);
-    this.activeFilenameEl.textContent = fileName;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'file-rename-input';
+    input.value = oldFileName;
+    input.spellcheck = false;
 
-    this.saveProjectToStorage();
-    this.renderFileList();
-    this.compileCurrentScript();
-    this.showToast(`Đã tạo tệp mới: ${fileName}`);
+    liElement.appendChild(input);
+
+    const dotIndex = oldFileName.lastIndexOf('.');
+    const selectEnd = dotIndex !== -1 ? dotIndex : oldFileName.length;
+    input.focus();
+    input.setSelectionRange(0, selectEnd);
+
+    let isHandled = false;
+
+    const commitRename = () => {
+      if (isHandled) return;
+      isHandled = true;
+
+      let newName = input.value.trim();
+      if (!newName) {
+        this.renderFileList();
+        return;
+      }
+
+      if (!newName.endsWith('.vns')) {
+        newName += '.vns';
+      }
+
+      if (newName === oldFileName) {
+        this.renderFileList();
+        return;
+      }
+
+      if (/[\\/:*?"<>|]/.test(newName)) {
+        this.showToast('Tên tệp không được chứa các ký tự: \\ / : * ? " < > |');
+        this.renderFileList();
+        return;
+      }
+
+      const fileExists = this.project.files.some(f => f.name === newName);
+      if (fileExists) {
+        this.showToast(`Tệp "${newName}" đã tồn tại!`);
+        this.renderFileList();
+        return;
+      }
+
+      // Đổi tên trong danh sách tệp
+      const content = this.getFileContent(oldFileName);
+      this.renameFileKey(oldFileName, newName);
+
+      this.disposeTextModel(oldFileName);
+      const newModel = this.getOrCreateTextModel(newName, content);
+
+      if (this.activeFile === oldFileName) {
+        this.activeFile = newName;
+        this.editorInstance.setModel(newModel);
+        this.activeFilenameEl.textContent = newName;
+      }
+
+      void this.saveProjectToStorage();
+      this.renderFileList();
+      this.compileCurrentScript();
+      this.showToast(`Đã đổi tên: ${oldFileName} → ${newName}`);
+    };
+
+    const cancelRename = () => {
+      if (isHandled) return;
+      isHandled = true;
+      this.renderFileList();
+    };
+
+    input.addEventListener('keydown', (e: KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        commitRename();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        cancelRename();
+      }
+    });
+
+    input.addEventListener('blur', () => {
+      commitRename();
+    });
   }
 
   private deleteFile(fileName: string): void {
@@ -394,36 +742,36 @@ export class StudioApp {
 
     if (!window.confirm(`Bạn có chắc chắn muốn xóa tệp "${fileName}"?`)) return;
 
-    const wasActive = this.project.activeFile === fileName;
+    const wasActive = this.activeFile === fileName;
 
     // 1. Xóa khỏi danh sách file
-    delete this.project.files[fileName];
+    this.removeFile(fileName);
 
     // 2. Dispose Monaco model
     this.disposeTextModel(fileName);
 
-    // 3. Nếu file bị xóa đang là file active, chuyển sang file đầu tiên mà KHÔNG lưu file bị xóa
+    // 3. Nếu file bị xóa đang là file active, chuyển sang file đầu tiên
     if (wasActive) {
-      const fallbackFile = Object.keys(this.project.files)[0] ?? 'main.vns';
-      this.project.activeFile = fallbackFile;
+      const fallbackFile = this.project.files[0]?.name ?? 'main.vns';
+      this.activeFile = fallbackFile;
 
       const fallbackModel = this.getOrCreateTextModel(
         fallbackFile,
-        this.project.files[fallbackFile] ?? '',
+        this.getFileContent(fallbackFile),
       );
       this.editorInstance.setModel(fallbackModel);
       this.activeFilenameEl.textContent = fallbackFile;
     }
 
-    this.saveProjectToStorage();
+    void this.saveProjectToStorage();
     this.renderFileList();
     this.compileCurrentScript();
     this.showToast(`Đã xóa tệp: ${fileName}`);
   }
 
-  /**
-   * 3. THANH KÉO ĐIỀU CHỈNH KÍCH THƯỚC (SIDEBAR & PREVIEW RESIZE HANDLES)
-   */
+  // ================================================================
+  // 3. THANH KÉO ĐIỀU CHỈNH KÍCH THƯỚC (RESIZE HANDLES)
+  // ================================================================
   private setupResizeHandles(): void {
     const sidebarHandle = document.getElementById('sidebar-resize-handle');
     const previewHandle = document.getElementById('preview-resize-handle');
@@ -485,7 +833,34 @@ export class StudioApp {
       });
     }
 
-    // 3. TỰ ĐỘNG CẬP NHẬT LAYOUT MONACO KHI CONTAINER THAY ĐỔI KÍCH THƯỚC
+    // 3. THANH KÉO NGANG ĐÁY: ĐIỀU CHỈNH ĐỘ CAO BOTTOM DRAWER (PROBLEMS / WATCH)
+    if (this.drawerResizeHandle && mainWorkspace) {
+      this.drawerResizeHandle.addEventListener('mousedown', e => {
+        e.preventDefault();
+        this.drawerResizeHandle.classList.add('dragging');
+        this.previewIframe.style.pointerEvents = 'none';
+
+        const onMouseMove = (moveEvent: MouseEvent) => {
+          const mainRect = mainWorkspace.getBoundingClientRect();
+          const newDrawerHeight = Math.max(50, Math.min(450, mainRect.bottom - moveEvent.clientY));
+          document.documentElement.style.setProperty('--drawer-height', `${newDrawerHeight}px`);
+          this.editorInstance?.layout();
+        };
+
+        const onMouseUp = () => {
+          this.drawerResizeHandle.classList.remove('dragging');
+          this.previewIframe.style.pointerEvents = 'auto';
+          this.editorInstance?.layout();
+          window.removeEventListener('mousemove', onMouseMove);
+          window.removeEventListener('mouseup', onMouseUp);
+        };
+
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('mouseup', onMouseUp);
+      });
+    }
+
+    // 4. TỰ ĐỘNG CẬP NHẬT LAYOUT MONACO KHI CONTAINER THAY ĐỔI KÍCH THƯỚC
     const monacoContainer = document.getElementById('monaco-container');
     if (monacoContainer && window.ResizeObserver) {
       const resizeObserver = new ResizeObserver(() => {
@@ -495,9 +870,9 @@ export class StudioApp {
     }
   }
 
-  /**
-   * 4. SIDEBAR TÀI NGUYÊN (4 TABS)
-   */
+  // ================================================================
+  // 4. SIDEBAR TÀI NGUYÊN (4 TABS)
+  // ================================================================
   private setupSidebarTabs(): void {
     const tabs = document.querySelectorAll<HTMLButtonElement>('.sidebar-tab');
     const panes = document.querySelectorAll<HTMLElement>('.sidebar-pane');
@@ -518,16 +893,29 @@ export class StudioApp {
     });
   }
 
-  /**
-   * 5. BẢNG THÔNG TIN ĐÁY (DRAWER PROBLEMS & VARIABLES WATCH)
-   */
+  // ================================================================
+  // 5. BẢNG THÔNG TIN ĐÁY (DRAWER PROBLEMS & VARIABLES WATCH)
+  // ================================================================
   private setupDrawerTabs(): void {
+    const updateDrawerUI = () => {
+      const isCollapsed = this.drawerBody.classList.contains('collapsed');
+      this.drawerResizeHandle?.classList.toggle('hidden', isCollapsed);
+      if (this.drawerToggleBtn) {
+        this.drawerToggleBtn.textContent = isCollapsed ? '▴' : '▾';
+        this.drawerToggleBtn.title = isCollapsed
+          ? 'Mở rộng bảng thông tin'
+          : 'Thu gọn bảng thông tin';
+      }
+    };
+    updateDrawerUI();
+
     this.drawerTabProblems.addEventListener('click', () => {
       this.drawerTabProblems.classList.add('active');
       this.drawerTabVariables.classList.remove('active');
       this.drawerPaneProblems.style.display = 'block';
       this.drawerPaneVariables.style.display = 'none';
       this.drawerBody.classList.remove('collapsed');
+      updateDrawerUI();
       this.editorInstance?.layout();
     });
 
@@ -537,24 +925,28 @@ export class StudioApp {
       this.drawerPaneVariables.style.display = 'block';
       this.drawerPaneProblems.style.display = 'none';
       this.drawerBody.classList.remove('collapsed');
+      updateDrawerUI();
       this.editorInstance?.layout();
     });
 
     this.drawerToggleBtn.addEventListener('click', () => {
       this.drawerBody.classList.toggle('collapsed');
+      updateDrawerUI();
       setTimeout(() => this.editorInstance?.layout(), 50);
     });
   }
 
-  /**
-   * 6. BIÊN DỊCH REAL-TIME & ĐỒNG BỘ MONACO MARKERS (DEBOUNCED)
-   */
+  // ================================================================
+  // 6. BIÊN DỊCH REAL-TIME & ĐỒNG BỘ MONACO MARKERS (DECOUPLED AUTO-SAVE)
+  // ================================================================
   private handleEditorChange(): void {
     this.saveStatusPill.textContent = '● ĐANG LƯU...';
     this.saveStatusPill.className = 'save-status-pill syncing';
 
-    this.compilerIndicator.textContent = 'Đang phân tích cú pháp...';
-    this.compilerIndicator.className = 'compiler-status-indicator compiling';
+    if (this.compilerIndicator) {
+      this.compilerIndicator.textContent = 'Đang phân tích cú pháp...';
+      this.compilerIndicator.className = 'compiler-status-indicator compiling';
+    }
 
     if (this.editorDebounceTimerId !== null) {
       window.clearTimeout(this.editorDebounceTimerId);
@@ -570,26 +962,31 @@ export class StudioApp {
       window.clearTimeout(this.editorDebounceTimerId);
       this.editorDebounceTimerId = null;
     }
+    // 1. Luôn lưu nội dung vào Storage (Tách bạch khỏi việc biên dịch - Zero Data Loss)
     this.saveCurrentFileFromEditor();
+
+    // 2. Tiến hành biên dịch cập nhật lỗi và preview
     this.compileCurrentScript();
   }
 
   private compileCurrentScript(): void {
     if (this.editorInstance) {
-      this.project.files[this.project.activeFile] = this.editorInstance.getValue();
+      this.setFileContent(this.activeFile, this.editorInstance.getValue());
     }
 
-    const scriptFiles: ScriptFile[] = Object.entries(this.project.files).map(
-      ([fileName, content], index) => ({
-        id: fileName,
-        name: fileName,
-        content,
+    const scriptFiles: ScriptFile[] = this.project.files.map(
+      (f, index) => ({
+        id: f.id,
+        name: f.name,
+        content: f.content,
         order: index,
-        version: 1,
+        version: f.version || 1,
       }),
     );
 
-    const result = this.compiler.compile(scriptFiles);
+    const result = this.compiler.compile(scriptFiles, {
+      characters: this.project.characters,
+    });
 
     // Cập nhật Monaco Markers (Gạch chân đỏ lỗi cú pháp thời gian thực)
     const currentModel = this.editorInstance?.getModel();
@@ -597,8 +994,10 @@ export class StudioApp {
     if (result.success && result.program) {
       this.latestProgram = result.program;
 
-      this.compilerIndicator.textContent = 'Biên dịch tự động: SẴN SÀNG';
-      this.compilerIndicator.className = 'compiler-status-indicator';
+      if (this.compilerIndicator) {
+        this.compilerIndicator.textContent = 'Biên dịch tự động: SẴN SÀNG';
+        this.compilerIndicator.className = 'compiler-status-indicator';
+      }
 
       this.drawerTabProblems.classList.remove('has-error');
       this.problemsSummary.textContent = '● Problems (0 lỗi)';
@@ -608,7 +1007,6 @@ export class StudioApp {
         monaco.editor.setModelMarkers(currentModel, 'vns-compiler', []);
       }
 
-      this.saveProjectToStorage();
       this.sendProgramToPreview(this.latestProgram);
 
       if (result.ast) {
@@ -616,19 +1014,18 @@ export class StudioApp {
       }
     } else {
       const errors = result.errors || [];
-      this.compilerIndicator.textContent = `Biên dịch tự động: CÓ ${errors.length} LỖI`;
-      this.compilerIndicator.className = 'compiler-status-indicator error';
+      if (this.compilerIndicator) {
+        this.compilerIndicator.textContent = `Biên dịch tự động: CÓ ${errors.length} LỖI`;
+        this.compilerIndicator.className = 'compiler-status-indicator error';
+      }
 
       this.drawerTabProblems.classList.add('has-error');
       this.problemsSummary.textContent = `● Problems (${errors.length} lỗi)`;
 
-      this.saveStatusPill.textContent = '● CÓ LỖI BIÊN DỊCH';
-      this.saveStatusPill.className = 'save-status-pill error';
-
       // Tạo markers gạch chân đỏ trên Monaco
       if (currentModel) {
         const markers: monaco.editor.IMarkerData[] = errors
-          .filter(err => !err.loc?.fileId || err.loc.fileId === this.project.activeFile)
+          .filter(err => !err.loc?.fileId || err.loc.fileId === this.activeFile)
           .map(err => {
             const line = err.loc?.line ?? 1;
             const col = err.loc?.col ?? 1;
@@ -654,7 +1051,7 @@ export class StudioApp {
         const file = err.loc?.fileId ? `[${err.loc.fileId}] ` : '';
         row.textContent = `✕ ${file}Dòng ${line}, Cột ${col}: ${err.message}`;
         row.addEventListener('click', () => {
-          if (err.loc?.fileId && err.loc.fileId !== this.project.activeFile) {
+          if (err.loc?.fileId && err.loc.fileId !== this.activeFile) {
             this.switchActiveFile(err.loc.fileId);
           }
           this.jumpToLine(line, col);
@@ -672,15 +1069,16 @@ export class StudioApp {
     }
   }
 
-  /**
-   * 7. CẬP NHẬT SIDEBAR METADATA & BẢNG WATCH TỪ AST
-   */
+  // ================================================================
+  // 7. CẬP NHẬT SIDEBAR METADATA AN TOÀN XSS (SAFE DOM WITH textContent)
+  // ================================================================
   private updateSidebarMetadata(ast: ProgramAST): void {
     const characters = new Map<string, { displayName?: string; sprites: Set<string> }>();
     const backgrounds = new Set<string>();
     const musicAssets = new Set<string>();
     const soundAssets = new Set<string>();
     const variables = new Map<string, unknown>();
+    const scenesList: string[] = [];
 
     const traverse = (stmts: StatementAST[]) => {
       for (const stmt of stmts) {
@@ -689,7 +1087,9 @@ export class StudioApp {
           if (!characters.has(s.character)) {
             characters.set(s.character, { sprites: new Set() });
           }
-          characters.get(s.character)!.sprites.add(s.sprite);
+          if (s.sprite && s.sprite.trim().length > 0) {
+            characters.get(s.character)!.sprites.add(s.sprite);
+          }
         } else if (stmt.type === 'RevealStatement') {
           const r = stmt as RevealStatement;
           if (!characters.has(r.characterId)) {
@@ -721,125 +1121,1037 @@ export class StudioApp {
     };
 
     if (ast.scenes) {
-      for (const sc of Object.values(ast.scenes)) {
+      for (const [scName, sc] of Object.entries(ast.scenes)) {
+        scenesList.push(scName);
         if (sc.body) traverse(sc.body);
       }
     }
 
-    // Render Characters Tab
-    if (this.charContainer) {
-      if (characters.size === 0) {
-        this.charContainer.innerHTML =
-          '<div class="empty-meta-hint">Chưa phát hiện nhân vật. Sử dụng cú pháp: show nhân_vật sprite</div>';
-      } else {
-        this.charContainer.innerHTML = '';
-        const charColorPalette = ['#38bdf8', '#f43f5e', '#eab308', '#a855f7', '#10b981'];
-        let cIdx = 0;
-        for (const [id, info] of characters) {
-          const card = document.createElement('div');
-          card.className = 'meta-card';
-          const dotColor = charColorPalette[cIdx % charColorPalette.length];
-          cIdx++;
-          const name = info.displayName ? `${id} (${info.displayName})` : id;
-          card.innerHTML = `
-            <div class="meta-card-title">
-              <span class="char-badge-dot" style="background-color: ${dotColor};"></span>
-              <span>${name}</span>
-            </div>
-            <div class="meta-tags-list">
-              ${Array.from(info.sprites).map(sp => `<span class="meta-tag-pill">${sp}</span>`).join('')}
-            </div>
-          `;
-          this.charContainer.appendChild(card);
-        }
-      }
-    }
+    // Cập nhật bộ đệm cho Autocomplete
+    this.cachedAstMetadata.scenes = scenesList;
+    this.cachedAstMetadata.characters = characters;
+    this.cachedAstMetadata.assets.backgrounds = backgrounds;
+    this.cachedAstMetadata.assets.audio = new Set([...musicAssets, ...soundAssets]);
+    this.cachedAstMetadata.variables = Array.from(variables.keys());
 
-    // Render Assets Tab
-    if (this.assetContainer) {
-      let assetHtml = '';
-      if (backgrounds.size > 0) {
-        assetHtml += `
-          <div class="meta-card">
-            <div class="meta-card-title">Hình nền (Backgrounds)</div>
-            <div class="meta-tags-list">
-              ${Array.from(backgrounds).map(b => `<span class="meta-tag-pill">🖼 ${b}</span>`).join('')}
-            </div>
-          </div>
-        `;
-      }
-      if (musicAssets.size > 0) {
-        assetHtml += `
-          <div class="meta-card">
-            <div class="meta-card-title">Nhạc nền (BGM)</div>
-            <div class="meta-tags-list">
-              ${Array.from(musicAssets).map(m => `<span class="meta-tag-pill">🎵 ${m}</span>`).join('')}
-            </div>
-          </div>
-        `;
-      }
-      if (soundAssets.size > 0) {
-        assetHtml += `
-          <div class="meta-card">
-            <div class="meta-card-title">Hiệu ứng âm thanh (SFX)</div>
-            <div class="meta-tags-list">
-              ${Array.from(soundAssets).map(s => `<span class="meta-tag-pill">🔊 ${s}</span>`).join('')}
-            </div>
-          </div>
-        `;
-      }
-      if (!assetHtml) {
-        assetHtml =
-          '<div class="empty-meta-hint">Chưa có tài nguyên nền hoặc âm thanh được tham chiếu.</div>';
-      }
-      this.assetContainer.innerHTML = assetHtml;
-    }
+    // 1. Đối chiếu & Hiển thị Nhân vật (Active 2-Way Reconciliation)
+    this.reconcileCharactersWithScript(characters);
+    this.renderCharacterList();
 
-    // Render Variables Tab
+    // 2. Đối chiếu & Hiển thị Tài nguyên (Active 2-Way Reconciliation)
+    this.reconcileAssetsWithScript(backgrounds, new Set([...musicAssets, ...soundAssets]));
+    this.renderAssetList();
+
+    // 3. Render Variables Tab (Safe DOM)
     if (this.varContainer) {
+      this.varContainer.innerHTML = '';
       if (variables.size === 0) {
-        this.varContainer.innerHTML =
-          '<div class="empty-meta-hint">Chưa có biến trạng thái. Gán biến bằng cú pháp: ~ tên_biến = giá_trị</div>';
+        const hint = document.createElement('div');
+        hint.className = 'empty-meta-hint';
+        hint.textContent = 'Chưa có biến trạng thái. Dùng cú pháp: ~ tên_biến = giá_trị để thay đổi trạng thái trong kịch bản.';
+        this.varContainer.appendChild(hint);
       } else {
-        this.varContainer.innerHTML = '';
         for (const [v, val] of variables) {
           const card = document.createElement('div');
           card.className = 'meta-card';
-          card.innerHTML = `
-            <div class="meta-card-title">~ ${v}</div>
-            <div class="meta-tags-list">
-              <span class="meta-tag-pill">Khởi tạo: ${String(val)}</span>
-            </div>
-          `;
+
+          const title = document.createElement('div');
+          title.className = 'meta-card-title';
+          title.textContent = `~ ${v}`;
+          card.appendChild(title);
+
+          const tags = document.createElement('div');
+          tags.className = 'meta-tags-list';
+          const pill = document.createElement('span');
+          pill.className = 'meta-tag-pill';
+          pill.textContent = `Khởi tạo: ${String(val)}`;
+          tags.appendChild(pill);
+          card.appendChild(tags);
+
           this.varContainer.appendChild(card);
         }
       }
     }
 
-    // Render Variables Watch Table in Bottom Drawer
+    // 4. Render Variables Watch Table in Bottom Drawer (Safe DOM)
     this.varsWatchTbody.innerHTML = '';
     if (variables.size === 0) {
-      this.varsWatchTbody.innerHTML = '<tr><td colspan="3" style="color: #666;">Chưa có biến nào.</td></tr>';
+      const tr = document.createElement('tr');
+      const td = document.createElement('td');
+      td.colSpan = 3;
+      td.style.color = '#666';
+      td.textContent = 'Chưa có biến nào.';
+      tr.appendChild(td);
+      this.varsWatchTbody.appendChild(tr);
     } else {
       for (const [name, val] of variables) {
         const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td style="font-weight: 600; color: #fff;">${name}</td>
-          <td style="color: #888;">${typeof val}</td>
-          <td style="color: #22c55e;">${String(val)}</td>
-        `;
+
+        const tdName = document.createElement('td');
+        tdName.style.fontWeight = '600';
+        tdName.style.color = '#fff';
+        tdName.textContent = name;
+
+        const tdType = document.createElement('td');
+        tdType.style.color = '#888';
+        tdType.textContent = typeof val;
+
+        const tdVal = document.createElement('td');
+        tdVal.style.color = '#22c55e';
+        tdVal.textContent = String(val);
+
+        tr.appendChild(tdName);
+        tr.appendChild(tdType);
+        tr.appendChild(tdVal);
         this.varsWatchTbody.appendChild(tr);
       }
     }
   }
 
-  /**
-   * 8. CẦU NỐI HAI CHIỀU LIVE PREVIEW
-   */
+  // ================================================================
+  // 7b. QUẢN LÝ NHÂN VẬT, TÀI NGUYÊN & LỚP ĐỐI CHIẾU 2 CHIỀU
+  // ================================================================
+  private getProjectCharactersMap(): Map<string, { displayName?: string; sprites: Set<string> }> {
+    const map = new Map<string, { displayName?: string; sprites: Set<string> }>();
+    if (Array.isArray(this.project.characters)) {
+      for (const c of this.project.characters) {
+        const sprites = new Set<string>(Object.keys(c.sprites || {}));
+        map.set(c.id, { displayName: c.name, sprites });
+      }
+    }
+    // Gộp thêm các nhân vật phát hiện từ AST (nếu có)
+    for (const [id, info] of this.cachedAstMetadata.characters) {
+      if (!map.has(id)) {
+        map.set(id, { displayName: info.displayName, sprites: new Set(info.sprites) });
+      } else {
+        const existing = map.get(id)!;
+        for (const sp of info.sprites) existing.sprites.add(sp);
+      }
+    }
+    return map;
+  }
+
+  private getProjectAssetsMap(): { backgrounds: Set<string>; audio: Set<string> } {
+    const backgrounds = new Set<string>();
+    const audio = new Set<string>();
+    if (Array.isArray(this.project.assets)) {
+      for (const a of this.project.assets) {
+        if (a.type === 'image') {
+          backgrounds.add(a.name);
+        } else if (a.type === 'audio') {
+          audio.add(a.name);
+        }
+      }
+    }
+    for (const b of this.cachedAstMetadata.assets.backgrounds) backgrounds.add(b);
+    for (const a of this.cachedAstMetadata.assets.audio) audio.add(a);
+    return { backgrounds, audio };
+  }
+
+  private reconcileCharactersWithScript(astCharacters: Map<string, { displayName?: string; sprites: Set<string> }>): void {
+    if (!this.charReconciliationEl) return;
+    this.charReconciliationEl.innerHTML = '';
+
+    const declaredIds = new Set((this.project.characters || []).map(c => c.id));
+    for (const [charId, info] of astCharacters) {
+      if (!declaredIds.has(charId)) {
+        const alertCard = document.createElement('div');
+        alertCard.className = 'reconciliation-alert-card';
+
+        const title = document.createElement('div');
+        title.className = 'reconciliation-alert-title';
+        title.textContent = `⚠️ Nhân vật "${charId}" chưa được tạo trong dự án`;
+
+        const desc = document.createElement('div');
+        desc.className = 'reconciliation-alert-desc';
+        desc.textContent = info.displayName
+          ? `Script đang dùng "${charId}" (${info.displayName}) nhưng chưa khai báo trên tab Nhân vật.`
+          : `Script đang gọi "${charId}:" hoặc "show ${charId}" nhưng chưa khai báo trên tab Nhân vật.`;
+
+        const btn = document.createElement('button');
+        btn.className = 'reconciliation-alert-btn';
+        btn.textContent = `+ Tạo ngay nhân vật "${charId}"`;
+        btn.addEventListener('click', () => {
+          this.openCharacterModal(undefined, charId, info.displayName);
+        });
+
+        alertCard.appendChild(title);
+        alertCard.appendChild(desc);
+        alertCard.appendChild(btn);
+        this.charReconciliationEl.appendChild(alertCard);
+      }
+    }
+  }
+
+  private renderCharacterList(): void {
+    if (!this.charContainer) return;
+    this.charContainer.innerHTML = '';
+
+    const chars: Character[] = this.project.characters || [];
+    if (chars.length === 0) {
+      const hint = document.createElement('div');
+      hint.className = 'empty-meta-hint';
+      hint.textContent = 'Chưa có nhân vật nào trong dự án. Bấm "+ Thêm nhân vật" ở trên để khởi tạo nhân vật đầu tiên.';
+      this.charContainer.appendChild(hint);
+      return;
+    }
+
+    for (const char of chars) {
+      const card = document.createElement('div');
+      card.className = 'character-card';
+
+      // Header row
+      const header = document.createElement('div');
+      header.className = 'character-card-header';
+
+      const identity = document.createElement('div');
+      identity.className = 'character-identity';
+
+      const dot = document.createElement('span');
+      dot.className = 'char-badge-dot';
+      dot.style.backgroundColor = char.colorHex || '#38bdf8';
+
+      const idSpan = document.createElement('span');
+      idSpan.className = 'character-id-text';
+      idSpan.textContent = char.id;
+
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'character-name-text';
+      nameSpan.textContent = char.name ? `(${char.name})` : '';
+
+      const hexBadge = document.createElement('span');
+      hexBadge.style.fontFamily = 'var(--vn-font-mono)';
+      hexBadge.style.fontSize = '9px';
+      hexBadge.style.color = char.colorHex || '#38bdf8';
+      hexBadge.style.border = `1px solid ${char.colorHex || '#38bdf8'}`;
+      hexBadge.style.padding = '0 3px';
+      hexBadge.style.marginLeft = '4px';
+      hexBadge.textContent = (char.colorHex || '#38bdf8').toUpperCase();
+
+      identity.appendChild(dot);
+      identity.appendChild(idSpan);
+      if (char.name) identity.appendChild(nameSpan);
+      identity.appendChild(hexBadge);
+
+      const actions = document.createElement('div');
+      actions.className = 'meta-card-actions';
+
+      const btnEdit = document.createElement('button');
+      btnEdit.className = 'btn-card-action';
+      btnEdit.title = `Chỉnh sửa nhân vật ${char.id}`;
+      btnEdit.textContent = '✎ Sửa';
+      btnEdit.addEventListener('click', () => {
+        this.openCharacterModal(char.id);
+      });
+
+      const btnDel = document.createElement('button');
+      btnDel.className = 'btn-card-action btn-card-delete';
+      btnDel.title = `Xóa nhân vật ${char.id}`;
+      btnDel.textContent = '✕ Xóa';
+      btnDel.addEventListener('click', () => {
+        this.deleteCharacter(char.id);
+      });
+
+      actions.appendChild(btnEdit);
+      actions.appendChild(btnDel);
+
+      header.appendChild(identity);
+      header.appendChild(actions);
+      card.appendChild(header);
+
+      // Sprites section
+      const spritesSection = document.createElement('div');
+      spritesSection.className = 'char-sprites-section';
+
+      const label = document.createElement('span');
+      label.className = 'sprites-label';
+      label.textContent = 'Biểu cảm (Sprites):';
+      spritesSection.appendChild(label);
+
+      const spritesList = document.createElement('div');
+      spritesList.className = 'meta-tags-list';
+
+      const spriteKeys = Object.keys(char.sprites || {});
+      if (spriteKeys.length === 0) {
+        const noSp = document.createElement('span');
+        noSp.style.fontSize = '10px';
+        noSp.style.color = '#666';
+        noSp.textContent = '(Chưa có sprite) ';
+        spritesList.appendChild(noSp);
+      } else {
+        for (const sp of spriteKeys) {
+          const pill = document.createElement('span');
+          pill.className = 'sprite-pill';
+
+          const imgData = char.sprites?.[sp];
+          if (imgData && imgData.trim().length > 0) {
+            const thumb = document.createElement('img');
+            thumb.className = 'sprite-pill-thumb';
+            thumb.src = imgData;
+            thumb.alt = sp;
+            pill.appendChild(thumb);
+          }
+
+          const spName = document.createElement('span');
+          spName.textContent = sp;
+
+          const removeBtn = document.createElement('button');
+          removeBtn.className = 'btn-remove-sprite';
+          removeBtn.title = `Xóa biểu cảm ${sp}`;
+          removeBtn.textContent = '✕';
+          removeBtn.addEventListener('click', e => {
+            e.stopPropagation();
+            this.removeCharacterSprite(char.id, sp);
+          });
+
+          pill.appendChild(spName);
+          pill.appendChild(removeBtn);
+          spritesList.appendChild(pill);
+        }
+      }
+
+      // Nút thêm sprite nhanh
+      const btnAddSprite = document.createElement('button');
+      btnAddSprite.className = 'btn-add-sprite-inline';
+      btnAddSprite.textContent = '+ Thêm sprite';
+      btnAddSprite.addEventListener('click', () => {
+        const spName = window.prompt(`Nhập tên biểu cảm/sprite mới cho nhân vật "${char.id}":`);
+        if (spName && spName.trim()) {
+          this.addCharacterSprite(char.id, spName.trim());
+        }
+      });
+      spritesList.appendChild(btnAddSprite);
+
+      spritesSection.appendChild(spritesList);
+
+      // Kiểm tra đối chiếu: Script có dùng sprite nào mà char chưa có không?
+      const astCharInfo = this.cachedAstMetadata.characters.get(char.id);
+      if (astCharInfo && astCharInfo.sprites) {
+        const missingSprites: string[] = [];
+        for (const usedSp of astCharInfo.sprites) {
+          if (!usedSp || usedSp === 'default') continue;
+          if (!char.sprites || !(usedSp in char.sprites)) {
+            missingSprites.push(usedSp);
+          }
+        }
+        if (missingSprites.length > 0) {
+          const warningEl = document.createElement('div');
+          warningEl.style.marginTop = '4px';
+          warningEl.style.fontSize = '10px';
+          warningEl.style.color = '#facc15';
+          warningEl.textContent = `⚠️ Script đang gọi: ${missingSprites.join(', ')} (chưa có trong danh mục)`;
+          spritesSection.appendChild(warningEl);
+        }
+      }
+
+      card.appendChild(spritesSection);
+      this.charContainer.appendChild(card);
+    }
+  }
+
+  private reconcileAssetsWithScript(backgrounds: Set<string>, audio: Set<string>): void {
+    if (!this.assetReconciliationEl) return;
+    this.assetReconciliationEl.innerHTML = '';
+
+    const declaredNames = new Set((this.project.assets || []).map(a => a.name));
+    const declaredIds = new Set((this.project.assets || []).map(a => a.id));
+
+    for (const bg of backgrounds) {
+      if (!declaredNames.has(bg) && !declaredIds.has(bg)) {
+        const alertCard = document.createElement('div');
+        alertCard.className = 'reconciliation-alert-card';
+
+        const title = document.createElement('div');
+        title.className = 'reconciliation-alert-title';
+        title.textContent = `⚠️ Hình nền "${bg}" chưa được đăng ký`;
+
+        const desc = document.createElement('div');
+        desc.className = 'reconciliation-alert-desc';
+        desc.textContent = `Script dùng lệnh: background ${bg} nhưng chưa có trong danh mục Tài nguyên.`;
+
+        const btn = document.createElement('button');
+        btn.className = 'reconciliation-alert-btn';
+        btn.textContent = `+ Khai báo asset "${bg}"`;
+        btn.addEventListener('click', () => {
+          this.openAssetModal(undefined, bg, 'image');
+        });
+
+        alertCard.appendChild(title);
+        alertCard.appendChild(desc);
+        alertCard.appendChild(btn);
+        this.assetReconciliationEl.appendChild(alertCard);
+      }
+    }
+
+    for (const aud of audio) {
+      if (!declaredNames.has(aud) && !declaredIds.has(aud)) {
+        const alertCard = document.createElement('div');
+        alertCard.className = 'reconciliation-alert-card';
+
+        const title = document.createElement('div');
+        title.className = 'reconciliation-alert-title';
+        title.textContent = `⚠️ Âm thanh "${aud}" chưa được đăng ký`;
+
+        const desc = document.createElement('div');
+        desc.className = 'reconciliation-alert-desc';
+        desc.textContent = `Script dùng lệnh play "${aud}" nhưng chưa có trong danh mục Tài nguyên.`;
+
+        const btn = document.createElement('button');
+        btn.className = 'reconciliation-alert-btn';
+        btn.textContent = `+ Khai báo asset "${aud}"`;
+        btn.addEventListener('click', () => {
+          this.openAssetModal(undefined, aud, 'audio');
+        });
+
+        alertCard.appendChild(title);
+        alertCard.appendChild(desc);
+        alertCard.appendChild(btn);
+        this.assetReconciliationEl.appendChild(alertCard);
+      }
+    }
+  }
+
+  private renderAssetList(): void {
+    if (!this.assetContainer) return;
+    this.assetContainer.innerHTML = '';
+
+    let assets: AssetRef[] = this.project.assets || [];
+    if (this.activeAssetFilter !== 'all') {
+      assets = assets.filter(a => a.type === this.activeAssetFilter);
+    }
+
+    if (assets.length === 0) {
+      const hint = document.createElement('div');
+      hint.className = 'empty-meta-hint';
+      hint.textContent = this.activeAssetFilter === 'all'
+        ? 'Chưa có tài nguyên nào trong dự án. Bấm "+ Thêm asset" ở trên để bổ sung.'
+        : `Chưa có tài nguyên loại "${this.activeAssetFilter}".`;
+      this.assetContainer.appendChild(hint);
+      return;
+    }
+
+    const usedBackgrounds = this.cachedAstMetadata.assets.backgrounds;
+    const usedAudio = this.cachedAstMetadata.assets.audio;
+
+    for (const asset of assets) {
+      const card = document.createElement('div');
+      card.className = 'asset-card';
+
+      const main = document.createElement('div');
+      main.className = 'asset-card-main';
+
+      const icon = document.createElement('div');
+      icon.className = 'asset-card-icon';
+      icon.textContent = asset.type === 'audio' ? '🎵' : '🖼';
+
+      const info = document.createElement('div');
+      info.className = 'asset-card-info';
+
+      const nameRow = document.createElement('div');
+      nameRow.className = 'asset-name-row';
+
+      const nameText = document.createElement('span');
+      nameText.className = 'asset-name-text';
+      nameText.textContent = asset.name;
+      nameText.title = asset.name;
+
+      const typeBadge = document.createElement('span');
+      typeBadge.className = 'asset-type-badge';
+      typeBadge.textContent = asset.type;
+
+      nameRow.appendChild(nameText);
+      nameRow.appendChild(typeBadge);
+
+      // Kiểm tra trạng thái sử dụng trong kịch bản (prompt.md line 127)
+      const isUsed = asset.type === 'audio'
+        ? usedAudio.has(asset.name) || usedAudio.has(asset.id)
+        : usedBackgrounds.has(asset.name) || usedBackgrounds.has(asset.id);
+
+      if (!isUsed) {
+        const unusedBadge = document.createElement('span');
+        unusedBadge.className = 'asset-badge-unused';
+        unusedBadge.textContent = 'Chưa dùng';
+        unusedBadge.title = 'Tài nguyên này chưa được gọi trong file kịch bản nào';
+        nameRow.appendChild(unusedBadge);
+      }
+
+      info.appendChild(nameRow);
+      main.appendChild(icon);
+      main.appendChild(info);
+
+      const actions = document.createElement('div');
+      actions.className = 'meta-card-actions';
+
+      const btnEdit = document.createElement('button');
+      btnEdit.className = 'btn-card-action';
+      btnEdit.title = `Sửa tài nguyên ${asset.name}`;
+      btnEdit.textContent = '✎ Sửa';
+      btnEdit.addEventListener('click', () => {
+        this.openAssetModal(asset.id);
+      });
+
+      const btnDel = document.createElement('button');
+      btnDel.className = 'btn-card-action btn-card-delete';
+      btnDel.title = `Xóa tài nguyên ${asset.name}`;
+      btnDel.textContent = '✕ Xóa';
+      btnDel.addEventListener('click', () => {
+        this.deleteAsset(asset.id);
+      });
+
+      actions.appendChild(btnEdit);
+      actions.appendChild(btnDel);
+
+      card.appendChild(main);
+      card.appendChild(actions);
+      this.assetContainer.appendChild(card);
+    }
+  }
+
+  private setupCharacterManagement(): void {
+    if (this.btnAddCharacter) {
+      this.btnAddCharacter.addEventListener('click', () => {
+        this.openCharacterModal();
+      });
+    }
+
+    const btnClose = document.getElementById('btn-close-char-modal');
+    const btnCancel = document.getElementById('btn-cancel-char-modal');
+    if (btnClose) btnClose.addEventListener('click', () => this.closeCharacterModal());
+    if (btnCancel) btnCancel.addEventListener('click', () => this.closeCharacterModal());
+
+    // Color controls: hex input, color picker, sample preview tag
+    const hexInput = document.getElementById('char-input-color-hex') as HTMLInputElement | null;
+    const colorInput = document.getElementById('char-input-color') as HTMLInputElement | null;
+    const previewTag = document.getElementById('char-color-preview-tag');
+    const nameInput = document.getElementById('char-input-name') as HTMLInputElement | null;
+
+    const updateColorState = (hex: string) => {
+      let normalized = hex.trim();
+      if (!normalized.startsWith('#')) {
+        normalized = '#' + normalized;
+      }
+      if (/^#[0-9A-Fa-f]{6}$/.test(normalized) || /^#[0-9A-Fa-f]{3}$/.test(normalized)) {
+        if (colorInput) {
+          colorInput.value = normalized.length === 4
+            ? `#${normalized[1]}${normalized[1]}${normalized[2]}${normalized[2]}${normalized[3]}${normalized[3]}`
+            : normalized;
+        }
+        if (previewTag) {
+          previewTag.style.color = normalized;
+          previewTag.style.borderColor = normalized;
+        }
+      }
+    };
+
+    if (hexInput) {
+      hexInput.addEventListener('input', () => {
+        updateColorState(hexInput.value);
+      });
+    }
+
+    if (colorInput) {
+      colorInput.addEventListener('input', () => {
+        const val = colorInput.value.toUpperCase();
+        if (hexInput) hexInput.value = val;
+        if (previewTag) {
+          previewTag.style.color = val;
+          previewTag.style.borderColor = val;
+        }
+      });
+    }
+
+    // Color preset buttons
+    const colorPresets = document.querySelectorAll('.color-preset-btn');
+    colorPresets.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const color = btn.getAttribute('data-color');
+        if (color) {
+          if (hexInput) hexInput.value = color.toUpperCase();
+          if (colorInput) colorInput.value = color;
+          if (previewTag) {
+            previewTag.style.color = color;
+            previewTag.style.borderColor = color;
+          }
+        }
+      });
+    });
+
+    if (nameInput && previewTag) {
+      nameInput.addEventListener('input', () => {
+        previewTag.textContent = nameInput.value.trim() || 'Tên hiển thị';
+      });
+    }
+
+    // Button thêm biểu cảm trong modal
+    const btnAddSpriteRow = document.getElementById('btn-add-sprite-row');
+    if (btnAddSpriteRow) {
+      btnAddSpriteRow.addEventListener('click', () => {
+        this.addModalSpriteRow();
+      });
+    }
+
+    if (this.formCharacter) {
+      this.formCharacter.addEventListener('submit', (e: Event) => {
+        e.preventDefault();
+        this.saveCharacterFromModal();
+      });
+    }
+  }
+
+  private renderModalSpriteRows(): void {
+    const listContainer = document.getElementById('char-sprites-manager-list');
+    if (!listContainer) return;
+    listContainer.innerHTML = '';
+
+    if (this.modalSpriteRows.length === 0) {
+      this.modalSpriteRows.push({ name: 'default', imageDataUrl: '' });
+    }
+
+    this.modalSpriteRows.forEach((row, idx) => {
+      const rowEl = document.createElement('div');
+      rowEl.className = 'sprite-manager-row';
+
+      // 1. Ô nhập tên biểu cảm
+      const nameInput = document.createElement('input');
+      nameInput.type = 'text';
+      nameInput.className = 'wf-form-input sprite-row-name';
+      nameInput.placeholder = idx === 0 ? 'default' : 'tên sprite...';
+      nameInput.value = row.name;
+      nameInput.addEventListener('input', () => {
+        row.name = nameInput.value.trim();
+      });
+
+      // 2. Hộp xem trước thumbnail
+      const thumbBox = document.createElement('div');
+      thumbBox.className = 'sprite-row-thumb-box';
+      if (row.imageDataUrl) {
+        const img = document.createElement('img');
+        img.className = 'sprite-row-thumb-img';
+        img.src = row.imageDataUrl;
+        img.alt = row.name;
+        thumbBox.appendChild(img);
+      } else {
+        const placeholder = document.createElement('span');
+        placeholder.className = 'sprite-row-thumb-placeholder';
+        placeholder.textContent = '🖼';
+        thumbBox.appendChild(placeholder);
+      }
+
+      // 3. Nút tải ảnh lên từ máy
+      const uploadLabel = document.createElement('label');
+      uploadLabel.className = 'sprite-upload-btn-label';
+      uploadLabel.textContent = row.imageDataUrl ? 'Thay ảnh' : '📁 Tải ảnh';
+
+      const fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.accept = 'image/*';
+      fileInput.className = 'hidden';
+      fileInput.addEventListener('change', () => {
+        const file = fileInput.files?.[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = () => {
+            row.imageDataUrl = reader.result as string;
+            this.renderModalSpriteRows();
+          };
+          reader.readAsDataURL(file);
+        }
+      });
+      uploadLabel.appendChild(fileInput);
+
+      // 4. Trạng thái ảnh
+      const statusText = document.createElement('span');
+      statusText.className = 'sprite-row-status';
+      statusText.textContent = row.imageDataUrl ? 'Đã có ảnh' : '(chưa có ảnh)';
+
+      rowEl.appendChild(nameInput);
+      rowEl.appendChild(thumbBox);
+      rowEl.appendChild(uploadLabel);
+
+      // 5. Nút gỡ ảnh nếu đã có ảnh
+      if (row.imageDataUrl) {
+        const btnClearImg = document.createElement('button');
+        btnClearImg.type = 'button';
+        btnClearImg.className = 'btn-clear-sprite-img';
+        btnClearImg.title = 'Gỡ bỏ ảnh này';
+        btnClearImg.textContent = '✕ Gỡ ảnh';
+        btnClearImg.addEventListener('click', () => {
+          row.imageDataUrl = '';
+          this.renderModalSpriteRows();
+        });
+        rowEl.appendChild(btnClearImg);
+      }
+
+      rowEl.appendChild(statusText);
+
+      // 6. Nút xóa hàng biểu cảm
+      const btnRemoveRow = document.createElement('button');
+      btnRemoveRow.type = 'button';
+      btnRemoveRow.className = 'btn-remove-sprite-row';
+      btnRemoveRow.title = 'Xóa biểu cảm này';
+      btnRemoveRow.textContent = '✕';
+      btnRemoveRow.addEventListener('click', () => {
+        this.modalSpriteRows.splice(idx, 1);
+        if (this.modalSpriteRows.length === 0) {
+          this.modalSpriteRows.push({ name: 'default', imageDataUrl: '' });
+        }
+        this.renderModalSpriteRows();
+      });
+      rowEl.appendChild(btnRemoveRow);
+
+      listContainer.appendChild(rowEl);
+    });
+  }
+
+  private addModalSpriteRow(name = '', imageDataUrl = ''): void {
+    this.modalSpriteRows.push({ name, imageDataUrl });
+    this.renderModalSpriteRows();
+  }
+
+  private openCharacterModal(charId?: string, prefillId?: string, prefillName?: string): void {
+    if (!this.modalCharForm) return;
+
+    const titleEl = document.getElementById('modal-char-title');
+    const modeEl = document.getElementById('char-edit-mode') as HTMLInputElement;
+    const origIdEl = document.getElementById('char-original-id') as HTMLInputElement;
+    const idInput = document.getElementById('char-input-id') as HTMLInputElement;
+    const nameInput = document.getElementById('char-input-name') as HTMLInputElement;
+    const hexInput = document.getElementById('char-input-color-hex') as HTMLInputElement | null;
+    const colorInput = document.getElementById('char-input-color') as HTMLInputElement | null;
+    const previewTag = document.getElementById('char-color-preview-tag');
+
+    if (charId) {
+      const existing = (this.project.characters || []).find(c => c.id === charId);
+      if (existing) {
+        if (titleEl) titleEl.textContent = `CHỈNH SỬA NHÂN VẬT: ${existing.id}`;
+        modeEl.value = 'edit';
+        origIdEl.value = existing.id;
+        idInput.value = existing.id;
+        idInput.disabled = true;
+        nameInput.value = existing.name || '';
+
+        const color = (existing.colorHex || '#38BDF8').toUpperCase();
+        if (hexInput) hexInput.value = color;
+        if (colorInput) colorInput.value = color;
+        if (previewTag) {
+          previewTag.style.color = color;
+          previewTag.style.borderColor = color;
+          previewTag.textContent = existing.name || existing.id;
+        }
+
+        const entries = Object.entries(existing.sprites || {});
+        if (entries.length > 0) {
+          this.modalSpriteRows = entries.map(([k, v]) => ({ name: k, imageDataUrl: v || '' }));
+        } else {
+          this.modalSpriteRows = [{ name: 'default', imageDataUrl: '' }];
+        }
+      }
+    } else {
+      if (titleEl) titleEl.textContent = 'THÊM NHÂN VẬT MỚI';
+      modeEl.value = 'create';
+      origIdEl.value = '';
+      idInput.value = prefillId || '';
+      idInput.disabled = false;
+      const initialName = prefillName || (prefillId ? prefillId.charAt(0).toUpperCase() + prefillId.slice(1) : '');
+      nameInput.value = initialName;
+
+      const color = '#38BDF8';
+      if (hexInput) hexInput.value = color;
+      if (colorInput) colorInput.value = color;
+      if (previewTag) {
+        previewTag.style.color = color;
+        previewTag.style.borderColor = color;
+        previewTag.textContent = initialName || 'Tên hiển thị';
+      }
+
+      this.modalSpriteRows = [
+        { name: 'default', imageDataUrl: '' },
+        { name: 'happy', imageDataUrl: '' },
+      ];
+    }
+
+    this.renderModalSpriteRows();
+    this.modalCharForm.classList.remove('hidden');
+    idInput.focus();
+  }
+
+  private closeCharacterModal(): void {
+    if (this.modalCharForm) {
+      this.modalCharForm.classList.add('hidden');
+    }
+  }
+
+  private saveCharacterFromModal(): void {
+    const modeEl = document.getElementById('char-edit-mode') as HTMLInputElement;
+    const origIdEl = document.getElementById('char-original-id') as HTMLInputElement;
+    const idInput = document.getElementById('char-input-id') as HTMLInputElement;
+    const nameInput = document.getElementById('char-input-name') as HTMLInputElement;
+    const hexInput = document.getElementById('char-input-color-hex') as HTMLInputElement | null;
+    const colorInput = document.getElementById('char-input-color') as HTMLInputElement | null;
+
+    const charId = idInput.value.trim().toLowerCase();
+    const charName = nameInput.value.trim();
+
+    let colorHex = (hexInput ? hexInput.value.trim() : (colorInput?.value || '#38BDF8')).toUpperCase();
+    if (!colorHex.startsWith('#')) colorHex = '#' + colorHex;
+    if (!/^#[0-9A-Fa-f]{6}$/.test(colorHex) && !/^#[0-9A-Fa-f]{3}$/.test(colorHex)) {
+      colorHex = '#38BDF8';
+    }
+
+    if (!charId) {
+      this.showToast('Vui lòng nhập mã ID nhân vật');
+      return;
+    }
+
+    if (!Array.isArray(this.project.characters)) {
+      this.project.characters = [];
+    }
+
+    const spritesRecord: Record<string, string> = {};
+    for (const row of this.modalSpriteRows) {
+      const sName = row.name.trim().toLowerCase();
+      if (sName) {
+        spritesRecord[sName] = row.imageDataUrl || '';
+      }
+    }
+    if (Object.keys(spritesRecord).length === 0) {
+      spritesRecord['default'] = '';
+    }
+
+    if (modeEl.value === 'edit') {
+      const idx = this.project.characters.findIndex(c => c.id === origIdEl.value);
+      if (idx >= 0) {
+        const targetChar = this.project.characters[idx];
+        if (targetChar) {
+          targetChar.name = charName;
+          targetChar.colorHex = colorHex;
+          targetChar.sprites = spritesRecord;
+          this.showToast(`Đã cập nhật nhân vật "${origIdEl.value}"`);
+        }
+      }
+    } else {
+      if (this.project.characters.some(c => c.id === charId)) {
+        this.showToast(`Mã nhân vật "${charId}" đã tồn tại!`);
+        return;
+      }
+      this.project.characters.push({
+        id: charId,
+        name: charName,
+        colorHex,
+        sprites: spritesRecord,
+      });
+      this.showToast(`Đã thêm nhân vật mới "${charId}" (${charName})`);
+    }
+
+    this.closeCharacterModal();
+    void this.saveProjectToStorage();
+    this.renderCharacterList();
+    this.compileCurrentScript();
+  }
+
+  private deleteCharacter(charId: string): void {
+    if (!window.confirm(`Bạn có chắc muốn xóa nhân vật "${charId}" khỏi dự án?`)) {
+      return;
+    }
+    this.project.characters = (this.project.characters || []).filter(c => c.id !== charId);
+    void this.saveProjectToStorage();
+    this.renderCharacterList();
+    this.compileCurrentScript();
+    this.showToast(`Đã xóa nhân vật "${charId}"`);
+  }
+
+  private addCharacterSprite(charId: string, spriteName: string): void {
+    const char = (this.project.characters || []).find(c => c.id === charId);
+    if (!char) return;
+    if (!char.sprites) char.sprites = {};
+    char.sprites[spriteName] = '';
+    void this.saveProjectToStorage();
+    this.renderCharacterList();
+    this.showToast(`Đã thêm biểu cảm "${spriteName}" cho nhân vật "${charId}"`);
+  }
+
+  private removeCharacterSprite(charId: string, spriteName: string): void {
+    const char = (this.project.characters || []).find(c => c.id === charId);
+    if (!char || !char.sprites) return;
+    delete char.sprites[spriteName];
+    void this.saveProjectToStorage();
+    this.renderCharacterList();
+    this.showToast(`Đã xóa biểu cảm "${spriteName}" khỏi "${charId}"`);
+  }
+
+  private setupAssetManagement(): void {
+    if (this.btnAddAsset) {
+      this.btnAddAsset.addEventListener('click', () => {
+        this.openAssetModal();
+      });
+    }
+
+    const btnClose = document.getElementById('btn-close-asset-modal');
+    const btnCancel = document.getElementById('btn-cancel-asset-modal');
+    if (btnClose) btnClose.addEventListener('click', () => this.closeAssetModal());
+    if (btnCancel) btnCancel.addEventListener('click', () => this.closeAssetModal());
+
+    const filterBtns = document.querySelectorAll('.asset-filter-btn');
+    filterBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        filterBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        this.activeAssetFilter = (btn.getAttribute('data-filter') as 'all' | 'image' | 'audio') || 'all';
+        this.renderAssetList();
+      });
+    });
+
+    if (this.formAsset) {
+      this.formAsset.addEventListener('submit', (e: Event) => {
+        e.preventDefault();
+        this.saveAssetFromModal();
+      });
+    }
+  }
+
+  private openAssetModal(assetId?: string, prefillName?: string, prefillType?: 'image' | 'audio'): void {
+    if (!this.modalAssetForm) return;
+
+    const titleEl = document.getElementById('modal-asset-title');
+    const modeEl = document.getElementById('asset-edit-mode') as HTMLInputElement;
+    const origIdEl = document.getElementById('asset-original-id') as HTMLInputElement;
+    const typeSelect = document.getElementById('asset-input-type') as HTMLSelectElement;
+    const nameInput = document.getElementById('asset-input-name') as HTMLInputElement;
+    const fileInput = document.getElementById('asset-input-file') as HTMLInputElement;
+    const urlInput = document.getElementById('asset-input-url') as HTMLInputElement;
+
+    fileInput.value = '';
+
+    if (assetId) {
+      const existing = (this.project.assets || []).find(a => a.id === assetId);
+      if (existing) {
+        if (titleEl) titleEl.textContent = `CHỈNH SỬA TÀI NGUYÊN: ${existing.name}`;
+        modeEl.value = 'edit';
+        origIdEl.value = existing.id;
+        typeSelect.value = existing.type;
+        nameInput.value = existing.name;
+        urlInput.value = existing.storageUrl || '';
+      }
+    } else {
+      if (titleEl) titleEl.textContent = 'THÊM TÀI NGUYÊN MỚI';
+      modeEl.value = 'create';
+      origIdEl.value = '';
+      typeSelect.value = prefillType || 'image';
+      nameInput.value = prefillName || '';
+      urlInput.value = '';
+    }
+
+    this.modalAssetForm.classList.remove('hidden');
+    nameInput.focus();
+  }
+
+  private closeAssetModal(): void {
+    if (this.modalAssetForm) {
+      this.modalAssetForm.classList.add('hidden');
+    }
+  }
+
+  private saveAssetFromModal(): void {
+    const modeEl = document.getElementById('asset-edit-mode') as HTMLInputElement;
+    const origIdEl = document.getElementById('asset-original-id') as HTMLInputElement;
+    const typeSelect = document.getElementById('asset-input-type') as HTMLSelectElement;
+    const nameInput = document.getElementById('asset-input-name') as HTMLInputElement;
+    const fileInput = document.getElementById('asset-input-file') as HTMLInputElement;
+    const urlInput = document.getElementById('asset-input-url') as HTMLInputElement;
+
+    const assetName = nameInput.value.trim();
+    const assetType = (typeSelect.value as 'image' | 'audio' | 'font') || 'image';
+    let storageUrl = urlInput.value.trim();
+
+    if (!assetName) {
+      this.showToast('Vui lòng nhập tên tài nguyên');
+      return;
+    }
+
+    if (!Array.isArray(this.project.assets)) {
+      this.project.assets = [];
+    }
+
+    const saveRecord = (url: string, size: number) => {
+      if (modeEl.value === 'edit') {
+        const idx = this.project.assets.findIndex(a => a.id === origIdEl.value);
+        if (idx >= 0) {
+          const targetAsset = this.project.assets[idx];
+          if (targetAsset) {
+            targetAsset.name = assetName;
+            targetAsset.type = assetType;
+            if (url) targetAsset.storageUrl = url;
+            if (size) targetAsset.sizeBytes = size;
+            this.showToast(`Đã cập nhật tài nguyên "${assetName}"`);
+          }
+        }
+      } else {
+        const newId = `asset_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+        this.project.assets.push({
+          id: newId,
+          name: assetName,
+          type: assetType,
+          storageUrl: url || '',
+          sizeBytes: size || 1024 * 100,
+        });
+        this.showToast(`Đã thêm tài nguyên mới "${assetName}"`);
+      }
+
+      this.closeAssetModal();
+      void this.saveProjectToStorage();
+      this.renderAssetList();
+      this.compileCurrentScript();
+    };
+
+    if (fileInput.files && fileInput.files[0]) {
+      const file = fileInput.files[0];
+      const reader = new FileReader();
+      reader.onload = () => {
+        storageUrl = typeof reader.result === 'string' ? reader.result : '';
+        saveRecord(storageUrl, file.size);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      saveRecord(storageUrl, 1024 * 50);
+    }
+  }
+
+  private deleteAsset(assetId: string): void {
+    const existing = (this.project.assets || []).find(a => a.id === assetId);
+    const name = existing ? existing.name : assetId;
+    if (!window.confirm(`Bạn có chắc muốn xóa tài nguyên "${name}" khỏi dự án?`)) {
+      return;
+    }
+    this.project.assets = (this.project.assets || []).filter(a => a.id !== assetId);
+    void this.saveProjectToStorage();
+    this.renderAssetList();
+    this.compileCurrentScript();
+    this.showToast(`Đã xóa tài nguyên "${name}"`);
+  }
+
+  // ================================================================
+  // 8. CẦU NỐI HAI CHIỀU LIVE PREVIEW (KIỂM TRA ORIGIN BẢO MẬT SAD 3.6)
+  // ================================================================
+  private getPreviewOrigin(): string {
+    return window.location.hostname === 'localhost' ? 'http://localhost:3000' : window.location.origin;
+  }
+
   private setupPreviewMessaging(): void {
     window.addEventListener('message', (event: MessageEvent) => {
+      const allowedOrigins = [
+        'http://localhost:3000',
+        'http://127.0.0.1:3000',
+        window.location.origin,
+      ];
+
+      if (!allowedOrigins.includes(event.origin) && !event.origin.endsWith('.usercontent-platform.com')) {
+        return;
+      }
+
       if (event.data?.type === 'PLAYER_READY') {
-        this.previewStatusBadge.textContent = 'HOT RELOAD: KẾT NỐI THÀNH CÔNG';
+        if (this.previewStatusBadge) {
+          this.previewStatusBadge.textContent = 'HOT RELOAD: KẾT NỐI THÀNH CÔNG';
+        }
         if (this.latestProgram) {
           this.sendProgramToPreview(this.latestProgram);
         }
@@ -848,30 +2160,27 @@ export class StudioApp {
   }
 
   private sendProgramToPreview(program: Instruction[]): void {
+    const targetOrigin = this.getPreviewOrigin();
+
+    const payload = {
+      type: 'HOT_RELOAD_PROGRAM',
+      program,
+      characters: this.project.characters,
+      assets: this.project.assets,
+    };
+
     if (this.previewIframe.contentWindow) {
-      this.previewIframe.contentWindow.postMessage(
-        {
-          type: 'HOT_RELOAD_PROGRAM',
-          program,
-        },
-        '*',
-      );
+      this.previewIframe.contentWindow.postMessage(payload, targetOrigin);
     }
 
     if (this.popoutWindow && !this.popoutWindow.closed) {
-      this.popoutWindow.postMessage(
-        {
-          type: 'HOT_RELOAD_PROGRAM',
-          program,
-        },
-        '*',
-      );
+      this.popoutWindow.postMessage(payload, targetOrigin);
     }
   }
 
-  /**
-   * 9. HEADER ACTIONS: [▶ Chạy từ đầu] [▶ Chạy dòng này] [Xuất bản]
-   */
+  // ================================================================
+  // 9. HEADER ACTIONS: [▶ Chạy từ đầu] [▶ Chạy dòng này] [Xuất bản]
+  // ================================================================
   private setupHeaderActions(): void {
     document.getElementById('btn-run-from-start')?.addEventListener('click', () => {
       this.runFromStart();
@@ -882,24 +2191,22 @@ export class StudioApp {
     });
 
     document.getElementById('btn-export-game')?.addEventListener('click', () => {
-      this.flushEditorChanges();
       this.modalExport.classList.remove('hidden');
     });
 
     document.getElementById('btn-reload-preview')?.addEventListener('click', () => {
-      const src = this.previewIframe.src;
-      this.previewIframe.src = '';
-      this.previewIframe.src = src;
-      this.showToast('Đang tải lại Live Preview...');
+      this.previewIframe.src = this.previewIframe.src;
+      this.showToast('Đang làm mới khung Live Preview...');
     });
 
     document.getElementById('btn-popout-preview')?.addEventListener('click', () => {
+      const targetUrl = 'http://localhost:3000/';
       this.popoutWindow = window.open(
-        'http://localhost:3000/',
-        'vn_studio_popout',
-        'width=1280,height=720',
+        targetUrl,
+        'VN_Preview_Popout',
+        'width=1280,height=720,menubar=no,toolbar=no,location=no,status=no',
       );
-      this.showToast('Đã mở cửa sổ Live Preview độc lập!');
+      this.showToast('Đã mở cửa sổ Live Preview rời (Đa màn hình)!');
     });
   }
 
@@ -940,9 +2247,9 @@ export class StudioApp {
     }
   }
 
-  /**
-   * 10. MODAL XUẤT BẢN & PHÂN PHỐI
-   */
+  // ================================================================
+  // 10. MODAL XUẤT BẢN & PHÂN PHỐI
+  // ================================================================
   private setupExportWizardActions(): void {
     document.getElementById('btn-close-export')?.addEventListener('click', () => {
       this.modalExport.classList.add('hidden');
@@ -1005,7 +2312,7 @@ export class StudioApp {
         title: this.project.title,
         version: '1.0.0',
         entry: 'index.html',
-        scripts: this.project.files,
+        scripts: this.getFilesMap(),
       };
       const blob = new Blob([JSON.stringify(manifest, null, 2)], {
         type: 'application/octet-stream',
@@ -1022,9 +2329,39 @@ export class StudioApp {
         this.showToast('Đã tạo và tải xuống gói vn-game-itch.zip!');
       }, 400);
     });
+  }
 
-    document.getElementById('btn-build-desktop')?.addEventListener('click', () => {
-      this.showToast('Yêu cầu build Desktop App đã được gửi đến CI/CD (P1)!');
+  // ================================================================
+  // 11. PHÍM TẮT TOÀN CỤC & BẢO VỆ DỮ LIỆU KHI ĐÓNG TAB
+  // ================================================================
+  private setupGlobalKeyboardShortcuts(): void {
+    window.addEventListener('keydown', (e: KeyboardEvent) => {
+      if (e.key === 'F2') {
+        if (
+          document.activeElement instanceof HTMLInputElement ||
+          document.activeElement instanceof HTMLTextAreaElement
+        ) {
+          return;
+        }
+        e.preventDefault();
+        const activeLi = this.fileListEl.querySelector('.file-item.active') as HTMLElement | null;
+        if (activeLi && this.activeFile) {
+          this.startRenameFile(this.activeFile, activeLi);
+        }
+      } else if (e.key === 'Escape') {
+        this.closeCharacterModal();
+        this.closeAssetModal();
+      }
+    });
+  }
+
+  private setupUnloadProtection(): void {
+    window.addEventListener('beforeunload', e => {
+      if (this.editorDebounceTimerId !== null) {
+        this.flushEditorChanges();
+        e.preventDefault();
+        e.returnValue = '';
+      }
     });
   }
 
@@ -1044,5 +2381,5 @@ export class StudioApp {
 // Khởi chạy Studio khi DOM sẵn sàng
 window.addEventListener('DOMContentLoaded', () => {
   const app = new StudioApp();
-  app.init();
+  void app.init();
 });
