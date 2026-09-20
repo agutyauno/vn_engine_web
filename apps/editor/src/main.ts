@@ -1,8 +1,10 @@
 // ================================================================
-// VN ENGINE STUDIO - WEB EDITOR CONTROLLER
+// VN ENGINE STUDIO - WEB EDITOR CONTROLLER (MONACO POWERED)
 // Tuân thủ tài liệu đặc tả UI/UX Specification v1.0 - Mục 3.2
 // ================================================================
 
+import * as monaco from 'monaco-editor';
+import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker.js?worker';
 import { Compiler, type CompileError } from '@vn-engine/dsl-compiler';
 import type {
   ScriptFile,
@@ -17,6 +19,14 @@ import type {
   IfStatement,
   WhileStatement,
 } from '@vn-engine/shared-types';
+import { registerVnsLanguage } from './vnsLanguage';
+
+// Thiết lập Web Worker cho Monaco Editor trong môi trường Vite
+self.MonacoEnvironment = {
+  getWorker: function (_moduleId: string, _label: string) {
+    return new editorWorker();
+  },
+};
 
 export interface ProjectState {
   title: string;
@@ -39,11 +49,13 @@ export class StudioApp {
   private latestProgram: Instruction[] | null = null;
   private popoutWindow: Window | null = null;
 
+  // Monaco Editor state
+  private editorInstance!: monaco.editor.IStandaloneCodeEditor;
+  private fileModels: Map<string, monaco.editor.ITextModel> = new Map();
+
   // DOM Elements
   private projectTitleEl: HTMLElement;
   private saveStatusPill: HTMLElement;
-  private codeEditor: HTMLTextAreaElement;
-  private lineNumbers: HTMLElement;
   private activeFilenameEl: HTMLElement;
   private compilerIndicator: HTMLElement;
   private previewIframe: HTMLIFrameElement;
@@ -85,11 +97,9 @@ export class StudioApp {
     this.previewIframe = document.getElementById('preview-iframe') as HTMLIFrameElement;
     this.previewStatusBadge = document.getElementById('preview-hot-reload-status')!;
 
-    // DOM Editor
+    // DOM Editor Status Bar
     this.activeFilenameEl = document.getElementById('active-filename')!;
     this.compilerIndicator = document.getElementById('compiler-indicator')!;
-    this.lineNumbers = document.getElementById('line-numbers')!;
-    this.codeEditor = document.getElementById('script-code') as HTMLTextAreaElement;
 
     // DOM Sidebar
     this.fileListEl = document.getElementById('file-list')!;
@@ -118,29 +128,100 @@ export class StudioApp {
     // 1. Nạp dự án từ LocalStorage
     this.loadProjectFromStorage();
 
-    // 2. Thiết lập nội dung ban đầu
+    // 2. Thiết lập tiêu đề và danh sách tệp
     this.projectTitleEl.textContent = this.project.title || 'Bí Mật Học Viện';
-    this.codeEditor.value = this.project.files[this.project.activeFile] || '';
     this.activeFilenameEl.textContent = this.project.activeFile;
-    this.updateLineNumbers();
     this.renderFileList();
 
-    // 3. Khởi tạo các module giao diện
+    // 3. Khởi tạo Monaco Editor với ngôn ngữ VNS
+    this.initMonacoEditor();
+
+    // 4. Khởi tạo các module giao diện
     this.setupProjectTitleRename();
     this.setupResizeHandle();
     this.setupSidebarTabs();
     this.setupDrawerTabs();
-    this.setupEditorEvents();
     this.setupHeaderActions();
     this.setupPreviewMessaging();
     this.setupExportWizardActions();
 
-    // 4. Biên dịch lần đầu
+    // 5. Biên dịch lần đầu
     this.compileCurrentScript();
   }
 
   /**
-   * 1. LƯU TRỮ DỰ ÁN & ĐA TỆP (STORAGE & MULTI-FILE MANAGEMENT)
+   * 1. KHỞI TẠO MONACO EDITOR (#monaco-container)
+   */
+  private initMonacoEditor(): void {
+    registerVnsLanguage();
+
+    // Khởi tạo TextModel cho từng file trong dự án
+    for (const [fileName, content] of Object.entries(this.project.files)) {
+      const uri = monaco.Uri.parse(`inmemory://project/${fileName}`);
+      const model = monaco.editor.createModel(content, 'vns', uri);
+      this.fileModels.set(fileName, model);
+    }
+
+    let activeModel = this.fileModels.get(this.project.activeFile);
+    if (!activeModel) {
+      const uri = monaco.Uri.parse(`inmemory://project/${this.project.activeFile}`);
+      activeModel = monaco.editor.createModel('', 'vns', uri);
+      this.fileModels.set(this.project.activeFile, activeModel);
+    }
+
+    const container = document.getElementById('monaco-container')!;
+    this.editorInstance = monaco.editor.create(container, {
+      model: activeModel,
+      theme: 'vns-wireframe-dark',
+      language: 'vns',
+      fontSize: 13.5,
+      fontFamily: "'JetBrains Mono', Consolas, 'Courier New', monospace",
+      lineHeight: 22,
+      lineNumbers: 'on',
+      lineNumbersMinChars: 3,
+      glyphMargin: true,
+      minimap: { enabled: false },
+      scrollBeyondLastLine: false,
+      automaticLayout: true,
+      tabSize: 2,
+      insertSpaces: true,
+      renderLineHighlight: 'line',
+      cursorBlinking: 'smooth',
+      smoothScrolling: true,
+      folding: true,
+      wordWrap: 'off',
+    });
+
+    // Lắng nghe sự kiện thay đổi nội dung trên Monaco Editor
+    this.editorInstance.onDidChangeModelContent(() => {
+      this.saveCurrentFileFromEditor();
+      this.triggerDebouncedCompile();
+    });
+
+    // Đăng ký phím tắt trong Monaco
+    this.editorInstance.addCommand(monaco.KeyCode.F5, () => {
+      this.runFromStart();
+    });
+
+    this.editorInstance.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
+      this.runFromLine();
+    });
+
+    window.addEventListener('resize', () => {
+      this.editorInstance.layout();
+    });
+  }
+
+  private saveCurrentFileFromEditor(): void {
+    if (this.editorInstance) {
+      const val = this.editorInstance.getValue();
+      this.project.files[this.project.activeFile] = val;
+      this.saveProjectToStorage();
+    }
+  }
+
+  /**
+   * 2. LƯU TRỮ DỰ ÁN & ĐA TỆP (STORAGE & MULTI-FILE MANAGEMENT)
    */
   private loadProjectFromStorage(): void {
     try {
@@ -171,7 +252,6 @@ export class StudioApp {
 
   private saveProjectToStorage(): void {
     try {
-      this.project.files[this.project.activeFile] = this.codeEditor.value;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(this.project));
       this.saveStatusPill.textContent = '● ĐÃ LƯU';
       this.saveStatusPill.className = 'save-status-pill';
@@ -187,7 +267,7 @@ export class StudioApp {
         this.project.title = newTitle.trim();
         this.projectTitleEl.textContent = this.project.title;
         this.saveProjectToStorage();
-        this.showToast(`Đã đổi tên dự án thành: "${this.project.title}"`);
+        this.showToast(`Đã đổi tên dự án: "${this.project.title}"`);
       }
     });
   }
@@ -205,7 +285,6 @@ export class StudioApp {
       nameGroup.innerHTML = `<span class="file-icon">📄</span> <span>${fileName}</span>`;
       li.appendChild(nameGroup);
 
-      // Nút xóa file phụ (giữ lại main.vns)
       if (fileName !== 'main.vns') {
         const btnDel = document.createElement('button');
         btnDel.className = 'btn-file-delete';
@@ -231,15 +310,22 @@ export class StudioApp {
   private switchActiveFile(fileName: string): void {
     if (this.project.activeFile === fileName) return;
 
-    // Lưu file cũ
-    this.project.files[this.project.activeFile] = this.codeEditor.value;
+    // Lưu nội dung file cũ từ Monaco
+    this.saveCurrentFileFromEditor();
 
-    // Chuyển sang file mới
+    // Chuyển activeFile
     this.project.activeFile = fileName;
-    this.codeEditor.value = this.project.files[fileName] || '';
+
+    // Chuyển Monaco model
+    let targetModel = this.fileModels.get(fileName);
+    if (!targetModel) {
+      const uri = monaco.Uri.parse(`inmemory://project/${fileName}`);
+      targetModel = monaco.editor.createModel(this.project.files[fileName] || '', 'vns', uri);
+      this.fileModels.set(fileName, targetModel);
+    }
+    this.editorInstance.setModel(targetModel);
 
     this.renderFileList();
-    this.updateLineNumbers();
     this.showToast(`Đang mở: ${fileName}`);
     this.triggerDebouncedCompile();
   }
@@ -258,6 +344,10 @@ export class StudioApp {
     }
 
     this.project.files[fileName] = '';
+    const uri = monaco.Uri.parse(`inmemory://project/${fileName}`);
+    const model = monaco.editor.createModel('', 'vns', uri);
+    this.fileModels.set(fileName, model);
+
     this.switchActiveFile(fileName);
     this.saveProjectToStorage();
     this.showToast(`Đã tạo tệp mới: ${fileName}`);
@@ -272,6 +362,11 @@ export class StudioApp {
     if (!window.confirm(`Bạn có chắc chắn muốn xóa tệp "${fileName}"?`)) return;
 
     delete this.project.files[fileName];
+    const model = this.fileModels.get(fileName);
+    if (model) {
+      model.dispose();
+      this.fileModels.delete(fileName);
+    }
 
     if (this.project.activeFile === fileName) {
       this.switchActiveFile('main.vns');
@@ -285,7 +380,7 @@ export class StudioApp {
   }
 
   /**
-   * 2. THANH KÉO ĐIỀU CHỈNH ĐỘ CAO (#resize-handle)
+   * 3. THANH KÉO ĐIỀU CHỈNH ĐỘ CAO (#resize-handle)
    */
   private setupResizeHandle(): void {
     const handle = document.getElementById('resize-handle')!;
@@ -302,11 +397,13 @@ export class StudioApp {
         const relativeY = moveEvent.clientY - rect.top;
         const percentage = Math.max(20, Math.min(80, (relativeY / rect.height) * 100));
         document.documentElement.style.setProperty('--preview-height', `${percentage}%`);
+        this.editorInstance?.layout();
       };
 
       const onMouseUp = () => {
         this.isResizing = false;
         handle.classList.remove('dragging');
+        this.editorInstance?.layout();
         window.removeEventListener('mousemove', onMouseMove);
         window.removeEventListener('mouseup', onMouseUp);
       };
@@ -317,7 +414,7 @@ export class StudioApp {
   }
 
   /**
-   * 3. SIDEBAR TÀI NGUYÊN (4 TABS: FILES, CHARACTERS, ASSETS, VARIABLES)
+   * 4. SIDEBAR TÀI NGUYÊN (4 TABS)
    */
   private setupSidebarTabs(): void {
     const tabs = document.querySelectorAll<HTMLButtonElement>('.sidebar-tab');
@@ -340,7 +437,7 @@ export class StudioApp {
   }
 
   /**
-   * 4. BẢNG THÔNG TIN ĐÁY (DRAWER PROBLEMS & VARIABLES WATCH)
+   * 5. BẢNG THÔNG TIN ĐÁY (DRAWER PROBLEMS & VARIABLES WATCH)
    */
   private setupDrawerTabs(): void {
     this.drawerTabProblems.addEventListener('click', () => {
@@ -349,6 +446,7 @@ export class StudioApp {
       this.drawerPaneProblems.style.display = 'block';
       this.drawerPaneVariables.style.display = 'none';
       this.drawerBody.classList.remove('collapsed');
+      this.editorInstance?.layout();
     });
 
     this.drawerTabVariables.addEventListener('click', () => {
@@ -357,60 +455,17 @@ export class StudioApp {
       this.drawerPaneVariables.style.display = 'block';
       this.drawerPaneProblems.style.display = 'none';
       this.drawerBody.classList.remove('collapsed');
+      this.editorInstance?.layout();
     });
 
     this.drawerToggleBtn.addEventListener('click', () => {
       this.drawerBody.classList.toggle('collapsed');
+      setTimeout(() => this.editorInstance?.layout(), 50);
     });
   }
 
   /**
-   * 5. SỰ KIỆN TRÌNH SOẠN THẢO CODE
-   */
-  private setupEditorEvents(): void {
-    this.codeEditor.addEventListener('input', () => {
-      this.updateLineNumbers();
-      this.triggerDebouncedCompile();
-    });
-
-    this.codeEditor.addEventListener('scroll', () => {
-      this.lineNumbers.scrollTop = this.codeEditor.scrollTop;
-    });
-
-    this.codeEditor.addEventListener('keydown', e => {
-      if (e.key === 'Tab') {
-        e.preventDefault();
-        const success = document.execCommand('insertText', false, '  ');
-        if (!success) {
-          const start = this.codeEditor.selectionStart;
-          const end = this.codeEditor.selectionEnd;
-          const val = this.codeEditor.value;
-          this.codeEditor.value = val.substring(0, start) + '  ' + val.substring(end);
-          this.codeEditor.selectionStart = this.codeEditor.selectionEnd = start + 2;
-        }
-        this.updateLineNumbers();
-        this.triggerDebouncedCompile();
-      } else if (e.key === 'F5') {
-        e.preventDefault();
-        this.runFromStart();
-      } else if (e.ctrlKey && e.key === 'Enter') {
-        e.preventDefault();
-        this.runFromLine();
-      }
-    });
-  }
-
-  private updateLineNumbers(): void {
-    const lines = this.codeEditor.value.split('\n').length;
-    let numbers = '';
-    for (let i = 1; i <= lines; i++) {
-      numbers += `${i}\n`;
-    }
-    this.lineNumbers.textContent = numbers;
-  }
-
-  /**
-   * 6. BIÊN DỊCH REAL-TIME & ĐỒNG BỘ METADATA AST
+   * 6. BIÊN DỊCH REAL-TIME & ĐỒNG BỘ MONACO MARKERS
    */
   private triggerDebouncedCompile(): void {
     this.compilerIndicator.textContent = 'Đang phân tích cú pháp...';
@@ -427,7 +482,9 @@ export class StudioApp {
   }
 
   private compileCurrentScript(): void {
-    this.project.files[this.project.activeFile] = this.codeEditor.value;
+    if (this.editorInstance) {
+      this.project.files[this.project.activeFile] = this.editorInstance.getValue();
+    }
 
     const scriptFiles: ScriptFile[] = Object.entries(this.project.files).map(
       ([fileName, content], index) => ({
@@ -441,6 +498,9 @@ export class StudioApp {
 
     const result = this.compiler.compile(scriptFiles);
 
+    // Cập nhật Monaco Markers (Gạch chân đỏ lỗi cú pháp thời gian thực)
+    const currentModel = this.editorInstance?.getModel();
+
     if (result.success && result.program) {
       this.latestProgram = result.program;
 
@@ -451,6 +511,10 @@ export class StudioApp {
       this.problemsSummary.textContent = '● Problems (0 lỗi)';
       this.problemsList.innerHTML =
         '<div class="no-problem-message">✓ Cú pháp hợp lệ, không phát hiện lỗi nào.</div>';
+
+      if (currentModel) {
+        monaco.editor.setModelMarkers(currentModel, 'vns-compiler', []);
+      }
 
       this.saveProjectToStorage();
       this.sendProgramToPreview(this.latestProgram);
@@ -469,43 +533,55 @@ export class StudioApp {
       this.saveStatusPill.textContent = '● CÓ LỖI BIÊN DỊCH';
       this.saveStatusPill.className = 'save-status-pill error';
 
+      // Tạo markers gạch chân đỏ trên Monaco
+      if (currentModel) {
+        const markers: monaco.editor.IMarkerData[] = errors
+          .filter(err => !err.loc?.fileId || err.loc.fileId === this.project.activeFile)
+          .map(err => {
+            const line = err.loc?.line ?? 1;
+            const col = err.loc?.col ?? 1;
+            const lineContent = currentModel.getLineContent(line) || '';
+            return {
+              startLineNumber: line,
+              startColumn: col,
+              endLineNumber: line,
+              endColumn: Math.max(col + 1, lineContent.length + 1),
+              message: err.message,
+              severity: monaco.MarkerSeverity.Error,
+            };
+          });
+        monaco.editor.setModelMarkers(currentModel, 'vns-compiler', markers);
+      }
+
       this.problemsList.innerHTML = '';
       errors.forEach((err: CompileError) => {
         const row = document.createElement('div');
         row.className = 'problem-row';
-        const line = err.loc ? err.loc.line : 1;
-        const col = err.loc ? err.loc.col : 1;
+        const line = err.loc?.line ?? 1;
+        const col = err.loc?.col ?? 1;
         const file = err.loc?.fileId ? `[${err.loc.fileId}] ` : '';
         row.textContent = `✕ ${file}Dòng ${line}, Cột ${col}: ${err.message}`;
         row.addEventListener('click', () => {
           if (err.loc?.fileId && err.loc.fileId !== this.project.activeFile) {
             this.switchActiveFile(err.loc.fileId);
           }
-          this.jumpToLine(line);
+          this.jumpToLine(line, col);
         });
         this.problemsList.appendChild(row);
       });
     }
   }
 
-  private jumpToLine(lineNumber: number): void {
-    const lines = this.codeEditor.value.split('\n');
-    let charPos = 0;
-    for (let i = 0; i < lineNumber - 1 && i < lines.length; i++) {
-      const l = lines[i];
-      charPos += (l ? l.length : 0) + 1;
+  private jumpToLine(lineNumber: number, col: number = 1): void {
+    if (this.editorInstance) {
+      this.editorInstance.revealLineInCenter(lineNumber);
+      this.editorInstance.setPosition({ lineNumber, column: col });
+      this.editorInstance.focus();
     }
-    this.codeEditor.focus();
-    const targetLine = lines[lineNumber - 1];
-    const len = targetLine ? targetLine.length : 0;
-    this.codeEditor.setSelectionRange(charPos, charPos + len);
-
-    const lineHeight = 21.6;
-    this.codeEditor.scrollTop = Math.max(0, (lineNumber - 5) * lineHeight);
   }
 
   /**
-   * 7. CẬP NHẬT SIDEBAR METADATA & BẢNG WATCH VARIABLES TỪ AST
+   * 7. CẬP NHẬT SIDEBAR METADATA & BẢNG WATCH TỪ AST
    */
   private updateSidebarMetadata(ast: ProgramAST): void {
     const characters = new Map<string, { displayName?: string; sprites: Set<string> }>();
@@ -627,7 +703,7 @@ export class StudioApp {
       this.assetContainer.innerHTML = assetHtml;
     }
 
-    // Render Variables Tab & Watch Pane
+    // Render Variables Tab
     if (this.varContainer) {
       if (variables.size === 0) {
         this.varContainer.innerHTML =
@@ -666,7 +742,7 @@ export class StudioApp {
   }
 
   /**
-   * 8. CẦU NỐI HAI CHIỀU LIVE PREVIEW (PREVIEW MESSAGING BRIDGE)
+   * 8. CẦU NỐI HAI CHIỀU LIVE PREVIEW
    */
   private setupPreviewMessaging(): void {
     window.addEventListener('message', (event: MessageEvent) => {
@@ -744,26 +820,35 @@ export class StudioApp {
 
   private runFromLine(): void {
     this.compileCurrentScript();
-    if (!this.latestProgram) return;
+    if (!this.latestProgram || !this.editorInstance) return;
 
-    // Tìm xem con trỏ đang ở scene nào trong kịch bản hiện tại
-    const cursor = this.codeEditor.selectionStart;
-    const textBefore = this.codeEditor.value.substring(0, cursor);
-    const sceneMatches = Array.from(textBefore.matchAll(/scene\s+([a-zA-Z0-9_]+)/g));
-    const lastMatch = sceneMatches.length > 0 ? sceneMatches[sceneMatches.length - 1] : null;
-    const currentScene = lastMatch && lastMatch[1] ? lastMatch[1] : null;
+    const pos = this.editorInstance.getPosition();
+    const currentLine = pos ? pos.lineNumber : 1;
+    const model = this.editorInstance.getModel();
+    let currentScene: string | null = null;
+
+    if (model) {
+      for (let i = currentLine; i >= 1; i--) {
+        const lineContent = model.getLineContent(i);
+        const match = lineContent.match(/scene\s+([a-zA-Z0-9_]+)/);
+        if (match && match[1]) {
+          currentScene = match[1];
+          break;
+        }
+      }
+    }
 
     this.sendProgramToPreview(this.latestProgram);
 
     if (currentScene) {
       this.showToast(`▶ Chạy từ cảnh hiện tại: "${currentScene}"!`);
     } else {
-      this.showToast('▶ Chạy kịch bản từ dòng này!');
+      this.showToast(`▶ Chạy kịch bản từ dòng ${currentLine}!`);
     }
   }
 
   /**
-   * 10. MODAL XUẤT BẢN & PHÂN PHỐI (EXPORT WIZARD)
+   * 10. MODAL XUẤT BẢN & PHÂN PHỐI
    */
   private setupExportWizardActions(): void {
     document.getElementById('btn-close-export')?.addEventListener('click', () => {

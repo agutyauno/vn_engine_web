@@ -9,9 +9,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@vn-engine/shared-types": "workspace:*",
+    "@vn-engine/core-vm": "workspace:*",
     "@vn-engine/dsl-compiler": "workspace:*",
-    "@vn-engine/core-vm": "workspace:*"
+    "@vn-engine/shared-types": "workspace:*",
+    "monaco-editor": "^0.56.0"
   },
   "devDependencies": {
     "@types/node": "^26.6.1",

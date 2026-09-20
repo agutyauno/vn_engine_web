@@ -575,44 +575,13 @@ body, html {
   color: #eab308;
 }
 
-.editor-canvas {
+#monaco-container {
   flex: 1;
-  display: flex;
+  width: 100%;
+  height: 100%;
   overflow: hidden;
   position: relative;
   background-color: #080808;
-}
-
-.line-numbers-gutter {
-  width: 48px;
-  background-color: #0d0d0d;
-  border-right: 1px solid var(--studio-border);
-  padding: 12px 8px;
-  font-family: var(--vn-font-mono);
-  font-size: 13px;
-  line-height: 1.6;
-  color: var(--studio-text-dim);
-  text-align: right;
-  overflow: hidden;
-  user-select: none;
-  flex-shrink: 0;
-}
-
-#script-code {
-  flex: 1;
-  background: transparent;
-  border: none;
-  padding: 12px 16px;
-  font-family: var(--vn-font-mono);
-  font-size: 13.5px;
-  line-height: 1.6;
-  color: #ffffff;
-  resize: none;
-  outline: none;
-  white-space: pre;
-  overflow: auto;
-  user-select: text;
-  tab-size: 2;
 }
 
 /* ================================================================
