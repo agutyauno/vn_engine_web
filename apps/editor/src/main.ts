@@ -1,6 +1,6 @@
 // ================================================================
 // VN ENGINE STUDIO - WEB EDITOR CONTROLLER
-// Tuân thủ tài liệu đặc tả UI/UX Specification v1.0 & Director Mode
+// Tuân thủ tài liệu đặc tả UI/UX Specification v1.0 - Mục 3.2
 // ================================================================
 
 import { Compiler, type CompileError } from '@vn-engine/dsl-compiler';
@@ -19,6 +19,7 @@ import type {
 } from '@vn-engine/shared-types';
 
 export interface ProjectState {
+  title: string;
   activeFile: string;
   files: Record<string, string>;
 }
@@ -28,6 +29,7 @@ const STORAGE_KEY = 'vn_studio_project_v1';
 export class StudioApp {
   private compiler: Compiler;
   private project: ProjectState = {
+    title: 'Bí Mật Học Viện',
     activeFile: 'main.vns',
     files: {
       'main.vns': '',
@@ -38,24 +40,36 @@ export class StudioApp {
   private popoutWindow: Window | null = null;
 
   // DOM Elements
-  private workspace: HTMLElement;
+  private projectTitleEl: HTMLElement;
+  private saveStatusPill: HTMLElement;
   private codeEditor: HTMLTextAreaElement;
   private lineNumbers: HTMLElement;
-  private problemsHeader: HTMLElement;
-  private problemsSummary: HTMLElement;
-  private problemsList: HTMLElement;
+  private activeFilenameEl: HTMLElement;
   private compilerIndicator: HTMLElement;
   private previewIframe: HTMLIFrameElement;
+  private previewStatusBadge: HTMLElement;
   private toastEl: HTMLElement;
   private modalExport: HTMLElement;
   private fileListEl: HTMLElement;
-  private activeFileTab: HTMLElement;
-  private saveStatusPill: HTMLElement;
   private btnAddFile: HTMLElement;
+
+  // Sidebar containers
   private charContainer: HTMLElement | null;
   private assetContainer: HTMLElement | null;
   private varContainer: HTMLElement | null;
 
+  // Drawer elements
+  private drawerBody: HTMLElement;
+  private drawerTabProblems: HTMLElement;
+  private drawerTabVariables: HTMLElement;
+  private drawerPaneProblems: HTMLElement;
+  private drawerPaneVariables: HTMLElement;
+  private drawerToggleBtn: HTMLElement;
+  private problemsSummary: HTMLElement;
+  private problemsList: HTMLElement;
+  private varsWatchTbody: HTMLElement;
+
+  // State timers
   private compileTimerId: number | null = null;
   private toastTimerId: number | null = null;
   private isResizing: boolean = false;
@@ -63,50 +77,70 @@ export class StudioApp {
   constructor() {
     this.compiler = new Compiler();
 
-    // DOM Elements
-    this.workspace = document.getElementById('studio-workspace')!;
-    this.codeEditor = document.getElementById('script-code') as HTMLTextAreaElement;
-    this.lineNumbers = document.getElementById('line-numbers')!;
-    this.problemsHeader = document.getElementById('problems-header')!;
-    this.problemsSummary = document.getElementById('problems-summary')!;
-    this.problemsList = document.getElementById('problems-list')!;
-    this.compilerIndicator = document.getElementById('compiler-indicator')!;
-    this.previewIframe = document.getElementById('preview-iframe') as HTMLIFrameElement;
-    this.toastEl = document.getElementById('studio-toast')!;
-    this.modalExport = (document.getElementById('modal-export-wizard') ||
-      document.getElementById('modal-export'))!;
-    this.fileListEl = document.getElementById('file-list')!;
-    this.activeFileTab = document.getElementById('active-file-tab')!;
+    // DOM Header
+    this.projectTitleEl = document.getElementById('project-title')!;
     this.saveStatusPill = document.getElementById('save-status')!;
+
+    // DOM Preview
+    this.previewIframe = document.getElementById('preview-iframe') as HTMLIFrameElement;
+    this.previewStatusBadge = document.getElementById('preview-hot-reload-status')!;
+
+    // DOM Editor
+    this.activeFilenameEl = document.getElementById('active-filename')!;
+    this.compilerIndicator = document.getElementById('compiler-indicator')!;
+    this.lineNumbers = document.getElementById('line-numbers')!;
+    this.codeEditor = document.getElementById('script-code') as HTMLTextAreaElement;
+
+    // DOM Sidebar
+    this.fileListEl = document.getElementById('file-list')!;
     this.btnAddFile = document.getElementById('btn-add-file')!;
     this.charContainer = document.getElementById('character-list-container');
     this.assetContainer = document.getElementById('asset-list-container');
     this.varContainer = document.getElementById('variable-list-container');
+
+    // DOM Drawer
+    this.drawerBody = document.getElementById('drawer-body')!;
+    this.drawerTabProblems = document.getElementById('drawer-tab-problems')!;
+    this.drawerTabVariables = document.getElementById('drawer-tab-variables')!;
+    this.drawerPaneProblems = document.getElementById('drawer-pane-problems')!;
+    this.drawerPaneVariables = document.getElementById('drawer-pane-variables')!;
+    this.drawerToggleBtn = document.getElementById('drawer-toggle-btn')!;
+    this.problemsSummary = document.getElementById('problems-summary')!;
+    this.problemsList = document.getElementById('problems-list')!;
+    this.varsWatchTbody = document.getElementById('vars-watch-tbody')!;
+
+    // DOM Modal & Toast
+    this.modalExport = document.getElementById('modal-export-wizard')!;
+    this.toastEl = document.getElementById('studio-toast')!;
   }
 
   public init(): void {
-    // 1. Nạp dự án từ LocalStorage hoặc khởi tạo tệp rỗng
+    // 1. Nạp dự án từ LocalStorage
     this.loadProjectFromStorage();
 
-    // 2. Thiết lập nội dung tệp đang mở lên Editor
+    // 2. Thiết lập nội dung ban đầu
+    this.projectTitleEl.textContent = this.project.title || 'Bí Mật Học Viện';
     this.codeEditor.value = this.project.files[this.project.activeFile] || '';
+    this.activeFilenameEl.textContent = this.project.activeFile;
     this.updateLineNumbers();
-    this.renderFileTree();
+    this.renderFileList();
 
     // 3. Khởi tạo các module giao diện
-    this.setupLayoutSwitcher();
-    this.setupResizableDivider();
+    this.setupProjectTitleRename();
+    this.setupResizeHandle();
     this.setupSidebarTabs();
+    this.setupDrawerTabs();
     this.setupEditorEvents();
-    this.setupToolbarActions();
+    this.setupHeaderActions();
     this.setupPreviewMessaging();
+    this.setupExportWizardActions();
 
     // 4. Biên dịch lần đầu
     this.compileCurrentScript();
   }
 
   /**
-   * 1. QUẢN LÝ DỰ ÁN VÀ LƯU TRỮ (STORAGE & MULTI-FILE STATE)
+   * 1. LƯU TRỮ DỰ ÁN & ĐA TỆP (STORAGE & MULTI-FILE MANAGEMENT)
    */
   private loadProjectFromStorage(): void {
     try {
@@ -115,6 +149,7 @@ export class StudioApp {
         const parsed = JSON.parse(raw) as ProjectState;
         if (parsed && typeof parsed.files === 'object' && Object.keys(parsed.files).length > 0) {
           this.project = parsed;
+          if (!this.project.title) this.project.title = 'Bí Mật Học Viện';
           if (!this.project.files[this.project.activeFile]) {
             this.project.activeFile = Object.keys(this.project.files)[0] ?? 'main.vns';
           }
@@ -125,8 +160,8 @@ export class StudioApp {
       console.warn('[StudioApp] Không thể nạp dự án từ LocalStorage:', e);
     }
 
-    // Khởi tạo mặc định nếu chưa có dữ liệu lưu
     this.project = {
+      title: 'Bí Mật Học Viện',
       activeFile: 'main.vns',
       files: {
         'main.vns': '',
@@ -138,38 +173,49 @@ export class StudioApp {
     try {
       this.project.files[this.project.activeFile] = this.codeEditor.value;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(this.project));
-      this.saveStatusPill.textContent = '● ĐÃ LƯU LOCAL';
-      this.saveStatusPill.style.color = '#22c55e';
+      this.saveStatusPill.textContent = '● ĐÃ LƯU';
+      this.saveStatusPill.className = 'save-status-pill';
     } catch (e) {
       console.error('[StudioApp] Lỗi khi lưu vào LocalStorage:', e);
     }
   }
 
-  private renderFileTree(): void {
+  private setupProjectTitleRename(): void {
+    this.projectTitleEl.addEventListener('click', () => {
+      const newTitle = window.prompt('Nhập tên dự án mới:', this.project.title);
+      if (newTitle && newTitle.trim()) {
+        this.project.title = newTitle.trim();
+        this.projectTitleEl.textContent = this.project.title;
+        this.saveProjectToStorage();
+        this.showToast(`Đã đổi tên dự án thành: "${this.project.title}"`);
+      }
+    });
+  }
+
+  private renderFileList(): void {
     this.fileListEl.innerHTML = '';
     const fileNames = Object.keys(this.project.files);
 
     fileNames.forEach(fileName => {
       const li = document.createElement('li');
       li.className = `file-item ${fileName === this.project.activeFile ? 'active' : ''}`;
-      li.dataset.file = fileName;
 
-      const nameSpan = document.createElement('span');
-      nameSpan.className = 'file-name-text';
-      nameSpan.textContent = `📄 ${fileName}`;
-      li.appendChild(nameSpan);
+      const nameGroup = document.createElement('div');
+      nameGroup.className = 'file-name-group';
+      nameGroup.innerHTML = `<span class="file-icon">📄</span> <span>${fileName}</span>`;
+      li.appendChild(nameGroup);
 
-      // Cho phép xóa các tệp phụ (giữ lại main.vns làm tệp gốc)
+      // Nút xóa file phụ (giữ lại main.vns)
       if (fileName !== 'main.vns') {
-        const btnDelete = document.createElement('button');
-        btnDelete.className = 'btn-delete-file';
-        btnDelete.textContent = '✕';
-        btnDelete.title = `Xóa tệp ${fileName}`;
-        btnDelete.addEventListener('click', e => {
+        const btnDel = document.createElement('button');
+        btnDel.className = 'btn-file-delete';
+        btnDel.innerHTML = '✕';
+        btnDel.title = `Xóa tệp ${fileName}`;
+        btnDel.addEventListener('click', e => {
           e.stopPropagation();
           this.deleteFile(fileName);
         });
-        li.appendChild(btnDelete);
+        li.appendChild(btnDel);
       }
 
       li.addEventListener('click', () => {
@@ -179,35 +225,32 @@ export class StudioApp {
       this.fileListEl.appendChild(li);
     });
 
-    // Cập nhật tab hiển thị trên thanh Editor
-    this.activeFileTab.innerHTML = `${this.project.activeFile} <span class="tab-modified-dot">●</span>`;
+    this.activeFilenameEl.textContent = this.project.activeFile;
   }
 
   private switchActiveFile(fileName: string): void {
     if (this.project.activeFile === fileName) return;
 
-    // Lưu nội dung tệp cũ
+    // Lưu file cũ
     this.project.files[this.project.activeFile] = this.codeEditor.value;
 
-    // Chuyển sang tệp mới
+    // Chuyển sang file mới
     this.project.activeFile = fileName;
     this.codeEditor.value = this.project.files[fileName] || '';
 
-    this.renderFileTree();
+    this.renderFileList();
     this.updateLineNumbers();
-    this.showToast(`Đang mở tệp: ${fileName}`);
+    this.showToast(`Đang mở: ${fileName}`);
     this.triggerDebouncedCompile();
   }
 
   private addNewFile(): void {
     const defaultName = `chapter_${Object.keys(this.project.files).length}.vns`;
-    const input = window.prompt('Nhập tên tệp kịch bản mới (.vns):', defaultName);
+    const input = window.prompt('Nhập tên file kịch bản mới (.vns):', defaultName);
     if (!input) return;
 
     let fileName = input.trim();
-    if (!fileName.endsWith('.vns')) {
-      fileName += '.vns';
-    }
+    if (!fileName.endsWith('.vns')) fileName += '.vns';
 
     if (this.project.files[fileName] !== undefined) {
       this.showToast(`Tệp "${fileName}" đã tồn tại!`);
@@ -226,16 +269,14 @@ export class StudioApp {
       return;
     }
 
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa tệp "${fileName}"?`)) {
-      return;
-    }
+    if (!window.confirm(`Bạn có chắc chắn muốn xóa tệp "${fileName}"?`)) return;
 
     delete this.project.files[fileName];
 
     if (this.project.activeFile === fileName) {
       this.switchActiveFile('main.vns');
     } else {
-      this.renderFileTree();
+      this.renderFileList();
       this.compileCurrentScript();
     }
 
@@ -244,68 +285,28 @@ export class StudioApp {
   }
 
   /**
-   * 2. BỘ CHUYỂN ĐỔI BỐ CỤC (LAYOUT SWITCHER - SỬA LỖI INLINE GRID STYLES)
+   * 2. THANH KÉO ĐIỀU CHỈNH ĐỘ CAO (#resize-handle)
    */
-  private setupLayoutSwitcher(): void {
-    const buttons = document.querySelectorAll<HTMLButtonElement>('.layout-btn');
-    buttons.forEach(btn => {
-      btn.addEventListener('click', () => {
-        buttons.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
+  private setupResizeHandle(): void {
+    const handle = document.getElementById('resize-handle')!;
+    const workspace = document.getElementById('studio-workspace')!;
 
-        const layout = btn.dataset.layout || 'director';
-
-        // Xóa sạch các inline style từ thao tác kéo thả trước đó để không ghi đè CSS layout
-        this.workspace.style.gridTemplateColumns = '';
-        this.workspace.style.gridTemplateRows = '';
-        this.workspace.dataset.layout = layout;
-
-        const layoutName =
-          layout === 'director'
-            ? 'ĐẠO DIỄN (16:9 LỚN Ở TRÊN)'
-            : layout === 'split'
-              ? 'CHIA ĐÔI 50/50'
-              : 'TẬP TRUNG VIẾT';
-
-        this.showToast(`Đã chuyển sang Bố cục: ${layoutName}`);
-      });
-    });
-  }
-
-  /**
-   * 3. THANH KÉO ĐIỀU CHỈNH ĐỘ CAO/RỘNG (RESIZABLE DIVIDER)
-   */
-  private setupResizableDivider(): void {
-    const divider = document.getElementById('resize-divider')!;
-
-    divider.addEventListener('mousedown', e => {
+    handle.addEventListener('mousedown', e => {
       e.preventDefault();
       this.isResizing = true;
-      divider.classList.add('dragging');
+      handle.classList.add('dragging');
 
       const onMouseMove = (moveEvent: MouseEvent) => {
         if (!this.isResizing) return;
-
-        const currentLayout = this.workspace.dataset.layout;
-
-        if (currentLayout === 'director') {
-          // Điều chỉnh chiều cao theo tỷ lệ phần trăm (20% đến 80%)
-          const workspaceRect = this.workspace.getBoundingClientRect();
-          const relativeY = moveEvent.clientY - workspaceRect.top;
-          const percentage = Math.max(20, Math.min(80, (relativeY / workspaceRect.height) * 100));
-          document.documentElement.style.setProperty('--preview-height', `${percentage}%`);
-        } else if (currentLayout === 'split') {
-          // Điều chỉnh chiều rộng hai cột
-          const workspaceRect = this.workspace.getBoundingClientRect();
-          const relativeX = moveEvent.clientX - workspaceRect.left;
-          const leftWidth = Math.max(300, Math.min(workspaceRect.width - 400, relativeX));
-          this.workspace.style.gridTemplateColumns = `${leftWidth}px 8px 1fr`;
-        }
+        const rect = workspace.getBoundingClientRect();
+        const relativeY = moveEvent.clientY - rect.top;
+        const percentage = Math.max(20, Math.min(80, (relativeY / rect.height) * 100));
+        document.documentElement.style.setProperty('--preview-height', `${percentage}%`);
       };
 
       const onMouseUp = () => {
         this.isResizing = false;
-        divider.classList.remove('dragging');
+        handle.classList.remove('dragging');
         window.removeEventListener('mousemove', onMouseMove);
         window.removeEventListener('mouseup', onMouseUp);
       };
@@ -316,11 +317,11 @@ export class StudioApp {
   }
 
   /**
-   * 4. CHUYỂN ĐỔI TAB SIDEBAR & NÚT THÊM FILE
+   * 3. SIDEBAR TÀI NGUYÊN (4 TABS: FILES, CHARACTERS, ASSETS, VARIABLES)
    */
   private setupSidebarTabs(): void {
     const tabs = document.querySelectorAll<HTMLButtonElement>('.sidebar-tab');
-    const panes = document.querySelectorAll<HTMLElement>('.tab-pane');
+    const panes = document.querySelectorAll<HTMLElement>('.sidebar-pane');
 
     tabs.forEach(tab => {
       tab.addEventListener('click', () => {
@@ -333,28 +334,49 @@ export class StudioApp {
       });
     });
 
-    // Nút thêm file
     this.btnAddFile.addEventListener('click', () => {
       this.addNewFile();
     });
   }
 
   /**
-   * 5. SỰ KIỆN TRÌNH SOẠN THẢO (TAB INDENT VỚI UNDO HISTORY, SHORTCUTS)
+   * 4. BẢNG THÔNG TIN ĐÁY (DRAWER PROBLEMS & VARIABLES WATCH)
+   */
+  private setupDrawerTabs(): void {
+    this.drawerTabProblems.addEventListener('click', () => {
+      this.drawerTabProblems.classList.add('active');
+      this.drawerTabVariables.classList.remove('active');
+      this.drawerPaneProblems.style.display = 'block';
+      this.drawerPaneVariables.style.display = 'none';
+      this.drawerBody.classList.remove('collapsed');
+    });
+
+    this.drawerTabVariables.addEventListener('click', () => {
+      this.drawerTabVariables.classList.add('active');
+      this.drawerTabProblems.classList.remove('active');
+      this.drawerPaneVariables.style.display = 'block';
+      this.drawerPaneProblems.style.display = 'none';
+      this.drawerBody.classList.remove('collapsed');
+    });
+
+    this.drawerToggleBtn.addEventListener('click', () => {
+      this.drawerBody.classList.toggle('collapsed');
+    });
+  }
+
+  /**
+   * 5. SỰ KIỆN TRÌNH SOẠN THẢO CODE
    */
   private setupEditorEvents(): void {
-    // Cập nhật số dòng khi gõ
     this.codeEditor.addEventListener('input', () => {
       this.updateLineNumbers();
       this.triggerDebouncedCompile();
     });
 
-    // Đồng bộ vị trí cuộn giữa thước đo số dòng và textarea
     this.codeEditor.addEventListener('scroll', () => {
       this.lineNumbers.scrollTop = this.codeEditor.scrollTop;
     });
 
-    // Thụt lề 2 spaces bằng phím Tab (bảo toàn lịch sử Undo/Redo)
     this.codeEditor.addEventListener('keydown', e => {
       if (e.key === 'Tab') {
         e.preventDefault();
@@ -368,16 +390,13 @@ export class StudioApp {
         }
         this.updateLineNumbers();
         this.triggerDebouncedCompile();
-      } else if (e.key === 'F5' || (e.ctrlKey && e.key === 'Enter')) {
+      } else if (e.key === 'F5') {
         e.preventDefault();
-        this.runPreview();
+        this.runFromStart();
+      } else if (e.ctrlKey && e.key === 'Enter') {
+        e.preventDefault();
+        this.runFromLine();
       }
-    });
-
-    // Đóng mở drawer danh sách lỗi
-    this.problemsHeader.addEventListener('click', () => {
-      const isCollapsed = this.problemsList.style.display === 'none';
-      this.problemsList.style.display = isCollapsed ? 'block' : 'none';
     });
   }
 
@@ -391,11 +410,11 @@ export class StudioApp {
   }
 
   /**
-   * 6. BIÊN DỊCH REAL-TIME VÀ TRUYỀN TẢI BYTECODE (COMPILER PIPELINE)
+   * 6. BIÊN DỊCH REAL-TIME & ĐỒNG BỘ METADATA AST
    */
   private triggerDebouncedCompile(): void {
     this.compilerIndicator.textContent = 'Đang phân tích cú pháp...';
-    this.compilerIndicator.style.color = '#eab308'; // Vàng
+    this.compilerIndicator.className = 'compiler-status-indicator compiling';
 
     if (this.compileTimerId !== null) {
       window.clearTimeout(this.compileTimerId);
@@ -408,10 +427,8 @@ export class StudioApp {
   }
 
   private compileCurrentScript(): void {
-    // Lưu nội dung file hiện tại vào state
     this.project.files[this.project.activeFile] = this.codeEditor.value;
 
-    // Đóng gói toàn bộ các file trong dự án
     const scriptFiles: ScriptFile[] = Object.entries(this.project.files).map(
       ([fileName, content], index) => ({
         id: fileName,
@@ -426,47 +443,47 @@ export class StudioApp {
 
     if (result.success && result.program) {
       this.latestProgram = result.program;
-      this.compilerIndicator.textContent = 'Biên dịch tự động: THÀNH CÔNG';
-      this.compilerIndicator.style.color = '#22c55e'; // Xanh lá
-      this.problemsHeader.classList.remove('has-errors');
-      this.problemsSummary.textContent = '● 0 LỖI BIÊN DỊCH (SẴN SÀNG CHẠY)';
+
+      this.compilerIndicator.textContent = 'Biên dịch tự động: SẴN SÀNG';
+      this.compilerIndicator.className = 'compiler-status-indicator';
+
+      this.drawerTabProblems.classList.remove('has-error');
+      this.problemsSummary.textContent = '● Problems (0 lỗi)';
       this.problemsList.innerHTML =
-        '<div class="no-problems">Cú pháp hợp lệ, không phát hiện lỗi nào.</div>';
+        '<div class="no-problem-message">✓ Cú pháp hợp lệ, không phát hiện lỗi nào.</div>';
 
-      // Lưu trữ thành công vào LocalStorage
       this.saveProjectToStorage();
-
-      // Cập nhật Live Preview
       this.sendProgramToPreview(this.latestProgram);
 
-      // Trích xuất metadata AST cập nhật các tab Nhân vật, Assets, Biến
       if (result.ast) {
         this.updateSidebarMetadata(result.ast);
       }
     } else {
       const errors = result.errors || [];
-      this.compilerIndicator.textContent = `Biên dịch tự động: PHÁT HIỆN ${errors.length} LỖI`;
-      this.compilerIndicator.style.color = '#ef4444'; // Đỏ
-      this.problemsHeader.classList.add('has-errors');
-      this.problemsSummary.textContent = `● CÓ ${errors.length} LỖI CÚ PHÁP HOẶC NGỮ NGHĨA`;
+      this.compilerIndicator.textContent = `Biên dịch tự động: CÓ ${errors.length} LỖI`;
+      this.compilerIndicator.className = 'compiler-status-indicator error';
+
+      this.drawerTabProblems.classList.add('has-error');
+      this.problemsSummary.textContent = `● Problems (${errors.length} lỗi)`;
+
       this.saveStatusPill.textContent = '● CÓ LỖI BIÊN DỊCH';
-      this.saveStatusPill.style.color = '#ef4444';
+      this.saveStatusPill.className = 'save-status-pill error';
 
       this.problemsList.innerHTML = '';
       errors.forEach((err: CompileError) => {
-        const item = document.createElement('div');
-        item.className = 'problem-item';
+        const row = document.createElement('div');
+        row.className = 'problem-row';
         const line = err.loc ? err.loc.line : 1;
         const col = err.loc ? err.loc.col : 1;
         const file = err.loc?.fileId ? `[${err.loc.fileId}] ` : '';
-        item.textContent = `${file}Dòng ${line}, Cột ${col}: ${err.message}`;
-        item.addEventListener('click', () => {
+        row.textContent = `✕ ${file}Dòng ${line}, Cột ${col}: ${err.message}`;
+        row.addEventListener('click', () => {
           if (err.loc?.fileId && err.loc.fileId !== this.project.activeFile) {
             this.switchActiveFile(err.loc.fileId);
           }
           this.jumpToLine(line);
         });
-        this.problemsList.appendChild(item);
+        this.problemsList.appendChild(row);
       });
     }
   }
@@ -483,60 +500,21 @@ export class StudioApp {
     const len = targetLine ? targetLine.length : 0;
     this.codeEditor.setSelectionRange(charPos, charPos + len);
 
-    // Cuộn tới dòng được chọn
-    const lineHeight = 20;
+    const lineHeight = 21.6;
     this.codeEditor.scrollTop = Math.max(0, (lineNumber - 5) * lineHeight);
   }
 
   /**
-   * 7. CẦU NỐI HAI CHIỀU LIVE PREVIEW (TWO-WAY MESSAGING BRIDGE)
-   */
-  private setupPreviewMessaging(): void {
-    window.addEventListener('message', (event: MessageEvent) => {
-      if (event.data?.type === 'PLAYER_READY') {
-        console.log('[StudioApp] Runtime Player đã sẵn sàng. Gửi kịch bản mới nhất...');
-        if (this.latestProgram) {
-          this.sendProgramToPreview(this.latestProgram);
-        }
-      }
-    });
-  }
-
-  private sendProgramToPreview(program: Instruction[]): void {
-    // 1. Gửi sang iframe Live Preview
-    if (this.previewIframe.contentWindow) {
-      this.previewIframe.contentWindow.postMessage(
-        {
-          type: 'HOT_RELOAD_PROGRAM',
-          program,
-        },
-        '*',
-      );
-    }
-
-    // 2. Gửi sang cửa sổ rời (Pop-out Window) nếu đang mở
-    if (this.popoutWindow && !this.popoutWindow.closed) {
-      this.popoutWindow.postMessage(
-        {
-          type: 'HOT_RELOAD_PROGRAM',
-          program,
-        },
-        '*',
-      );
-    }
-  }
-
-  /**
-   * 8. ĐỒNG BỘ ĐỘNG SIDEBAR METADATA TỪ CÂY AST
+   * 7. CẬP NHẬT SIDEBAR METADATA & BẢNG WATCH VARIABLES TỪ AST
    */
   private updateSidebarMetadata(ast: ProgramAST): void {
     const characters = new Map<string, { displayName?: string; sprites: Set<string> }>();
     const backgrounds = new Set<string>();
     const musicAssets = new Set<string>();
     const soundAssets = new Set<string>();
-    const variables = new Set<string>();
+    const variables = new Map<string, unknown>();
 
-    const traverseStatements = (stmts: StatementAST[]) => {
+    const traverse = (stmts: StatementAST[]) => {
       for (const stmt of stmts) {
         if (stmt.type === 'ShowStatement') {
           const s = stmt as ShowStatement;
@@ -551,177 +529,285 @@ export class StudioApp {
           }
           characters.get(r.characterId)!.displayName = r.displayName;
         } else if (stmt.type === 'BackgroundStatement') {
-          backgrounds.add((stmt as BackgroundStatement).assetId);
+          const b = stmt as BackgroundStatement;
+          backgrounds.add(b.assetId);
         } else if (stmt.type === 'PlayStatement') {
           const p = stmt as PlayStatement;
-          if (p.channel === 'music') {
-            musicAssets.add(p.assetId);
-          } else {
-            soundAssets.add(p.assetId);
-          }
+          if (p.channel === 'music') musicAssets.add(p.assetId);
+          else soundAssets.add(p.assetId);
         } else if (stmt.type === 'VarAssignStatement') {
-          variables.add((stmt as VarAssignStatement).variable);
+          const v = stmt as VarAssignStatement;
+          variables.set(v.variable, (v.value as { value?: unknown })?.value ?? 'gán giá trị');
         } else if (stmt.type === 'IfStatement') {
-          const i = stmt as IfStatement;
-          traverseStatements(i.consequent);
-          if (i.alternate) {
-            if (Array.isArray(i.alternate)) {
-              traverseStatements(i.alternate);
-            } else {
-              traverseStatements([i.alternate]);
-            }
+          const ifs = stmt as IfStatement;
+          traverse(ifs.consequent);
+          if (ifs.alternate) {
+            if (Array.isArray(ifs.alternate)) traverse(ifs.alternate);
+            else traverse([ifs.alternate]);
           }
         } else if (stmt.type === 'WhileStatement') {
-          traverseStatements((stmt as WhileStatement).body);
+          const ws = stmt as WhileStatement;
+          traverse(ws.body);
         }
       }
     };
 
-    for (const scene of ast.scenes) {
-      traverseStatements(scene.body);
+    if (ast.scenes) {
+      for (const sc of Object.values(ast.scenes)) {
+        if (sc.body) traverse(sc.body);
+      }
     }
 
-    // 1. Render Characters Tab
+    // Render Characters Tab
     if (this.charContainer) {
       if (characters.size === 0) {
         this.charContainer.innerHTML =
-          '<div class="empty-sidebar-hint">Chưa phát hiện nhân vật trong kịch bản. Sử dụng lệnh "show" để thêm.</div>';
+          '<div class="empty-meta-hint">Chưa phát hiện nhân vật. Sử dụng cú pháp: show nhân_vật sprite</div>';
       } else {
         this.charContainer.innerHTML = '';
-        for (const [charId, info] of characters.entries()) {
-          const item = document.createElement('div');
-          item.className = 'character-item';
-          const nameDisplay = info.displayName
-            ? `${charId.toUpperCase()} (${info.displayName})`
-            : charId.toUpperCase();
-          const spritesText = Array.from(info.sprites).join(', ') || 'mặc định';
-
-          item.innerHTML = `
-            <div class="char-header">
-              <span class="char-color-dot" style="background: #38bdf8;"></span>
-              <strong>${nameDisplay}</strong>
+        const charColorPalette = ['#38bdf8', '#f43f5e', '#eab308', '#a855f7', '#10b981'];
+        let cIdx = 0;
+        for (const [id, info] of characters) {
+          const card = document.createElement('div');
+          card.className = 'meta-card';
+          const dotColor = charColorPalette[cIdx % charColorPalette.length];
+          cIdx++;
+          const name = info.displayName ? `${id} (${info.displayName})` : id;
+          card.innerHTML = `
+            <div class="meta-card-title">
+              <span class="char-badge-dot" style="background-color: ${dotColor};"></span>
+              <span>${name}</span>
             </div>
-            <div class="char-sprites">Sprites: ${spritesText}</div>
+            <div class="meta-tags-list">
+              ${Array.from(info.sprites).map(sp => `<span class="meta-tag-pill">${sp}</span>`).join('')}
+            </div>
           `;
-          this.charContainer.appendChild(item);
+          this.charContainer.appendChild(card);
         }
       }
     }
 
-    // 2. Render Assets Tab
+    // Render Assets Tab
     if (this.assetContainer) {
       let assetHtml = '';
       if (backgrounds.size > 0) {
-        assetHtml += '<div class="asset-group-title">🖼️ Hình nền (Backgrounds)</div>';
-        for (const bg of backgrounds) {
-          assetHtml += `<div class="asset-item">${bg}</div>`;
-        }
+        assetHtml += `
+          <div class="meta-card">
+            <div class="meta-card-title">Hình nền (Backgrounds)</div>
+            <div class="meta-tags-list">
+              ${Array.from(backgrounds).map(b => `<span class="meta-tag-pill">🖼 ${b}</span>`).join('')}
+            </div>
+          </div>
+        `;
       }
-
-      if (musicAssets.size > 0 || soundAssets.size > 0) {
-        assetHtml +=
-          '<div class="asset-group-title" style="margin-top: 8px;">🎵 Âm thanh (Audio)</div>';
-        for (const m of musicAssets) {
-          assetHtml += `<div class="asset-item">[BGM] ${m}</div>`;
-        }
-        for (const s of soundAssets) {
-          assetHtml += `<div class="asset-item">[SFX] ${s}</div>`;
-        }
+      if (musicAssets.size > 0) {
+        assetHtml += `
+          <div class="meta-card">
+            <div class="meta-card-title">Nhạc nền (BGM)</div>
+            <div class="meta-tags-list">
+              ${Array.from(musicAssets).map(m => `<span class="meta-tag-pill">🎵 ${m}</span>`).join('')}
+            </div>
+          </div>
+        `;
       }
-
+      if (soundAssets.size > 0) {
+        assetHtml += `
+          <div class="meta-card">
+            <div class="meta-card-title">Hiệu ứng âm thanh (SFX)</div>
+            <div class="meta-tags-list">
+              ${Array.from(soundAssets).map(s => `<span class="meta-tag-pill">🔊 ${s}</span>`).join('')}
+            </div>
+          </div>
+        `;
+      }
       if (!assetHtml) {
         assetHtml =
-          '<div class="empty-sidebar-hint">Chưa có tài nguyên hình nền hoặc âm thanh được tham chiếu.</div>';
+          '<div class="empty-meta-hint">Chưa có tài nguyên nền hoặc âm thanh được tham chiếu.</div>';
       }
       this.assetContainer.innerHTML = assetHtml;
     }
 
-    // 3. Render Variables Tab
+    // Render Variables Tab & Watch Pane
     if (this.varContainer) {
       if (variables.size === 0) {
         this.varContainer.innerHTML =
-          '<div class="empty-sidebar-hint">Chưa có biến trạng thái. Khởi tạo biến bằng cú pháp: ~ tên_biến = giá_trị</div>';
+          '<div class="empty-meta-hint">Chưa có biến trạng thái. Gán biến bằng cú pháp: ~ tên_biến = giá_trị</div>';
       } else {
         this.varContainer.innerHTML = '';
-        for (const v of variables) {
-          const row = document.createElement('div');
-          row.className = 'var-row';
-          row.innerHTML = `<span>${v}</span><strong>(biến số)</strong>`;
-          this.varContainer.appendChild(row);
+        for (const [v, val] of variables) {
+          const card = document.createElement('div');
+          card.className = 'meta-card';
+          card.innerHTML = `
+            <div class="meta-card-title">~ ${v}</div>
+            <div class="meta-tags-list">
+              <span class="meta-tag-pill">Khởi tạo: ${String(val)}</span>
+            </div>
+          `;
+          this.varContainer.appendChild(card);
         }
+      }
+    }
+
+    // Render Variables Watch Table in Bottom Drawer
+    this.varsWatchTbody.innerHTML = '';
+    if (variables.size === 0) {
+      this.varsWatchTbody.innerHTML = '<tr><td colspan="3" style="color: #666;">Chưa có biến nào.</td></tr>';
+    } else {
+      for (const [name, val] of variables) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td style="font-weight: 600; color: #fff;">${name}</td>
+          <td style="color: #888;">${typeof val}</td>
+          <td style="color: #22c55e;">${String(val)}</td>
+        `;
+        this.varsWatchTbody.appendChild(tr);
       }
     }
   }
 
   /**
-   * 9. CÁC NÚT ĐIỀU KHIỂN TOOLBAR (RUN, POPOUT, EXPORT)
+   * 8. CẦU NỐI HAI CHIỀU LIVE PREVIEW (PREVIEW MESSAGING BRIDGE)
    */
-  private setupToolbarActions(): void {
-    // Chạy thử
-    document.getElementById('btn-run-preview')?.addEventListener('click', () => {
-      this.runPreview();
+  private setupPreviewMessaging(): void {
+    window.addEventListener('message', (event: MessageEvent) => {
+      if (event.data?.type === 'PLAYER_READY') {
+        this.previewStatusBadge.textContent = 'HOT RELOAD: KẾT NỐI THÀNH CÔNG';
+        if (this.latestProgram) {
+          this.sendProgramToPreview(this.latestProgram);
+        }
+      }
     });
+  }
 
-    // Làm mới Preview
-    document.getElementById('btn-reload-preview')?.addEventListener('click', () => {
-      this.reloadPreview();
-    });
-
-    // Tách cửa sổ rời (Pop-out Window)
-    document.getElementById('btn-popout')?.addEventListener('click', () => {
-      this.popoutWindow = window.open(
-        'http://localhost:3000/',
-        'vn_player_popout',
-        'width=1280,height=720',
+  private sendProgramToPreview(program: Instruction[]): void {
+    if (this.previewIframe.contentWindow) {
+      this.previewIframe.contentWindow.postMessage(
+        {
+          type: 'HOT_RELOAD_PROGRAM',
+          program,
+        },
+        '*',
       );
-      this.showToast('Đã mở cửa sổ Live Preview độc lập (Pop-out Window)!');
+    }
+
+    if (this.popoutWindow && !this.popoutWindow.closed) {
+      this.popoutWindow.postMessage(
+        {
+          type: 'HOT_RELOAD_PROGRAM',
+          program,
+        },
+        '*',
+      );
+    }
+  }
+
+  /**
+   * 9. HEADER ACTIONS: [▶ Chạy từ đầu] [▶ Chạy dòng này] [Xuất bản]
+   */
+  private setupHeaderActions(): void {
+    document.getElementById('btn-run-from-start')?.addEventListener('click', () => {
+      this.runFromStart();
     });
 
-    // Xuất bản game
+    document.getElementById('btn-run-from-line')?.addEventListener('click', () => {
+      this.runFromLine();
+    });
+
     document.getElementById('btn-export-game')?.addEventListener('click', () => {
       this.modalExport.classList.remove('hidden');
     });
 
+    document.getElementById('btn-reload-preview')?.addEventListener('click', () => {
+      const src = this.previewIframe.src;
+      this.previewIframe.src = '';
+      this.previewIframe.src = src;
+      this.showToast('Đang tải lại Live Preview...');
+    });
+
+    document.getElementById('btn-popout-preview')?.addEventListener('click', () => {
+      this.popoutWindow = window.open(
+        'http://localhost:3000/',
+        'vn_studio_popout',
+        'width=1280,height=720',
+      );
+      this.showToast('Đã mở cửa sổ Live Preview độc lập!');
+    });
+  }
+
+  private runFromStart(): void {
+    this.compileCurrentScript();
+    if (this.latestProgram) {
+      this.sendProgramToPreview(this.latestProgram);
+      this.showToast('▶ Chạy kịch bản từ đầu!');
+    }
+  }
+
+  private runFromLine(): void {
+    this.compileCurrentScript();
+    if (!this.latestProgram) return;
+
+    // Tìm xem con trỏ đang ở scene nào trong kịch bản hiện tại
+    const cursor = this.codeEditor.selectionStart;
+    const textBefore = this.codeEditor.value.substring(0, cursor);
+    const sceneMatches = Array.from(textBefore.matchAll(/scene\s+([a-zA-Z0-9_]+)/g));
+    const lastMatch = sceneMatches.length > 0 ? sceneMatches[sceneMatches.length - 1] : null;
+    const currentScene = lastMatch && lastMatch[1] ? lastMatch[1] : null;
+
+    this.sendProgramToPreview(this.latestProgram);
+
+    if (currentScene) {
+      this.showToast(`▶ Chạy từ cảnh hiện tại: "${currentScene}"!`);
+    } else {
+      this.showToast('▶ Chạy kịch bản từ dòng này!');
+    }
+  }
+
+  /**
+   * 10. MODAL XUẤT BẢN & PHÂN PHỐI (EXPORT WIZARD)
+   */
+  private setupExportWizardActions(): void {
     document.getElementById('btn-close-export')?.addEventListener('click', () => {
       this.modalExport.classList.add('hidden');
     });
 
-    // Nút copy link
+    window.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && !this.modalExport.classList.contains('hidden')) {
+        this.modalExport.classList.add('hidden');
+      }
+    });
+
     document.getElementById('btn-copy-link')?.addEventListener('click', () => {
       const urlInput = document.getElementById('export-url-input') as HTMLInputElement | null;
       const url = urlInput?.value || 'https://secret-academy.usercontent-platform.com';
       navigator.clipboard?.writeText(url);
-      this.showToast('Đã sao chép link chơi Web vào khay nhớ tạm!');
+      this.showToast('Đã sao chép đường link web vào khay nhớ tạm!');
     });
 
-    // Nút mở web chơi trực tiếp
     document.getElementById('btn-open-playable')?.addEventListener('click', () => {
       window.open('http://localhost:3000/', '_blank');
-      this.showToast('Đang mở trang web chơi game công khai (Public Player)...');
+      this.showToast('Đang mở trang web chơi game công khai...');
     });
 
-    // Nút copy mã nhúng iFrame
     document.getElementById('btn-copy-iframe')?.addEventListener('click', () => {
       const iframeInput = document.getElementById('export-iframe-input') as HTMLInputElement | null;
       const snippet =
         iframeInput?.value ||
         '<iframe src="https://secret-academy.usercontent-platform.com" width="960" height="540" frameborder="0" allowfullscreen></iframe>';
       navigator.clipboard?.writeText(snippet);
-      this.showToast('Đã sao chép mã nhúng iFrame vào khay nhớ tạm!');
+      this.showToast('Đã sao chép mã nhúng iFrame!');
     });
 
-    // Nút xuất gói Game (bundle.json)
     document.getElementById('btn-download-bundle')?.addEventListener('click', () => {
-      const exportBundle = {
+      const bundleData = {
         metadata: {
-          name: 'Secret Academy VN',
+          title: this.project.title,
           exportedAt: new Date().toISOString(),
           engineVersion: '1.0.0',
         },
         project: this.project,
         program: this.latestProgram || [],
       };
-      const blob = new Blob([JSON.stringify(exportBundle, null, 2)], {
+      const blob = new Blob([JSON.stringify(bundleData, null, 2)], {
         type: 'application/json',
       });
       const url = URL.createObjectURL(blob);
@@ -732,19 +818,18 @@ export class StudioApp {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      this.showToast('Đã tải xuống gói game vn-game-bundle.json thành công!');
+      this.showToast('Đã tải xuống gói vn-game-bundle.json!');
     });
 
-    // Nút download zip
     document.getElementById('btn-download-zip')?.addEventListener('click', () => {
-      this.showToast('Đang đóng gói file ZIP tự chứa (HTML5 runner + scripts)...');
-      const zipManifest = {
-        title: 'Secret Academy',
+      this.showToast('Đang tạo tệp HTML5 game.zip tự chứa...');
+      const manifest = {
+        title: this.project.title,
         version: '1.0.0',
         entry: 'index.html',
         scripts: this.project.files,
       };
-      const blob = new Blob([JSON.stringify(zipManifest, null, 2)], {
+      const blob = new Blob([JSON.stringify(manifest, null, 2)], {
         type: 'application/octet-stream',
       });
       const url = URL.createObjectURL(blob);
@@ -757,35 +842,12 @@ export class StudioApp {
       URL.revokeObjectURL(url);
       setTimeout(() => {
         this.showToast('Đã tạo và tải xuống gói vn-game-itch.zip!');
-      }, 500);
+      }, 400);
     });
 
-    // Nút yêu cầu build Desktop (P1)
     document.getElementById('btn-build-desktop')?.addEventListener('click', () => {
-      this.showToast('Yêu cầu build Desktop (Windows/Mac) đã được gửi đến hàng đợi CI/CD (P1)!');
+      this.showToast('Yêu cầu build Desktop App đã được gửi đến CI/CD (P1)!');
     });
-
-    // Phím Escape để đóng modal xuất bản
-    window.addEventListener('keydown', e => {
-      if (e.key === 'Escape' && !this.modalExport.classList.contains('hidden')) {
-        this.modalExport.classList.add('hidden');
-      }
-    });
-  }
-
-  private runPreview(): void {
-    this.compileCurrentScript();
-    if (this.latestProgram) {
-      this.sendProgramToPreview(this.latestProgram);
-      this.showToast('▶ Đang phát kịch bản sang Live Preview!');
-    }
-  }
-
-  private reloadPreview(): void {
-    const currentSrc = this.previewIframe.src;
-    this.previewIframe.src = '';
-    this.previewIframe.src = currentSrc;
-    this.showToast('Đang tải lại Live Preview...');
   }
 
   public showToast(message: string): void {
@@ -797,7 +859,7 @@ export class StudioApp {
     this.toastTimerId = window.setTimeout(() => {
       this.toastEl.classList.add('hidden');
       this.toastTimerId = null;
-    }, 2400);
+    }, 2200);
   }
 }
 
