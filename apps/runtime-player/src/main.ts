@@ -25,4 +25,23 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   // Expose player to window for debugging if needed
   (window as unknown as { vnPlayer: VNPlayer }).vnPlayer = player;
+
+  // Báo cho parent (Editor / Live Preview Container) biết Player đã sẵn sàng
+  if (window.parent && window.parent !== window) {
+    window.parent.postMessage({ type: 'PLAYER_READY' }, '*');
+  }
+  if (window.opener) {
+    window.opener.postMessage({ type: 'PLAYER_READY' }, '*');
+  }
+});
+
+// Lắng nghe sự kiện Hot Reload từ Editor
+window.addEventListener('message', async (event: MessageEvent) => {
+  if (event.data?.type === 'HOT_RELOAD_PROGRAM' && Array.isArray(event.data.program)) {
+    console.log(`[RuntimePlayer] Nhận lệnh HOT_RELOAD_PROGRAM với ${event.data.program.length} instructions`);
+    const player = (window as unknown as { vnPlayer?: VNPlayer }).vnPlayer;
+    if (player) {
+      await player.reloadProgram(event.data.program);
+    }
+  }
 });

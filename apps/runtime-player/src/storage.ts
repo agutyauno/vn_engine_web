@@ -13,11 +13,12 @@ export interface SaveSlotData {
 
 const STORAGE_KEY_SLOTS = 'vn_engine_save_slots';
 const STORAGE_KEY_QUICK = 'vn_engine_quicksave';
-const TOTAL_SLOTS = 6;
+export const TOTAL_SLOTS = 12;
+export const SLOTS_PER_PAGE = 6;
 
 export class GameStorage {
   /**
-   * Lấy danh sách 6 slots lưu game
+   * Lấy danh sách 12 slots lưu game
    */
   public static getSlots(): (SaveSlotData | null)[] {
     try {
@@ -49,6 +50,19 @@ export class GameStorage {
       localStorage.setItem(STORAGE_KEY_SLOTS, JSON.stringify(slots));
     } catch (e) {
       console.warn('[GameStorage] Không thể ghi vào localStorage:', e);
+    }
+  }
+
+  /**
+   * Xóa dữ liệu một slot
+   */
+  public static deleteSlot(slotIndex: number): void {
+    const slots = this.getSlots();
+    slots[slotIndex] = null;
+    try {
+      localStorage.setItem(STORAGE_KEY_SLOTS, JSON.stringify(slots));
+    } catch (e) {
+      console.warn('[GameStorage] Không thể xóa slot:', e);
     }
   }
 

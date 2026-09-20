@@ -35,10 +35,14 @@
             <button class="wf-btn" id="btn-load" title="Mở danh sách tải game">[LOAD]</button>
             <button class="wf-btn" id="btn-log" title="Mở lịch sử thoại (Backlog)">[LOG]</button>
             <button class="wf-btn" id="btn-audio" title="Cài đặt âm lượng">[AUDIO]</button>
+            <button class="wf-btn" id="btn-hide-ui" title="Ẩn toàn bộ giao diện (Phím H hoặc Chuột giữa)">[HIDE H]</button>
             <button class="wf-btn" id="btn-debug" title="Xem biến và trạng thái máy ảo">[DEBUG]</button>
           </div>
         </div>
       </div>
+
+      <!-- TOAST THÔNG BÁO TỨC THỜI -->
+      <div id="toast-notification" class="toast-popup hidden"></div>
 
       <!-- HỘP THOẠI LỰA CHỌN RẼ NHÁNH (CHOICE OVERLAY) -->
       <div id="choice-overlay" class="hidden">
@@ -53,6 +57,11 @@
             <button class="wf-btn" id="btn-close-saveload">[Đóng ✕]</button>
           </div>
           <div class="wf-modal-body">
+            <!-- THANH PHÂN TRANG LƯU/TẢI GAME -->
+            <div class="save-pagination">
+              <button class="wf-btn save-page-btn active" data-page="0">[ TRANG 1 (Ô 1 - 6) ]</button>
+              <button class="wf-btn save-page-btn" data-page="1">[ TRANG 2 (Ô 7 - 12) ]</button>
+            </div>
             <div class="save-slots-grid" id="save-slots-container"></div>
           </div>
         </div>

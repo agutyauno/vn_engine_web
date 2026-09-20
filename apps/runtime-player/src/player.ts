@@ -1,18 +1,25 @@
-// ==========================================
-// BỘ ĐIỀU PHỐI RUNTIME PLAYER (VN PLAYER)
-// ==========================================
+// ================================================================
+// BỘ ĐIỀU PHỐI RUNTIME PLAYER (VN PLAYER CONTROLLER)
+// Tuân thủ tài liệu đặc tả UI/UX Specification v1.0 & Architecture
+// ================================================================
 
 import { VisualNovelVM } from '@vn-engine/core-vm';
 import { GameRenderer } from '@vn-engine/renderer';
 import { AudioManager } from '@vn-engine/audio';
 import type { Instruction, DialogueInstruction } from '@vn-engine/shared-types';
 import { Typewriter } from './ui/typewriter';
-import { GameStorage, type SaveSlotData } from './storage';
+import { GameStorage, type SaveSlotData, SLOTS_PER_PAGE, TOTAL_SLOTS } from './storage';
 
 export interface BacklogEntry {
   speaker: string | null;
   text: string;
 }
+
+const CHAR_COLOR_MAP: Record<string, string> = {
+  ALICE: '#38bdf8', // Xanh dương
+  BOB: '#f43f5e',   // Đỏ hồng
+  '???': '#eab308', // Vàng ẩn danh
+};
 
 export class VNPlayer {
   public vm: VisualNovelVM;
@@ -24,12 +31,16 @@ export class VNPlayer {
 
   private isAuto: boolean = false;
   private isSkip: boolean = false;
+  private isHudHidden: boolean = false;
   private autoTimerId: number | null = null;
   private skipTimerId: number | null = null;
+  private toastTimerId: number | null = null;
+  private currentSavePage: number = 0;
 
   // DOM Elements
   private gameRoot: HTMLElement;
   private canvasContainer: HTMLElement;
+  private uiLayer: HTMLElement;
   private dialogueBox: HTMLElement;
   private dialogueText: HTMLElement;
   private speakerNameplate: HTMLElement;
@@ -38,6 +49,7 @@ export class VNPlayer {
   private choiceList: HTMLElement;
   private selectedChoiceIndex: number = 0;
   private choiceButtons: HTMLButtonElement[] = [];
+  private toastNotification: HTMLElement;
 
   // Control Buttons
   private btnBack: HTMLButtonElement;
@@ -50,12 +62,14 @@ export class VNPlayer {
   private btnLoad: HTMLButtonElement;
   private btnLog: HTMLButtonElement;
   private btnAudio: HTMLButtonElement;
+  private btnHideUI: HTMLButtonElement;
   private btnDebug: HTMLButtonElement;
 
   // Modals
   private modalSaveLoad: HTMLElement;
   private saveLoadTitle: HTMLElement;
   private saveSlotsContainer: HTMLElement;
+  private savePageButtons: HTMLButtonElement[] = [];
   private modalBacklog: HTMLElement;
   private backlogContainer: HTMLElement;
   private modalAudio: HTMLElement;
@@ -76,12 +90,14 @@ export class VNPlayer {
     // Lấy các phần tử DOM
     this.gameRoot = document.getElementById('game-root')!;
     this.canvasContainer = document.getElementById('canvas-container')!;
+    this.uiLayer = document.getElementById('ui-layer')!;
     this.dialogueBox = document.getElementById('dialogue-box')!;
     this.dialogueText = document.getElementById('dialogue-text')!;
     this.speakerNameplate = document.getElementById('speaker-nameplate')!;
     this.nextIndicator = document.getElementById('dialogue-next-indicator')!;
     this.choiceOverlay = document.getElementById('choice-overlay')!;
     this.choiceList = document.getElementById('choice-buttons-list')!;
+    this.toastNotification = document.getElementById('toast-notification')!;
 
     this.btnBack = document.getElementById('btn-back') as HTMLButtonElement;
     this.btnNext = document.getElementById('btn-next') as HTMLButtonElement;
@@ -93,11 +109,13 @@ export class VNPlayer {
     this.btnLoad = document.getElementById('btn-load') as HTMLButtonElement;
     this.btnLog = document.getElementById('btn-log') as HTMLButtonElement;
     this.btnAudio = document.getElementById('btn-audio') as HTMLButtonElement;
+    this.btnHideUI = document.getElementById('btn-hide-ui') as HTMLButtonElement;
     this.btnDebug = document.getElementById('btn-debug') as HTMLButtonElement;
 
     this.modalSaveLoad = document.getElementById('modal-saveload')!;
     this.saveLoadTitle = document.getElementById('saveload-title')!;
     this.saveSlotsContainer = document.getElementById('save-slots-container')!;
+    this.savePageButtons = Array.from(document.querySelectorAll('.save-page-btn'));
     this.modalBacklog = document.getElementById('modal-backlog')!;
     this.backlogContainer = document.getElementById('backlog-container')!;
     this.modalAudio = document.getElementById('modal-audio')!;
@@ -172,8 +190,28 @@ export class VNPlayer {
       this.openAudioModal();
     });
 
+    this.btnHideUI?.addEventListener('click', () => {
+      this.toggleHideUI();
+    });
+
     this.btnDebug.addEventListener('click', () => {
       this.openDebugModal();
+    });
+
+    // Chuột giữa (Middle Click) để ẩn/hiện HUD thoại
+    this.gameRoot.addEventListener('auxclick', e => {
+      if (e.button === 1) {
+        e.preventDefault();
+        this.toggleHideUI();
+      }
+    });
+
+    // Các nút chuyển trang Save/Load
+    this.savePageButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        this.currentSavePage = parseInt(btn.dataset.page || '0', 10);
+        this.renderSaveSlots();
+      });
     });
 
     // Đóng modals
@@ -190,76 +228,173 @@ export class VNPlayer {
       this.modalDebug.classList.add('hidden');
     });
 
-    // Audio Sliders
+    // Audio Sliders & Hiển thị % âm lượng
     const sliderMaster = document.getElementById('slider-master') as HTMLInputElement;
     sliderMaster?.addEventListener('input', () => {
-      this.audio.setMasterVolume(parseFloat(sliderMaster.value));
+      const val = parseFloat(sliderMaster.value);
+      this.audio.setMasterVolume(val);
     });
 
     const sliderBgm = document.getElementById('slider-bgm') as HTMLInputElement;
     sliderBgm?.addEventListener('input', () => {
-      this.audio.setChannelVolume('music', parseFloat(sliderBgm.value));
+      const val = parseFloat(sliderBgm.value);
+      this.audio.setChannelVolume('music', val);
     });
 
     const sliderSfx = document.getElementById('slider-sfx') as HTMLInputElement;
     sliderSfx?.addEventListener('input', () => {
-      this.audio.setChannelVolume('sound', parseFloat(sliderSfx.value));
+      const val = parseFloat(sliderSfx.value);
+      this.audio.setChannelVolume('sound', val);
     });
 
     const btnMute = document.getElementById('btn-mute-toggle') as HTMLButtonElement;
     btnMute?.addEventListener('click', () => {
-      if (this.audio.isMuted()) {
-        this.audio.unmute();
-        btnMute.textContent = '[ Mute / Tắt tiếng: TẮT ]';
-      } else {
-        this.audio.mute();
-        btnMute.textContent = '[ Mute / Tắt tiếng: BẬT ]';
-      }
+      this.toggleMute();
     });
 
-    // Phím tắt bàn phím & cuộn chuột
+    // Phím tắt toàn cầu (Keyboard Shortcuts)
     window.addEventListener('keydown', e => {
-      // Bỏ qua nếu đang thao tác trong input hoặc slider
-      if ((e.target as HTMLElement)?.tagName === 'INPUT') return;
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
 
-      // Xử lý phím tắt khi đang hiển thị danh sách lựa chọn (Choice Overlay)
-      if (!this.choiceOverlay.classList.contains('hidden')) {
-        if (e.key === 'ArrowDown') {
-          e.preventDefault();
-          this.navigateChoice(1);
+      // 1. Phím Escape để đóng modal
+      if (e.key === 'Escape') {
+        if (this.isAnyModalOpen()) {
+          this.closeAllModals();
           return;
-        } else if (e.key === 'ArrowUp') {
-          e.preventDefault();
-          this.navigateChoice(-1);
-          return;
-        } else if (e.key === 'Enter') {
-          e.preventDefault();
-          this.confirmSelectedChoice();
+        }
+        if (this.isHudHidden) {
+          this.toggleHideUI();
           return;
         }
       }
 
+      // 2. Phím H để Ẩn/Hiện giao diện (Hide UI Mode)
+      if (e.code === 'KeyH' && !this.isAnyModalOpen()) {
+        e.preventDefault();
+        this.toggleHideUI();
+        return;
+      }
+
+      // 3. Phím Mute âm thanh (Phím M)
+      if (e.code === 'KeyM' && !this.isAnyModalOpen()) {
+        e.preventDefault();
+        this.toggleMute();
+        return;
+      }
+
+      // 4. Nếu HUD đang ẩn, bấm bất kỳ phím nào (Space, Enter, Mũi tên) sẽ hiện lại HUD
+      if (this.isHudHidden) {
+        if (['Space', 'Enter', 'ArrowRight', 'ArrowLeft'].includes(e.code)) {
+          e.preventDefault();
+          this.toggleHideUI();
+          return;
+        }
+      }
+
+      // 5. Nếu đang mở modal thì không nhận phím tắt chơi game
+      if (this.isAnyModalOpen()) return;
+
+      // 6. Phím tắt chọn rẽ nhánh khi đang mở menu lựa chọn
+      if (!this.choiceOverlay.classList.contains('hidden')) {
+        // Phím số 1-9
+        if (e.key >= '1' && e.key <= '9') {
+          const index = parseInt(e.key, 10) - 1;
+          const targetBtn = this.choiceButtons[index];
+          if (targetBtn && !targetBtn.disabled) {
+            e.preventDefault();
+            targetBtn.click();
+            return;
+          }
+        }
+
+        // Điều hướng mũi tên lên/xuống
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          this.navigateChoice(1);
+          return;
+        }
+        if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          this.navigateChoice(-1);
+          return;
+        }
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          const curBtn = this.choiceButtons[this.selectedChoiceIndex];
+          if (curBtn && !curBtn.disabled) {
+            curBtn.click();
+          }
+          return;
+        }
+        return;
+      }
+
+      // 7. Phím tắt điều khiển tiến lùi kịch bản
       if (e.key === ' ' || e.key === 'Enter' || e.key === 'ArrowRight') {
         e.preventDefault();
         this.handleAdvanceAction();
-      } else if (e.key === 'PageUp' || e.key === 'ArrowLeft') {
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
         e.preventDefault();
         this.rollback();
-      } else if (e.key === 'Escape') {
-        this.closeAllModals();
+      } else if (e.key === 'a' || e.key === 'A') {
+        e.preventDefault();
+        this.toggleAuto();
+      } else if (e.key === 's' || e.key === 'S') {
+        e.preventDefault();
+        this.toggleSkip();
+      } else if (e.key === 'l' || e.key === 'L') {
+        e.preventDefault();
+        this.openBacklogModal();
       }
     });
+  }
 
-    // Cuộn chuột lên để Rollback (tính năng kinh điển của Visual Novel)
-    this.gameRoot.addEventListener('wheel', e => {
-      if (
-        e.deltaY < -40 &&
-        !this.isAnyModalOpen() &&
-        this.choiceOverlay.classList.contains('hidden')
-      ) {
-        this.rollback();
-      }
-    });
+  /**
+   * Ẩn / hiện toàn bộ giao diện hộp thoại (Hide UI Mode)
+   */
+  public toggleHideUI(): void {
+    this.isHudHidden = !this.isHudHidden;
+    if (this.isHudHidden) {
+      this.uiLayer.classList.add('hud-hidden');
+      if (this.btnHideUI) this.btnHideUI.textContent = '[SHOW H]';
+    } else {
+      this.uiLayer.classList.remove('hud-hidden');
+      if (this.btnHideUI) this.btnHideUI.textContent = '[HIDE H]';
+    }
+  }
+
+  /**
+   * Hiển thị thông báo Toast ngắn
+   */
+  public showToast(message: string): void {
+    if (!this.toastNotification) return;
+    this.toastNotification.textContent = message;
+    this.toastNotification.classList.remove('hidden');
+    if (this.toastTimerId !== null) {
+      clearTimeout(this.toastTimerId);
+    }
+    this.toastTimerId = window.setTimeout(() => {
+      this.toastNotification.classList.add('hidden');
+      this.toastTimerId = null;
+    }, 2000);
+  }
+
+  /**
+   * Bật/tắt Mute âm thanh
+   */
+  public toggleMute(): void {
+    const btnMute = document.getElementById('btn-mute-toggle') as HTMLButtonElement;
+    if (this.audio.isMuted()) {
+      this.audio.unmute();
+      if (btnMute) btnMute.textContent = '[ Mute / Tắt tiếng: TẮT (Phím M) ]';
+      this.showToast('Âm thanh: BẬT');
+    } else {
+      this.audio.mute();
+      if (btnMute) btnMute.textContent = '[ Mute / Tắt tiếng: BẬT (Phím M) ]';
+      this.showToast('Âm thanh: ĐÃ TẮT');
+    }
   }
 
   private isAnyModalOpen(): boolean {
@@ -279,18 +414,21 @@ export class VNPlayer {
   }
 
   /**
-   * Xử lý tương tác tiến câu thoại:
-   * Nếu chữ đang chạy -> hiện ngay lập tức trọn vẹn.
-   * Nếu chữ đã chạy xong -> sang câu tiếp theo.
+   * Xử lý tương tác tiến câu thoại
    */
   private handleAdvanceAction(): void {
+    if (this.isHudHidden) {
+      this.toggleHideUI();
+      return;
+    }
+
     if (this.typewriter.isTyping()) {
       this.typewriter.finishImmediately();
       return;
     }
 
     if (!this.choiceOverlay.classList.contains('hidden')) {
-      return; // Đang chờ lựa chọn, không thể click Next
+      return;
     }
 
     void this.advance();
@@ -316,6 +454,13 @@ export class VNPlayer {
       const instr = step.instruction as DialogueInstruction;
       this.currentDialogueInstruction = instr;
 
+      // Hỗ trợ Custom UI Theme cấp phân cảnh
+      if (instr.uiScreenId) {
+        this.gameRoot.className = `ui-skin-${instr.uiScreenId}`;
+      } else {
+        this.gameRoot.className = '';
+      }
+
       // Cập nhật Nameplate
       let speakerDisplay = instr.character;
       if (instr.character) {
@@ -327,13 +472,17 @@ export class VNPlayer {
       }
 
       if (speakerDisplay) {
-        this.speakerNameplate.textContent = speakerDisplay.toUpperCase();
+        const charKey = speakerDisplay.toUpperCase();
+        const charColor = CHAR_COLOR_MAP[charKey] || '#ffffff';
+        this.speakerNameplate.textContent = charKey;
+        this.speakerNameplate.style.color = charColor;
+        this.speakerNameplate.style.borderColor = charColor;
         this.speakerNameplate.classList.remove('hidden');
       } else {
         this.speakerNameplate.classList.add('hidden');
       }
 
-      // Thêm vào Backlog
+      // Lưu vào Backlog
       this.backlog.push({
         speaker: speakerDisplay,
         text: instr.text,
@@ -356,6 +505,7 @@ export class VNPlayer {
       this.speakerNameplate.classList.add('hidden');
       this.dialogueText.textContent = '[ KỊCH BẢN ĐÃ KẾT THÚC ]';
       this.nextIndicator.textContent = '■ Kết thúc';
+      this.nextIndicator.style.opacity = '1';
       this.updateControlsState();
     }
   }
@@ -383,7 +533,6 @@ export class VNPlayer {
     } else if (instr.type === 'HIDE') {
       this.renderer.hideCharacter(instr.character);
     } else if (instr.type === 'PLAY') {
-      // Tạm dùng url trực tiếp hoặc fallback giả lập
       this.audio.play(instr.channel, instr.assetId, instr.assetId, {
         volume: instr.volume,
         loop: instr.loop,
@@ -395,7 +544,7 @@ export class VNPlayer {
   }
 
   /**
-   * Hiển thị danh sách lựa chọn rẽ nhánh
+   * Hiển thị danh sách lựa chọn rẽ nhánh kèm phím tắt số [1], [2]
    */
   private presentChoices(): void {
     const choices = this.vm.getAvailableChoices();
@@ -403,7 +552,6 @@ export class VNPlayer {
     this.choiceButtons = [];
     this.selectedChoiceIndex = 0;
 
-    // Chọn lựa chọn hợp lệ đầu tiên làm mặc định
     const firstEnabledIndex = choices.findIndex(c => c.enabled);
     if (firstEnabledIndex !== -1) {
       this.selectedChoiceIndex = firstEnabledIndex;
@@ -412,37 +560,46 @@ export class VNPlayer {
     choices.forEach((choice: { text: string; enabled: boolean }, index: number) => {
       const btn = document.createElement('button');
       btn.className = 'choice-btn';
-      btn.textContent = choice.text;
+      const keyHint = `<span class="choice-key-hint">[${index + 1}]</span>`;
+
       if (!choice.enabled) {
         btn.disabled = true;
-        btn.textContent += ' (Chưa đủ điều kiện)';
+        btn.innerHTML = `${keyHint}<span>${choice.text} (Chưa đủ điều kiện)</span>`;
       } else {
+        btn.innerHTML = `${keyHint}<span>${choice.text}</span>`;
         btn.addEventListener('click', () => {
-          this.selectChoice(index);
-        });
-        btn.addEventListener('mouseenter', () => {
-          this.highlightChoice(index);
+          this.choiceOverlay.classList.add('hidden');
+          this.vm.choose(index);
+          void this.advance();
         });
       }
-      this.choiceButtons.push(btn);
+
       this.choiceList.appendChild(btn);
+      this.choiceButtons.push(btn);
     });
 
-    this.updateChoiceHighlight();
+    this.updateChoiceVisualSelection();
     this.choiceOverlay.classList.remove('hidden');
   }
 
-  private highlightChoice(index: number): void {
-    const choices = this.vm.getAvailableChoices();
-    if (choices[index]?.enabled) {
-      this.selectedChoiceIndex = index;
-      this.updateChoiceHighlight();
+  private navigateChoice(direction: number): void {
+    const total = this.choiceButtons.length;
+    if (total === 0) return;
+
+    let nextIndex = this.selectedChoiceIndex;
+    for (let i = 0; i < total; i++) {
+      nextIndex = (nextIndex + direction + total) % total;
+      if (!this.choiceButtons[nextIndex]?.disabled) {
+        this.selectedChoiceIndex = nextIndex;
+        break;
+      }
     }
+    this.updateChoiceVisualSelection();
   }
 
-  private updateChoiceHighlight(): void {
+  private updateChoiceVisualSelection(): void {
     this.choiceButtons.forEach((btn, idx) => {
-      if (idx === this.selectedChoiceIndex) {
+      if (idx === this.selectedChoiceIndex && !btn.disabled) {
         btn.classList.add('selected');
         btn.focus();
       } else {
@@ -451,36 +608,8 @@ export class VNPlayer {
     });
   }
 
-  private navigateChoice(direction: number): void {
-    const choices = this.vm.getAvailableChoices();
-    if (choices.length === 0) return;
-
-    let nextIndex = this.selectedChoiceIndex;
-    for (let i = 0; i < choices.length; i++) {
-      nextIndex = (nextIndex + direction + choices.length) % choices.length;
-      if (choices[nextIndex]?.enabled) {
-        this.selectedChoiceIndex = nextIndex;
-        this.updateChoiceHighlight();
-        break;
-      }
-    }
-  }
-
-  private confirmSelectedChoice(): void {
-    const choices = this.vm.getAvailableChoices();
-    if (choices[this.selectedChoiceIndex]?.enabled) {
-      this.selectChoice(this.selectedChoiceIndex);
-    }
-  }
-
-  private selectChoice(index: number): void {
-    this.choiceOverlay.classList.add('hidden');
-    this.vm.choose(index);
-    void this.advance();
-  }
-
   /**
-   * Tua lại câu thoại trước (Rollback) và kích hoạt State Catch-up
+   * Tua lại 1 câu thoại trước đó (Rollback)
    */
   public rollback(): boolean {
     if (!this.vm.canRollback()) return false;
@@ -492,15 +621,18 @@ export class VNPlayer {
     const success = this.vm.rollback();
     if (!success) return false;
 
-    // Kích hoạt State Catch-up trên Renderer và Audio
     const catchUp = this.vm.getStateCatchUp();
+
+    if (this.backlog.length > 0) {
+      this.backlog.pop();
+    }
+
     void this.renderer.syncStateCatchUp({
       background: catchUp.background,
       sprites: catchUp.sprites,
     });
     this.audio.syncStateCatchUp(catchUp.audio, (id: string) => id);
 
-    // Hiển thị lại câu thoại của điểm khôi phục
     if (catchUp.currentDialogue) {
       this.currentDialogueInstruction = catchUp.currentDialogue;
       let speakerDisplay = catchUp.currentDialogue.character;
@@ -513,7 +645,11 @@ export class VNPlayer {
       }
 
       if (speakerDisplay) {
-        this.speakerNameplate.textContent = speakerDisplay.toUpperCase();
+        const charKey = speakerDisplay.toUpperCase();
+        const charColor = CHAR_COLOR_MAP[charKey] || '#ffffff';
+        this.speakerNameplate.textContent = charKey;
+        this.speakerNameplate.style.color = charColor;
+        this.speakerNameplate.style.borderColor = charColor;
         this.speakerNameplate.classList.remove('hidden');
       } else {
         this.speakerNameplate.classList.add('hidden');
@@ -536,12 +672,14 @@ export class VNPlayer {
     if (this.isAuto) {
       this.clearSkip();
       this.btnAuto.classList.add('active');
+      this.showToast('Tự động chạy: BẬT');
       if (!this.typewriter.isTyping()) {
         this.onDialogueLineFinished();
       }
     } else {
       this.clearAutoTimer();
       this.btnAuto.classList.remove('active');
+      this.showToast('Tự động chạy: TẮT');
     }
   }
 
@@ -553,6 +691,7 @@ export class VNPlayer {
     if (this.isSkip) {
       this.clearAutoTimer();
       this.btnSkip.classList.add('active');
+      this.showToast('Tua nhanh: BẬT');
       if (this.typewriter.isTyping()) {
         this.typewriter.finishImmediately();
       } else {
@@ -560,6 +699,7 @@ export class VNPlayer {
       }
     } else {
       this.clearSkip();
+      this.showToast('Tua nhanh: TẮT');
     }
   }
 
@@ -579,9 +719,6 @@ export class VNPlayer {
     }
   }
 
-  /**
-   * Cập nhật trạng thái các nút bấm trên thanh điều khiển
-   */
   private updateControlsState(): void {
     this.btnBack.disabled = !this.vm.canRollback();
   }
@@ -601,45 +738,88 @@ export class VNPlayer {
     const slots = GameStorage.getSlots();
     this.saveSlotsContainer.innerHTML = '';
 
-    slots.forEach((slot, index) => {
+    // Cập nhật trạng thái các nút phân trang
+    this.savePageButtons.forEach(btn => {
+      const pageIdx = parseInt(btn.dataset.page || '0', 10);
+      if (pageIdx === this.currentSavePage) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+
+    const startIndex = this.currentSavePage * SLOTS_PER_PAGE;
+    const endIndex = Math.min(startIndex + SLOTS_PER_PAGE, TOTAL_SLOTS);
+
+    for (let index = startIndex; index < endIndex; index++) {
+      const slot = slots[index];
       const card = document.createElement('div');
       card.className = 'save-slot-card';
 
       if (slot) {
         const dateStr = new Date(slot.timestamp).toLocaleString('vi-VN');
         card.innerHTML = `
+          <div class="slot-header-row">
+            <span class="slot-scene">[Ô ${index + 1}] ${slot.sceneName}</span>
+            <span class="slot-badge saved">ĐÃ LƯU</span>
+          </div>
           <img class="slot-thumbnail" src="${slot.thumbnail}" alt="Thumbnail" />
-          <div class="slot-scene">[Slot ${index + 1}] ${slot.sceneName}</div>
           <div class="slot-meta">
             <span>${dateStr}</span>
+          </div>
+          <div class="slot-actions">
+            <button class="slot-btn-action slot-btn-delete" data-action="delete" title="Xóa ô này">[Xóa]</button>
+            <button class="slot-btn-action" data-action="confirm">${this.activeModalMode === 'save' ? '[Ghi đè]' : '[Tải]'}</button>
           </div>
         `;
       } else {
         card.innerHTML = `
-          <div class="slot-thumbnail">[ TRỐNG ]</div>
-          <div class="slot-scene">[Slot ${index + 1}] Trống</div>
+          <div class="slot-header-row">
+            <span class="slot-scene">[Ô ${index + 1}] Trống</span>
+            <span class="slot-badge">TRỐNG</span>
+          </div>
+          <div class="slot-thumbnail">[ CHƯA CÓ DỮ LIỆU ]</div>
           <div class="slot-meta"><span>--/--/----</span></div>
+          <div class="slot-actions">
+            <button class="slot-btn-action" data-action="confirm">${this.activeModalMode === 'save' ? '[Lưu vào đây]' : '[Không thể tải]'}</button>
+          </div>
         `;
       }
 
-      card.addEventListener('click', async () => {
+      // Xử lý sự kiện click trên card
+      card.addEventListener('click', async (e: MouseEvent) => {
+        const target = e.target as HTMLElement;
+        const action = target.dataset.action;
+
+        if (action === 'delete') {
+          e.stopPropagation();
+          GameStorage.deleteSlot(index);
+          this.showToast(`Đã xóa ô lưu số ${index + 1}`);
+          this.renderSaveSlots();
+          return;
+        }
+
         if (this.activeModalMode === 'save') {
           await this.saveToSlot(index);
+          this.showToast(`Đã lưu thành công vào Ô ${index + 1}`);
           this.renderSaveSlots();
         } else {
           if (slot) {
             this.loadFromSlot(index);
+            this.showToast(`Đã tải thành công Ô ${index + 1}`);
             this.modalSaveLoad.classList.add('hidden');
+          } else {
+            this.showToast('Ô này trống, không có dữ liệu tải!');
           }
         }
       });
 
       this.saveSlotsContainer.appendChild(card);
-    });
+    }
   }
 
   private async saveToSlot(slotIndex: number): Promise<void> {
-    const thumbnail = await this.renderer.captureThumbnail();
+    const thumbnail = await this.renderer.captureThumbnail(320, 180);
     const vmState = this.vm.getState();
     const data: Omit<SaveSlotData, 'slotIndex'> = {
       timestamp: Date.now(),
@@ -658,7 +838,7 @@ export class VNPlayer {
   }
 
   public async quickSave(): Promise<void> {
-    const thumbnail = await this.renderer.captureThumbnail();
+    const thumbnail = await this.renderer.captureThumbnail(320, 180);
     const vmState = this.vm.getState();
     GameStorage.quickSave({
       timestamp: Date.now(),
@@ -667,20 +847,17 @@ export class VNPlayer {
       vmStateJson: this.vm.serialize(),
       dialoguePreview: this.currentDialogueInstruction?.text || '',
     });
-    this.btnQSave.textContent = '[Q.Saved!]';
-    setTimeout(() => {
-      this.btnQSave.textContent = '[Q.Save]';
-    }, 1200);
+    this.showToast('● ĐÃ LƯU NHANH (QUICK SAVE)');
   }
 
   public quickLoad(): void {
     const slot = GameStorage.quickLoad();
-    if (!slot) return;
+    if (!slot) {
+      this.showToast('Chưa có bản lưu nhanh nào!');
+      return;
+    }
     this.restoreFromSlotData(slot);
-    this.btnQLoad.textContent = '[Q.Loaded!]';
-    setTimeout(() => {
-      this.btnQLoad.textContent = '[Q.Load]';
-    }, 1200);
+    this.showToast('● ĐÃ TẢI NHANH (QUICK LOAD)');
   }
 
   private restoreFromSlotData(slot: SaveSlotData): void {
@@ -702,7 +879,11 @@ export class VNPlayer {
       this.currentDialogueInstruction = catchUp.currentDialogue;
       const speaker = catchUp.currentDialogue.character;
       if (speaker) {
-        this.speakerNameplate.textContent = speaker.toUpperCase();
+        const charKey = speaker.toUpperCase();
+        const charColor = CHAR_COLOR_MAP[charKey] || '#ffffff';
+        this.speakerNameplate.textContent = charKey;
+        this.speakerNameplate.style.color = charColor;
+        this.speakerNameplate.style.borderColor = charColor;
         this.speakerNameplate.classList.remove('hidden');
       } else {
         this.speakerNameplate.classList.add('hidden');
@@ -734,6 +915,12 @@ export class VNPlayer {
       this.backlogContainer.appendChild(item);
     });
     this.modalBacklog.classList.remove('hidden');
+
+    // Tự động cuộn xuống đáy
+    const modalBody = this.modalBacklog.querySelector('.wf-modal-body');
+    if (modalBody) {
+      modalBody.scrollTop = modalBody.scrollHeight;
+    }
   }
 
   public openAudioModal(): void {
@@ -774,5 +961,50 @@ export class VNPlayer {
     }
 
     this.modalDebug.classList.remove('hidden');
+  }
+
+  /**
+   * Tải lại và bắt đầu thực thi chương trình bytecode mới (Hot Reload / Live Preview)
+   */
+  public async reloadProgram(program: Instruction[]): Promise<void> {
+    // 1. Dừng các tiến trình tự động hoặc tua nhanh
+    this.clearAutoTimer();
+    this.clearSkip();
+
+    // 2. Dừng âm thanh đang phát trên các kênh
+    this.audio.stop('music');
+    this.audio.stop('sound');
+
+    // 3. Reset đồ họa hiển thị về trạng thái trắng/trống
+    await this.renderer.syncStateCatchUp({ background: undefined, sprites: new Map() });
+
+    // 4. Khởi tạo lại máy ảo và xóa lịch sử thoại (backlog)
+    this.vm = new VisualNovelVM(program, undefined, {
+      customFunctions: {
+        has_item: (item: unknown) => item === 'flower',
+      },
+    });
+    this.backlog = [];
+    this.currentDialogueInstruction = null;
+
+    // 5. Reset giao diện UI
+    this.choiceOverlay.classList.add('hidden');
+    this.choiceList.innerHTML = '';
+    this.choiceButtons = [];
+    this.dialogueBox.classList.remove('hidden');
+    this.dialogueText.textContent = '';
+    this.speakerNameplate.textContent = '';
+    this.speakerNameplate.classList.add('hidden');
+    this.nextIndicator.textContent = '▼ Tiếp tục [Space / Click]';
+    this.nextIndicator.style.opacity = '0';
+    this.closeAllModals();
+
+    // 6. Cập nhật thanh điều khiển và bước vào kịch bản mới
+    this.updateControlsState();
+    if (program.length > 0) {
+      await this.advance();
+    } else {
+      this.dialogueText.textContent = '[ KỊCH BẢN TRỐNG - ĐANG CHỜ LỆNH ]';
+    }
   }
 }

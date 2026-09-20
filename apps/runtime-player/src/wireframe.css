@@ -1,40 +1,105 @@
-/* ==========================================
-   HỆ THỐNG GIAO DIỆN WIREFRAME / BLUEPRINT (CSS TOKENS)
+/* ================================================================
+   HỆ THỐNG GIAO DIỆN WIREFRAME / BLUEPRINT (CSS DESIGN TOKENS)
+   Dự án: Web-based Visual Novel Engine (TAD / UI/UX Specification v1.0)
    Phong cách Swiss tối giản (International Typographic Style)
    Chuẩn 2 màu đen - trắng (Monochrome), không neon, không glow.
-   ========================================== */
+   100% phần tử kiểm soát qua biến CSS --vn-* (Skinnability Architecture)
+   ================================================================ */
 
 :root {
-  --wf-font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --wf-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  /* ================================================================
+     1. TYPOGRAPHY (Phông chữ & Cỡ chữ)
+     Designer có thể thay bằng bất kỳ Google Font nào tại đây
+     ================================================================ */
+  --vn-font-body: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --vn-font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --vn-font-size-dialogue: 1.15rem;
+  --vn-font-size-nameplate: 1.05rem;
+  --vn-line-height-dialogue: 1.6;
 
-  /* BẢNG MÀU ĐEN - TRẮNG ĐƠN SẮC CHUẨN SWISS */
-  --wf-bg: #111111;
-  --wf-viewport-bg: #ffffff;
-  --wf-panel-bg: rgba(0, 0, 0, 0.94);
-  --wf-panel-header-bg: #111111;
+  /* ================================================================
+     2. SURFACES & BACKGROUNDS (Bảng màu nền & Bảng điều khiển)
+     Giai đoạn Wireframe: Đen - trắng tối giản
+     ================================================================ */
+  --vn-bg-viewport: #0a0a0a;          /* Nền bao ngoài khi letterbox */
+  --vn-canvas-bg: #ffffff;
+  --vn-panel-bg: rgba(0, 0, 0, 0.94);  /* Nền hộp thoại & Modals */
+  --vn-panel-header-bg: #111111;
+  --vn-panel-backdrop-filter: none;   /* Có thể thay bằng blur(16px) */
   
-  --wf-border-primary: #ffffff;
-  --wf-border-secondary: #333333;
-  --wf-border-active: #ffffff;
+  /* ================================================================
+     3. BORDERS & ROUNDING (Đường viền & Góc bo)
+     ================================================================ */
+  --vn-border-width: 1px;
+  --vn-border-color: #ffffff;
+  --vn-border-muted: #333333;
+  --vn-border-primary: #ffffff;
+  --vn-border-secondary: #333333;
+  --vn-border-active: #ffffff;
+  --vn-radius-base: 0px;              /* Wireframe góc vuông chuẩn Swiss */
+  --vn-radius-button: 0px;
 
-  --wf-text-primary: #ffffff;
-  --wf-text-secondary: #cccccc;
-  --wf-text-muted: #777777;
-  --wf-text-accent: #ffffff;
+  /* ================================================================
+     4. TYPOGRAPHIC COLORS (Màu chữ)
+     ================================================================ */
+  --vn-text-primary: #ffffff;         /* Chữ thoại chính */
+  --vn-text-secondary: #cccccc;       /* Phụ đề, ngày giờ */
+  --vn-text-muted: #777777;           /* Gợi ý, phím tắt */
+  --vn-text-accent: #ffffff;          /* Điểm nhấn */
 
-  --wf-btn-bg: #000000;
-  --wf-btn-hover-bg: #ffffff;
-  --wf-btn-active-bg: #e5e5e5;
-  --wf-btn-border: #444444;
-  --wf-btn-border-hover: #ffffff;
+  /* ================================================================
+     5. BUTTONS & CONTROLS (Nút bấm trên Control Bar)
+     ================================================================ */
+  --vn-btn-bg: #000000;
+  --vn-btn-text: #ffffff;
+  --vn-btn-border: #444444;
+  --vn-btn-border-hover: #ffffff;
+  --vn-btn-hover-bg: #ffffff;
+  --vn-btn-hover-text: #000000;
+  --vn-btn-active-bg: #e5e5e5;
 
-  --wf-choice-bg: #000000;
-  --wf-choice-hover: #ffffff;
+  /* ================================================================
+     6. CHOICE BUTTONS (Nút chọn rẽ nhánh)
+     ================================================================ */
+  --vn-choice-bg: #000000;
+  --vn-choice-text: #ffffff;
+  --vn-choice-border: #ffffff;
+  --vn-choice-hover-bg: #ffffff;
+  --vn-choice-hover-text: #000000;
+  --vn-choice-disabled-bg: #111111;
+  --vn-choice-disabled-text: #555555;
+  --vn-choice-disabled-border: #222222;
 
-  --wf-disabled-bg: #000000;
-  --wf-disabled-text: #555555;
-  --wf-disabled-border: #222222;
+  /* ================================================================
+     7. MOTION & TRANSITIONS (Thời gian chuyển động)
+     ================================================================ */
+  --vn-transition-fast: 150ms ease;
+  --vn-transition-normal: 250ms cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* BẢNG MAPPING TƯƠNG THÍCH NGƯỢC VỚI TIỀN TỐ --wf-* */
+  --wf-font-sans: var(--vn-font-body);
+  --wf-font-mono: var(--vn-font-mono);
+  --wf-bg: var(--vn-bg-viewport);
+  --wf-viewport-bg: var(--vn-canvas-bg);
+  --wf-panel-bg: var(--vn-panel-bg);
+  --wf-panel-header-bg: var(--vn-panel-header-bg);
+  --wf-border-primary: var(--vn-border-primary);
+  --wf-border-secondary: var(--vn-border-secondary);
+  --wf-border-active: var(--vn-border-active);
+  --wf-text-primary: var(--vn-text-primary);
+  --wf-text-secondary: var(--vn-text-secondary);
+  --wf-text-muted: var(--vn-text-muted);
+  --wf-text-accent: var(--vn-text-accent);
+  --wf-btn-bg: var(--vn-btn-bg);
+  --wf-btn-hover-bg: var(--vn-btn-hover-bg);
+  --wf-btn-active-bg: var(--vn-btn-active-bg);
+  --wf-btn-border: var(--vn-btn-border);
+  --wf-btn-border-hover: var(--vn-btn-border-hover);
+  --wf-choice-bg: var(--vn-choice-bg);
+  --wf-choice-hover: var(--vn-choice-hover-bg);
+  --wf-disabled-bg: var(--vn-choice-disabled-bg);
+  --wf-disabled-text: var(--vn-choice-disabled-text);
+  --wf-disabled-border: var(--vn-choice-disabled-border);
 }
 
 * {
@@ -47,16 +112,18 @@
 body, html {
   width: 100%;
   height: 100%;
-  background-color: var(--wf-bg);
-  color: var(--wf-text-primary);
-  font-family: var(--wf-font-sans);
+  background-color: var(--vn-bg-viewport);
+  color: var(--vn-text-primary);
+  font-family: var(--vn-font-body);
   overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-/* KHUNG TỶ LỆ 16:9 CHÍNH */
+/* ================================================================
+   1. KHUNG TỶ LỆ 16:9 CHÍNH (GAME ROOT - LETTERBOXING)
+   ================================================================ */
 #game-root {
   position: relative;
   width: 100vw;
@@ -64,12 +131,12 @@ body, html {
   max-width: 177.78vh; /* Ràng buộc tỷ lệ chuẩn 16:9 letterbox */
   max-height: 56.25vw;
   aspect-ratio: 16 / 9;
-  background-color: var(--wf-viewport-bg);
+  background-color: var(--vn-canvas-bg);
   overflow: hidden;
-  border: 1px solid #000000;
+  border: var(--vn-border-width) solid #000000;
 }
 
-/* LỚP PIXIJS CANVAS RENDERER */
+/* TẦNG CANVAS RENDERER (PIXIJS) */
 #canvas-container {
   position: absolute;
   top: 0;
@@ -79,7 +146,7 @@ body, html {
   z-index: 1;
 }
 
-/* LỚP GIAO DIỆN HTML5 OVERLAY */
+/* TẦNG GIAO DIỆN HTML5 OVERLAY */
 #ui-layer {
   position: absolute;
   top: 0;
@@ -91,35 +158,69 @@ body, html {
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
+  transition: opacity var(--vn-transition-normal), transform var(--vn-transition-normal);
 }
 
-/* KHUNG BAO HỘP THOẠI & CONTROL BAR */
+/* ẨN TOÀN BỘ GIAO DIỆN (HIDE UI MODE - PHÍM H HOẶC CHUỘT GIỮA) */
+#ui-layer.hud-hidden .dialogue-wrapper {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(24px);
+}
+
+/* ================================================================
+   2. HỖ TRỢ CUSTOM UI THEO PHÂN CẢNH (SCENE-LEVEL THEMING)
+   ================================================================ */
+#game-root.ui-skin-phone_chat_ui .speaker-nameplate {
+  border-radius: 8px 8px 0 0;
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #2563eb;
+}
+
+#game-root.ui-skin-phone_chat_ui .dialogue-box {
+  border-radius: 0 12px 12px 12px;
+  background: rgba(15, 23, 42, 0.95);
+  border-color: #3b82f6;
+}
+
+#game-root.ui-skin-retro_rpg .speaker-nameplate,
+#game-root.ui-skin-retro_rpg .dialogue-box {
+  border: 2px solid #ffffff;
+  box-shadow: 4px 4px 0px #000000;
+}
+
+/* ================================================================
+   3. HỘP THOẠI & THẺ TÊN NHÂN VẬT (DIALOGUE & NAMEPLATE)
+   ================================================================ */
 .dialogue-wrapper {
   pointer-events: auto;
   margin: 0 4% 14px 4%;
   position: relative;
   display: flex;
   flex-direction: column;
+  transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* TÊN NHÂN VẬT (NAMEPLATE GẮN LIỀN VỚI HỘP THOẠI) */
+/* TÊN NHÂN VẬT (NAMEPLATE GẮN SÁT KHÍT VỚI HỘP THOẠI) */
 .speaker-nameplate {
   display: inline-block;
   align-self: flex-start;
   background: #ffffff;
   color: #000000;
-  border: 1px solid #000000;
+  border: var(--vn-border-width) solid #000000;
   border-bottom: none;
   padding: 4px 18px;
-  border-radius: 0;
-  font-family: var(--wf-font-mono);
+  border-radius: var(--vn-radius-base);
+  font-family: var(--vn-font-mono);
   font-weight: 700;
-  font-size: 13px;
+  font-size: var(--vn-font-size-nameplate);
   letter-spacing: 1.5px;
   text-transform: uppercase;
   margin-bottom: -1px; /* Sát khít tuyệt đối với cạnh trên của hộp thoại */
   z-index: 2;
   position: relative;
+  transition: border-color var(--vn-transition-fast), color var(--vn-transition-fast);
 }
 
 .speaker-nameplate.hidden {
@@ -128,50 +229,54 @@ body, html {
 
 /* HỘP THOẠI CHÍNH (DIALOGUE BOX) */
 .dialogue-box {
-  background: var(--wf-panel-bg);
-  border: 1px solid #000000;
-  border-radius: 0;
+  background: var(--vn-panel-bg);
+  border: var(--vn-border-width) solid #000000;
+  border-radius: var(--vn-radius-base);
   padding: 20px 26px 16px 26px;
   min-height: 110px;
   position: relative;
   cursor: pointer;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-  transition: border-color 0.15s ease;
+  transition: border-color var(--vn-transition-fast);
 }
 
 .dialogue-box:hover {
-  border-color: var(--wf-border-active);
+  border-color: var(--vn-border-active);
 }
 
-/* NỘI DUNG VĂN BẢN THOẠI */
+/* NỘI DUNG VĂN BẢN THOẠI (TYPEWRITER TEXT) */
 .dialogue-text {
-  font-size: 19px;
-  line-height: 1.6;
-  color: var(--wf-text-primary);
+  font-size: var(--vn-font-size-dialogue);
+  line-height: var(--vn-line-height-dialogue);
+  color: var(--vn-text-primary);
   min-height: 56px;
   word-wrap: break-word;
   font-weight: 400;
   letter-spacing: 0.2px;
 }
 
-/* CON TRỎ CHỜ TIẾP TỤC (NEXT INDICATOR) */
+/* CON TRỎ CHỜ TIẾP TỤC (NEXT INDICATOR) - CĂN GÓC DƯỚI BÊN PHẢI */
 .dialogue-next-indicator {
   position: absolute;
   right: 18px;
   bottom: 12px;
-  font-family: var(--wf-font-mono);
+  font-family: var(--vn-font-mono);
   font-size: 12px;
   letter-spacing: 1px;
-  color: var(--wf-text-primary);
-  animation: wf-blink 0.8s infinite alternate;
+  color: var(--vn-text-muted);
+  user-select: none;
+  animation: indicatorPulse 1.2s infinite ease-in-out;
+  transition: opacity var(--vn-transition-fast);
 }
 
-@keyframes wf-blink {
-  from { opacity: 0.25; transform: translateY(0); }
-  to { opacity: 1; transform: translateY(2px); }
+@keyframes indicatorPulse {
+  0%, 100% { opacity: 0.35; transform: translateX(0); }
+  50% { opacity: 1; transform: translateX(3px); }
 }
 
-/* THANH ĐIỀU KHIỂN (CONTROL BAR - ĐẶT DƯỚI ĐÁY MÀN HÌNH, CĂN GIỮA) */
+/* ================================================================
+   4. THANH ĐIỀU KHIỂN (CONTROL BAR - ĐẶT DƯỚI ĐÁY MÀN HÌNH)
+   ================================================================ */
 .control-bar {
   pointer-events: auto;
   display: flex;
@@ -185,35 +290,35 @@ body, html {
 
 /* NÚT BẤM WIREFRAME CHUẨN SWISS */
 .wf-btn {
-  background: var(--wf-btn-bg);
-  color: var(--wf-text-secondary);
-  border: 1px solid var(--wf-btn-border);
+  background: var(--vn-btn-bg);
+  color: var(--vn-btn-text);
+  border: var(--vn-border-width) solid var(--vn-btn-border);
   padding: 5px 11px;
   font-size: 12px;
-  font-family: var(--wf-font-mono);
-  border-radius: 0;
+  font-family: var(--vn-font-mono);
+  border-radius: var(--vn-radius-button);
   cursor: pointer;
-  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+  transition: background-color var(--vn-transition-fast), color var(--vn-transition-fast), border-color var(--vn-transition-fast);
   outline: none;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .wf-btn:hover:not(:disabled) {
-  background: var(--wf-btn-hover-bg);
-  color: #000000;
-  border-color: var(--wf-btn-border-hover);
+  background: var(--vn-btn-hover-bg);
+  color: var(--vn-btn-hover-text);
+  border-color: var(--vn-btn-border-hover);
 }
 
 .wf-btn:active:not(:disabled) {
-  background: var(--wf-btn-active-bg);
+  background: var(--vn-btn-active-bg);
   color: #000000;
 }
 
 .wf-btn:disabled {
   opacity: 0.35;
-  border-color: var(--wf-disabled-border);
-  color: var(--wf-disabled-text);
+  border-color: var(--vn-choice-disabled-border);
+  color: var(--vn-choice-disabled-text);
   cursor: not-allowed;
 }
 
@@ -224,7 +329,36 @@ body, html {
   font-weight: 700;
 }
 
-/* HỘP LỰA CHỌN RẼ NHÁNH (CHOICE MENU) - CĂN CHÍNH GIỮA MÀN HÌNH */
+/* ================================================================
+   5. TOAST THÔNG BÁO TỨC THỜI (TOAST NOTIFICATION)
+   ================================================================ */
+.toast-popup {
+  position: absolute;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #000000;
+  color: #ffffff;
+  border: 1px solid #ffffff;
+  padding: 8px 22px;
+  font-family: var(--vn-font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  z-index: 100;
+  pointer-events: none;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7);
+  transition: opacity var(--vn-transition-normal), transform var(--vn-transition-normal);
+}
+
+.toast-popup.hidden {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-10px);
+}
+
+/* ================================================================
+   6. HỘP LỰA CHỌN RẼ NHÁNH (CHOICE OVERLAY - CĂN CHÍNH GIỮA)
+   ================================================================ */
 #choice-overlay {
   position: absolute;
   top: 0;
@@ -255,38 +389,56 @@ body, html {
 
 .choice-btn {
   width: 100%;
-  background: #000000;
-  color: #ffffff;
-  border: 1px solid #000000;
-  border-radius: 0;
+  background: var(--vn-choice-bg);
+  color: var(--vn-choice-text);
+  border: var(--vn-border-width) solid var(--vn-choice-border);
+  border-radius: var(--vn-radius-base);
   padding: 14px 24px;
   font-size: 16px;
   font-weight: 500;
-  font-family: var(--wf-font-sans);
+  font-family: var(--vn-font-body);
   text-align: center;
   cursor: pointer;
-  transition: background-color 0.15s, color 0.15s;
+  transition: background-color var(--vn-transition-fast), color var(--vn-transition-fast), border-color var(--vn-transition-fast);
   letter-spacing: 0.3px;
   outline: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.choice-key-hint {
+  font-family: var(--vn-font-mono);
+  font-size: 12px;
+  color: var(--vn-text-muted);
+  margin-right: 12px;
+  font-weight: 700;
 }
 
 .choice-btn:hover:not(:disabled),
 .choice-btn.selected:not(:disabled),
 .choice-btn:focus-visible:not(:disabled) {
-  background: #ffffff;
-  color: #000000;
-  border-color: #000000;
+  background: var(--vn-choice-hover-bg);
+  color: var(--vn-choice-hover-text);
+  border-color: var(--vn-choice-border);
   font-weight: 700;
+}
+
+.choice-btn:hover .choice-key-hint {
+  color: #000000;
 }
 
 .choice-btn:disabled {
   opacity: 0.35;
-  border-color: var(--wf-disabled-border);
-  color: var(--wf-disabled-text);
+  background: var(--vn-choice-disabled-bg);
+  border-color: var(--vn-choice-disabled-border);
+  color: var(--vn-choice-disabled-text);
   cursor: not-allowed;
 }
 
-/* CÁC MODAL WIREFRAME (SAVE, LOAD, BACKLOG, SETTINGS, DEBUG) */
+/* ================================================================
+   7. CÁC CỬA SỔ MODAL (SAVE, LOAD, BACKLOG, SETTINGS, DEBUG)
+   ================================================================ */
 .wf-modal-backdrop {
   position: absolute;
   top: 0;
@@ -308,29 +460,29 @@ body, html {
 .wf-modal {
   width: 80%;
   max-width: 880px;
-  max-height: 82%;
-  background: var(--wf-panel-bg);
-  border: 1px solid var(--wf-border-primary);
-  border-radius: 0;
+  max-height: 85%;
+  background: var(--vn-panel-bg);
+  border: var(--vn-border-width) solid var(--vn-border-primary);
+  border-radius: var(--vn-radius-base);
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
 .wf-modal-header {
-  background: var(--wf-panel-header-bg);
+  background: var(--vn-panel-header-bg);
   padding: 12px 20px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid var(--wf-border-secondary);
+  border-bottom: var(--vn-border-width) solid var(--vn-border-secondary);
 }
 
 .wf-modal-title {
-  font-family: var(--wf-font-mono);
+  font-family: var(--vn-font-mono);
   font-size: 15px;
   font-weight: 700;
-  color: var(--wf-text-accent);
+  color: var(--vn-text-accent);
   letter-spacing: 1px;
 }
 
@@ -338,6 +490,28 @@ body, html {
   padding: 20px;
   overflow-y: auto;
   flex: 1;
+}
+
+/* THANH PHÂN TRANG LƯU/TẢI GAME (PAGINATION) */
+.save-pagination {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.save-page-btn {
+  flex: 1;
+  max-width: 260px;
+  text-align: center;
+  padding: 8px 12px;
+}
+
+.save-page-btn.active {
+  background: #ffffff;
+  color: #000000;
+  border-color: #ffffff;
+  font-weight: 700;
 }
 
 /* LƯỚI SAVE/LOAD SLOTS */
@@ -349,47 +523,99 @@ body, html {
 
 .save-slot-card {
   background: #0a0a0a;
-  border: 1px solid var(--wf-border-secondary);
-  border-radius: 0;
+  border: var(--vn-border-width) solid var(--vn-border-secondary);
+  border-radius: var(--vn-radius-base);
   padding: 10px;
   cursor: pointer;
-  transition: border-color 0.15s;
+  transition: border-color var(--vn-transition-fast), background-color var(--vn-transition-fast);
   display: flex;
   flex-direction: column;
   gap: 8px;
+  position: relative;
 }
 
 .save-slot-card:hover {
-  border-color: var(--wf-border-primary);
+  border-color: var(--vn-border-primary);
+}
+
+.slot-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.slot-badge {
+  font-size: 10px;
+  font-family: var(--vn-font-mono);
+  padding: 2px 6px;
+  border: var(--vn-border-width) solid var(--vn-border-secondary);
+  color: var(--vn-text-muted);
+  text-transform: uppercase;
+}
+
+.slot-badge.saved {
+  border-color: #ffffff;
+  color: #000000;
+  background: #ffffff;
+  font-weight: 700;
 }
 
 .slot-thumbnail {
   width: 100%;
   aspect-ratio: 16 / 9;
   background: #000000;
-  border: 1px solid var(--wf-border-secondary);
-  border-radius: 0;
+  border: var(--vn-border-width) solid var(--vn-border-secondary);
+  border-radius: var(--vn-radius-base);
   object-fit: cover;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 12px;
-  font-family: var(--wf-font-mono);
-  color: var(--wf-text-muted);
+  font-family: var(--vn-font-mono);
+  color: var(--vn-text-muted);
 }
 
 .slot-meta {
   display: flex;
   justify-content: space-between;
   font-size: 11px;
-  color: var(--wf-text-secondary);
-  font-family: var(--wf-font-mono);
+  color: var(--vn-text-secondary);
+  font-family: var(--vn-font-mono);
 }
 
 .slot-scene {
   font-weight: 600;
   font-size: 13px;
-  color: var(--wf-text-primary);
+  color: var(--vn-text-primary);
+}
+
+.slot-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.slot-btn-action {
+  background: transparent;
+  color: var(--vn-text-muted);
+  border: var(--vn-border-width) solid var(--vn-border-secondary);
+  font-family: var(--vn-font-mono);
+  font-size: 11px;
+  padding: 2px 8px;
+  cursor: pointer;
+  transition: all var(--vn-transition-fast);
+}
+
+.slot-btn-action:hover {
+  color: #ffffff;
+  border-color: #ffffff;
+  background: #111111;
+}
+
+.slot-btn-delete:hover {
+  color: #ef4444;
+  border-color: #ef4444;
 }
 
 /* LỊCH SỬ THOẠI (BACKLOG) */
@@ -400,22 +626,22 @@ body, html {
 }
 
 .backlog-item {
-  border-left: 2px solid var(--wf-border-primary);
+  border-left: 2px solid var(--vn-border-primary);
   padding-left: 14px;
 }
 
 .backlog-speaker {
-  font-family: var(--wf-font-mono);
+  font-family: var(--vn-font-mono);
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 1px;
-  color: var(--wf-text-primary);
+  color: var(--vn-text-primary);
   margin-bottom: 4px;
 }
 
 .backlog-text {
   font-size: 16px;
-  color: var(--wf-text-secondary);
+  color: var(--vn-text-secondary);
   line-height: 1.5;
 }
 
@@ -423,28 +649,28 @@ body, html {
 .debug-table {
   width: 100%;
   border-collapse: collapse;
-  font-family: var(--wf-font-mono);
+  font-family: var(--vn-font-mono);
   font-size: 13px;
   margin-top: 10px;
 }
 
 .debug-table th, .debug-table td {
-  border: 1px solid var(--wf-border-secondary);
+  border: var(--vn-border-width) solid var(--vn-border-secondary);
   padding: 8px 12px;
   text-align: left;
 }
 
 .debug-table th {
-  background: var(--wf-panel-header-bg);
-  color: var(--wf-text-primary);
+  background: var(--vn-panel-header-bg);
+  color: var(--vn-text-primary);
   font-weight: 600;
 }
 
 .debug-section-title {
-  font-family: var(--wf-font-mono);
+  font-family: var(--vn-font-mono);
   font-size: 14px;
   font-weight: 700;
-  color: var(--wf-text-primary);
+  color: var(--vn-text-primary);
   margin-top: 16px;
   margin-bottom: 6px;
   letter-spacing: 0.5px;
