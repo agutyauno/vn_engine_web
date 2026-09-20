@@ -136,40 +136,54 @@
       </section>
     </main>
 
-    <!-- MODAL XUẤT BẢN GAME -->
-    <div id="modal-export" class="wf-modal-backdrop hidden">
-      <div class="wf-modal" style="max-width: 650px;">
+    <!-- MODAL XUẤT BẢN GAME (EXPORT WIZARD) -->
+    <div id="modal-export-wizard" class="wf-modal-backdrop hidden">
+      <div class="wf-modal" style="max-width: 680px;">
         <div class="wf-modal-header">
-          <div class="wf-modal-title">[ XUẤT BẢN & PHÂN PHỐI GAME ]</div>
+          <div class="wf-modal-title">[ XUẤT BẢN & PHÂN PHỐI GAME - EXPORT WIZARD ]</div>
           <button class="wf-btn" id="btn-close-export">[Đóng ✕ (Esc)]</button>
         </div>
         <div class="wf-modal-body">
+          <!-- TAB 1: PLAYABLE WEB LINK (MVP P0) -->
           <div class="export-option-card">
             <div class="export-option-title">1. Playable Web Link (Cloudflare Edge - MVP P0)</div>
-            <div class="export-option-desc">Tạo đường link chơi game trực tiếp trên trình duyệt web, không cần cài đặt.
+            <div class="export-option-desc">Tạo đường link chơi game trực tiếp trên trình duyệt web, không cần cài đặt:
             </div>
             <div class="export-option-action">
-              <input type="text" readonly value="https://secret-academy.usercontent-platform.com"
+              <input type="text" id="export-url-input" readonly value="https://secret-academy.usercontent-platform.com"
                 class="export-url-input" />
               <button class="wf-btn" id="btn-copy-link">[Sao chép Link]</button>
+              <button class="wf-btn" id="btn-open-playable">[Mở web chơi ↗]</button>
+            </div>
+
+            <div style="margin-top: 12px;">
+              <div class="export-option-desc">Mã nhúng iFrame (Nhúng trực tiếp vào Website / Blog cá nhân):</div>
+              <div class="export-option-action">
+                <input type="text" id="export-iframe-input" readonly
+                  value='<iframe src="https://secret-academy.usercontent-platform.com" width="960" height="540" frameborder="0" allowfullscreen></iframe>'
+                  class="export-url-input" />
+                <button class="wf-btn" id="btn-copy-iframe">[Sao chép iFrame]</button>
+              </div>
             </div>
           </div>
 
+          <!-- TAB 2: GÓI WEB ZIP HTML5 (itch.io - P1) -->
           <div class="export-option-card" style="margin-top: 14px;">
-            <div class="export-option-title">2. Gói Web ZIP HTML5 (itch.io - P1)</div>
-            <div class="export-option-desc">Nén toàn bộ game, kịch bản và tài nguyên thành file .zip tự chứa, sẵn sàng
-              tải lên itch.io.</div>
+            <div class="export-option-title">2. Gói Web Bundle / ZIP HTML5 (itch.io - P1)</div>
+            <div class="export-option-desc">Đóng gói toàn bộ kịch bản, bytecode và cấu hình dự án thành bundle tự chứa để nạp vào runner hoặc tải lên itch.io:</div>
             <div class="export-option-action" style="margin-top: 8px;">
+              <button class="wf-btn" id="btn-download-bundle">[Xuất gói Game (bundle.json)]</button>
               <button class="wf-btn" id="btn-download-zip">[Tải file game.zip]</button>
             </div>
           </div>
 
+          <!-- TAB 3: ĐÓNG GÓI DESKTOP APP (P1) -->
           <div class="export-option-card" style="margin-top: 14px;">
             <div class="export-option-title">3. Đóng gói Desktop (.exe Windows / .dmg Mac - P1)</div>
-            <div class="export-option-desc">Đóng gói thành ứng dụng máy tính độc lập qua Electron & GitHub Actions.
+            <div class="export-option-desc">Đóng gói thành ứng dụng máy tính độc lập tự chứa qua Electron & GitHub Actions.
             </div>
             <div class="export-option-action" style="margin-top: 8px;">
-              <button class="wf-btn" disabled>[Gửi yêu cầu Build Desktop (P1)]</button>
+              <button class="wf-btn" id="btn-build-desktop">[Gửi yêu cầu Build Desktop (P1)]</button>
             </div>
           </div>
         </div>

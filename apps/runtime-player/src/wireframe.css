@@ -689,3 +689,73 @@ body, html {
   width: 60%;
   accent-color: #ffffff;
 }
+
+/* ================================================================
+   9. TOAST THÔNG BÁO TỨC THỜI (TOAST NOTIFICATION)
+   ================================================================ */
+.toast-popup {
+  position: absolute;
+  top: 36px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--vn-panel-bg);
+  color: var(--vn-text-primary);
+  border: var(--vn-border-width) solid var(--vn-border-primary);
+  padding: 8px 24px;
+  font-family: var(--vn-font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  z-index: 2000;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.8);
+  transition: opacity var(--vn-transition-fast), transform var(--vn-transition-fast);
+  pointer-events: none;
+}
+
+.toast-popup.hidden {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-10px);
+  pointer-events: none;
+}
+
+/* ================================================================
+   10. TRANG WEB CHƠI GAME CÔNG KHAI (PUBLIC PLAYER SHELL)
+   ================================================================ */
+.public-footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 38px;
+  background: rgba(10, 10, 10, 0.95);
+  border-top: var(--vn-border-width) solid var(--vn-border-muted);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  font-family: var(--vn-font-mono);
+  font-size: 12px;
+  color: var(--vn-text-secondary);
+  z-index: 50;
+  user-select: none;
+}
+
+.public-footer .footer-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.public-footer .footer-sep {
+  color: var(--vn-text-muted);
+}
+
+.public-footer .footer-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Tự động ẩn footer khi nhúng trong iframe (ví dụ Editor Live Preview) */
+body.is-embedded .public-footer {
+  display: none !important;
+}
+

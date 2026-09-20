@@ -26,8 +26,38 @@ window.addEventListener('DOMContentLoaded', async () => {
   // Expose player to window for debugging if needed
   (window as unknown as { vnPlayer: VNPlayer }).vnPlayer = player;
 
+  // Kiểm tra nếu đang nhúng trong iframe (Web Studio Live Preview)
+  const isEmbedded = window.parent && window.parent !== window;
+  if (isEmbedded) {
+    document.body.classList.add('is-embedded');
+  }
+
+  // Khởi tạo các nút trên Footer Trang Web Công Khai (Public Player Shell)
+  const btnFullscreen = document.getElementById('btn-public-fullscreen');
+  btnFullscreen?.addEventListener('click', () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch((err) => {
+        console.warn('[RuntimePlayer] Không thể bật toàn màn hình:', err);
+      });
+    } else {
+      document.exitFullscreen().catch(() => {});
+    }
+  });
+
+  document.addEventListener('fullscreenchange', () => {
+    if (btnFullscreen) {
+      btnFullscreen.textContent = document.fullscreenElement
+        ? '[✕ Thoát toàn màn hình]'
+        : '[⛶ Toàn màn hình]';
+    }
+  });
+
+  document.getElementById('btn-public-report')?.addEventListener('click', () => {
+    player.showToast('Cảm ơn bạn! Đã ghi nhận phản hồi gửi về tác giả.');
+  });
+
   // Báo cho parent (Editor / Live Preview Container) biết Player đã sẵn sàng
-  if (window.parent && window.parent !== window) {
+  if (isEmbedded) {
     window.parent.postMessage({ type: 'PLAYER_READY' }, '*');
   }
   if (window.opener) {

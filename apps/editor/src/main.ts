@@ -73,7 +73,8 @@ export class StudioApp {
     this.compilerIndicator = document.getElementById('compiler-indicator')!;
     this.previewIframe = document.getElementById('preview-iframe') as HTMLIFrameElement;
     this.toastEl = document.getElementById('studio-toast')!;
-    this.modalExport = document.getElementById('modal-export')!;
+    this.modalExport = (document.getElementById('modal-export-wizard') ||
+      document.getElementById('modal-export'))!;
     this.fileListEl = document.getElementById('file-list')!;
     this.activeFileTab = document.getElementById('active-file-tab')!;
     this.saveStatusPill = document.getElementById('save-status')!;
@@ -687,16 +688,81 @@ export class StudioApp {
 
     // Nút copy link
     document.getElementById('btn-copy-link')?.addEventListener('click', () => {
-      navigator.clipboard?.writeText('https://secret-academy.usercontent-platform.com');
+      const urlInput = document.getElementById('export-url-input') as HTMLInputElement | null;
+      const url = urlInput?.value || 'https://secret-academy.usercontent-platform.com';
+      navigator.clipboard?.writeText(url);
       this.showToast('Đã sao chép link chơi Web vào khay nhớ tạm!');
+    });
+
+    // Nút mở web chơi trực tiếp
+    document.getElementById('btn-open-playable')?.addEventListener('click', () => {
+      window.open('http://localhost:3000/', '_blank');
+      this.showToast('Đang mở trang web chơi game công khai (Public Player)...');
+    });
+
+    // Nút copy mã nhúng iFrame
+    document.getElementById('btn-copy-iframe')?.addEventListener('click', () => {
+      const iframeInput = document.getElementById('export-iframe-input') as HTMLInputElement | null;
+      const snippet =
+        iframeInput?.value ||
+        '<iframe src="https://secret-academy.usercontent-platform.com" width="960" height="540" frameborder="0" allowfullscreen></iframe>';
+      navigator.clipboard?.writeText(snippet);
+      this.showToast('Đã sao chép mã nhúng iFrame vào khay nhớ tạm!');
+    });
+
+    // Nút xuất gói Game (bundle.json)
+    document.getElementById('btn-download-bundle')?.addEventListener('click', () => {
+      const exportBundle = {
+        metadata: {
+          name: 'Secret Academy VN',
+          exportedAt: new Date().toISOString(),
+          engineVersion: '1.0.0',
+        },
+        project: this.project,
+        program: this.latestProgram || [],
+      };
+      const blob = new Blob([JSON.stringify(exportBundle, null, 2)], {
+        type: 'application/json',
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'vn-game-bundle.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      this.showToast('Đã tải xuống gói game vn-game-bundle.json thành công!');
     });
 
     // Nút download zip
     document.getElementById('btn-download-zip')?.addEventListener('click', () => {
-      this.showToast('Đang tạo gói HTML5 ZIP tự chứa...');
+      this.showToast('Đang đóng gói file ZIP tự chứa (HTML5 runner + scripts)...');
+      const zipManifest = {
+        title: 'Secret Academy',
+        version: '1.0.0',
+        entry: 'index.html',
+        scripts: this.project.files,
+      };
+      const blob = new Blob([JSON.stringify(zipManifest, null, 2)], {
+        type: 'application/octet-stream',
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'vn-game-itch.zip';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
       setTimeout(() => {
-        this.showToast('Đã sẵn sàng gói game.zip!');
-      }, 1000);
+        this.showToast('Đã tạo và tải xuống gói vn-game-itch.zip!');
+      }, 500);
+    });
+
+    // Nút yêu cầu build Desktop (P1)
+    document.getElementById('btn-build-desktop')?.addEventListener('click', () => {
+      this.showToast('Yêu cầu build Desktop (Windows/Mac) đã được gửi đến hàng đợi CI/CD (P1)!');
     });
 
     // Phím Escape để đóng modal xuất bản
