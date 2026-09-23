@@ -18,13 +18,17 @@ import type {
   RevealStatement,
   BackgroundStatement,
   PlayStatement,
+  VarDefineStatement,
   VarAssignStatement,
   IfStatement,
   WhileStatement,
 } from '@vn-engine/shared-types';
 import { registerVnsLanguage } from './vnsLanguage';
 import { registerVnsLanguageFeatures } from './vnsLanguageFeatures';
-import { IndexedDBProjectRepository, type IProjectRepository } from './repository/projectRepository';
+import {
+  IndexedDBProjectRepository,
+  type IProjectRepository,
+} from './repository/projectRepository';
 
 // Thiết lập Web Worker cho Monaco Editor trong môi trường Vite
 self.MonacoEnvironment = {
@@ -241,7 +245,10 @@ export class StudioApp {
   // ================================================================
   // 1. KHỞI TẠO MONACO EDITOR (#monaco-container)
   // ================================================================
-  private getOrCreateTextModel(fileName: string, initialContent: string = ''): monaco.editor.ITextModel {
+  private getOrCreateTextModel(
+    fileName: string,
+    initialContent: string = '',
+  ): monaco.editor.ITextModel {
     const uri = monaco.Uri.parse(`inmemory://project/${fileName}`);
     let model = monaco.editor.getModel(uri);
     if (model) {
@@ -500,10 +507,7 @@ export class StudioApp {
     this.activeFile = fileName;
 
     // Chuyển Monaco model
-    const targetModel = this.getOrCreateTextModel(
-      fileName,
-      this.getFileContent(fileName),
-    );
+    const targetModel = this.getOrCreateTextModel(fileName, this.getFileContent(fileName));
     this.editorInstance.setModel(targetModel);
     this.activeFilenameEl.textContent = fileName;
 
@@ -532,7 +536,9 @@ export class StudioApp {
    * Enter/blur để lưu, Escape để hủy.
    */
   private addNewFile(): void {
-    const existingInput = this.fileListEl.querySelector('.file-rename-input') as HTMLInputElement | null;
+    const existingInput = this.fileListEl.querySelector(
+      '.file-rename-input',
+    ) as HTMLInputElement | null;
     if (existingInput) {
       existingInput.focus();
       return;
@@ -773,7 +779,10 @@ export class StudioApp {
 
         const onMouseMove = (moveEvent: MouseEvent) => {
           const workspaceRect = workspace.getBoundingClientRect();
-          const newWidth = Math.max(300, Math.min(workspaceRect.width - 320, moveEvent.clientX - workspaceRect.left));
+          const newWidth = Math.max(
+            300,
+            Math.min(workspaceRect.width - 320, moveEvent.clientX - workspaceRect.left),
+          );
           document.documentElement.style.setProperty('--editor-width', `${newWidth}px`);
           document.documentElement.style.setProperty('--sidebar-width', `${newWidth}px`);
           this.editorInstance?.layout();
@@ -906,15 +915,13 @@ export class StudioApp {
       this.setFileContent(this.activeFile, this.editorInstance.getValue());
     }
 
-    const scriptFiles: ScriptFile[] = this.project.files.map(
-      (f, index) => ({
-        id: f.id,
-        name: f.name,
-        content: f.content,
-        order: index,
-        version: f.version || 1,
-      }),
-    );
+    const scriptFiles: ScriptFile[] = this.project.files.map((f, index) => ({
+      id: f.id,
+      name: f.name,
+      content: f.content,
+      order: index,
+      version: f.version || 1,
+    }));
 
     const result = this.compiler.compile(scriptFiles, {
       characters: this.project.characters,
@@ -1009,10 +1016,30 @@ export class StudioApp {
     const backgrounds = new Set<string>();
     const musicAssets = new Set<string>();
     const soundAssets = new Set<string>();
-    const variables = new Map<string, unknown>();
+    interface VariableMeta {
+      name: string;
+      value: unknown;
+      scope: 'global' | 'local';
+      sceneName?: string;
+    }
+    const variables = new Map<string, VariableMeta>();
     const scenesList: string[] = [];
 
-    const traverse = (stmts: StatementAST[]) => {
+    // Quét các biến toàn cục ở topLevelStatements
+    if (ast.topLevelStatements) {
+      for (const stmt of ast.topLevelStatements) {
+        if (stmt.type === 'VarDefineStatement') {
+          const vd = stmt as VarDefineStatement;
+          variables.set(vd.variable, {
+            name: vd.variable,
+            value: (vd.value as { value?: unknown })?.value ?? 'gán giá trị',
+            scope: 'global',
+          });
+        }
+      }
+    }
+
+    const traverse = (stmts: StatementAST[], sceneName: string) => {
       for (const stmt of stmts) {
         if (stmt.type === 'ShowStatement') {
           const s = stmt as ShowStatement;
@@ -1035,19 +1062,37 @@ export class StudioApp {
           const p = stmt as PlayStatement;
           if (p.channel === 'music') musicAssets.add(p.assetId);
           else soundAssets.add(p.assetId);
+        } else if (stmt.type === 'VarDefineStatement') {
+          const vd = stmt as VarDefineStatement;
+          variables.set(vd.variable, {
+            name: vd.variable,
+            value: (vd.value as { value?: unknown })?.value ?? 'gán giá trị',
+            scope: 'local',
+            sceneName,
+          });
         } else if (stmt.type === 'VarAssignStatement') {
           const v = stmt as VarAssignStatement;
-          variables.set(v.variable, (v.value as { value?: unknown })?.value ?? 'gán giá trị');
+          const existing = variables.get(v.variable);
+          if (existing) {
+            existing.value = (v.value as { value?: unknown })?.value ?? existing.value;
+          } else {
+            variables.set(v.variable, {
+              name: v.variable,
+              value: (v.value as { value?: unknown })?.value ?? 'gán giá trị',
+              scope: 'local',
+              sceneName,
+            });
+          }
         } else if (stmt.type === 'IfStatement') {
           const ifs = stmt as IfStatement;
-          traverse(ifs.consequent);
+          traverse(ifs.consequent, sceneName);
           if (ifs.alternate) {
-            if (Array.isArray(ifs.alternate)) traverse(ifs.alternate);
-            else traverse([ifs.alternate]);
+            if (Array.isArray(ifs.alternate)) traverse(ifs.alternate, sceneName);
+            else traverse([ifs.alternate], sceneName);
           }
         } else if (stmt.type === 'WhileStatement') {
           const ws = stmt as WhileStatement;
-          traverse(ws.body);
+          traverse(ws.body, sceneName);
         }
       }
     };
@@ -1055,7 +1100,7 @@ export class StudioApp {
     if (ast.scenes) {
       for (const [scName, sc] of Object.entries(ast.scenes)) {
         scenesList.push(scName);
-        if (sc.body) traverse(sc.body);
+        if (sc.body) traverse(sc.body, scName);
       }
     }
 
@@ -1080,26 +1125,36 @@ export class StudioApp {
       if (variables.size === 0) {
         const hint = document.createElement('div');
         hint.className = 'empty-meta-hint';
-        hint.textContent = 'Chưa có biến trạng thái. Dùng cú pháp: ~ tên_biến = giá_trị để thay đổi trạng thái trong kịch bản.';
+        hint.textContent =
+          'Chưa có biến trạng thái. Dùng cú pháp: define tên_biến = giá_tri để khai báo biến.';
         this.varContainer.appendChild(hint);
       } else {
-        for (const [v, val] of variables) {
+        for (const [, meta] of variables) {
           const card = document.createElement('div');
           card.className = 'meta-card';
 
           const title = document.createElement('div');
           title.className = 'meta-card-title';
-          title.textContent = `~ ${v}`;
+          title.textContent = `define ${meta.name}`;
           card.appendChild(title);
 
           const tags = document.createElement('div');
           tags.className = 'meta-tags-list';
+
+          const scopePill = document.createElement('span');
+          scopePill.className = 'meta-tag-pill';
+          scopePill.style.fontWeight = '600';
+          scopePill.style.color = meta.scope === 'global' ? '#4ade80' : '#60a5fa';
+          scopePill.textContent =
+            meta.scope === 'global' ? 'Global' : `Local: ${meta.sceneName || 'scene'}`;
+          tags.appendChild(scopePill);
+
           const pill = document.createElement('span');
           pill.className = 'meta-tag-pill';
-          pill.textContent = `Khởi tạo: ${String(val)}`;
+          pill.textContent = `Khởi tạo: ${String(meta.value)}`;
           tags.appendChild(pill);
-          card.appendChild(tags);
 
+          card.appendChild(tags);
           this.varContainer.appendChild(card);
         }
       }
@@ -1110,29 +1165,35 @@ export class StudioApp {
     if (variables.size === 0) {
       const tr = document.createElement('tr');
       const td = document.createElement('td');
-      td.colSpan = 3;
+      td.colSpan = 4;
       td.style.color = '#666';
       td.textContent = 'Chưa có biến nào.';
       tr.appendChild(td);
       this.varsWatchTbody.appendChild(tr);
     } else {
-      for (const [name, val] of variables) {
+      for (const [, meta] of variables) {
         const tr = document.createElement('tr');
 
         const tdName = document.createElement('td');
         tdName.style.fontWeight = '600';
         tdName.style.color = '#fff';
-        tdName.textContent = name;
+        tdName.textContent = meta.name;
+
+        const tdScope = document.createElement('td');
+        tdScope.style.color = meta.scope === 'global' ? '#4ade80' : '#60a5fa';
+        tdScope.textContent =
+          meta.scope === 'global' ? 'Global' : `Local (${meta.sceneName || 'scene'})`;
 
         const tdType = document.createElement('td');
         tdType.style.color = '#888';
-        tdType.textContent = typeof val;
+        tdType.textContent = typeof meta.value;
 
         const tdVal = document.createElement('td');
         tdVal.style.color = '#22c55e';
-        tdVal.textContent = String(val);
+        tdVal.textContent = String(meta.value);
 
         tr.appendChild(tdName);
+        tr.appendChild(tdScope);
         tr.appendChild(tdType);
         tr.appendChild(tdVal);
         this.varsWatchTbody.appendChild(tr);
@@ -1180,7 +1241,9 @@ export class StudioApp {
     return { backgrounds, audio };
   }
 
-  private reconcileCharactersWithScript(astCharacters: Map<string, { displayName?: string; sprites: Set<string> }>): void {
+  private reconcileCharactersWithScript(
+    astCharacters: Map<string, { displayName?: string; sprites: Set<string> }>,
+  ): void {
     if (!this.charReconciliationEl) return;
     this.charReconciliationEl.innerHTML = '';
 
@@ -1233,7 +1296,7 @@ export class StudioApp {
   }
 
   private quickAddCharacter(charId: string, displayName?: string): void {
-    const formattedName = displayName || (charId.charAt(0).toUpperCase() + charId.slice(1));
+    const formattedName = displayName || charId.charAt(0).toUpperCase() + charId.slice(1);
     if (!Array.isArray(this.project.characters)) {
       this.project.characters = [];
     }
@@ -1260,7 +1323,8 @@ export class StudioApp {
     if (chars.length === 0) {
       const hint = document.createElement('div');
       hint.className = 'empty-meta-hint';
-      hint.textContent = 'Chưa có nhân vật nào trong dự án. Bấm "+ Thêm nhân vật" ở trên để khởi tạo nhân vật đầu tiên.';
+      hint.textContent =
+        'Chưa có nhân vật nào trong dự án. Bấm "+ Thêm nhân vật" ở trên để khởi tạo nhân vật đầu tiên.';
       this.charContainer.appendChild(hint);
       return;
     }
@@ -1492,9 +1556,10 @@ export class StudioApp {
     if (assets.length === 0) {
       const hint = document.createElement('div');
       hint.className = 'empty-meta-hint';
-      hint.textContent = this.activeAssetFilter === 'all'
-        ? 'Chưa có tài nguyên nào trong dự án. Bấm "+ Thêm asset" ở trên để bổ sung.'
-        : `Chưa có tài nguyên loại "${this.activeAssetFilter}".`;
+      hint.textContent =
+        this.activeAssetFilter === 'all'
+          ? 'Chưa có tài nguyên nào trong dự án. Bấm "+ Thêm asset" ở trên để bổ sung.'
+          : `Chưa có tài nguyên loại "${this.activeAssetFilter}".`;
       this.assetContainer.appendChild(hint);
       return;
     }
@@ -1532,9 +1597,10 @@ export class StudioApp {
       nameRow.appendChild(typeBadge);
 
       // Kiểm tra trạng thái sử dụng trong kịch bản (prompt.md line 127)
-      const isUsed = asset.type === 'audio'
-        ? usedAudio.has(asset.name) || usedAudio.has(asset.id)
-        : usedBackgrounds.has(asset.name) || usedBackgrounds.has(asset.id);
+      const isUsed =
+        asset.type === 'audio'
+          ? usedAudio.has(asset.name) || usedAudio.has(asset.id)
+          : usedBackgrounds.has(asset.name) || usedBackgrounds.has(asset.id);
 
       if (!isUsed) {
         const unusedBadge = document.createElement('span');
@@ -1601,9 +1667,10 @@ export class StudioApp {
       }
       if (/^#[0-9A-Fa-f]{6}$/.test(normalized) || /^#[0-9A-Fa-f]{3}$/.test(normalized)) {
         if (colorInput) {
-          colorInput.value = normalized.length === 4
-            ? `#${normalized[1]}${normalized[1]}${normalized[2]}${normalized[2]}${normalized[3]}${normalized[3]}`
-            : normalized;
+          colorInput.value =
+            normalized.length === 4
+              ? `#${normalized[1]}${normalized[1]}${normalized[2]}${normalized[2]}${normalized[3]}${normalized[3]}`
+              : normalized;
         }
         if (previewTag) {
           previewTag.style.color = normalized;
@@ -1821,7 +1888,8 @@ export class StudioApp {
       origIdEl.value = '';
       idInput.value = prefillId || '';
       idInput.disabled = false;
-      const initialName = prefillName || (prefillId ? prefillId.charAt(0).toUpperCase() + prefillId.slice(1) : '');
+      const initialName =
+        prefillName || (prefillId ? prefillId.charAt(0).toUpperCase() + prefillId.slice(1) : '');
       nameInput.value = initialName;
 
       const color = '#38BDF8';
@@ -1861,7 +1929,9 @@ export class StudioApp {
     const charId = idInput.value.trim().toLowerCase();
     const charName = nameInput.value.trim();
 
-    let colorHex = (hexInput ? hexInput.value.trim() : (colorInput?.value || '#38BDF8')).toUpperCase();
+    let colorHex = (
+      hexInput ? hexInput.value.trim() : colorInput?.value || '#38BDF8'
+    ).toUpperCase();
     if (!colorHex.startsWith('#')) colorHex = '#' + colorHex;
     if (!/^#[0-9A-Fa-f]{6}$/.test(colorHex) && !/^#[0-9A-Fa-f]{3}$/.test(colorHex)) {
       colorHex = '#38BDF8';
@@ -1965,7 +2035,8 @@ export class StudioApp {
       btn.addEventListener('click', () => {
         filterBtns.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        this.activeAssetFilter = (btn.getAttribute('data-filter') as 'all' | 'image' | 'audio') || 'all';
+        this.activeAssetFilter =
+          (btn.getAttribute('data-filter') as 'all' | 'image' | 'audio') || 'all';
         this.renderAssetList();
       });
     });
@@ -1978,7 +2049,11 @@ export class StudioApp {
     }
   }
 
-  private openAssetModal(assetId?: string, prefillName?: string, prefillType?: 'image' | 'audio'): void {
+  private openAssetModal(
+    assetId?: string,
+    prefillName?: string,
+    prefillType?: 'image' | 'audio',
+  ): void {
     if (!this.modalAssetForm) return;
 
     const titleEl = document.getElementById('modal-asset-title');
@@ -2102,7 +2177,9 @@ export class StudioApp {
   // 8. CẦU NỐI HAI CHIỀU LIVE PREVIEW (KIỂM TRA ORIGIN BẢO MẬT SAD 3.6)
   // ================================================================
   private getPreviewOrigin(): string {
-    return window.location.hostname === 'localhost' ? 'http://localhost:3000' : window.location.origin;
+    return window.location.hostname === 'localhost'
+      ? 'http://localhost:3000'
+      : window.location.origin;
   }
 
   private setupPreviewMessaging(): void {
@@ -2113,7 +2190,10 @@ export class StudioApp {
         window.location.origin,
       ];
 
-      if (!allowedOrigins.includes(event.origin) && !event.origin.endsWith('.usercontent-platform.com')) {
+      if (
+        !allowedOrigins.includes(event.origin) &&
+        !event.origin.endsWith('.usercontent-platform.com')
+      ) {
         return;
       }
 

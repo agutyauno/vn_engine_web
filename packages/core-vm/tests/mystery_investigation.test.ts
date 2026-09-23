@@ -20,7 +20,10 @@ const __dirname = path.dirname(__filename);
 describe('Mystery Investigation Scenario E2E Simulation', () => {
   it('should compile and simulate a full playthrough to True Ending', () => {
     // 1. Đọc kịch bản điều tra từ tests/fixtures/mystery_investigation.vns
-    const fixturePath = path.resolve(__dirname, '../../../tests/fixtures/mystery_investigation.vns');
+    const fixturePath = path.resolve(
+      __dirname,
+      '../../../tests/fixtures/mystery_investigation.vns',
+    );
     const source = fs.readFileSync(fixturePath, 'utf-8');
 
     // 2. Biên dịch qua DSL Compiler
@@ -234,7 +237,9 @@ describe('Mystery Investigation Scenario E2E Simulation', () => {
 
     const trueEnd2 = vm.runUntilInteractive();
     expect(asDialogue(trueEnd2.stepResult).character).toBe('bob');
-    expect(asDialogue(trueEnd2.stepResult).text).toContain('Hội học sinh rất cần những người nhiệt huyết');
+    expect(asDialogue(trueEnd2.stepResult).text).toContain(
+      'Hội học sinh rất cần những người nhiệt huyết',
+    );
 
     // Dẫn chuyện kết thúc
     vm.runUntilInteractive();
@@ -253,7 +258,9 @@ describe('Mystery Investigation Scenario E2E Simulation', () => {
 
     // Đường kẻ viền dưới kết thúc banner
     const bottomBorder = vm.runUntilInteractive();
-    expect(asDialogue(bottomBorder.stepResult).text).toContain('═══════════════════════════════════════════════════');
+    expect(asDialogue(bottomBorder.stepResult).text).toContain(
+      '═══════════════════════════════════════════════════',
+    );
 
     // Nhờ lệnh 'end' ở cuối true_ending, bước tiếp theo lập tức HALTED mà không bị trôi sang các ending khác
     const finalStep = vm.runUntilInteractive();

@@ -1,4 +1,6 @@
 # Chương 1 — tuyến Alice
+define affection = 0
+
 scene chapter1_alice_route ui: "phone_message_style" {
     background bg_classroom
     show alice.happy(position: "left")

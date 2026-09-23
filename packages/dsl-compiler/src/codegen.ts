@@ -21,15 +21,18 @@ import type {
   EndStatement,
   WhileStatement,
   IfStatement,
+  VarDefineStatement,
   VarAssignStatement,
   Character,
 } from '@vn-engine/shared-types';
+import { buildGlobalVariableSet } from './semantic';
 
 export class CodeGenerator {
   private instructions: Instruction[] = [];
   private loopIdCounter = 0;
   private ifIdCounter = 0;
   private characters: Character[] = [];
+  private globals: Set<string> = new Set();
 
   constructor(characters?: Character[]) {
     if (characters) {
@@ -41,6 +44,23 @@ export class CodeGenerator {
     this.instructions = [];
     this.loopIdCounter = 0;
     this.ifIdCounter = 0;
+    this.globals = buildGlobalVariableSet(ast);
+
+    // Preamble: sinh lệnh ASSIGN toàn cục từ top-level statements
+    if (ast.topLevelStatements) {
+      for (const stmt of ast.topLevelStatements) {
+        if (stmt.type === 'VarDefineStatement') {
+          const def = stmt as VarDefineStatement;
+          this.instructions.push({
+            type: 'ASSIGN',
+            variable: def.variable,
+            value: def.value,
+            scope: 'global',
+            loc: def.loc,
+          });
+        }
+      }
+    }
 
     for (const scene of ast.scenes) {
       this.generateScene(scene);
@@ -110,7 +130,9 @@ export class CodeGenerator {
         const s = stmt as ShowStatement;
         let sprite = s.sprite;
         if (!sprite || sprite.trim() === '') {
-          const charDef = this.characters.find(c => c.id.toLowerCase() === s.character.toLowerCase());
+          const charDef = this.characters.find(
+            c => c.id.toLowerCase() === s.character.toLowerCase(),
+          );
           if (charDef && charDef.sprites) {
             const keys = Object.keys(charDef.sprites);
             if (keys.includes('default')) {
@@ -210,12 +232,26 @@ export class CodeGenerator {
         break;
       }
 
+      case 'VarDefineStatement': {
+        const vd = stmt as VarDefineStatement;
+        this.instructions.push({
+          type: 'ASSIGN',
+          variable: vd.variable,
+          value: vd.value,
+          scope: 'local',
+          loc: vd.loc,
+        });
+        break;
+      }
+
       case 'VarAssignStatement': {
         const va = stmt as VarAssignStatement;
+        const scope = this.globals.has(va.variable) ? 'global' : 'local';
         this.instructions.push({
           type: 'ASSIGN',
           variable: va.variable,
           value: va.value,
+          scope,
           loc: va.loc,
         });
         break;
@@ -243,7 +279,7 @@ export class CodeGenerator {
         const loopEndScene = `${sceneName}.__while_${loopId}_end`;
 
         this.instructions.push({
-          type: 'SCENE',
+          type: 'LABEL',
           name: loopStartScene,
           loc: wh.loc,
         });
@@ -266,7 +302,7 @@ export class CodeGenerator {
         });
 
         this.instructions.push({
-          type: 'SCENE',
+          type: 'LABEL',
           name: loopEndScene,
           loc: wh.loc,
         });
@@ -301,7 +337,7 @@ export class CodeGenerator {
 
         // Nhánh Thân (True)
         this.instructions.push({
-          type: 'SCENE',
+          type: 'LABEL',
           name: ifTrueScene,
           loc: ifStmt.loc,
         });
@@ -319,7 +355,7 @@ export class CodeGenerator {
         // Nhánh Alternate (Else / Else If)
         if (hasAlternate) {
           this.instructions.push({
-            type: 'SCENE',
+            type: 'LABEL',
             name: ifElseScene,
             loc: ifStmt.loc,
           });
@@ -335,7 +371,7 @@ export class CodeGenerator {
 
         // Điểm kết thúc if
         this.instructions.push({
-          type: 'SCENE',
+          type: 'LABEL',
           name: ifEndScene,
           loc: ifStmt.loc,
         });

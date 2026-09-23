@@ -12,6 +12,17 @@
 # - Nhiều nhánh kết thúc (True, Normal, Bad, Coward Endings)
 # ==============================================================
 
+# ==============================================================
+# BIẾN SỐ TOÀN CỤC (GLOBAL STATE)
+# ==============================================================
+define trust_score = 0
+define clues_count = 0
+define energy = 100
+define has_flashlight = false
+define found_diary = false
+define found_footprint = false
+define found_key = false
+
 # --------------------------------------------------------------
 # MÀN 1: MỞ ĐẦU HOÀNG HÔN TẠI HÀNH LANG
 # --------------------------------------------------------------

@@ -23,6 +23,7 @@ import type {
   EndStatement,
   WhileStatement,
   IfStatement,
+  VarDefineStatement,
   VarAssignStatement,
   SourceLocation,
   NamedPosition,
@@ -76,6 +77,15 @@ export class VNSAstBuilder extends BaseVNSVisitor {
   }
 
   program(ctx: any): ProgramAST {
+    const topLevelStatements: StatementAST[] = [];
+    if (ctx.varDefineStatement) {
+      for (const defCst of ctx.varDefineStatement) {
+        const stmt = this.visit(defCst);
+        if (stmt) {
+          topLevelStatements.push(stmt);
+        }
+      }
+    }
     const scenes: SceneASTNode[] = [];
     if (ctx.sceneDeclaration) {
       for (const sceneCst of ctx.sceneDeclaration) {
@@ -84,6 +94,7 @@ export class VNSAstBuilder extends BaseVNSVisitor {
     }
     return {
       type: 'Program',
+      topLevelStatements: topLevelStatements.length > 0 ? topLevelStatements : undefined,
       scenes,
     };
   }
@@ -150,6 +161,7 @@ export class VNSAstBuilder extends BaseVNSVisitor {
     if (ctx.endStatement) return this.visit(ctx.endStatement[0]);
     if (ctx.whileStatement) return this.visit(ctx.whileStatement[0]);
     if (ctx.ifStatement) return this.visit(ctx.ifStatement[0]);
+    if (ctx.varDefineStatement) return this.visit(ctx.varDefineStatement[0]);
     if (ctx.varAssignStatement) return this.visit(ctx.varAssignStatement[0]);
 
     throw new Error('Loại statement không xác định');
@@ -456,6 +468,20 @@ export class VNSAstBuilder extends BaseVNSVisitor {
       condition,
       consequent,
       alternate,
+      loc,
+    };
+  }
+
+  varDefineStatement(ctx: any): VarDefineStatement {
+    const varToken = ctx.Identifier[0];
+    const exprStr = this.visit(ctx.value[0]);
+    const loc = extractLocation(ctx.Define[0], this.currentFileId);
+    const value = parseExpression(exprStr, loc);
+
+    return {
+      type: 'VarDefineStatement',
+      variable: varToken.image,
+      value,
       loc,
     };
   }

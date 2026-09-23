@@ -458,11 +458,7 @@ export class GameRenderer {
     ctx.font = '700 20px monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(
-      `[ SCENE // ${assetId.toUpperCase()} ]`,
-      this.baseWidth / 2,
-      badgeY + 26,
-    );
+    ctx.fillText(`[ SCENE // ${assetId.toUpperCase()} ]`, this.baseWidth / 2, badgeY + 26);
 
     ctx.fillStyle = '#555555';
     ctx.font = '500 12px monospace';

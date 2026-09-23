@@ -25,6 +25,7 @@ import {
   InvalidSaveDataError,
 } from './errors';
 import { migrateSaveData, validateVMState } from './migration';
+import { interpolate } from './interpolation';
 
 export interface VMOptions {
   ringBufferCapacity?: number;
@@ -62,6 +63,7 @@ export class VisualNovelVM {
         ...(options?.initialVariables ?? {}),
         ...(initialState?.variables ?? {}),
       },
+      localVariables: { ...(initialState?.localVariables ?? {}) },
       characterDisplayOverrides: { ...(initialState?.characterDisplayOverrides ?? {}) },
       customScriptState: { ...(initialState?.customScriptState ?? {}) },
     };
@@ -85,10 +87,17 @@ export class VisualNovelVM {
     this.sceneIndexMap.clear();
     for (let i = 0; i < this.program.length; i++) {
       const instr = this.program[i]!;
-      if (instr.type === 'SCENE') {
+      if (instr.type === 'SCENE' || instr.type === 'LABEL') {
         this.sceneIndexMap.set(instr.name, i);
       }
     }
+  }
+
+  private getEvalContext(): Record<string, string | number | boolean> {
+    return {
+      ...this.state.variables,
+      ...this.state.localVariables,
+    };
   }
 
   /**
@@ -137,6 +146,14 @@ export class VisualNovelVM {
     switch (instr.type) {
       case 'SCENE': {
         this.state.currentScene = instr.name;
+        if (!instr.name.includes('.__')) {
+          this.state.localVariables = {};
+        }
+        this.state.instructionPointer++;
+        return { type: 'SIDE_EFFECT', instruction: instr };
+      }
+
+      case 'LABEL': {
         this.state.instructionPointer++;
         return { type: 'SIDE_EFFECT', instruction: instr };
       }
@@ -153,14 +170,29 @@ export class VisualNovelVM {
         };
         this.ringBuffer.push(snapshot);
 
+        const evalContext = this.getEvalContext();
+        const interpolatedText = interpolate(instr.text, evalContext, this.evaluator);
+        const interpolatedDisplayNameOverride = instr.displayNameOverride
+          ? interpolate(instr.displayNameOverride, evalContext, this.evaluator)
+          : undefined;
+
         return {
           type: 'SUSPEND_DIALOGUE',
-          instruction: instr,
+          instruction: {
+            ...instr,
+            text: interpolatedText,
+            displayNameOverride: interpolatedDisplayNameOverride,
+          },
         };
       }
 
       case 'REVEAL': {
-        this.state.characterDisplayOverrides[instr.characterId] = instr.displayName;
+        const evalContext = this.getEvalContext();
+        this.state.characterDisplayOverrides[instr.characterId] = interpolate(
+          instr.displayName,
+          evalContext,
+          this.evaluator,
+        );
         this.state.instructionPointer++;
         return { type: 'SIDE_EFFECT', instruction: instr };
       }
@@ -177,9 +209,13 @@ export class VisualNovelVM {
       }
 
       case 'ASSIGN': {
-        const evalVal = this.evaluator.evaluate(instr.value, this.state.variables);
+        const evalVal = this.evaluator.evaluate(instr.value, this.getEvalContext());
         if (evalVal !== null) {
-          this.state.variables[instr.variable] = evalVal;
+          if (instr.scope === 'local') {
+            this.state.localVariables[instr.variable] = evalVal;
+          } else {
+            this.state.variables[instr.variable] = evalVal;
+          }
         }
         this.state.instructionPointer++;
         return { type: 'SIDE_EFFECT', instruction: instr };
@@ -191,7 +227,7 @@ export class VisualNovelVM {
       }
 
       case 'CONDITIONAL_GOTO': {
-        const conditionResult = this.evaluator.evaluate(instr.condition, this.state.variables);
+        const conditionResult = this.evaluator.evaluate(instr.condition, this.getEvalContext());
         if (conditionResult) {
           this.jumpToScene(instr.targetScene);
         } else {
@@ -201,7 +237,7 @@ export class VisualNovelVM {
       }
 
       case 'LOOP_START': {
-        const conditionResult = this.evaluator.evaluate(instr.condition, this.state.variables);
+        const conditionResult = this.evaluator.evaluate(instr.condition, this.getEvalContext());
         if (!conditionResult) {
           // Thoát khỏi vòng lặp: nhảy tới loopEndTargetScene
           this.jumpToScene(instr.loopEndTargetScene);
@@ -219,10 +255,11 @@ export class VisualNovelVM {
       }
 
       case 'CALL': {
-        // Lưu frame quay lại vào callStack
+        // Lưu frame quay lại vào callStack kèm biến local của caller
         this.state.callStack.push({
           scene: this.state.currentScene,
           ip: this.state.instructionPointer + 1,
+          savedLocalVariables: { ...this.state.localVariables },
         });
         this.jumpToScene(instr.targetScene);
         return { type: 'SIDE_EFFECT', instruction: instr };
@@ -235,13 +272,14 @@ export class VisualNovelVM {
         const frame = this.state.callStack.pop()!;
         this.state.currentScene = frame.scene;
         this.state.instructionPointer = frame.ip;
+        this.state.localVariables = { ...(frame.savedLocalVariables ?? {}) };
         return { type: 'SIDE_EFFECT', instruction: instr };
       }
 
       case 'HALT': {
         if (this.state.callStack.length > 0) {
           console.warn(
-            `[VN Engine Warning] Kịch bản thực thi 'end' khi call stack vẫn còn phần tử (${this.state.callStack.length} frame). Trò chơi kết thúc ngay lập tức.`
+            `[VN Engine Warning] Kịch bản thực thi 'end' khi call stack vẫn còn phần tử (${this.state.callStack.length} frame). Trò chơi kết thúc ngay lập tức.`,
           );
         }
         this.state.instructionPointer = this.program.length;
@@ -251,11 +289,12 @@ export class VisualNovelVM {
       case 'SCENE_END': {
         if (this.state.callStack.length > 0) {
           console.warn(
-            `[VN Engine Warning] Scene '${instr.sceneName}' kết thúc mà không có lệnh 'return'. Đã tự động return về caller.`
+            `[VN Engine Warning] Scene '${instr.sceneName}' kết thúc mà không có lệnh 'return'. Đã tự động return về caller.`,
           );
           const frame = this.state.callStack.pop()!;
           this.state.currentScene = frame.scene;
           this.state.instructionPointer = frame.ip;
+          this.state.localVariables = { ...(frame.savedLocalVariables ?? {}) };
         } else {
           this.state.instructionPointer++;
         }
@@ -263,10 +302,19 @@ export class VisualNovelVM {
       }
 
       case 'CHOICE': {
+        const evalContext = this.getEvalContext();
+        const interpolatedChoices = instr.choices.map(c => ({
+          ...c,
+          text: interpolate(c.text, evalContext, this.evaluator),
+        }));
+
         // Tạm dừng máy ảo tại hộp thoại lựa chọn, không tự động tăng instructionPointer
         return {
           type: 'SUSPEND_CHOICE',
-          instruction: instr,
+          instruction: {
+            ...instr,
+            choices: interpolatedChoices,
+          },
         };
       }
 
@@ -295,8 +343,19 @@ export class VisualNovelVM {
 
       // Nếu đang đứng ngay tại CHOICE (đã suspend trước đó mà chưa choose)
       if (currentInstr.type === 'CHOICE') {
+        const evalContext = this.getEvalContext();
+        const interpolatedChoices = currentInstr.choices.map(c => ({
+          ...c,
+          text: interpolate(c.text, evalContext, this.evaluator),
+        }));
         return {
-          stepResult: { type: 'SUSPEND_CHOICE', instruction: currentInstr },
+          stepResult: {
+            type: 'SUSPEND_CHOICE',
+            instruction: {
+              ...currentInstr,
+              choices: interpolatedChoices,
+            },
+          },
           sideEffects,
         };
       }
@@ -348,7 +407,7 @@ export class VisualNovelVM {
 
     // Kiểm tra điều kiện (nếu có)
     if (choice.condition) {
-      const allowed = this.evaluator.evaluate(choice.condition, this.state.variables);
+      const allowed = this.evaluator.evaluate(choice.condition, this.getEvalContext());
       if (!allowed) {
         throw new InvalidChoiceError(`Lựa chọn "${choice.text}" có điều kiện không được thỏa mãn.`);
       }
@@ -376,7 +435,7 @@ export class VisualNovelVM {
     return currentInstr.choices.map(c => {
       let enabled = true;
       if (c.condition) {
-        enabled = !!this.evaluator.evaluate(c.condition, this.state.variables);
+        enabled = !!this.evaluator.evaluate(c.condition, this.getEvalContext());
       }
       return {
         text: c.text,
@@ -456,6 +515,17 @@ export class VisualNovelVM {
       } else if (instr.type === 'DIALOGUE') {
         currentDialogue = instr;
       }
+    }
+
+    if (currentDialogue) {
+      const evalContext = this.getEvalContext();
+      currentDialogue = {
+        ...currentDialogue,
+        text: interpolate(currentDialogue.text, evalContext, this.evaluator),
+        displayNameOverride: currentDialogue.displayNameOverride
+          ? interpolate(currentDialogue.displayNameOverride, evalContext, this.evaluator)
+          : undefined,
+      };
     }
 
     return { background, sprites, audio, currentDialogue };

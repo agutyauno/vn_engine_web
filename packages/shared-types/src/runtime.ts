@@ -7,6 +7,7 @@ import type { Instruction } from './instruction';
 export interface CallFrame {
   scene: string;
   ip: number;
+  savedLocalVariables?: Record<string, string | number | boolean>;
 }
 
 export interface VMState {
@@ -14,6 +15,7 @@ export interface VMState {
   instructionPointer: number;
   callStack: CallFrame[];
   variables: Record<string, string | number | boolean>;
+  localVariables: Record<string, string | number | boolean>;
   characterDisplayOverrides: Record<string, string>; // characterId -> revealedName (ADR-020)
   customScriptState: Record<string, string>; // screenId -> validated JSON
 }
@@ -39,4 +41,3 @@ export interface SaveFileData {
   state: VMState;
   dialogueCounter: number;
 }
-

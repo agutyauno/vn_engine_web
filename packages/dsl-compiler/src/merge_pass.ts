@@ -133,6 +133,7 @@ export function runMergePass(ast: ProgramAST): ProgramAST {
 
   return {
     type: 'Program',
+    topLevelStatements: ast.topLevelStatements,
     scenes: flattenedScenes,
   };
 }

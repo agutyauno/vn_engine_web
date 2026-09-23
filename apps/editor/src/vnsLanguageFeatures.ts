@@ -142,6 +142,10 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): void {
         { label: 'goto', doc: 'Chuyển nhánh đến scene khác: goto scene_id' },
         { label: 'call', doc: 'Gọi phân cảnh con và quay về bằng return: call sub_scene' },
         { label: 'return', doc: 'Quay về vị trí gọi trước đó của call' },
+        {
+          label: 'define',
+          doc: 'Khai báo biến mới: define ten_bien = gia_tri (ở ngoài scene là Global, trong scene là Local)',
+        },
         { label: 'if', doc: 'Câu lệnh điều kiện: if (bien == true) { ... }' },
         { label: 'else', doc: 'Nhánh ngược lại của điều kiện if: else { ... }' },
         { label: 'while', doc: 'Vòng lặp điều kiện: while (dem < 5) { ... }' },

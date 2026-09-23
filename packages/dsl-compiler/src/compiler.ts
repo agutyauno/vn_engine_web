@@ -2,7 +2,14 @@
 // ĐIỂU PHỐI PIPELINE BIÊN DỊCH (COMPILER PIPELINE ENTRY)
 // ==========================================
 
-import type { ScriptFile, Instruction, ProgramAST, SceneASTNode, Character } from '@vn-engine/shared-types';
+import type {
+  ScriptFile,
+  Instruction,
+  ProgramAST,
+  SceneASTNode,
+  StatementAST,
+  Character,
+} from '@vn-engine/shared-types';
 import { VNSLexer } from './lexer';
 import { parserInstance } from './parser';
 import { VNSAstBuilder } from './ast_builder';
@@ -24,6 +31,7 @@ export interface CompileResult {
 export class Compiler {
   public compile(files: ScriptFile[], options?: CompilerOptions): CompileResult {
     const errors: CompileError[] = [];
+    const allTopLevelStatements: StatementAST[] = [];
     const allScenes: SceneASTNode[] = [];
 
     // Sắp xếp các file theo thứ tự order
@@ -67,6 +75,9 @@ export class Compiler {
       // Xây dựng AST cho từng file
       const builder = new VNSAstBuilder(file.id);
       const fileAst = builder.visit(cst) as ProgramAST;
+      if (fileAst?.topLevelStatements) {
+        allTopLevelStatements.push(...fileAst.topLevelStatements);
+      }
       if (fileAst?.scenes) {
         allScenes.push(...fileAst.scenes);
       }
@@ -78,6 +89,7 @@ export class Compiler {
 
     const rawAst: ProgramAST = {
       type: 'Program',
+      topLevelStatements: allTopLevelStatements.length > 0 ? allTopLevelStatements : undefined,
       scenes: allScenes,
     };
 

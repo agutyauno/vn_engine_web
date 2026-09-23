@@ -12,6 +12,17 @@
 # - Nhiều nhánh kết thúc (True, Normal, Bad, Coward Endings)
 # ==============================================================
 
+# ==============================================================
+# BIẾN SỐ TOÀN CỤC (GLOBAL STATE)
+# ==============================================================
+define trust_score = 0
+define clues_count = 0
+define energy = 100
+define has_flashlight = false
+define found_diary = false
+define found_footprint = false
+define found_key = false
+
 # --------------------------------------------------------------
 # MÀN 1: MỞ ĐẦU HOÀNG HÔN TẠI HÀNH LANG
 # --------------------------------------------------------------
@@ -25,7 +36,7 @@ scene prologue ui: "default" {
     "Trước mắt bạn, cánh cửa phòng Hội học sinh — nơi luôn khóa trái nghiêm ngặt — đang hé mở một khe hẹp bất thường."
 
     show alice.serious(position: "left", duration: 0.4s)
-    alice as "???": "Này! Cậu đang làm gì thập thò trước cửa phòng Hội học sinh vậy?"
+    alice as "???": "{speed:slow}Này... {pause:0.6s}Cậu đang làm gì thập thò trước cửa phòng Hội học sinh vậy?{speed:normal}"
 
     choice {
         "Tôi thấy cửa mở nên tò mò nhìn thử": goto .explain_curious
@@ -34,8 +45,8 @@ scene prologue ui: "default" {
     }
 
     scene .explain_curious {
-        alice as "???": "Cửa mở sao? Lạ thật... Chiều nay anh Hội trưởng nói đích thân anh ấy sẽ khóa cửa cơ mà."
         ~ trust_score = 15
+        alice as "???": "Cửa mở sao? Lạ thật... Độ tin cậy của tôi dành cho cậu là {color:#38bdf8}{trust_score}%{/color}."
         goto .meet_alice
     }
 

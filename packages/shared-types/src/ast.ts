@@ -65,6 +65,7 @@ export type StatementAST =
   | EndStatement
   | IfStatement
   | WhileStatement
+  | VarDefineStatement
   | VarAssignStatement
   | RunScriptStatement
   | SpawnScriptStatement;
@@ -162,6 +163,12 @@ export interface WhileStatement extends BaseASTNode {
   body: StatementAST[];
 }
 
+export interface VarDefineStatement extends BaseASTNode {
+  type: 'VarDefineStatement';
+  variable: string;
+  value: ExpressionAST;
+}
+
 export interface VarAssignStatement extends BaseASTNode {
   type: 'VarAssignStatement';
   variable: string;
@@ -187,5 +194,6 @@ export interface SceneASTNode extends BaseASTNode {
 
 export interface ProgramAST {
   type: 'Program';
+  topLevelStatements?: StatementAST[];
   scenes: SceneASTNode[];
 }

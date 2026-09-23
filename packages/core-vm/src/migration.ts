@@ -74,6 +74,14 @@ export function validateVMState(state: unknown): asserts state is VMState {
   }
 
   if (
+    !s['localVariables'] ||
+    typeof s['localVariables'] !== 'object' ||
+    Array.isArray(s['localVariables'])
+  ) {
+    throw new InvalidSaveDataError('state.localVariables phải là một object.');
+  }
+
+  if (
     !s['characterDisplayOverrides'] ||
     typeof s['characterDisplayOverrides'] !== 'object' ||
     Array.isArray(s['characterDisplayOverrides'])
@@ -123,6 +131,10 @@ export function migrateSaveData(
         variables:
           rawState['variables'] && typeof rawState['variables'] === 'object'
             ? rawState['variables']
+            : {},
+        localVariables:
+          rawState['localVariables'] && typeof rawState['localVariables'] === 'object'
+            ? rawState['localVariables']
             : {},
         characterDisplayOverrides:
           rawState['characterDisplayOverrides'] &&

@@ -21,6 +21,7 @@ import {
   If,
   Else,
   While,
+  Define,
   Volume,
   FadeIn,
   FadeOut,
@@ -74,7 +75,10 @@ export class VNSParser extends CstParser {
   // ---------------------------------------------------------------------------
   public program = this.RULE('program', () => {
     this.MANY(() => {
-      this.SUBRULE(this.sceneDeclaration);
+      this.OR([
+        { ALT: () => this.SUBRULE(this.varDefineStatement) },
+        { ALT: () => this.SUBRULE(this.sceneDeclaration) },
+      ]);
     });
   });
 
@@ -113,6 +117,7 @@ export class VNSParser extends CstParser {
       { ALT: () => this.SUBRULE(this.endStatement) },
       { ALT: () => this.SUBRULE(this.whileStatement) },
       { ALT: () => this.SUBRULE(this.ifStatement) },
+      { ALT: () => this.SUBRULE(this.varDefineStatement) },
       { ALT: () => this.SUBRULE(this.varAssignStatement) },
     ]);
   });
@@ -376,6 +381,13 @@ export class VNSParser extends CstParser {
     });
   });
 
+  public varDefineStatement = this.RULE('varDefineStatement', () => {
+    this.CONSUME(Define);
+    this.CONSUME(Identifier);
+    this.CONSUME(Equals);
+    this.SUBRULE(this.expressionSequence, { LABEL: 'value' });
+  });
+
   public varAssignStatement = this.RULE('varAssignStatement', () => {
     this.CONSUME(Tilde);
     this.CONSUME(Identifier);
@@ -411,6 +423,7 @@ export class VNSParser extends CstParser {
       nextType === Return ||
       nextType === While ||
       nextType === If ||
+      nextType === Define ||
       nextType === Tilde ||
       nextType === RCurly ||
       nextType === LCurly

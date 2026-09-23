@@ -37,7 +37,7 @@ describe('DSL Compiler Core (5-Stage Pipeline)', () => {
     expect(program.length).toBeGreaterThan(15);
 
     // Kiểm tra câu lệnh scene đầu tiên
-    const firstScene = program[0];
+    const firstScene = program.find(i => i.type === 'SCENE');
     expect(firstScene?.type).toBe('SCENE');
     if (firstScene?.type === 'SCENE') {
       expect(firstScene.name).toBe('chapter1_alice_route');
@@ -191,9 +191,9 @@ describe('DSL Compiler Core (5-Stage Pipeline)', () => {
   it('should compile variable assignment with arithmetic and logical expressions', () => {
     const dsl = `
       scene var_scene {
-        ~ score = 100
+        define score = 100
         ~ score = score + 25
-        ~ isWinner = score >= 120 && hasTicket == true
+        define isWinner = score >= 120 && hasTicket == true
       }
     `;
 
@@ -252,6 +252,7 @@ describe('DSL Compiler Core (5-Stage Pipeline)', () => {
   it('should compile variable assignment immediately followed by character dialogue', () => {
     const dsl = `
       scene test_order {
+        define energy = 100
         ~ energy = energy - 15
         alice: "Chiếc đèn pin này sẽ giúp chúng ta soi được những góc tối hẹp đấy!"
       }
@@ -263,6 +264,7 @@ describe('DSL Compiler Core (5-Stage Pipeline)', () => {
   it('should compile variable assignment immediately followed by anonymous dialogue', () => {
     const dsl = `
       scene test_order {
+        define energy = 100
         ~ energy = energy - 15
         "Tiếng bước chân lại gần..."
       }
@@ -283,4 +285,3 @@ describe('DSL Compiler Core (5-Stage Pipeline)', () => {
     expect(result.program!.length).toBeGreaterThan(50);
   });
 });
-

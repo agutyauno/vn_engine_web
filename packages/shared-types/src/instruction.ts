@@ -108,6 +108,12 @@ export interface AssignInstruction extends BaseInstruction {
   type: 'ASSIGN';
   variable: string;
   value: ExpressionAST;
+  scope?: 'global' | 'local';
+}
+
+export interface LabelInstruction extends BaseInstruction {
+  type: 'LABEL';
+  name: string;
 }
 
 export interface RunScriptInstruction extends BaseInstruction {
@@ -143,6 +149,7 @@ export type Instruction =
   | HaltInstruction
   | SceneEndInstruction
   | AssignInstruction
+  | LabelInstruction
   | RunScriptInstruction
   | SpawnScriptInstruction
   | SceneInstruction;

@@ -22,6 +22,7 @@ describe('Save Schema Validation & Migration Engine (TAD 4.4)', () => {
         instructionPointer: 0,
         callStack: [{ scene: 'intro', ip: 2 }],
         variables: { score: 10, isAlive: true, name: 'Alex' },
+        localVariables: {},
         characterDisplayOverrides: { alice: 'Alice Carroll' },
         customScriptState: { minigame: '{}' },
       };

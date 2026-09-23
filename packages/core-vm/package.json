@@ -10,7 +10,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@vn-engine/shared-types": "workspace:*"
+    "@vn-engine/shared-types": "workspace:*",
+    "jsep": "^1.4.0"
   },
   "devDependencies": {
     "@types/node": "^26.6.1",

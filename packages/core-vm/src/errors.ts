@@ -66,4 +66,3 @@ export class InvalidSaveDataError extends VMRuntimeError {
     this.name = 'InvalidSaveDataError';
   }
 }
-
