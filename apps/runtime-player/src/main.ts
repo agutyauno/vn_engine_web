@@ -26,9 +26,12 @@ window.addEventListener('DOMContentLoaded', async () => {
   // Expose player to window for debugging if needed
   (window as unknown as { vnPlayer: VNPlayer }).vnPlayer = player;
 
-  // Kiểm tra nếu đang nhúng trong iframe (Web Studio Live Preview)
-  const isEmbedded = window.parent && window.parent !== window;
+  // Kiểm tra nếu đang nhúng trong iframe hoặc mở Pop-out (Web Studio Live Preview)
+  const urlParams = new URLSearchParams(window.location.search);
+  const isPopout = urlParams.get('popout') === 'true' || window.name === 'VN_Preview_Popout';
+  const isEmbedded = (window.parent && window.parent !== window) || isPopout || urlParams.get('embedded') === 'true';
   if (isEmbedded) {
+    document.documentElement.classList.add('is-embedded');
     document.body.classList.add('is-embedded');
   }
 

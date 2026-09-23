@@ -110,17 +110,12 @@ export class StudioApp {
   private modalAssetForm: HTMLElement | null;
   private formAsset: HTMLFormElement | null;
 
-  // Drawer elements
-  private drawerBody: HTMLElement;
+  // Workspace & Management panel elements
+  private lastActiveManagementTab: string = 'characters';
   private drawerTabProblems: HTMLElement;
-  private drawerTabVariables: HTMLElement;
-  private drawerPaneProblems: HTMLElement;
-  private drawerPaneVariables: HTMLElement;
-  private drawerToggleBtn: HTMLElement;
   private problemsSummary: HTMLElement;
   private problemsList: HTMLElement;
   private varsWatchTbody: HTMLElement;
-  private drawerResizeHandle: HTMLElement;
 
   // State timers
   private editorDebounceTimerId: number | null = null;
@@ -153,17 +148,11 @@ export class StudioApp {
     this.charReconciliationEl = document.getElementById('char-reconciliation-alerts');
     this.assetReconciliationEl = document.getElementById('asset-reconciliation-alerts');
 
-    // DOM Drawer
-    this.drawerBody = document.getElementById('drawer-body')!;
+    // DOM Management Tabs
     this.drawerTabProblems = document.getElementById('drawer-tab-problems')!;
-    this.drawerTabVariables = document.getElementById('drawer-tab-variables')!;
-    this.drawerPaneProblems = document.getElementById('drawer-pane-problems')!;
-    this.drawerPaneVariables = document.getElementById('drawer-pane-variables')!;
-    this.drawerToggleBtn = document.getElementById('drawer-toggle-btn')!;
     this.problemsSummary = document.getElementById('problems-summary')!;
     this.problemsList = document.getElementById('problems-list')!;
     this.varsWatchTbody = document.getElementById('vars-watch-tbody')!;
-    this.drawerResizeHandle = document.getElementById('drawer-resize-handle')!;
 
     // DOM Modal & Toast
     this.modalExport = document.getElementById('modal-export-wizard')!;
@@ -194,7 +183,6 @@ export class StudioApp {
     this.setupSidebarTabs();
     this.setupCharacterManagement();
     this.setupAssetManagement();
-    this.setupDrawerTabs();
     this.setupHeaderActions();
     this.setupPreviewMessaging();
     this.setupExportWizardActions();
@@ -774,11 +762,9 @@ export class StudioApp {
   // ================================================================
   private setupResizeHandles(): void {
     const sidebarHandle = document.getElementById('sidebar-resize-handle');
-    const previewHandle = document.getElementById('preview-resize-handle');
     const workspace = document.getElementById('studio-workspace');
-    const mainWorkspace = document.getElementById('main-workspace');
 
-    // 1. THANH KÉO DỌC: ĐIỀU CHỈNH ĐỘ RỘNG SIDEBAR (LEFT / RIGHT)
+    // THANH KÉO DỌC: ĐIỀU CHỈNH ĐỘ RỘNG CODE EDITOR BÊN TRÁI (LEFT / RIGHT)
     if (sidebarHandle && workspace) {
       sidebarHandle.addEventListener('mousedown', e => {
         e.preventDefault();
@@ -787,7 +773,8 @@ export class StudioApp {
 
         const onMouseMove = (moveEvent: MouseEvent) => {
           const workspaceRect = workspace.getBoundingClientRect();
-          const newWidth = Math.max(180, Math.min(650, moveEvent.clientX - workspaceRect.left));
+          const newWidth = Math.max(300, Math.min(workspaceRect.width - 320, moveEvent.clientX - workspaceRect.left));
+          document.documentElement.style.setProperty('--editor-width', `${newWidth}px`);
           document.documentElement.style.setProperty('--sidebar-width', `${newWidth}px`);
           this.editorInstance?.layout();
         };
@@ -805,62 +792,7 @@ export class StudioApp {
       });
     }
 
-    // 2. THANH KÉO NGANG: ĐIỀU CHỈNH TỶ LỆ PREVIEW VÀ CODE EDITOR (TOP / BOTTOM)
-    if (previewHandle && mainWorkspace) {
-      previewHandle.addEventListener('mousedown', e => {
-        e.preventDefault();
-        previewHandle.classList.add('dragging');
-        this.previewIframe.style.pointerEvents = 'none';
-
-        const onMouseMove = (moveEvent: MouseEvent) => {
-          const mainRect = mainWorkspace.getBoundingClientRect();
-          const relativeY = moveEvent.clientY - mainRect.top;
-          const percentage = Math.max(20, Math.min(80, (relativeY / mainRect.height) * 100));
-          document.documentElement.style.setProperty('--preview-height', `${percentage}%`);
-          this.editorInstance?.layout();
-        };
-
-        const onMouseUp = () => {
-          previewHandle.classList.remove('dragging');
-          this.previewIframe.style.pointerEvents = 'auto';
-          this.editorInstance?.layout();
-          window.removeEventListener('mousemove', onMouseMove);
-          window.removeEventListener('mouseup', onMouseUp);
-        };
-
-        window.addEventListener('mousemove', onMouseMove);
-        window.addEventListener('mouseup', onMouseUp);
-      });
-    }
-
-    // 3. THANH KÉO NGANG ĐÁY: ĐIỀU CHỈNH ĐỘ CAO BOTTOM DRAWER (PROBLEMS / WATCH)
-    if (this.drawerResizeHandle && mainWorkspace) {
-      this.drawerResizeHandle.addEventListener('mousedown', e => {
-        e.preventDefault();
-        this.drawerResizeHandle.classList.add('dragging');
-        this.previewIframe.style.pointerEvents = 'none';
-
-        const onMouseMove = (moveEvent: MouseEvent) => {
-          const mainRect = mainWorkspace.getBoundingClientRect();
-          const newDrawerHeight = Math.max(50, Math.min(450, mainRect.bottom - moveEvent.clientY));
-          document.documentElement.style.setProperty('--drawer-height', `${newDrawerHeight}px`);
-          this.editorInstance?.layout();
-        };
-
-        const onMouseUp = () => {
-          this.drawerResizeHandle.classList.remove('dragging');
-          this.previewIframe.style.pointerEvents = 'auto';
-          this.editorInstance?.layout();
-          window.removeEventListener('mousemove', onMouseMove);
-          window.removeEventListener('mouseup', onMouseUp);
-        };
-
-        window.addEventListener('mousemove', onMouseMove);
-        window.addEventListener('mouseup', onMouseUp);
-      });
-    }
-
-    // 4. TỰ ĐỘNG CẬP NHẬT LAYOUT MONACO KHI CONTAINER THAY ĐỔI KÍCH THƯỚC
+    // TỰ ĐỘNG CẬP NHẬT LAYOUT MONACO KHI CONTAINER THAY ĐỔI KÍCH THƯỚC
     const monacoContainer = document.getElementById('monaco-container');
     if (monacoContainer && window.ResizeObserver) {
       const resizeObserver = new ResizeObserver(() => {
@@ -871,68 +803,68 @@ export class StudioApp {
   }
 
   // ================================================================
-  // 4. SIDEBAR TÀI NGUYÊN (4 TABS)
+  // 4. BẢNG QUẢN LÝ & TÀI NGUYÊN (TABBED WORKSPACE: PREVIEW & MANAGEMENT PANES)
   // ================================================================
+  public switchWorkspaceTab(tabId: string): void {
+    const tabs = document.querySelectorAll<HTMLButtonElement>('.workspace-tab, .sidebar-tab');
+    const panes = document.querySelectorAll<HTMLElement>('.workspace-pane, .sidebar-pane');
+
+    // Nếu người dùng chọn tab preview:
+    if (tabId === 'preview') {
+      // Đóng cửa sổ rời nếu đang mở theo yêu cầu của user
+      if (this.popoutWindow && !this.popoutWindow.closed) {
+        this.popoutWindow.close();
+        this.popoutWindow = null;
+        this.showToast('Đã đóng cửa sổ rời, chuyển Preview về màn hình chính.');
+      }
+      this.updatePopoutButtonUI();
+    } else {
+      this.lastActiveManagementTab = tabId;
+    }
+
+    tabs.forEach(tab => {
+      if (tab.dataset.tab === tabId) {
+        tab.classList.add('active');
+      } else {
+        tab.classList.remove('active');
+      }
+    });
+
+    panes.forEach(pane => {
+      if (pane.id === `pane-${tabId}`) {
+        pane.classList.add('active');
+      } else {
+        pane.classList.remove('active');
+      }
+    });
+  }
+
+  private updatePopoutButtonUI(): void {
+    const tabPreview = document.getElementById('tab-btn-preview');
+    const isPopoutOpen = this.popoutWindow && !this.popoutWindow.closed;
+    if (tabPreview) {
+      tabPreview.textContent = isPopoutOpen ? 'Live Preview (Cửa sổ rời)' : 'Live Preview';
+    }
+  }
+
   private setupSidebarTabs(): void {
-    const tabs = document.querySelectorAll<HTMLButtonElement>('.sidebar-tab');
-    const panes = document.querySelectorAll<HTMLElement>('.sidebar-pane');
+    const tabs = document.querySelectorAll<HTMLButtonElement>('.workspace-tab, .sidebar-tab');
 
     tabs.forEach(tab => {
       tab.addEventListener('click', () => {
-        tabs.forEach(t => t.classList.remove('active'));
-        panes.forEach(p => p.classList.remove('active'));
-
-        tab.classList.add('active');
-        const targetPane = document.getElementById(`pane-${tab.dataset.tab}`);
-        if (targetPane) targetPane.classList.add('active');
+        const tabId = tab.dataset.tab;
+        if (tabId) {
+          this.switchWorkspaceTab(tabId);
+        }
       });
     });
 
     this.btnAddFile.addEventListener('click', () => {
       this.addNewFile();
     });
-  }
 
-  // ================================================================
-  // 5. BẢNG THÔNG TIN ĐÁY (DRAWER PROBLEMS & VARIABLES WATCH)
-  // ================================================================
-  private setupDrawerTabs(): void {
-    const updateDrawerUI = () => {
-      const isCollapsed = this.drawerBody.classList.contains('collapsed');
-      this.drawerResizeHandle?.classList.toggle('hidden', isCollapsed);
-      if (this.drawerToggleBtn) {
-        this.drawerToggleBtn.textContent = isCollapsed ? '▴' : '▾';
-        this.drawerToggleBtn.title = isCollapsed
-          ? 'Mở rộng bảng thông tin'
-          : 'Thu gọn bảng thông tin';
-      }
-    };
-    updateDrawerUI();
-
-    this.drawerTabProblems.addEventListener('click', () => {
-      this.drawerTabProblems.classList.add('active');
-      this.drawerTabVariables.classList.remove('active');
-      this.drawerPaneProblems.style.display = 'block';
-      this.drawerPaneVariables.style.display = 'none';
-      this.drawerBody.classList.remove('collapsed');
-      updateDrawerUI();
-      this.editorInstance?.layout();
-    });
-
-    this.drawerTabVariables.addEventListener('click', () => {
-      this.drawerTabVariables.classList.add('active');
-      this.drawerTabProblems.classList.remove('active');
-      this.drawerPaneVariables.style.display = 'block';
-      this.drawerPaneProblems.style.display = 'none';
-      this.drawerBody.classList.remove('collapsed');
-      updateDrawerUI();
-      this.editorInstance?.layout();
-    });
-
-    this.drawerToggleBtn.addEventListener('click', () => {
-      this.drawerBody.classList.toggle('collapsed');
-      updateDrawerUI();
-      setTimeout(() => this.editorInstance?.layout(), 50);
+    window.addEventListener('focus', () => {
+      this.updatePopoutButtonUI();
     });
   }
 
@@ -1268,19 +1200,56 @@ export class StudioApp {
           ? `Script đang dùng "${charId}" (${info.displayName}) nhưng chưa khai báo trên tab Nhân vật.`
           : `Script đang gọi "${charId}:" hoặc "show ${charId}" nhưng chưa khai báo trên tab Nhân vật.`;
 
-        const btn = document.createElement('button');
-        btn.className = 'reconciliation-alert-btn';
-        btn.textContent = `+ Tạo ngay nhân vật "${charId}"`;
-        btn.addEventListener('click', () => {
+        const btnGroup = document.createElement('div');
+        btnGroup.style.display = 'flex';
+        btnGroup.style.gap = '8px';
+        btnGroup.style.marginTop = '6px';
+
+        const btnQuick = document.createElement('button');
+        btnQuick.className = 'reconciliation-alert-btn';
+        btnQuick.textContent = `+ Thêm nhanh (Màu mặc định)`;
+        btnQuick.addEventListener('click', () => {
+          this.quickAddCharacter(charId, info.displayName);
+        });
+
+        const btnCustom = document.createElement('button');
+        btnCustom.className = 'reconciliation-alert-btn';
+        btnCustom.style.background = 'transparent';
+        btnCustom.style.border = '1px solid var(--studio-border)';
+        btnCustom.textContent = `✎ Tùy chỉnh chi tiết`;
+        btnCustom.addEventListener('click', () => {
           this.openCharacterModal(undefined, charId, info.displayName);
         });
 
+        btnGroup.appendChild(btnQuick);
+        btnGroup.appendChild(btnCustom);
+
         alertCard.appendChild(title);
         alertCard.appendChild(desc);
-        alertCard.appendChild(btn);
+        alertCard.appendChild(btnGroup);
         this.charReconciliationEl.appendChild(alertCard);
       }
     }
+  }
+
+  private quickAddCharacter(charId: string, displayName?: string): void {
+    const formattedName = displayName || (charId.charAt(0).toUpperCase() + charId.slice(1));
+    if (!Array.isArray(this.project.characters)) {
+      this.project.characters = [];
+    }
+    if (this.project.characters.some(c => c.id === charId)) return;
+
+    this.project.characters.push({
+      id: charId,
+      name: formattedName,
+      colorHex: '#38BDF8',
+      sprites: { default: '' },
+    });
+
+    void this.saveProjectToStorage();
+    this.renderCharacterList();
+    this.compileCurrentScript();
+    this.showToast(`Đã thêm nhanh nhân vật "${charId}" (${formattedName}) với màu mặc định.`);
   }
 
   private renderCharacterList(): void {
@@ -2206,7 +2175,20 @@ export class StudioApp {
         'VN_Preview_Popout',
         'width=1280,height=720,menubar=no,toolbar=no,location=no,status=no',
       );
-      this.showToast('Đã mở cửa sổ Live Preview rời (Đa màn hình)!');
+      this.showToast('Đã mở cửa sổ Live Preview rời! Tự động chuyển sang tab quản lý.');
+      this.updatePopoutButtonUI();
+
+      if (this.latestProgram) {
+        window.setTimeout(() => {
+          if (this.latestProgram) {
+            this.sendProgramToPreview(this.latestProgram);
+          }
+        }, 500);
+      }
+
+      // Tự động chuyển sang tab quản lý còn lại theo yêu cầu của user
+      const targetTab = this.lastActiveManagementTab || 'characters';
+      this.switchWorkspaceTab(targetTab);
     });
   }
 

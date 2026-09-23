@@ -5,9 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Visual Novel Engine - Wireframe Player</title>
     <link rel="stylesheet" href="/src/wireframe.css" />
+    <script>
+      (function() {
+        const isEmbedded = (window.self !== window.top) || 
+                           window.location.search.includes('embedded=true') || 
+                           window.location.search.includes('popout=true') || 
+                           window.name === 'VN_Preview_Popout';
+        if (isEmbedded) {
+          document.documentElement.classList.add('is-embedded');
+        }
+      })();
+    </script>
   </head>
   <body>
-    <div id="game-root">
+    <main id="game-stage">
+      <div id="game-root">
       <!-- TẦNG CANVAS RENDERER (PIXIJS) -->
       <div id="canvas-container"></div>
 
@@ -143,7 +155,7 @@
           </div>
         </div>
       </div>
-    </div>
+    </main>
 
     <!-- THANH FOOTER TRANG CHƠI WEB CÔNG KHAI (PUBLIC PLAYER SHELL) -->
     <footer id="public-player-footer" class="public-footer">

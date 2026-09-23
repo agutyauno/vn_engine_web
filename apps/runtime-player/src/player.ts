@@ -567,7 +567,7 @@ export class VNPlayer {
             c => (instr.character && c.id.toLowerCase() === instr.character.toLowerCase()) ||
                  c.name.toLowerCase() === speakerDisplay.toLowerCase()
           );
-          const charColor = declaredChar?.colorHex || CHAR_COLOR_MAP[charKey] || '#ffffff';
+          const charColor = declaredChar?.colorHex || CHAR_COLOR_MAP[charKey] || '#38bdf8';
           this.speakerNameplate.textContent = charKey;
           this.speakerNameplate.style.color = charColor;
           this.speakerNameplate.style.borderColor = charColor;
@@ -769,7 +769,7 @@ export class VNPlayer {
 
       if (speakerDisplay) {
         const charKey = speakerDisplay.toUpperCase();
-        const charColor = CHAR_COLOR_MAP[charKey] || '#ffffff';
+        const charColor = CHAR_COLOR_MAP[charKey] || '#38bdf8';
         this.speakerNameplate.textContent = charKey;
         this.speakerNameplate.style.color = charColor;
         this.speakerNameplate.style.borderColor = charColor;
@@ -995,7 +995,7 @@ export class VNPlayer {
       const speaker = catchUp.currentDialogue.character;
       if (speaker) {
         const charKey = speaker.toUpperCase();
-        const charColor = CHAR_COLOR_MAP[charKey] || '#ffffff';
+        const charColor = CHAR_COLOR_MAP[charKey] || '#38bdf8';
         this.speakerNameplate.textContent = charKey;
         this.speakerNameplate.style.color = charColor;
         this.speakerNameplate.style.borderColor = charColor;

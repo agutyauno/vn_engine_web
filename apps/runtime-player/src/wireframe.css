@@ -112,28 +112,52 @@
 body, html {
   width: 100%;
   height: 100%;
+  margin: 0;
+  padding: 0;
   background-color: var(--vn-bg-viewport);
   color: var(--vn-text-primary);
   font-family: var(--vn-font-body);
   overflow: hidden;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
 }
 
 /* ================================================================
-   1. KHUNG TỶ LỆ 16:9 CHÍNH (GAME ROOT - LETTERBOXING)
+   1. KHUNG TỶ LỆ 16:9 CHÍNH (GAME STAGE & GAME ROOT - LETTERBOXING)
    ================================================================ */
+#game-stage {
+  flex: 1;
+  width: 100%;
+  height: calc(100vh - 38px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+}
+
 #game-root {
   position: relative;
-  width: 100vw;
-  height: 100vh;
-  max-width: 177.78vh; /* Ràng buộc tỷ lệ chuẩn 16:9 letterbox */
-  max-height: 56.25vw;
+  width: 100%;
+  height: 100%;
+  max-width: calc((100vh - 38px) * 1.7778);
+  max-height: calc(100vw * 0.5625);
   aspect-ratio: 16 / 9;
   background-color: var(--vn-canvas-bg);
   overflow: hidden;
   border: var(--vn-border-width) solid #000000;
+}
+
+/* Khi nhúng trong iframe (Editor Live Preview) hoặc Pop-out dev window */
+html.is-embedded #game-stage,
+body.is-embedded #game-stage {
+  height: 100vh;
+}
+
+html.is-embedded #game-root,
+body.is-embedded #game-root {
+  max-width: 177.78vh;
+  max-height: 56.25vw;
 }
 
 /* TẦNG CANVAS RENDERER (PIXIJS) */
@@ -822,9 +846,6 @@ kbd {
    10. TRANG WEB CHƠI GAME CÔNG KHAI (PUBLIC PLAYER SHELL)
    ================================================================ */
 .public-footer {
-  position: fixed;
-  bottom: 0;
-  left: 0;
   width: 100%;
   height: 38px;
   background: rgba(10, 10, 10, 0.95);
@@ -838,6 +859,7 @@ kbd {
   color: var(--vn-text-secondary);
   z-index: 50;
   user-select: none;
+  flex-shrink: 0;
 }
 
 .public-footer .footer-left {
@@ -855,7 +877,8 @@ kbd {
   gap: 8px;
 }
 
-/* Tự động ẩn footer khi nhúng trong iframe (ví dụ Editor Live Preview) */
+/* Tự động ẩn footer khi nhúng trong iframe (ví dụ Editor Live Preview) hoặc Pop-out */
+html.is-embedded .public-footer,
 body.is-embedded .public-footer {
   display: none !important;
 }

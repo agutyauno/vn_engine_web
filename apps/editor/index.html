@@ -30,20 +30,62 @@
       </div>
     </header>
 
-    <!-- BỐ CỤC LÀM VIỆC CHÍNH: SIDEBAR FULL-HEIGHT BÊN TRÁI + MAIN WORKSPACE BÊN PHẢI -->
+    <!-- BỐ CỤC LÀM VIỆC CHÍNH: CỘT CODE EDITOR BÊN TRÁI + CỤM PREVIEW & BẢNG QUẢN LÝ BÊN PHẢI -->
     <main id="studio-workspace">
-      <!-- SIDEBAR TÀI NGUYÊN (CHIẾM TOÀN BỘ CHIỀU CAO BÊN TRÁI) -->
-      <aside id="sidebar-resources">
-        <div class="sidebar-tabs">
-          <button class="sidebar-tab active" data-tab="files" id="tab-btn-files">Files .vns</button>
-          <button class="sidebar-tab" data-tab="characters" id="tab-btn-characters">Nhân vật</button>
-          <button class="sidebar-tab" data-tab="assets" id="tab-btn-assets">Tài nguyên</button>
-          <button class="sidebar-tab" data-tab="variables" id="tab-btn-variables">Biến cờ</button>
+      <!-- CỘT CODE EDITOR BÊN TRÁI (FULL-HEIGHT, RỘNG RÃI MẶC ĐỊNH) -->
+      <section id="editor-main">
+        <div class="editor-tabs-bar">
+          <div class="editor-file-tab" id="active-file-tab">
+            <span id="active-filename">main.vns</span>
+            <span class="tab-dirty-indicator">●</span>
+          </div>
         </div>
 
-        <div class="sidebar-panes">
+        <div id="monaco-container"></div>
+        <div id="drawer-resize-handle" class="drawer-resize-handle hidden"></div>
+      </section>
+
+      <!-- THANH KÉO ĐIỀU CHỈNH ĐỘ RỘNG GIỮA CODE EDITOR VÀ KHUNG PREVIEW (VERTICAL RESIZE HANDLE) -->
+      <div id="sidebar-resize-handle" title="Kéo chuột sang trái/phải để điều chỉnh độ rộng Code Editor">
+        <div class="v-handle-grip">·<br>·<br>·</div>
+      </div>
+
+      <!-- CỤM WORKSPACE BÊN PHẢI (FULL-HEIGHT TABBED WORKSPACE: LIVE PREVIEW & QUẢN LÝ DỰ ÁN) -->
+      <section id="main-workspace">
+        <!-- THANH TAB HỢP NHẤT TRÊN ĐỈNH CỘT PHẢI (TỐI GIẢN, HẠN CHẾ ICON) -->
+        <div class="workspace-tabs" id="workspace-tabs">
+          <button class="workspace-tab sidebar-tab active" data-tab="preview" id="tab-btn-preview">Live Preview</button>
+          <button class="workspace-tab sidebar-tab" data-tab="files" id="tab-btn-files">Files .vns</button>
+          <button class="workspace-tab sidebar-tab" data-tab="characters" id="tab-btn-characters">Nhân vật</button>
+          <button class="workspace-tab sidebar-tab" data-tab="assets" id="tab-btn-assets">Tài nguyên</button>
+          <button class="workspace-tab sidebar-tab" data-tab="variables" id="tab-btn-variables">Biến cờ</button>
+          <button class="workspace-tab sidebar-tab" data-tab="problems" id="drawer-tab-problems">
+            <span id="problems-summary">Problems (0 lỗi)</span>
+          </button>
+          <button class="workspace-tab sidebar-tab" data-tab="variables-watch" id="drawer-tab-variables">
+            <span>Biến Watch</span>
+          </button>
+          <div class="workspace-actions">
+            <button class="wf-btn-sm" id="btn-reload-preview" title="Tải lại Live Preview">Làm mới</button>
+            <button class="wf-btn-sm" id="btn-popout-preview"
+              title="Tách Live Preview ra cửa sổ độc lập (Đa màn hình)">Cửa sổ rời</button>
+          </div>
+        </div>
+
+        <!-- CỤM NỘI DUNG CÁC TAB (FULL-HEIGHT PANES) -->
+        <div class="workspace-panes" id="workspace-panes">
+          <!-- TAB 0: LIVE PREVIEW FULL-HEIGHT -->
+          <div class="workspace-pane sidebar-pane active" id="pane-preview">
+            <div id="preview-dock">
+              <div class="dock-stage">
+                <iframe id="preview-iframe" src="http://localhost:3000/?embedded=true" frameborder="0"
+                  allow="autoplay; fullscreen"></iframe>
+              </div>
+            </div>
+          </div>
+
           <!-- TAB 1: FILES .VNS -->
-          <div class="sidebar-pane active" id="pane-files">
+          <div class="workspace-pane sidebar-pane" id="pane-files">
             <div class="pane-heading">
               <span>DANH SÁCH FILE KỊCH BẢN</span>
               <button class="wf-btn-sm" id="btn-add-file" title="Tạo thêm tệp kịch bản .vns mới">+ Thêm file</button>
@@ -52,7 +94,7 @@
           </div>
 
           <!-- TAB 2: NHÂN VẬT (QUẢN LÝ & ĐỐI CHIẾU 2 CHIỀU) -->
-          <div class="sidebar-pane" id="pane-characters">
+          <div class="workspace-pane sidebar-pane" id="pane-characters">
             <div class="pane-heading">
               <span>NHÂN VẬT DỰ ÁN</span>
               <button class="wf-btn-sm" id="btn-add-character" title="Thêm nhân vật mới vào dự án">+ Thêm nhân vật</button>
@@ -62,108 +104,59 @@
           </div>
 
           <!-- TAB 3: ASSETS (QUẢN LÝ & ĐỐI CHIẾU 2 CHIỀU) -->
-          <div class="sidebar-pane" id="pane-assets">
+          <div class="workspace-pane sidebar-pane" id="pane-assets">
             <div class="pane-heading">
               <span>TÀI NGUYÊN (ASSETS)</span>
               <button class="wf-btn-sm" id="btn-add-asset" title="Thêm tài nguyên mới vào dự án">+ Thêm asset</button>
             </div>
             <div class="asset-filter-bar">
               <button class="asset-filter-btn active" data-filter="all">Tất cả</button>
-              <button class="asset-filter-btn" data-filter="image">🖼 Hình ảnh</button>
-              <button class="asset-filter-btn" data-filter="audio">🎵 Âm thanh</button>
+              <button class="asset-filter-btn" data-filter="image">Hình ảnh</button>
+              <button class="asset-filter-btn" data-filter="audio">Âm thanh</button>
             </div>
             <div id="asset-reconciliation-alerts"></div>
             <div id="asset-list-container"></div>
           </div>
 
           <!-- TAB 4: BIẾN TRẠNG THÁI -->
-          <div class="sidebar-pane" id="pane-variables">
+          <div class="workspace-pane sidebar-pane" id="pane-variables">
             <div class="pane-heading">
               <span>BIẾN TRẠNG THÁI KỊCH BẢN</span>
             </div>
             <div id="variable-list-container"></div>
           </div>
+
+          <!-- TAB 5: PROBLEMS (LỖI BIÊN DỊCH) -->
+          <div class="workspace-pane sidebar-pane" id="pane-problems">
+            <div id="drawer-pane-problems">
+              <div class="pane-heading">
+                <span>DANH SÁCH LỖI BIÊN DỊCH (PROBLEMS)</span>
+              </div>
+              <div id="problems-list"></div>
+            </div>
+          </div>
+
+          <!-- TAB 6: BIẾN SỐ WATCH -->
+          <div class="workspace-pane sidebar-pane" id="pane-variables-watch">
+            <div id="drawer-pane-variables">
+              <div class="pane-heading">
+                <span>THEO DÕI BIẾN CHẠY (VARIABLES WATCH)</span>
+              </div>
+              <div id="vars-watch-list">
+                <table class="vars-watch-table">
+                  <thead>
+                    <tr>
+                      <th>Tên biến</th>
+                      <th>Kiểu</th>
+                      <th>Giá trị khởi tạo</th>
+                    </tr>
+                  </thead>
+                  <tbody id="vars-watch-tbody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
         </div>
-      </aside>
-
-      <!-- THANH KÉO ĐIỀU CHỈNH ĐỘ RỘNG SIDEBAR (VERTICAL RESIZE HANDLE) -->
-      <div id="sidebar-resize-handle" title="Kéo chuột sang trái/phải để điều chỉnh độ rộng Sidebar">
-        <div class="v-handle-grip">·<br>·<br>·</div>
-      </div>
-
-      <!-- CỤM PREVIEW VÀ CODE EDITOR BÊN PHẢI (#main-workspace) -->
-      <section id="main-workspace">
-        <!-- KHUNG LIVE PREVIEW 16:9 Ở TRÊN (#preview-dock) -->
-        <section id="preview-dock">
-          <div class="dock-header">
-            <div class="dock-title-group">
-              <span class="dock-meta-badge">16:9</span>
-            </div>
-            <div class="dock-actions">
-              <button class="wf-btn-sm" id="btn-reload-preview" title="Tải lại khung Live Preview">↻ Làm mới</button>
-              <button class="wf-btn-sm" id="btn-popout-preview"
-                title="Tách Live Preview ra cửa sổ độc lập (Đa màn hình)">↗ Cửa sổ rời</button>
-            </div>
-          </div>
-          <div class="dock-stage">
-            <iframe id="preview-iframe" src="http://localhost:3000/" frameborder="0"
-              allow="autoplay; fullscreen"></iframe>
-          </div>
-        </section>
-
-        <div id="preview-resize-handle" title="Kéo chuột lên/xuống để thay đổi độ cao Preview và Code Editor">
-          <span class="h-handle-grip">· · ·</span>
-        </div>
-
-        <section id="editor-main">
-          <div class="editor-tabs-bar">
-            <div class="editor-file-tab" id="active-file-tab">
-              <span id="active-filename">main.vns</span>
-              <span class="tab-dirty-indicator">●</span>
-            </div>
-          </div>
-
-          <div id="monaco-container"></div>
-
-          <div id="drawer-resize-handle" class="drawer-resize-handle hidden"
-            title="Kéo chuột lên/xuống để thay đổi độ cao Bảng thông tin đáy">
-            <span class="h-handle-grip">· · ·</span>
-          </div>
-
-          <div id="studio-bottom-drawer">
-            <div class="drawer-header">
-              <div class="drawer-tabs">
-                <button class="drawer-tab-btn" id="drawer-tab-problems">
-                  <span id="problems-summary">● Problems (0 lỗi)</span>
-                </button>
-                <button class="drawer-tab-btn" id="drawer-tab-variables">
-                  <span>Biến số (Watch)</span>
-                </button>
-              </div>
-              <button class="drawer-toggle-btn" id="drawer-toggle-btn" title="Mở rộng bảng thông tin">▴</button>
-            </div>
-            <div class="drawer-body collapsed" id="drawer-body">
-              <div class="drawer-content-pane active" id="drawer-pane-problems">
-                <div id="problems-list"></div>
-              </div>
-
-              <div class="drawer-content-pane" id="drawer-pane-variables" style="display: none;">
-                <div id="vars-watch-list">
-                  <table class="vars-watch-table">
-                    <thead>
-                      <tr>
-                        <th>Tên biến</th>
-                        <th>Kiểu</th>
-                        <th>Giá trị khởi tạo</th>
-                      </tr>
-                    </thead>
-                    <tbody id="vars-watch-tbody"></tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
       </section>
     </main>
 
