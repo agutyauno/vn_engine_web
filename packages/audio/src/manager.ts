@@ -165,12 +165,12 @@ export class AudioManager {
       });
 
       howl.on('loaderror', (_id: number, err: unknown) => {
-        // Ghi nhận cảnh báo khi file âm thanh không tải được
-        console.warn(`[AudioManager] Không thể tải audio asset "${assetId}" từ ${url}:`, err);
+        // Warning when audio asset fails to load
+        console.warn(`[AudioManager] Failed to load audio asset "${assetId}" from ${url}:`, err);
         channel.isPlaying = false;
       });
     } catch (e) {
-      console.warn(`[AudioManager] Lỗi khởi tạo Howl cho "${assetId}":`, e);
+      console.warn(`[AudioManager] Error initializing Howl for "${assetId}":`, e);
       channel.isPlaying = false;
     }
   }

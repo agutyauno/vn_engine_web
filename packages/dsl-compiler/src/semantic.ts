@@ -76,7 +76,7 @@ function checkInterpolatedVariables(
         }
         if (!globals.has(id) && !sceneLocals.has(id)) {
           errors.push({
-            message: `Biến '${id}' trong nội suy chuỗi "${m[0]}" chưa được khai báo (define) trong scene '${sceneName}'.`,
+            message: `Variable '${id}' in string interpolation "${m[0]}" has not been defined in scene '${sceneName}'.`,
             loc,
           });
         }
@@ -109,7 +109,7 @@ export function validateSemantics(ast: ProgramAST): CompileError[] {
         const def = stmt as VarDefineStatement;
         if (globals.has(def.variable)) {
           errors.push({
-            message: `Biến global "${def.variable}" bị định nghĩa trùng lặp ở top-level.`,
+            message: `Global variable "${def.variable}" is defined multiple times at top-level.`,
             loc: def.loc,
           });
         }
@@ -122,7 +122,7 @@ export function validateSemantics(ast: ProgramAST): CompileError[] {
   for (const scene of ast.scenes) {
     if (definedSceneNames.has(scene.name)) {
       errors.push({
-        message: `Tên scene "${scene.name}" bị định nghĩa trùng lặp.`,
+        message: `Scene name "${scene.name}" is defined multiple times.`,
         loc: scene.loc,
       });
     }
@@ -163,7 +163,7 @@ export function validateSemantics(ast: ProgramAST): CompileError[] {
         const gt = stmt as GotoStatement;
         if (!definedSceneNames.has(gt.targetScene)) {
           errors.push({
-            message: `Đích đến của goto "${gt.targetScene}" không tồn tại trong kịch bản.`,
+            message: `Target of goto "${gt.targetScene}" does not exist in script.`,
             loc: gt.loc,
           });
         }
@@ -171,7 +171,7 @@ export function validateSemantics(ast: ProgramAST): CompileError[] {
         const cl = stmt as CallStatement;
         if (!definedSceneNames.has(cl.targetScene)) {
           errors.push({
-            message: `Đích đến của call "${cl.targetScene}" không tồn tại trong kịch bản.`,
+            message: `Target of call "${cl.targetScene}" does not exist in script.`,
             loc: cl.loc,
           });
         }
@@ -181,7 +181,7 @@ export function validateSemantics(ast: ProgramAST): CompileError[] {
           checkInterpolatedVariables(opt.text, globals, sceneLocals, sceneName, opt.loc, errors);
           if (!definedSceneNames.has(opt.targetScene)) {
             errors.push({
-              message: `Lựa chọn "${opt.text}" trỏ tới scene không tồn tại: "${opt.targetScene}".`,
+              message: `Choice "${opt.text}" points to non-existent scene: "${opt.targetScene}".`,
               loc: opt.loc,
             });
           }
@@ -190,12 +190,12 @@ export function validateSemantics(ast: ProgramAST): CompileError[] {
         const def = stmt as VarDefineStatement;
         if (globals.has(def.variable)) {
           errors.push({
-            message: `Biến '${def.variable}' đã được khai báo là global (ở top-level). Không thể dùng cùng tên '${def.variable}' làm biến local trong scene '${sceneName}'.`,
+            message: `Variable '${def.variable}' is already declared as global (at top-level). Cannot reuse '${def.variable}' as a local variable in scene '${sceneName}'.`,
             loc: def.loc,
           });
         } else if (sceneLocals.has(def.variable)) {
           errors.push({
-            message: `Biến local '${def.variable}' bị khai báo trùng lặp trong scene '${sceneName}'.`,
+            message: `Local variable '${def.variable}' is defined multiple times in scene '${sceneName}'.`,
             loc: def.loc,
           });
         } else {
@@ -205,7 +205,7 @@ export function validateSemantics(ast: ProgramAST): CompileError[] {
         const va = stmt as VarAssignStatement;
         if (!globals.has(va.variable) && !sceneLocals.has(va.variable)) {
           errors.push({
-            message: `Biến '${va.variable}' chưa được khai báo trước khi gán giá trị trong scene '${sceneName}'. Vui lòng dùng 'define ${va.variable} = ...' trước.`,
+            message: `Variable '${va.variable}' must be declared before assignment in scene '${sceneName}'. Please use 'define ${va.variable} = ...' first.`,
             loc: va.loc,
           });
         }
@@ -224,7 +224,7 @@ export function validateSemantics(ast: ProgramAST): CompileError[] {
         const showStmt = stmt as ShowStatement;
         if (showStmt.position && (showStmt.x !== undefined || showStmt.y !== undefined)) {
           errors.push({
-            message: `Trong câu lệnh show '${showStmt.character}', không được dùng đồng thời 'position' và tọa độ 'x'/'y'.`,
+            message: `In show statement '${showStmt.character}', cannot use both 'position' and 'x'/'y' coordinates simultaneously.`,
             loc: showStmt.loc,
           });
         }

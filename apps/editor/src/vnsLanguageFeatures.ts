@@ -38,7 +38,7 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): void {
           suggestions.push({
             label: sc,
             kind: monaco.languages.CompletionItemKind.Function,
-            documentation: `Chuyển luồng thực thi đến phân cảnh "${sc}"`,
+            documentation: `Jump execution flow to scene "${sc}"`,
             insertText: sc,
             range,
           });
@@ -54,8 +54,8 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): void {
             label: charId,
             kind: monaco.languages.CompletionItemKind.Class,
             documentation: info.displayName
-              ? `Nhân vật: ${charId} (${info.displayName})`
-              : `Nhân vật: ${charId}`,
+              ? `Character: ${charId} (${info.displayName})`
+              : `Character: ${charId}`,
             insertText: charId,
             range,
           });
@@ -74,7 +74,7 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): void {
             suggestions.push({
               label: sp,
               kind: monaco.languages.CompletionItemKind.EnumMember,
-              documentation: `Biểu cảm sprite "${sp}" của ${charId}`,
+              documentation: `Sprite expression "${sp}" of ${charId}`,
               insertText: sp,
               range,
             });
@@ -89,39 +89,39 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): void {
           {
             label: 'scale: ',
             insert: 'scale: 1.2',
-            doc: 'Phóng to/thu nhỏ đồng đều (vd: scale: 1.2)',
+            doc: 'Uniform scale (e.g. scale: 1.2)',
           },
           {
             label: 'rotate: ',
             insert: 'rotate: 15',
-            doc: 'Góc xoay theo độ (vd: rotate: 45 hoặc -30)',
+            doc: 'Rotation angle in degrees (e.g. rotate: 45 or -30)',
           },
-          { label: 'flipX: ', insert: 'flipX: true', doc: 'Lật gương ngang (flipX: true)' },
-          { label: 'flipY: ', insert: 'flipY: true', doc: 'Lật gương dọc (flipY: true)' },
+          { label: 'flipX: ', insert: 'flipX: true', doc: 'Horizontal flip (flipX: true)' },
+          { label: 'flipY: ', insert: 'flipY: true', doc: 'Vertical flip (flipY: true)' },
           {
             label: 'position: ',
             insert: 'position: "center"',
-            doc: 'Vị trí cố định ("left" | "center" | "right")',
+            doc: 'Anchor position ("left" | "center" | "right")',
           },
-          { label: 'x: ', insert: 'x: 0.5', doc: 'Tọa độ số X tỉ lệ màn hình (0.0 đến 1.0)' },
-          { label: 'y: ', insert: 'y: 0.8', doc: 'Tọa độ số Y tỉ lệ màn hình (0.0 đến 1.0)' },
-          { label: 'offsetX: ', insert: 'offsetX: 20', doc: 'Độ lệch pixel theo trục ngang' },
-          { label: 'offsetY: ', insert: 'offsetY: -20', doc: 'Độ lệch pixel theo trục dọc' },
-          { label: 'alpha: ', insert: 'alpha: 0.8', doc: 'Độ trong suốt mờ ảo (0.0 đến 1.0)' },
+          { label: 'x: ', insert: 'x: 0.5', doc: 'Normalized screen X coordinate (0.0 to 1.0)' },
+          { label: 'y: ', insert: 'y: 0.8', doc: 'Normalized screen Y coordinate (0.0 to 1.0)' },
+          { label: 'offsetX: ', insert: 'offsetX: 20', doc: 'Horizontal pixel offset' },
+          { label: 'offsetY: ', insert: 'offsetY: -20', doc: 'Vertical pixel offset' },
+          { label: 'alpha: ', insert: 'alpha: 0.8', doc: 'Opacity / alpha (0.0 to 1.0)' },
           {
             label: 'transition: ',
             insert: 'transition: "shake"',
-            doc: 'Hiệu ứng chuyển động ("shake" | "hop" | "bounce" | "wobble" | "pop" | "zoom" | "fade" | "slide")',
+            doc: 'Motion effect ("shake" | "hop" | "bounce" | "wobble" | "pop" | "zoom" | "fade" | "slide")',
           },
           {
             label: 'easing: ',
             insert: 'easing: "ease_out"',
-            doc: 'Hàm gia tốc ("ease_out" | "ease_in_out" | "bounce" | "elastic" | "linear")',
+            doc: 'Easing curve ("ease_out" | "ease_in_out" | "bounce" | "elastic" | "linear")',
           },
           {
             label: 'duration: ',
             insert: 'duration: 0.5s',
-            doc: 'Thời lượng chuyển động (vd: 0.5s)',
+            doc: 'Animation duration (e.g. 0.5s)',
           },
         ];
 
@@ -144,7 +144,7 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): void {
           suggestions.push({
             label: bg,
             kind: monaco.languages.CompletionItemKind.File,
-            documentation: `Hình nền: ${bg}`,
+            documentation: `Background: ${bg}`,
             insertText: bg,
             range,
           });
@@ -159,7 +159,7 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): void {
           suggestions.push({
             label: aud,
             kind: monaco.languages.CompletionItemKind.File,
-            documentation: `Tệp âm thanh: ${aud}`,
+            documentation: `Audio asset: ${aud}`,
             insertText: aud,
             range,
           });
@@ -174,7 +174,7 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): void {
           suggestions.push({
             label: v,
             kind: monaco.languages.CompletionItemKind.Variable,
-            documentation: `Biến trạng thái kịch bản: ${v}`,
+            documentation: `Script state variable: ${v}`,
             insertText: v,
             range,
           });
@@ -184,25 +184,25 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): void {
 
       // G. Danh sách Từ khóa Cú pháp Cốt lõi (Keywords)
       const keywords = [
-        { label: 'scene', doc: 'Khai báo phân cảnh mới: scene ten_canh:' },
-        { label: 'reveal', doc: 'Khai báo tên hiển thị nhân vật: reveal charId as "Tên Hiển Thị"' },
-        { label: 'show', doc: 'Hiển thị nhân vật trên sân khấu: show charId sprite' },
-        { label: 'hide', doc: 'Ẩn nhân vật khỏi sân khấu: hide charId' },
-        { label: 'background', doc: 'Đổi hình nền phân cảnh: background bg_id with fade' },
-        { label: 'play music', doc: 'Phát nhạc nền lặp lại: play music bgm_id' },
-        { label: 'play sound', doc: 'Phát hiệu ứng âm thanh một lần: play sound sfx_id' },
-        { label: 'stop', doc: 'Dừng kênh âm thanh: stop music with fade 1s' },
-        { label: 'choice', doc: 'Tạo danh sách lựa chọn rẽ nhánh: choice: "Option A" goto sceneA' },
-        { label: 'goto', doc: 'Chuyển nhánh đến scene khác: goto scene_id' },
-        { label: 'call', doc: 'Gọi phân cảnh con và quay về bằng return: call sub_scene' },
-        { label: 'return', doc: 'Quay về vị trí gọi trước đó của call' },
+        { label: 'scene', doc: 'Declare new scene: scene scene_name:' },
+        { label: 'reveal', doc: 'Declare character display name: reveal charId as "Display Name"' },
+        { label: 'show', doc: 'Show character on stage: show charId sprite' },
+        { label: 'hide', doc: 'Hide character from stage: hide charId' },
+        { label: 'background', doc: 'Change background: background bg_id with fade' },
+        { label: 'play music', doc: 'Play looping background music: play music bgm_id' },
+        { label: 'play sound', doc: 'Play sound effect once: play sound sfx_id' },
+        { label: 'stop', doc: 'Stop audio channel: stop music with fade 1s' },
+        { label: 'choice', doc: 'Branching choice menu: choice: "Option A" goto sceneA' },
+        { label: 'goto', doc: 'Jump to scene: goto scene_id' },
+        { label: 'call', doc: 'Call subroutine scene and return: call sub_scene' },
+        { label: 'return', doc: 'Return from subroutine call' },
         {
           label: 'define',
-          doc: 'Khai báo biến mới: define ten_bien = gia_tri (ở ngoài scene là Global, trong scene là Local)',
+          doc: 'Declare variable: define var_name = value (outside scene: Global, inside scene: Local)',
         },
-        { label: 'if', doc: 'Câu lệnh điều kiện: if (bien == true) { ... }' },
-        { label: 'else', doc: 'Nhánh ngược lại của điều kiện if: else { ... }' },
-        { label: 'while', doc: 'Vòng lặp điều kiện: while (dem < 5) { ... }' },
+        { label: 'if', doc: 'Conditional statement: if (variable == true) { ... }' },
+        { label: 'else', doc: 'Alternative branch of if statement: else { ... }' },
+        { label: 'while', doc: 'Conditional loop: while (count < 5) { ... }' },
       ];
 
       for (const kw of keywords) {

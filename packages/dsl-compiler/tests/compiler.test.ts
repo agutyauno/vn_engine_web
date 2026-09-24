@@ -329,7 +329,9 @@ describe('DSL Compiler Core (5-Stage Pipeline)', () => {
     `;
     const result = compileString(dsl);
     expect(result.success).toBe(false);
-    expect(result.errors?.some(e => e.message.includes('không được dùng đồng thời'))).toBe(true);
+    expect(
+      result.errors?.some(e => e.message.includes("cannot use both 'position' and 'x'/'y'")),
+    ).toBe(true);
   });
 
   it('should compile scenario.vns successfully without syntax or semantic errors', () => {

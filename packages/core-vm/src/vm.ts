@@ -279,7 +279,7 @@ export class VisualNovelVM {
       case 'HALT': {
         if (this.state.callStack.length > 0) {
           console.warn(
-            `[VN Engine Warning] Kịch bản thực thi 'end' khi call stack vẫn còn phần tử (${this.state.callStack.length} frame). Trò chơi kết thúc ngay lập tức.`,
+            `[VN Engine Warning] Script executed 'end' while call stack is not empty (${this.state.callStack.length} frames). Game terminated immediately.`,
           );
         }
         this.state.instructionPointer = this.program.length;
@@ -289,7 +289,7 @@ export class VisualNovelVM {
       case 'SCENE_END': {
         if (this.state.callStack.length > 0) {
           console.warn(
-            `[VN Engine Warning] Scene '${instr.sceneName}' kết thúc mà không có lệnh 'return'. Đã tự động return về caller.`,
+            `[VN Engine Warning] Scene '${instr.sceneName}' reached end without an explicit 'return' statement. Implicit return to caller executed.`,
           );
           const frame = this.state.callStack.pop()!;
           this.state.currentScene = frame.scene;
@@ -388,20 +388,22 @@ export class VisualNovelVM {
    */
   public choose(choiceIndex: number): void {
     if (this.state.instructionPointer >= this.program.length) {
-      throw new InvalidChoiceError('Không thể lựa chọn vì chương trình kịch bản đã kết thúc.');
+      throw new InvalidChoiceError(
+        'Cannot make a choice because the script program has already ended.',
+      );
     }
 
     const currentInstr = this.program[this.state.instructionPointer]!;
     if (currentInstr.type !== 'CHOICE') {
       throw new InvalidChoiceError(
-        `Lệnh hiện tại không phải là CHOICE (nhận được: ${currentInstr.type}).`,
+        `Current instruction is not CHOICE (received: ${currentInstr.type}).`,
       );
     }
 
     const choice = currentInstr.choices[choiceIndex];
     if (!choice) {
       throw new InvalidChoiceError(
-        `Chỉ mục lựa chọn #${choiceIndex} không tồn tại (tổng số: ${currentInstr.choices.length}).`,
+        `Choice index #${choiceIndex} does not exist (total: ${currentInstr.choices.length}).`,
       );
     }
 
@@ -409,7 +411,7 @@ export class VisualNovelVM {
     if (choice.condition) {
       const allowed = this.evaluator.evaluate(choice.condition, this.getEvalContext());
       if (!allowed) {
-        throw new InvalidChoiceError(`Lựa chọn "${choice.text}" có điều kiện không được thỏa mãn.`);
+        throw new InvalidChoiceError(`Choice "${choice.text}" has an unsatisfied condition.`);
       }
     }
 
@@ -556,12 +558,12 @@ export class VisualNovelVM {
         data = JSON.parse(json);
       } catch (parseErr) {
         throw new InvalidSaveDataError(
-          `Chuỗi JSON không đúng định dạng: ${parseErr instanceof Error ? parseErr.message : String(parseErr)}`,
+          `Malformed JSON string: ${parseErr instanceof Error ? parseErr.message : String(parseErr)}`,
         );
       }
 
       if (!data || typeof data !== 'object') {
-        throw new InvalidSaveDataError('thiếu state.');
+        throw new InvalidSaveDataError('missing state.');
       }
 
       const saveData = migrateSaveData(data, CURRENT_SAVE_VERSION);
@@ -575,7 +577,7 @@ export class VisualNovelVM {
         throw err;
       }
       const msg = err instanceof Error ? err.message : String(err);
-      throw new VMRuntimeError(`Không thể tải save game: ${msg}`);
+      throw new VMRuntimeError(`Failed to load save game: ${msg}`);
     }
   }
 

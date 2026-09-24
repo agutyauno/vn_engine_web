@@ -7,19 +7,17 @@ import { VNPlayer } from './player';
 import scenarioSource from './scenario.vns?raw';
 
 window.addEventListener('DOMContentLoaded', async () => {
-  console.log(
-    '[RuntimePlayer] Đang nạp và biên dịch kịch bản VNS mẫu (Bí ẩn phòng Hội học sinh)...',
-  );
+  console.log('[RuntimePlayer] Loading and compiling sample VNS scenario...');
 
   const compileResult = compileString(scenarioSource, 'scenario.vns');
   if (!compileResult.success || !compileResult.program) {
-    console.error('[RuntimePlayer] Lỗi biên dịch kịch bản:', compileResult.errors);
-    alert('Lỗi biên dịch kịch bản! Vui lòng kiểm tra Console.');
+    console.error('[RuntimePlayer] Script compilation error:', compileResult.errors);
+    alert('Script compilation error! Please check Console.');
     return;
   }
 
   console.log(
-    `[RuntimePlayer] Biên dịch thành công ${compileResult.program.length} instructions. Khởi tạo VNPlayer...`,
+    `[RuntimePlayer] Successfully compiled ${compileResult.program.length} instructions. Initializing VNPlayer...`,
   );
 
   const player = new VNPlayer(compileResult.program);
@@ -43,7 +41,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   btnFullscreen?.addEventListener('click', () => {
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen().catch(err => {
-        console.warn('[RuntimePlayer] Không thể bật toàn màn hình:', err);
+        console.warn('[RuntimePlayer] Cannot enter fullscreen:', err);
       });
     } else {
       document.exitFullscreen().catch(() => {});
@@ -53,13 +51,13 @@ window.addEventListener('DOMContentLoaded', async () => {
   document.addEventListener('fullscreenchange', () => {
     if (btnFullscreen) {
       btnFullscreen.textContent = document.fullscreenElement
-        ? '[✕ Thoát toàn màn hình]'
-        : '[⛶ Toàn màn hình]';
+        ? '[✕ Exit Fullscreen]'
+        : '[⛶ Fullscreen]';
     }
   });
 
   document.getElementById('btn-public-report')?.addEventListener('click', () => {
-    player.showToast('Cảm ơn bạn! Đã ghi nhận phản hồi gửi về tác giả.');
+    player.showToast('Thank you! Feedback recorded for author.');
   });
 
   // Báo cho parent (Editor / Live Preview Container) biết Player đã sẵn sàng
@@ -85,7 +83,7 @@ window.addEventListener('message', async (event: MessageEvent) => {
 
   if (event.data?.type === 'HOT_RELOAD_PROGRAM' && Array.isArray(event.data.program)) {
     console.log(
-      `[RuntimePlayer] Nhận lệnh HOT_RELOAD_PROGRAM từ ${event.origin} với ${event.data.program.length} instructions`,
+      `[RuntimePlayer] Received HOT_RELOAD_PROGRAM from ${event.origin} with ${event.data.program.length} instructions`,
     );
     const player = (window as unknown as { vnPlayer?: VNPlayer }).vnPlayer;
     if (player) {

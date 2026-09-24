@@ -37,13 +37,13 @@ export function clearSaveMigrations(): void {
  */
 export function validateVMState(state: unknown): asserts state is VMState {
   if (!state || typeof state !== 'object' || Array.isArray(state)) {
-    throw new InvalidSaveDataError('state phải là một object.');
+    throw new InvalidSaveDataError('state must be an object.');
   }
 
   const s = state as Record<string, unknown>;
 
   if (typeof s['currentScene'] !== 'string' || s['currentScene'].trim() === '') {
-    throw new InvalidSaveDataError('state.currentScene phải là một chuỗi không rỗng.');
+    throw new InvalidSaveDataError('state.currentScene must be a non-empty string.');
   }
 
   if (
@@ -51,26 +51,26 @@ export function validateVMState(state: unknown): asserts state is VMState {
     !Number.isInteger(s['instructionPointer']) ||
     s['instructionPointer'] < 0
   ) {
-    throw new InvalidSaveDataError('state.instructionPointer phải là số nguyên không âm.');
+    throw new InvalidSaveDataError('state.instructionPointer must be a non-negative integer.');
   }
 
   if (!Array.isArray(s['callStack'])) {
-    throw new InvalidSaveDataError('state.callStack phải là một mảng.');
+    throw new InvalidSaveDataError('state.callStack must be an array.');
   }
 
   for (let i = 0; i < s['callStack'].length; i++) {
     const frame = s['callStack'][i];
     if (!frame || typeof frame !== 'object' || Array.isArray(frame)) {
-      throw new InvalidSaveDataError(`state.callStack[${i}] không hợp lệ.`);
+      throw new InvalidSaveDataError(`state.callStack[${i}] is invalid.`);
     }
     const f = frame as Record<string, unknown>;
     if (typeof f['scene'] !== 'string' || typeof f['ip'] !== 'number') {
-      throw new InvalidSaveDataError(`state.callStack[${i}] thiếu trường scene hoặc ip.`);
+      throw new InvalidSaveDataError(`state.callStack[${i}] missing scene or ip field.`);
     }
   }
 
   if (!s['variables'] || typeof s['variables'] !== 'object' || Array.isArray(s['variables'])) {
-    throw new InvalidSaveDataError('state.variables phải là một object.');
+    throw new InvalidSaveDataError('state.variables must be an object.');
   }
 
   if (
@@ -78,7 +78,7 @@ export function validateVMState(state: unknown): asserts state is VMState {
     typeof s['localVariables'] !== 'object' ||
     Array.isArray(s['localVariables'])
   ) {
-    throw new InvalidSaveDataError('state.localVariables phải là một object.');
+    throw new InvalidSaveDataError('state.localVariables must be an object.');
   }
 
   if (
@@ -86,7 +86,7 @@ export function validateVMState(state: unknown): asserts state is VMState {
     typeof s['characterDisplayOverrides'] !== 'object' ||
     Array.isArray(s['characterDisplayOverrides'])
   ) {
-    throw new InvalidSaveDataError('state.characterDisplayOverrides phải là một object.');
+    throw new InvalidSaveDataError('state.characterDisplayOverrides must be an object.');
   }
 
   if (
@@ -94,7 +94,7 @@ export function validateVMState(state: unknown): asserts state is VMState {
     typeof s['customScriptState'] !== 'object' ||
     Array.isArray(s['customScriptState'])
   ) {
-    throw new InvalidSaveDataError('state.customScriptState phải là một object.');
+    throw new InvalidSaveDataError('state.customScriptState must be an object.');
   }
 }
 
@@ -106,7 +106,7 @@ export function migrateSaveData(
   targetVersion: number = CURRENT_SAVE_VERSION,
 ): SaveFileData {
   if (!data || typeof data !== 'object' || Array.isArray(data)) {
-    throw new InvalidSaveDataError('Dữ liệu save game phải là một object JSON.');
+    throw new InvalidSaveDataError('Save game data must be a JSON object.');
   }
 
   let current = { ...(data as Record<string, unknown>) };
@@ -114,11 +114,11 @@ export function migrateSaveData(
   // 1. Xử lý dữ liệu save legacy (không có trường version)
   if (current['version'] === undefined || current['version'] === null) {
     if (!current['state']) {
-      throw new InvalidSaveDataError('thiếu state.');
+      throw new InvalidSaveDataError('missing state.');
     }
     const rawState = current['state'] as Record<string, unknown>;
     if (!rawState || typeof rawState !== 'object') {
-      throw new InvalidSaveDataError('thiếu state.');
+      throw new InvalidSaveDataError('missing state.');
     }
 
     current = {
@@ -153,13 +153,13 @@ export function migrateSaveData(
 
   const fileVersion = current['version'];
   if (typeof fileVersion !== 'number' || !Number.isInteger(fileVersion) || fileVersion < 1) {
-    throw new InvalidSaveDataError(`Phiên bản save file không hợp lệ: ${fileVersion}.`);
+    throw new InvalidSaveDataError(`Invalid save file version: ${fileVersion}.`);
   }
 
   // 2. Chặn nếu save file tạo từ phiên bản engine tương lai
   if (fileVersion > targetVersion) {
     throw new InvalidSaveDataError(
-      `Phiên bản save file (v${fileVersion}) mới hơn phiên bản runtime hỗ trợ (v${targetVersion}). Vui lòng cập nhật engine.`,
+      `Save file version (v${fileVersion}) is newer than supported runtime version (v${targetVersion}). Please update the engine.`,
     );
   }
 
@@ -171,7 +171,7 @@ export function migrateSaveData(
     const migrator = migrationRegistry.get(key);
     if (!migrator) {
       throw new InvalidSaveDataError(
-        `Không tìm thấy migration function chuyển đổi từ v${v} lên v${nextV}.`,
+        `No migration function found to convert from v${v} to v${nextV}.`,
       );
     }
     current = migrator(current);
@@ -180,7 +180,7 @@ export function migrateSaveData(
   }
 
   if (!current['state']) {
-    throw new InvalidSaveDataError('thiếu state.');
+    throw new InvalidSaveDataError('missing state.');
   }
 
   return current as unknown as SaveFileData;

@@ -85,15 +85,15 @@ describe('Expression Parser (JSEP)', () => {
   });
 
   it('should throw clear error on empty or whitespace expression', () => {
-    expect(() => parseExpression('')).toThrowError('Biểu thức không được để trống');
-    expect(() => parseExpression('   ')).toThrowError('Biểu thức không được để trống');
+    expect(() => parseExpression('')).toThrowError('Expression cannot be empty');
+    expect(() => parseExpression('   ')).toThrowError('Expression cannot be empty');
   });
 
   it('should throw syntax error on broken or unsupported expressions', () => {
-    expect(() => parseExpression('a + ')).toThrowError(/Lỗi cú pháp biểu thức/);
-    expect(() => parseExpression('(a + b')).toThrowError(/Lỗi cú pháp biểu thức/);
+    expect(() => parseExpression('a + ')).toThrowError(/Expression syntax error/);
+    expect(() => parseExpression('(a + b')).toThrowError(/Expression syntax error/);
     expect(() => parseExpression('obj.method()')).toThrowError(
-      /Chỉ hỗ trợ gọi hàm trực tiếp theo tên/,
+      /Only direct function calls by name/,
     );
   });
 });

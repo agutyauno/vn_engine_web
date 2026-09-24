@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -20,134 +20,134 @@
   <body>
     <main id="game-stage">
       <div id="game-root">
-      <!-- TẦNG CANVAS RENDERER (PIXIJS) -->
+      <!-- CANVAS RENDERER LAYER (PIXIJS) -->
       <div id="canvas-container"></div>
 
-      <!-- TẦNG GIAO DIỆN HTML5 OVERLAY (VIRTUAL 1280x720 CONTAINER WITH UNIFORM UI SCALING) -->
+      <!-- HTML5 OVERLAY UI LAYER (VIRTUAL 1280x720 CONTAINER WITH UNIFORM UI SCALING) -->
       <div id="ui-layer">
         <div class="dialogue-wrapper">
-          <!-- TÊN NHÂN VẬT (NAMEPLATE GẮN LIỀN VỚI HỘP THOẠI) -->
+          <!-- SPEAKER NAMEPLATE -->
           <div class="speaker-nameplate hidden" id="speaker-nameplate">ALICE</div>
 
-          <!-- HỘP THOẠI (TỰ ĐỘNG ẨN KHI KHÔNG CÓ CÂU THOẠI NÀO) -->
+          <!-- DIALOGUE BOX (AUTOMATICALLY HIDDEN WHEN NO DIALOGUE) -->
           <div class="dialogue-box hidden" id="dialogue-box">
             <div class="dialogue-text" id="dialogue-text"></div>
-            <div class="dialogue-next-indicator" id="dialogue-next-indicator">▼ TIẾP TỤC [→]</div>
+            <div class="dialogue-next-indicator" id="dialogue-next-indicator">▼ CONTINUE [→]</div>
           </div>
 
-          <!-- THANH ĐIỀU KHIỂN (GỌN GÀNG, KHÔNG XUỐNG DÒNG HAY NHẢY VỊ TRÍ) -->
+          <!-- CONTROL BAR -->
           <div class="control-bar" id="control-bar">
-            <button class="wf-btn" id="btn-back" title="Tua lại câu thoại trước (Phím ← hoặc PageUp)">[BACK ←]</button>
-            <button class="wf-btn" id="btn-auto" title="Tự động chuyển câu thoại (Phím A)">[AUTO]</button>
-            <button class="wf-btn" id="btn-skip" title="Tua nhanh thoại (Phím S)">[SKIP]</button>
-            <button class="wf-btn" id="btn-qsave" title="Lưu nhanh trạng thái">[Q.SAVE]</button>
-            <button class="wf-btn" id="btn-qload" title="Tải nhanh điểm lưu gần nhất">[Q.LOAD]</button>
-            <button class="wf-btn" id="btn-hide-ui" title="Ẩn toàn bộ giao diện (Phím H hoặc Chuột giữa)">[HIDE H]</button>
-            <button class="wf-btn" id="btn-menu" title="Mở bảng cài đặt (Phím Esc)">[MENU (ESC)]</button>
+            <button class="wf-btn" id="btn-back" title="Rollback to previous dialogue (Key ← or PageUp)">[BACK ←]</button>
+            <button class="wf-btn" id="btn-auto" title="Auto-advance dialogue (Key A)">[AUTO]</button>
+            <button class="wf-btn" id="btn-skip" title="Skip dialogue (Key S)">[SKIP]</button>
+            <button class="wf-btn" id="btn-qsave" title="Quick Save state">[Q.SAVE]</button>
+            <button class="wf-btn" id="btn-qload" title="Quick Load state">[Q.LOAD]</button>
+            <button class="wf-btn" id="btn-hide-ui" title="Hide UI (Key H or Middle Click)">[HIDE H]</button>
+            <button class="wf-btn" id="btn-menu" title="Open Settings Menu (Key Esc)">[MENU (ESC)]</button>
           </div>
         </div>
 
-        <!-- TOAST THÔNG BÁO TỨC THỜI -->
+        <!-- TOAST NOTIFICATION -->
         <div id="toast-notification" class="toast-popup hidden"></div>
 
-        <!-- HỘP THOẠI LỰA CHỌN RẼ NHÁNH (CHOICE OVERLAY) -->
+        <!-- CHOICE OVERLAY -->
         <div id="choice-overlay" class="hidden">
           <div id="choice-buttons-list"></div>
         </div>
 
-        <!-- BẢNG MENU CÀI ĐẶT TỔNG HỢP (SETTINGS MENU MODAL - ESC) -->
+        <!-- SETTINGS MENU MODAL (ESC) -->
         <div id="modal-settings-menu" class="wf-modal-backdrop hidden">
           <div class="wf-modal settings-menu-modal">
             <div class="wf-modal-header">
               <div class="settings-modal-tabs">
-                <button class="settings-tab-btn active" data-tab="audio">[ ÂM LƯỢNG ]</button>
-                <button class="settings-tab-btn" data-tab="saveload">[ LƯU / TẢI ]</button>
-                <button class="settings-tab-btn" data-tab="backlog">[ LỊCH SỬ THOẠI ]</button>
+                <button class="settings-tab-btn active" data-tab="audio">[ AUDIO ]</button>
+                <button class="settings-tab-btn" data-tab="saveload">[ SAVE / LOAD ]</button>
+                <button class="settings-tab-btn" data-tab="backlog">[ BACKLOG ]</button>
                 <button class="settings-tab-btn" data-tab="debug">[ DEBUG VM ]</button>
-                <button class="settings-tab-btn" data-tab="system">[ CÀI ĐẶT KHÁC ]</button>
+                <button class="settings-tab-btn" data-tab="system">[ SYSTEM ]</button>
               </div>
-              <button class="wf-btn" id="btn-close-settings-menu">[Đóng ✕ (Esc)]</button>
+              <button class="wf-btn" id="btn-close-settings-menu">[Close ✕ (Esc)]</button>
             </div>
             <div class="wf-modal-body">
-              <!-- TAB 1: ÂM THANH & ÂM LƯỢNG -->
+              <!-- TAB 1: AUDIO & VOLUME -->
               <div class="settings-pane active" id="pane-audio">
                 <div class="audio-slider-row">
-                  <span>Tổng quan (Master Volume)</span>
+                  <span>Master Volume</span>
                   <input type="range" id="slider-master" min="0" max="1" step="0.05" value="1.0" />
                   <span class="slider-val" id="val-master">100%</span>
                 </div>
                 <div class="audio-slider-row">
-                  <span>Nhạc nền (BGM Volume)</span>
+                  <span>BGM Volume</span>
                   <input type="range" id="slider-bgm" min="0" max="1" step="0.05" value="1.0" />
                   <span class="slider-val" id="val-bgm">100%</span>
                 </div>
                 <div class="audio-slider-row">
-                  <span>Hiệu ứng âm thanh (SFX Volume)</span>
+                  <span>SFX Volume</span>
                   <input type="range" id="slider-sfx" min="0" max="1" step="0.05" value="1.0" />
                   <span class="slider-val" id="val-sfx">100%</span>
                 </div>
                 <div style="margin-top: 16px; text-align: center;">
-                  <button class="wf-btn" id="btn-mute-toggle" style="width: 100%;">[ Mute / Tắt tiếng: TẮT (Phím M) ]</button>
+                  <button class="wf-btn" id="btn-mute-toggle" style="width: 100%;">[ Mute: OFF (Key M) ]</button>
                 </div>
               </div>
 
-              <!-- TAB 2: LƯU / TẢI GAME (SAVE / LOAD) -->
+              <!-- TAB 2: SAVE / LOAD GAME -->
               <div class="settings-pane" id="pane-saveload">
                 <div class="saveload-mode-bar">
-                  <button class="wf-btn mode-tab-btn active" id="btn-mode-save">[ CHẾ ĐỘ: LƯU GAME ]</button>
-                  <button class="wf-btn mode-tab-btn" id="btn-mode-load">[ CHẾ ĐỘ: TẢI GAME ]</button>
+                  <button class="wf-btn mode-tab-btn active" id="btn-mode-save">[ MODE: SAVE GAME ]</button>
+                  <button class="wf-btn mode-tab-btn" id="btn-mode-load">[ MODE: LOAD GAME ]</button>
                 </div>
                 <div class="save-pagination">
-                  <button class="wf-btn save-page-btn active" data-page="0">[ TRANG 1 (Ô 1 - 6) ]</button>
-                  <button class="wf-btn save-page-btn" data-page="1">[ TRANG 2 (Ô 7 - 12) ]</button>
+                  <button class="wf-btn save-page-btn active" data-page="0">[ PAGE 1 (Slots 1 - 6) ]</button>
+                  <button class="wf-btn save-page-btn" data-page="1">[ PAGE 2 (Slots 7 - 12) ]</button>
                 </div>
                 <div class="save-slots-grid" id="save-slots-container"></div>
               </div>
 
-              <!-- TAB 3: LỊCH SỬ THOẠI (BACKLOG / LOG) -->
+              <!-- TAB 3: BACKLOG / LOG -->
               <div class="settings-pane" id="pane-backlog">
                 <div class="backlog-list" id="backlog-container"></div>
               </div>
 
               <!-- TAB 4: DEBUG INSPECTOR (VM STATE) -->
               <div class="settings-pane" id="pane-debug">
-                <div class="debug-section-title">1. Thông tin vị trí thực thi máy ảo VM</div>
+                <div class="debug-section-title">1. VM Execution Position Info</div>
                 <table class="debug-table">
-                  <tr><th>Trường</th><th>Giá trị</th></tr>
+                  <tr><th>Field</th><th>Value</th></tr>
                   <tr><td>Current Scene</td><td id="debug-scene">-</td></tr>
                   <tr><td>Instruction Pointer (IP)</td><td id="debug-ip">-</td></tr>
                   <tr><td>Call Stack Depth</td><td id="debug-callstack">-</td></tr>
                 </table>
 
-                <div class="debug-section-title">2. Bảng biến số (Variables)</div>
+                <div class="debug-section-title">2. Variables Table</div>
                 <table class="debug-table">
-                  <thead><tr><th>Tên biến</th><th>Giá trị hiện tại</th><th>Kiểu dữ liệu</th></tr></thead>
+                  <thead><tr><th>Variable Name</th><th>Current Value</th><th>Type</th></tr></thead>
                   <tbody id="debug-variables-body"></tbody>
                 </table>
 
-                <div class="debug-section-title">3. Kênh âm thanh đang mở</div>
+                <div class="debug-section-title">3. Active Audio Channels</div>
                 <table class="debug-table">
-                  <thead><tr><th>Kênh</th><th>Asset ID</th><th>Volume</th><th>Loop</th><th>Đang phát</th></tr></thead>
+                  <thead><tr><th>Channel</th><th>Asset ID</th><th>Volume</th><th>Loop</th><th>Playing</th></tr></thead>
                   <tbody id="debug-audio-body"></tbody>
                 </table>
               </div>
 
-              <!-- TAB 5: CÀI ĐẶT KHÁC (SYSTEM) -->
+              <!-- TAB 5: SYSTEM SETTINGS -->
               <div class="settings-pane" id="pane-system">
                 <div class="system-settings-group">
-                  <div class="debug-section-title">Phím tắt nhanh</div>
+                  <div class="debug-section-title">Keyboard Shortcuts</div>
                   <div class="shortcut-legend">
-                    <div><kbd>Space</kbd> / <kbd>Enter</kbd> / <kbd>→</kbd> : Tiếp tục câu thoại</div>
-                    <div><kbd>←</kbd> / <kbd>PageUp</kbd> : Tua lại câu thoại trước</div>
-                    <div><kbd>A</kbd> : Bật/tắt tự động chạy (Auto)</div>
-                    <div><kbd>S</kbd> : Bật/tắt tua nhanh (Skip)</div>
-                    <div><kbd>H</kbd> / Chuột giữa : Ẩn/hiện toàn bộ giao diện</div>
-                    <div><kbd>M</kbd> : Tắt/bật âm thanh nhanh (Mute)</div>
-                    <div><kbd>Esc</kbd> : Mở / Đóng bảng Menu Cài đặt</div>
+                    <div><kbd>Space</kbd> / <kbd>Enter</kbd> / <kbd>→</kbd> : Advance dialogue</div>
+                    <div><kbd>←</kbd> / <kbd>PageUp</kbd> : Rollback previous dialogue</div>
+                    <div><kbd>A</kbd> : Toggle Auto-forward</div>
+                    <div><kbd>S</kbd> : Toggle Skip</div>
+                    <div><kbd>H</kbd> / Middle Click : Toggle UI visibility</div>
+                    <div><kbd>M</kbd> : Quick Mute/Unmute</div>
+                    <div><kbd>Esc</kbd> : Open / Close Settings Menu</div>
                   </div>
                   <div style="margin-top: 20px; display: flex; gap: 12px;">
-                    <button class="wf-btn" id="btn-system-fullscreen" style="flex: 1;">[ ⛶ Toàn màn hình ]</button>
-                    <button class="wf-btn" id="btn-system-restart" style="flex: 1;">[ ⟲ Bắt đầu lại từ đầu ]</button>
+                    <button class="wf-btn" id="btn-system-fullscreen" style="flex: 1;">[ ⛶ Fullscreen ]</button>
+                    <button class="wf-btn" id="btn-system-restart" style="flex: 1;">[ ⟲ Restart from Beginning ]</button>
                   </div>
                 </div>
               </div>
@@ -157,16 +157,16 @@
       </div>
     </main>
 
-    <!-- THANH FOOTER TRANG CHƠI WEB CÔNG KHAI (PUBLIC PLAYER SHELL) -->
+    <!-- PUBLIC PLAYER FOOTER -->
     <footer id="public-player-footer" class="public-footer">
       <div class="footer-left">
-        <span class="footer-author">Tác giả: <strong>VN Studio Creator</strong></span>
+        <span class="footer-author">Author: <strong>VN Studio Creator</strong></span>
         <span class="footer-sep">•</span>
         <span class="footer-engine">Powered by <strong>VN Engine</strong></span>
       </div>
       <div class="footer-actions">
-        <button class="wf-btn" id="btn-public-report" title="Báo cáo lỗi cho tác giả">[⚠ Báo cáo lỗi]</button>
-        <button class="wf-btn" id="btn-public-fullscreen" title="Chuyển đổi toàn màn hình">[⛶ Toàn màn hình]</button>
+        <button class="wf-btn" id="btn-public-report" title="Report bug to author">[⚠ Report Bug]</button>
+        <button class="wf-btn" id="btn-public-fullscreen" title="Toggle Fullscreen">[⛶ Fullscreen]</button>
       </div>
     </footer>
 

@@ -43,7 +43,7 @@ export class Compiler {
       if (lexResult.errors.length > 0) {
         for (const err of lexResult.errors) {
           errors.push({
-            message: `Lỗi từ vựng: ${err.message}`,
+            message: `Lexer error: ${err.message}`,
             loc: {
               fileId: file.id,
               line: err.line ?? 1,
@@ -61,7 +61,7 @@ export class Compiler {
       if (parserInstance.errors.length > 0) {
         for (const err of parserInstance.errors) {
           errors.push({
-            message: `Lỗi cú pháp: ${err.message}`,
+            message: `Syntax error: ${err.message}`,
             loc: {
               fileId: file.id,
               line: err.token.startLine ?? 1,

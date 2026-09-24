@@ -16,7 +16,7 @@ describe('Semantic Validator & Multi-File Compilation', () => {
     const result = compileString(dsl, 'duplicate.vns');
     expect(result.success).toBe(false);
     expect(result.errors).toBeDefined();
-    expect(result.errors![0]?.message).toContain('bị định nghĩa trùng lặp');
+    expect(result.errors![0]?.message).toContain('is defined multiple times');
   });
 
   it('should detect missing target scenes in goto, call, and choice statements', () => {
@@ -129,7 +129,7 @@ describe('Semantic Validator & Multi-File Compilation', () => {
     const result = compile(files);
     expect(result.success).toBe(false);
     expect(result.errors).toBeDefined();
-    expect(result.errors![0]?.message).toContain('bị định nghĩa trùng lặp');
+    expect(result.errors![0]?.message).toContain('is defined multiple times');
   });
 
   it('should reject unqualified suffix references and not guess matching suffix scenes', () => {
@@ -150,7 +150,7 @@ describe('Semantic Validator & Multi-File Compilation', () => {
     const result = compileString(dsl, 'test_suffix.vns');
     expect(result.success).toBe(false);
     expect(result.errors).toBeDefined();
-    expect(result.errors![0]?.message).toContain('Đích đến của goto "ask_question" không tồn tại');
+    expect(result.errors![0]?.message).toContain('Target of goto "ask_question" does not exist');
   });
 
   it('should correctly resolve proper local dot labels across different chapters without conflict', () => {

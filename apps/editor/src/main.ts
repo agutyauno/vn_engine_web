@@ -30,29 +30,59 @@ import {
   type IProjectRepository,
 } from './repository/projectRepository';
 
-// Thiết lập Web Worker cho Monaco Editor trong môi trường Vite
+// Configure Web Worker for Monaco Editor in Vite
 self.MonacoEnvironment = {
   getWorker: function (_moduleId: string, _label: string) {
     return new editorWorker();
   },
 };
 
+const DEFAULT_STARTER_SCRIPT = `# ==============================================================
+# Welcome to Visual Novel Engine!
+# Write your script here and see the live preview on the right.
+# ==============================================================
+
+scene start {
+    background bg_courtyard transition: "fade"
+    play music "theme_peaceful" volume: 0.8 loop: true
+
+    show alice.happy(position: "center")
+    alice: "Hello and welcome to your new visual novel story!"
+    alice: "You can write script scenes here and see them previewed live on the right."
+
+    choice {
+        "Tell me more": goto .more_info
+        "Let's get started": goto .begin
+    }
+
+    scene .more_info {
+        alice: "You can manage characters, backgrounds, and audio assets in the tabs above."
+        goto .begin
+    }
+
+    scene .begin {
+        alice: "Have fun creating your adventure!"
+        end
+    }
+}
+`;
+
 export class StudioApp {
   private compiler: Compiler;
   private repository: IProjectRepository;
 
-  // Cấu trúc dự án theo chuẩn schema @vn-engine/shared-types (Project)
+  // Project structure conforming to @vn-engine/shared-types schema (Project)
   private project: Project = {
     id: 'local_default_project',
-    title: 'Bí Mật Học Viện',
+    title: 'Academy Mystery',
     version: 1,
     ownerId: 'local_user',
-    defaultLanguage: 'vi',
+    defaultLanguage: 'en',
     files: [
       {
         id: 'main.vns',
         name: 'main.vns',
-        content: '',
+        content: DEFAULT_STARTER_SCRIPT,
         order: 0,
         version: 1,
       },
@@ -172,7 +202,7 @@ export class StudioApp {
     await this.loadProjectFromStorage();
 
     // 2. Thiết lập tiêu đề và danh sách tệp & quản lý dữ liệu
-    this.projectTitleEl.textContent = this.project.title || 'Bí Mật Học Viện';
+    this.projectTitleEl.textContent = this.project.title || 'Academy Mystery';
     this.activeFilenameEl.textContent = this.activeFile;
     this.renderFileList();
     this.renderCharacterList();
@@ -356,7 +386,7 @@ export class StudioApp {
       const loaded = await this.repository.getProject('local_default_project');
       if (loaded && Array.isArray(loaded.files) && loaded.files.length > 0) {
         this.project = loaded;
-        if (!this.project.title) this.project.title = 'Bí Mật Học Viện';
+        if (!this.project.title) this.project.title = 'Academy Mystery';
         if (!Array.isArray(this.project.characters)) this.project.characters = [];
         if (!Array.isArray(this.project.assets)) this.project.assets = [];
         const fileNames = this.project.files.map(f => f.name);
@@ -366,21 +396,21 @@ export class StudioApp {
         return;
       }
     } catch (e) {
-      console.warn('[StudioApp] Không thể nạp dự án từ IndexedDB:', e);
+      console.warn('[StudioApp] Could not load project from IndexedDB:', e);
     }
 
-    // Dự án mặc định ban đầu
+    // Default initial project
     this.project = {
       id: 'local_default_project',
-      title: 'Bí Mật Học Viện',
+      title: 'Academy Mystery',
       version: 1,
       ownerId: 'local_user',
-      defaultLanguage: 'vi',
+      defaultLanguage: 'en',
       files: [
         {
           id: 'main.vns',
           name: 'main.vns',
-          content: '',
+          content: DEFAULT_STARTER_SCRIPT,
           order: 0,
           version: 1,
         },
@@ -424,29 +454,29 @@ export class StudioApp {
 
   private async saveProjectToStorage(): Promise<void> {
     try {
-      this.saveStatusPill.textContent = '● ĐANG LƯU...';
+      this.saveStatusPill.textContent = '● SAVING...';
       this.saveStatusPill.className = 'save-status-pill syncing';
 
       this.project.version = (this.project.version || 1) + 1;
       await this.repository.saveProject(this.project);
 
-      this.saveStatusPill.textContent = '● ĐÃ LƯU';
+      this.saveStatusPill.textContent = '● SAVED';
       this.saveStatusPill.className = 'save-status-pill';
     } catch (e) {
-      console.error('[StudioApp] Lỗi khi lưu vào IndexedDB:', e);
-      this.saveStatusPill.textContent = '● LỖI LƯU TRỮ';
+      console.error('[StudioApp] Error saving to IndexedDB:', e);
+      this.saveStatusPill.textContent = '● SAVE ERROR';
       this.saveStatusPill.className = 'save-status-pill error';
     }
   }
 
   private setupProjectTitleRename(): void {
     this.projectTitleEl.addEventListener('click', () => {
-      const newTitle = window.prompt('Nhập tên dự án mới:', this.project.title);
+      const newTitle = window.prompt('Enter new project title:', this.project.title);
       if (newTitle && newTitle.trim()) {
         this.project.title = newTitle.trim();
         this.projectTitleEl.textContent = this.project.title;
         void this.saveProjectToStorage();
-        this.showToast(`Đã đổi tên dự án: "${this.project.title}"`);
+        this.showToast(`Project renamed: "${this.project.title}"`);
       }
     });
   }
@@ -471,7 +501,7 @@ export class StudioApp {
         const btnDel = document.createElement('button');
         btnDel.className = 'btn-file-delete';
         btnDel.innerHTML = '✕';
-        btnDel.title = `Xóa tệp ${fileName}`;
+        btnDel.title = `Delete file ${fileName}`;
         btnDel.addEventListener('click', e => {
           e.stopPropagation();
           this.deleteFile(fileName);
@@ -483,7 +513,7 @@ export class StudioApp {
         this.switchActiveFile(fileName);
       });
 
-      // Double click để đổi tên tệp (chuẩn Windows Explorer)
+      // Double click to rename file
       li.addEventListener('dblclick', e => {
         e.stopPropagation();
         this.startRenameFile(fileName, li);
@@ -500,19 +530,19 @@ export class StudioApp {
     const fileExists = this.project.files.some(f => f.name === fileName);
     if (!fileExists) return;
 
-    // Lưu ngay nội dung file cũ nếu đang có timer debounce dở dang
+    // Flush any pending debounce changes
     this.flushEditorChanges();
 
-    // Chuyển activeFile
+    // Switch activeFile
     this.activeFile = fileName;
 
-    // Chuyển Monaco model
+    // Switch Monaco model
     const targetModel = this.getOrCreateTextModel(fileName, this.getFileContent(fileName));
     this.editorInstance.setModel(targetModel);
     this.activeFilenameEl.textContent = fileName;
 
     this.renderFileList();
-    this.showToast(`Đang mở: ${fileName}`);
+    this.showToast(`Opening: ${fileName}`);
     this.compileCurrentScript();
   }
 
@@ -558,7 +588,7 @@ export class StudioApp {
     li.appendChild(input);
     this.fileListEl.appendChild(li);
 
-    // Bôi đen phần tên trước đuôi .vns (chuẩn Windows Explorer)
+    // Select name portion excluding .vns extension
     const dotIndex = defaultName.lastIndexOf('.');
     const selectEnd = dotIndex !== -1 ? dotIndex : defaultName.length;
     input.focus();
@@ -580,16 +610,16 @@ export class StudioApp {
         rawName += '.vns';
       }
 
-      // Kiểm tra ký tự cấm kiểu Windows: \ / : * ? " < > |
+      // Check forbidden characters: \ / : * ? " < > |
       if (/[\\/:*?"<>|]/.test(rawName)) {
-        this.showToast('Tên tệp không được chứa các ký tự: \\ / : * ? " < > |');
+        this.showToast('File name cannot contain characters: \\ / : * ? " < > |');
         li.remove();
         return;
       }
 
       const fileExists = this.project.files.some(f => f.name === rawName);
       if (fileExists) {
-        this.showToast(`Tệp "${rawName}" đã tồn tại!`);
+        this.showToast(`File "${rawName}" already exists!`);
         li.remove();
         return;
       }
@@ -606,7 +636,7 @@ export class StudioApp {
       void this.saveProjectToStorage();
       this.renderFileList();
       this.compileCurrentScript();
-      this.showToast(`Đã tạo tệp mới: ${rawName}`);
+      this.showToast(`Created new file: ${rawName}`);
     };
 
     const cancelCreation = () => {
@@ -676,19 +706,19 @@ export class StudioApp {
       }
 
       if (/[\\/:*?"<>|]/.test(newName)) {
-        this.showToast('Tên tệp không được chứa các ký tự: \\ / : * ? " < > |');
+        this.showToast('File name cannot contain characters: \\ / : * ? " < > |');
         this.renderFileList();
         return;
       }
 
       const fileExists = this.project.files.some(f => f.name === newName);
       if (fileExists) {
-        this.showToast(`Tệp "${newName}" đã tồn tại!`);
+        this.showToast(`File "${newName}" already exists!`);
         this.renderFileList();
         return;
       }
 
-      // Đổi tên trong danh sách tệp
+      // Rename in files list
       const content = this.getFileContent(oldFileName);
       this.renameFileKey(oldFileName, newName);
 
@@ -704,7 +734,7 @@ export class StudioApp {
       void this.saveProjectToStorage();
       this.renderFileList();
       this.compileCurrentScript();
-      this.showToast(`Đã đổi tên: ${oldFileName} → ${newName}`);
+      this.showToast(`Renamed: ${oldFileName} → ${newName}`);
     };
 
     const cancelRename = () => {
@@ -730,21 +760,21 @@ export class StudioApp {
 
   private deleteFile(fileName: string): void {
     if (fileName === 'main.vns') {
-      this.showToast('Không thể xóa tệp gốc main.vns!');
+      this.showToast('Cannot delete root file main.vns!');
       return;
     }
 
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa tệp "${fileName}"?`)) return;
+    if (!window.confirm(`Are you sure you want to delete file "${fileName}"?`)) return;
 
     const wasActive = this.activeFile === fileName;
 
-    // 1. Xóa khỏi danh sách file
+    // 1. Remove from files list
     this.removeFile(fileName);
 
     // 2. Dispose Monaco model
     this.disposeTextModel(fileName);
 
-    // 3. Nếu file bị xóa đang là file active, chuyển sang file đầu tiên
+    // 3. Fallback if active
     if (wasActive) {
       const fallbackFile = this.project.files[0]?.name ?? 'main.vns';
       this.activeFile = fallbackFile;
@@ -760,7 +790,7 @@ export class StudioApp {
     void this.saveProjectToStorage();
     this.renderFileList();
     this.compileCurrentScript();
-    this.showToast(`Đã xóa tệp: ${fileName}`);
+    this.showToast(`Deleted file: ${fileName}`);
   }
 
   // ================================================================
@@ -818,13 +848,13 @@ export class StudioApp {
     const tabs = document.querySelectorAll<HTMLButtonElement>('.workspace-tab, .sidebar-tab');
     const panes = document.querySelectorAll<HTMLElement>('.workspace-pane, .sidebar-pane');
 
-    // Nếu người dùng chọn tab preview:
+    // If user switches to preview tab
     if (tabId === 'preview') {
-      // Đóng cửa sổ rời nếu đang mở theo yêu cầu của user
+      // Close popout window if open
       if (this.popoutWindow && !this.popoutWindow.closed) {
         this.popoutWindow.close();
         this.popoutWindow = null;
-        this.showToast('Đã đóng cửa sổ rời, chuyển Preview về màn hình chính.');
+        this.showToast('Closed pop-out window, restored Preview to main screen.');
       }
       this.updatePopoutButtonUI();
     } else {
@@ -852,7 +882,7 @@ export class StudioApp {
     const tabPreview = document.getElementById('tab-btn-preview');
     const isPopoutOpen = this.popoutWindow && !this.popoutWindow.closed;
     if (tabPreview) {
-      tabPreview.textContent = isPopoutOpen ? 'Live Preview (Cửa sổ rời)' : 'Live Preview';
+      tabPreview.textContent = isPopoutOpen ? 'Live Preview (Pop-out)' : 'Live Preview';
     }
   }
 
@@ -881,11 +911,11 @@ export class StudioApp {
   // 6. BIÊN DỊCH REAL-TIME & ĐỒNG BỘ MONACO MARKERS (DECOUPLED AUTO-SAVE)
   // ================================================================
   private handleEditorChange(): void {
-    this.saveStatusPill.textContent = '● ĐANG LƯU...';
+    this.saveStatusPill.textContent = '● SAVING...';
     this.saveStatusPill.className = 'save-status-pill syncing';
 
     if (this.compilerIndicator) {
-      this.compilerIndicator.textContent = 'Đang phân tích cú pháp...';
+      this.compilerIndicator.textContent = 'Parsing script...';
       this.compilerIndicator.className = 'compiler-status-indicator compiling';
     }
 
@@ -934,12 +964,12 @@ export class StudioApp {
       this.latestProgram = result.program;
 
       if (this.compilerIndicator) {
-        this.compilerIndicator.textContent = 'Biên dịch tự động: SẴN SÀNG';
+        this.compilerIndicator.textContent = 'Auto compilation: READY';
         this.compilerIndicator.className = 'compiler-status-indicator';
       }
 
       this.drawerTabProblems.classList.remove('has-error');
-      this.problemsSummary.textContent = '● Problems (0 lỗi)';
+      this.problemsSummary.textContent = '● Problems (0 errors)';
       this.problemsList.innerHTML = '';
 
       if (currentModel) {
@@ -954,12 +984,12 @@ export class StudioApp {
     } else {
       const errors = result.errors || [];
       if (this.compilerIndicator) {
-        this.compilerIndicator.textContent = `Biên dịch tự động: CÓ ${errors.length} LỖI`;
+        this.compilerIndicator.textContent = `Auto compilation: ${errors.length} ERRORS`;
         this.compilerIndicator.className = 'compiler-status-indicator error';
       }
 
       this.drawerTabProblems.classList.add('has-error');
-      this.problemsSummary.textContent = `● Problems (${errors.length} lỗi)`;
+      this.problemsSummary.textContent = `● Problems (${errors.length} errors)`;
 
       // Tạo markers gạch chân đỏ trên Monaco
       if (currentModel) {
@@ -988,7 +1018,7 @@ export class StudioApp {
         const line = err.loc?.line ?? 1;
         const col = err.loc?.col ?? 1;
         const file = err.loc?.fileId ? `[${err.loc.fileId}] ` : '';
-        row.textContent = `✕ ${file}Dòng ${line}, Cột ${col}: ${err.message}`;
+        row.textContent = `✕ ${file}Line ${line}, Col ${col}: ${err.message}`;
         row.addEventListener('click', () => {
           if (err.loc?.fileId && err.loc.fileId !== this.activeFile) {
             this.switchActiveFile(err.loc.fileId);
@@ -1032,7 +1062,7 @@ export class StudioApp {
           const vd = stmt as VarDefineStatement;
           variables.set(vd.variable, {
             name: vd.variable,
-            value: (vd.value as { value?: unknown })?.value ?? 'gán giá trị',
+            value: (vd.value as { value?: unknown })?.value ?? 'assigned value',
             scope: 'global',
           });
         }
@@ -1066,7 +1096,7 @@ export class StudioApp {
           const vd = stmt as VarDefineStatement;
           variables.set(vd.variable, {
             name: vd.variable,
-            value: (vd.value as { value?: unknown })?.value ?? 'gán giá trị',
+            value: (vd.value as { value?: unknown })?.value ?? 'assigned value',
             scope: 'local',
             sceneName,
           });
@@ -1078,7 +1108,7 @@ export class StudioApp {
           } else {
             variables.set(v.variable, {
               name: v.variable,
-              value: (v.value as { value?: unknown })?.value ?? 'gán giá trị',
+              value: (v.value as { value?: unknown })?.value ?? 'assigned value',
               scope: 'local',
               sceneName,
             });
@@ -1126,7 +1156,7 @@ export class StudioApp {
         const hint = document.createElement('div');
         hint.className = 'empty-meta-hint';
         hint.textContent =
-          'Chưa có biến trạng thái. Dùng cú pháp: define tên_biến = giá_tri để khai báo biến.';
+          'No state variables yet. Use syntax: define var_name = value to declare a variable.';
         this.varContainer.appendChild(hint);
       } else {
         for (const [, meta] of variables) {
@@ -1151,7 +1181,7 @@ export class StudioApp {
 
           const pill = document.createElement('span');
           pill.className = 'meta-tag-pill';
-          pill.textContent = `Khởi tạo: ${String(meta.value)}`;
+          pill.textContent = `Initial: ${String(meta.value)}`;
           tags.appendChild(pill);
 
           card.appendChild(tags);
@@ -1167,7 +1197,7 @@ export class StudioApp {
       const td = document.createElement('td');
       td.colSpan = 4;
       td.style.color = '#666';
-      td.textContent = 'Chưa có biến nào.';
+      td.textContent = 'No variables.';
       tr.appendChild(td);
       this.varsWatchTbody.appendChild(tr);
     } else {
@@ -1255,13 +1285,13 @@ export class StudioApp {
 
         const title = document.createElement('div');
         title.className = 'reconciliation-alert-title';
-        title.textContent = `⚠️ Nhân vật "${charId}" chưa được tạo trong dự án`;
+        title.textContent = `⚠️ Character "${charId}" not declared in project`;
 
         const desc = document.createElement('div');
         desc.className = 'reconciliation-alert-desc';
         desc.textContent = info.displayName
-          ? `Script đang dùng "${charId}" (${info.displayName}) nhưng chưa khai báo trên tab Nhân vật.`
-          : `Script đang gọi "${charId}:" hoặc "show ${charId}" nhưng chưa khai báo trên tab Nhân vật.`;
+          ? `Script uses "${charId}" (${info.displayName}) but it is not added in the Characters tab.`
+          : `Script uses "${charId}:" or "show ${charId}" but it is not added in the Characters tab.`;
 
         const btnGroup = document.createElement('div');
         btnGroup.style.display = 'flex';
@@ -1270,7 +1300,7 @@ export class StudioApp {
 
         const btnQuick = document.createElement('button');
         btnQuick.className = 'reconciliation-alert-btn';
-        btnQuick.textContent = `+ Thêm nhanh (Màu mặc định)`;
+        btnQuick.textContent = `+ Quick Add (Default Color)`;
         btnQuick.addEventListener('click', () => {
           this.quickAddCharacter(charId, info.displayName);
         });
@@ -1279,7 +1309,7 @@ export class StudioApp {
         btnCustom.className = 'reconciliation-alert-btn';
         btnCustom.style.background = 'transparent';
         btnCustom.style.border = '1px solid var(--studio-border)';
-        btnCustom.textContent = `✎ Tùy chỉnh chi tiết`;
+        btnCustom.textContent = `✎ Customise`;
         btnCustom.addEventListener('click', () => {
           this.openCharacterModal(undefined, charId, info.displayName);
         });
@@ -1312,7 +1342,7 @@ export class StudioApp {
     void this.saveProjectToStorage();
     this.renderCharacterList();
     this.compileCurrentScript();
-    this.showToast(`Đã thêm nhanh nhân vật "${charId}" (${formattedName}) với màu mặc định.`);
+    this.showToast(`Quick added character "${charId}" (${formattedName}) with default color.`);
   }
 
   private renderCharacterList(): void {
@@ -1324,7 +1354,7 @@ export class StudioApp {
       const hint = document.createElement('div');
       hint.className = 'empty-meta-hint';
       hint.textContent =
-        'Chưa có nhân vật nào trong dự án. Bấm "+ Thêm nhân vật" ở trên để khởi tạo nhân vật đầu tiên.';
+        'No characters in project yet. Click "+ Add Character" above to create the first character.';
       this.charContainer.appendChild(hint);
       return;
     }
@@ -1371,16 +1401,16 @@ export class StudioApp {
 
       const btnEdit = document.createElement('button');
       btnEdit.className = 'btn-card-action';
-      btnEdit.title = `Chỉnh sửa nhân vật ${char.id}`;
-      btnEdit.textContent = '✎ Sửa';
+      btnEdit.title = `Edit character ${char.id}`;
+      btnEdit.textContent = '✎ Edit';
       btnEdit.addEventListener('click', () => {
         this.openCharacterModal(char.id);
       });
 
       const btnDel = document.createElement('button');
       btnDel.className = 'btn-card-action btn-card-delete';
-      btnDel.title = `Xóa nhân vật ${char.id}`;
-      btnDel.textContent = '✕ Xóa';
+      btnDel.title = `Delete character ${char.id}`;
+      btnDel.textContent = '✕ Delete';
       btnDel.addEventListener('click', () => {
         this.deleteCharacter(char.id);
       });
@@ -1398,7 +1428,7 @@ export class StudioApp {
 
       const label = document.createElement('span');
       label.className = 'sprites-label';
-      label.textContent = 'Biểu cảm (Sprites):';
+      label.textContent = 'Expressions (Sprites):';
       spritesSection.appendChild(label);
 
       const spritesList = document.createElement('div');
@@ -1409,7 +1439,7 @@ export class StudioApp {
         const noSp = document.createElement('span');
         noSp.style.fontSize = '10px';
         noSp.style.color = '#666';
-        noSp.textContent = '(Chưa có sprite) ';
+        noSp.textContent = '(No sprites yet) ';
         spritesList.appendChild(noSp);
       } else {
         for (const sp of spriteKeys) {
@@ -1430,7 +1460,7 @@ export class StudioApp {
 
           const removeBtn = document.createElement('button');
           removeBtn.className = 'btn-remove-sprite';
-          removeBtn.title = `Xóa biểu cảm ${sp}`;
+          removeBtn.title = `Delete expression ${sp}`;
           removeBtn.textContent = '✕';
           removeBtn.addEventListener('click', e => {
             e.stopPropagation();
@@ -1443,12 +1473,14 @@ export class StudioApp {
         }
       }
 
-      // Nút thêm sprite nhanh
+      // Add sprite button
       const btnAddSprite = document.createElement('button');
       btnAddSprite.className = 'btn-add-sprite-inline';
-      btnAddSprite.textContent = '+ Thêm sprite';
+      btnAddSprite.textContent = '+ Add sprite';
       btnAddSprite.addEventListener('click', () => {
-        const spName = window.prompt(`Nhập tên biểu cảm/sprite mới cho nhân vật "${char.id}":`);
+        const spName = window.prompt(
+          `Enter new sprite/expression name for character "${char.id}":`,
+        );
         if (spName && spName.trim()) {
           this.addCharacterSprite(char.id, spName.trim());
         }
@@ -1457,7 +1489,7 @@ export class StudioApp {
 
       spritesSection.appendChild(spritesList);
 
-      // Kiểm tra đối chiếu: Script có dùng sprite nào mà char chưa có không?
+      // Reconciliation check: Does script use sprites not declared?
       const astCharInfo = this.cachedAstMetadata.characters.get(char.id);
       if (astCharInfo && astCharInfo.sprites) {
         const missingSprites: string[] = [];
@@ -1472,7 +1504,7 @@ export class StudioApp {
           warningEl.style.marginTop = '4px';
           warningEl.style.fontSize = '10px';
           warningEl.style.color = '#facc15';
-          warningEl.textContent = `⚠️ Script đang gọi: ${missingSprites.join(', ')} (chưa có trong danh mục)`;
+          warningEl.textContent = `⚠️ Script calls: ${missingSprites.join(', ')} (not in catalog)`;
           spritesSection.appendChild(warningEl);
         }
       }
@@ -1496,15 +1528,15 @@ export class StudioApp {
 
         const title = document.createElement('div');
         title.className = 'reconciliation-alert-title';
-        title.textContent = `⚠️ Hình nền "${bg}" chưa được đăng ký`;
+        title.textContent = `⚠️ Background "${bg}" not registered`;
 
         const desc = document.createElement('div');
         desc.className = 'reconciliation-alert-desc';
-        desc.textContent = `Script dùng lệnh: background ${bg} nhưng chưa có trong danh mục Tài nguyên.`;
+        desc.textContent = `Script uses command: background ${bg} but it is not in the Assets catalog.`;
 
         const btn = document.createElement('button');
         btn.className = 'reconciliation-alert-btn';
-        btn.textContent = `+ Khai báo asset "${bg}"`;
+        btn.textContent = `+ Declare asset "${bg}"`;
         btn.addEventListener('click', () => {
           this.openAssetModal(undefined, bg, 'image');
         });
@@ -1523,15 +1555,15 @@ export class StudioApp {
 
         const title = document.createElement('div');
         title.className = 'reconciliation-alert-title';
-        title.textContent = `⚠️ Âm thanh "${aud}" chưa được đăng ký`;
+        title.textContent = `⚠️ Audio "${aud}" not registered`;
 
         const desc = document.createElement('div');
         desc.className = 'reconciliation-alert-desc';
-        desc.textContent = `Script dùng lệnh play "${aud}" nhưng chưa có trong danh mục Tài nguyên.`;
+        desc.textContent = `Script uses command play "${aud}" but it is not in the Assets catalog.`;
 
         const btn = document.createElement('button');
         btn.className = 'reconciliation-alert-btn';
-        btn.textContent = `+ Khai báo asset "${aud}"`;
+        btn.textContent = `+ Declare asset "${aud}"`;
         btn.addEventListener('click', () => {
           this.openAssetModal(undefined, aud, 'audio');
         });
@@ -1558,8 +1590,8 @@ export class StudioApp {
       hint.className = 'empty-meta-hint';
       hint.textContent =
         this.activeAssetFilter === 'all'
-          ? 'Chưa có tài nguyên nào trong dự án. Bấm "+ Thêm asset" ở trên để bổ sung.'
-          : `Chưa có tài nguyên loại "${this.activeAssetFilter}".`;
+          ? 'No assets in project yet. Click "+ Add Asset" above to add one.'
+          : `No assets of type "${this.activeAssetFilter}".`;
       this.assetContainer.appendChild(hint);
       return;
     }
@@ -1596,7 +1628,7 @@ export class StudioApp {
       nameRow.appendChild(nameText);
       nameRow.appendChild(typeBadge);
 
-      // Kiểm tra trạng thái sử dụng trong kịch bản (prompt.md line 127)
+      // Check if used in script
       const isUsed =
         asset.type === 'audio'
           ? usedAudio.has(asset.name) || usedAudio.has(asset.id)
@@ -1605,8 +1637,8 @@ export class StudioApp {
       if (!isUsed) {
         const unusedBadge = document.createElement('span');
         unusedBadge.className = 'asset-badge-unused';
-        unusedBadge.textContent = 'Chưa dùng';
-        unusedBadge.title = 'Tài nguyên này chưa được gọi trong file kịch bản nào';
+        unusedBadge.textContent = 'Unused';
+        unusedBadge.title = 'This asset is not referenced in any script file';
         nameRow.appendChild(unusedBadge);
       }
 
@@ -1619,16 +1651,16 @@ export class StudioApp {
 
       const btnEdit = document.createElement('button');
       btnEdit.className = 'btn-card-action';
-      btnEdit.title = `Sửa tài nguyên ${asset.name}`;
-      btnEdit.textContent = '✎ Sửa';
+      btnEdit.title = `Edit asset ${asset.name}`;
+      btnEdit.textContent = '✎ Edit';
       btnEdit.addEventListener('click', () => {
         this.openAssetModal(asset.id);
       });
 
       const btnDel = document.createElement('button');
       btnDel.className = 'btn-card-action btn-card-delete';
-      btnDel.title = `Xóa tài nguyên ${asset.name}`;
-      btnDel.textContent = '✕ Xóa';
+      btnDel.title = `Delete asset ${asset.name}`;
+      btnDel.textContent = '✕ Delete';
       btnDel.addEventListener('click', () => {
         this.deleteAsset(asset.id);
       });
@@ -1714,7 +1746,7 @@ export class StudioApp {
 
     if (nameInput && previewTag) {
       nameInput.addEventListener('input', () => {
-        previewTag.textContent = nameInput.value.trim() || 'Tên hiển thị';
+        previewTag.textContent = nameInput.value.trim() || 'Display Name';
       });
     }
 
@@ -1751,7 +1783,7 @@ export class StudioApp {
       const nameInput = document.createElement('input');
       nameInput.type = 'text';
       nameInput.className = 'wf-form-input sprite-row-name';
-      nameInput.placeholder = idx === 0 ? 'default' : 'tên sprite...';
+      nameInput.placeholder = idx === 0 ? 'default' : 'sprite name...';
       nameInput.value = row.name;
       nameInput.addEventListener('input', () => {
         row.name = nameInput.value.trim();
@@ -1776,7 +1808,7 @@ export class StudioApp {
       // 3. Nút tải ảnh lên từ máy
       const uploadLabel = document.createElement('label');
       uploadLabel.className = 'sprite-upload-btn-label';
-      uploadLabel.textContent = row.imageDataUrl ? 'Thay ảnh' : '📁 Tải ảnh';
+      uploadLabel.textContent = row.imageDataUrl ? 'Change' : '📁 Upload';
 
       const fileInput = document.createElement('input');
       fileInput.type = 'file';
@@ -1798,7 +1830,7 @@ export class StudioApp {
       // 4. Trạng thái ảnh
       const statusText = document.createElement('span');
       statusText.className = 'sprite-row-status';
-      statusText.textContent = row.imageDataUrl ? 'Đã có ảnh' : '(chưa có ảnh)';
+      statusText.textContent = row.imageDataUrl ? 'Has image' : '(no image)';
 
       rowEl.appendChild(nameInput);
       rowEl.appendChild(thumbBox);
@@ -1809,8 +1841,8 @@ export class StudioApp {
         const btnClearImg = document.createElement('button');
         btnClearImg.type = 'button';
         btnClearImg.className = 'btn-clear-sprite-img';
-        btnClearImg.title = 'Gỡ bỏ ảnh này';
-        btnClearImg.textContent = '✕ Gỡ ảnh';
+        btnClearImg.title = 'Remove this image';
+        btnClearImg.textContent = '✕ Remove';
         btnClearImg.addEventListener('click', () => {
           row.imageDataUrl = '';
           this.renderModalSpriteRows();
@@ -1824,7 +1856,7 @@ export class StudioApp {
       const btnRemoveRow = document.createElement('button');
       btnRemoveRow.type = 'button';
       btnRemoveRow.className = 'btn-remove-sprite-row';
-      btnRemoveRow.title = 'Xóa biểu cảm này';
+      btnRemoveRow.title = 'Delete this expression';
       btnRemoveRow.textContent = '✕';
       btnRemoveRow.addEventListener('click', () => {
         this.modalSpriteRows.splice(idx, 1);
@@ -1859,7 +1891,7 @@ export class StudioApp {
     if (charId) {
       const existing = (this.project.characters || []).find(c => c.id === charId);
       if (existing) {
-        if (titleEl) titleEl.textContent = `CHỈNH SỬA NHÂN VẬT: ${existing.id}`;
+        if (titleEl) titleEl.textContent = `EDIT CHARACTER: ${existing.id}`;
         modeEl.value = 'edit';
         origIdEl.value = existing.id;
         idInput.value = existing.id;
@@ -1883,7 +1915,7 @@ export class StudioApp {
         }
       }
     } else {
-      if (titleEl) titleEl.textContent = 'THÊM NHÂN VẬT MỚI';
+      if (titleEl) titleEl.textContent = 'ADD NEW CHARACTER';
       modeEl.value = 'create';
       origIdEl.value = '';
       idInput.value = prefillId || '';
@@ -1898,7 +1930,7 @@ export class StudioApp {
       if (previewTag) {
         previewTag.style.color = color;
         previewTag.style.borderColor = color;
-        previewTag.textContent = initialName || 'Tên hiển thị';
+        previewTag.textContent = initialName || 'Display Name';
       }
 
       this.modalSpriteRows = [
@@ -1938,7 +1970,7 @@ export class StudioApp {
     }
 
     if (!charId) {
-      this.showToast('Vui lòng nhập mã ID nhân vật');
+      this.showToast('Please enter character ID');
       return;
     }
 
@@ -1965,12 +1997,12 @@ export class StudioApp {
           targetChar.name = charName;
           targetChar.colorHex = colorHex;
           targetChar.sprites = spritesRecord;
-          this.showToast(`Đã cập nhật nhân vật "${origIdEl.value}"`);
+          this.showToast(`Updated character "${origIdEl.value}"`);
         }
       }
     } else {
       if (this.project.characters.some(c => c.id === charId)) {
-        this.showToast(`Mã nhân vật "${charId}" đã tồn tại!`);
+        this.showToast(`Character ID "${charId}" already exists!`);
         return;
       }
       this.project.characters.push({
@@ -1979,7 +2011,7 @@ export class StudioApp {
         colorHex,
         sprites: spritesRecord,
       });
-      this.showToast(`Đã thêm nhân vật mới "${charId}" (${charName})`);
+      this.showToast(`Added new character "${charId}" (${charName})`);
     }
 
     this.closeCharacterModal();
@@ -1989,14 +2021,14 @@ export class StudioApp {
   }
 
   private deleteCharacter(charId: string): void {
-    if (!window.confirm(`Bạn có chắc muốn xóa nhân vật "${charId}" khỏi dự án?`)) {
+    if (!window.confirm(`Are you sure you want to delete character "${charId}" from project?`)) {
       return;
     }
     this.project.characters = (this.project.characters || []).filter(c => c.id !== charId);
     void this.saveProjectToStorage();
     this.renderCharacterList();
     this.compileCurrentScript();
-    this.showToast(`Đã xóa nhân vật "${charId}"`);
+    this.showToast(`Deleted character "${charId}"`);
   }
 
   private addCharacterSprite(charId: string, spriteName: string): void {
@@ -2006,7 +2038,7 @@ export class StudioApp {
     char.sprites[spriteName] = '';
     void this.saveProjectToStorage();
     this.renderCharacterList();
-    this.showToast(`Đã thêm biểu cảm "${spriteName}" cho nhân vật "${charId}"`);
+    this.showToast(`Added expression "${spriteName}" for character "${charId}"`);
   }
 
   private removeCharacterSprite(charId: string, spriteName: string): void {
@@ -2015,7 +2047,7 @@ export class StudioApp {
     delete char.sprites[spriteName];
     void this.saveProjectToStorage();
     this.renderCharacterList();
-    this.showToast(`Đã xóa biểu cảm "${spriteName}" khỏi "${charId}"`);
+    this.showToast(`Deleted expression "${spriteName}" from "${charId}"`);
   }
 
   private setupAssetManagement(): void {
@@ -2069,7 +2101,7 @@ export class StudioApp {
     if (assetId) {
       const existing = (this.project.assets || []).find(a => a.id === assetId);
       if (existing) {
-        if (titleEl) titleEl.textContent = `CHỈNH SỬA TÀI NGUYÊN: ${existing.name}`;
+        if (titleEl) titleEl.textContent = `EDIT ASSET: ${existing.name}`;
         modeEl.value = 'edit';
         origIdEl.value = existing.id;
         typeSelect.value = existing.type;
@@ -2077,7 +2109,7 @@ export class StudioApp {
         urlInput.value = existing.storageUrl || '';
       }
     } else {
-      if (titleEl) titleEl.textContent = 'THÊM TÀI NGUYÊN MỚI';
+      if (titleEl) titleEl.textContent = 'ADD NEW ASSET';
       modeEl.value = 'create';
       origIdEl.value = '';
       typeSelect.value = prefillType || 'image';
@@ -2108,7 +2140,7 @@ export class StudioApp {
     let storageUrl = urlInput.value.trim();
 
     if (!assetName) {
-      this.showToast('Vui lòng nhập tên tài nguyên');
+      this.showToast('Please enter asset name');
       return;
     }
 
@@ -2126,7 +2158,7 @@ export class StudioApp {
             targetAsset.type = assetType;
             if (url) targetAsset.storageUrl = url;
             if (size) targetAsset.sizeBytes = size;
-            this.showToast(`Đã cập nhật tài nguyên "${assetName}"`);
+            this.showToast(`Updated asset "${assetName}"`);
           }
         }
       } else {
@@ -2138,7 +2170,7 @@ export class StudioApp {
           storageUrl: url || '',
           sizeBytes: size || 1024 * 100,
         });
-        this.showToast(`Đã thêm tài nguyên mới "${assetName}"`);
+        this.showToast(`Added new asset "${assetName}"`);
       }
 
       this.closeAssetModal();
@@ -2163,18 +2195,18 @@ export class StudioApp {
   private deleteAsset(assetId: string): void {
     const existing = (this.project.assets || []).find(a => a.id === assetId);
     const name = existing ? existing.name : assetId;
-    if (!window.confirm(`Bạn có chắc muốn xóa tài nguyên "${name}" khỏi dự án?`)) {
+    if (!window.confirm(`Are you sure you want to delete asset "${name}" from project?`)) {
       return;
     }
     this.project.assets = (this.project.assets || []).filter(a => a.id !== assetId);
     void this.saveProjectToStorage();
     this.renderAssetList();
     this.compileCurrentScript();
-    this.showToast(`Đã xóa tài nguyên "${name}"`);
+    this.showToast(`Deleted asset "${name}"`);
   }
 
   // ================================================================
-  // 8. CẦU NỐI HAI CHIỀU LIVE PREVIEW (KIỂM TRA ORIGIN BẢO MẬT SAD 3.6)
+  // 8. TWO-WAY LIVE PREVIEW BRIDGE (SECURE ORIGIN CHECK)
   // ================================================================
   private getPreviewOrigin(): string {
     return window.location.hostname === 'localhost'
@@ -2199,7 +2231,7 @@ export class StudioApp {
 
       if (event.data?.type === 'PLAYER_READY') {
         if (this.previewStatusBadge) {
-          this.previewStatusBadge.textContent = 'HOT RELOAD: KẾT NỐI THÀNH CÔNG';
+          this.previewStatusBadge.textContent = 'HOT RELOAD: CONNECTED';
         }
         if (this.latestProgram) {
           this.sendProgramToPreview(this.latestProgram);
@@ -2228,7 +2260,7 @@ export class StudioApp {
   }
 
   // ================================================================
-  // 9. HEADER ACTIONS: [▶ Chạy từ đầu] [▶ Chạy dòng này] [Xuất bản]
+  // 9. HEADER ACTIONS: [▶ Run from Start] [▶ Run this Line] [Export]
   // ================================================================
   private setupHeaderActions(): void {
     document.getElementById('btn-run-from-start')?.addEventListener('click', () => {
@@ -2245,7 +2277,7 @@ export class StudioApp {
 
     document.getElementById('btn-reload-preview')?.addEventListener('click', () => {
       this.previewIframe.src = this.previewIframe.src;
-      this.showToast('Đang làm mới khung Live Preview...');
+      this.showToast('Reloading Live Preview...');
     });
 
     document.getElementById('btn-popout-preview')?.addEventListener('click', () => {
@@ -2255,7 +2287,7 @@ export class StudioApp {
         'VN_Preview_Popout',
         'width=1280,height=720,menubar=no,toolbar=no,location=no,status=no',
       );
-      this.showToast('Đã mở cửa sổ Live Preview rời! Tự động chuyển sang tab quản lý.');
+      this.showToast('Opened pop-out Live Preview! Switched to management tab.');
       this.updatePopoutButtonUI();
 
       if (this.latestProgram) {
@@ -2266,7 +2298,7 @@ export class StudioApp {
         }, 500);
       }
 
-      // Tự động chuyển sang tab quản lý còn lại theo yêu cầu của user
+      // Automatically switch to management tab
       const targetTab = this.lastActiveManagementTab || 'characters';
       this.switchWorkspaceTab(targetTab);
     });
@@ -2276,7 +2308,7 @@ export class StudioApp {
     this.flushEditorChanges();
     if (this.latestProgram) {
       this.sendProgramToPreview(this.latestProgram);
-      this.showToast('▶ Chạy kịch bản từ đầu!');
+      this.showToast('▶ Running script from start!');
     }
   }
 
@@ -2303,14 +2335,14 @@ export class StudioApp {
     this.sendProgramToPreview(this.latestProgram);
 
     if (currentScene) {
-      this.showToast(`▶ Chạy từ cảnh hiện tại: "${currentScene}"!`);
+      this.showToast(`▶ Running from current scene: "${currentScene}"!`);
     } else {
-      this.showToast(`▶ Chạy kịch bản từ dòng ${currentLine}!`);
+      this.showToast(`▶ Running script from line ${currentLine}!`);
     }
   }
 
   // ================================================================
-  // 10. MODAL XUẤT BẢN & PHÂN PHỐI
+  // 10. EXPORT & DISTRIBUTION WIZARD
   // ================================================================
   private setupExportWizardActions(): void {
     document.getElementById('btn-close-export')?.addEventListener('click', () => {
@@ -2327,12 +2359,12 @@ export class StudioApp {
       const urlInput = document.getElementById('export-url-input') as HTMLInputElement | null;
       const url = urlInput?.value || 'https://secret-academy.usercontent-platform.com';
       navigator.clipboard?.writeText(url);
-      this.showToast('Đã sao chép đường link web vào khay nhớ tạm!');
+      this.showToast('Copied web link to clipboard!');
     });
 
     document.getElementById('btn-open-playable')?.addEventListener('click', () => {
       window.open('http://localhost:3000/', '_blank');
-      this.showToast('Đang mở trang web chơi game công khai...');
+      this.showToast('Opening public game web page...');
     });
 
     document.getElementById('btn-copy-iframe')?.addEventListener('click', () => {
@@ -2341,7 +2373,7 @@ export class StudioApp {
         iframeInput?.value ||
         '<iframe src="https://secret-academy.usercontent-platform.com" width="960" height="540" frameborder="0" allowfullscreen></iframe>';
       navigator.clipboard?.writeText(snippet);
-      this.showToast('Đã sao chép mã nhúng iFrame!');
+      this.showToast('Copied iFrame embed code!');
     });
 
     document.getElementById('btn-download-bundle')?.addEventListener('click', () => {
@@ -2365,11 +2397,11 @@ export class StudioApp {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      this.showToast('Đã tải xuống gói vn-game-bundle.json!');
+      this.showToast('Downloaded vn-game-bundle.json!');
     });
 
     document.getElementById('btn-download-zip')?.addEventListener('click', () => {
-      this.showToast('Đang tạo tệp HTML5 game.zip tự chứa...');
+      this.showToast('Generating self-contained HTML5 game.zip...');
       const manifest = {
         title: this.project.title,
         version: '1.0.0',
@@ -2388,13 +2420,13 @@ export class StudioApp {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
       setTimeout(() => {
-        this.showToast('Đã tạo và tải xuống gói vn-game-itch.zip!');
+        this.showToast('Generated and downloaded vn-game-itch.zip!');
       }, 400);
     });
   }
 
   // ================================================================
-  // 11. PHÍM TẮT TOÀN CỤC & BẢO VỆ DỮ LIỆU KHI ĐÓNG TAB
+  // 11. GLOBAL KEYBOARD SHORTCUTS & UNLOAD PROTECTION
   // ================================================================
   private setupGlobalKeyboardShortcuts(): void {
     window.addEventListener('keydown', (e: KeyboardEvent) => {
@@ -2440,7 +2472,7 @@ export class StudioApp {
   }
 }
 
-// Khởi chạy Studio khi DOM sẵn sàng
+// Initialize Studio when DOM is ready
 window.addEventListener('DOMContentLoaded', () => {
   const app = new StudioApp();
   void app.init();

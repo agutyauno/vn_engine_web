@@ -105,7 +105,7 @@ describe('Save Schema Validation & Migration Engine (TAD 4.4)', () => {
           characterDisplayOverrides: {},
           customScriptState: {},
         }),
-      ).toThrow(/scene hoặc ip/);
+      ).toThrow(/scene or ip/);
     });
 
     it('should reject invalid variables container', () => {
@@ -158,21 +158,25 @@ describe('Save Schema Validation & Migration Engine (TAD 4.4)', () => {
         dialogueCounter: 0,
       };
 
-      expect(() => migrateSaveData(futureSave, 1)).toThrow(/mới hơn phiên bản runtime hỗ trợ/);
+      expect(() => migrateSaveData(futureSave, 1)).toThrow(/newer than supported runtime version/);
     });
 
     it('should execute registered migration functions sequentially across versions', () => {
       // Giả lập migration từ v1 lên v2 (thêm trường dslVersion mới và đổi cấu trúc biến)
-      registerSaveMigration(1, 2, prev => ({
-        ...prev,
-        state: {
-          ...prev['state'],
-          variables: {
-            ...prev['state']['variables'],
-            migrated_v2: true,
+      registerSaveMigration(1, 2, prev => {
+        const prevState = (prev['state'] as Record<string, unknown>) || {};
+        const prevVars = (prevState['variables'] as Record<string, unknown>) || {};
+        return {
+          ...prev,
+          state: {
+            ...prevState,
+            variables: {
+              ...prevVars,
+              migrated_v2: true,
+            },
           },
-        },
-      }));
+        };
+      });
 
       const v1Save = {
         version: 1,
@@ -210,7 +214,7 @@ describe('Save Schema Validation & Migration Engine (TAD 4.4)', () => {
       };
 
       // Đòi migrate lên v3 khi chưa đăng ký v1->v2
-      expect(() => migrateSaveData(v1Save, 3)).toThrow(/Không tìm thấy migration function/);
+      expect(() => migrateSaveData(v1Save, 3)).toThrow(/No migration function found/);
     });
   });
 
@@ -258,7 +262,7 @@ describe('Save Schema Validation & Migration Engine (TAD 4.4)', () => {
     it('should reject corrupted json or missing state during restore', () => {
       const vm = new VisualNovelVM(testProgram);
       expect(() => vm.restore('bad-json')).toThrow(VMRuntimeError);
-      expect(() => vm.restore('{}')).toThrow(/thiếu state/);
+      expect(() => vm.restore('{}')).toThrow(/missing state/);
       expect(() => vm.restore(JSON.stringify({ state: { currentScene: '' } }))).toThrow(
         /currentScene/,
       );

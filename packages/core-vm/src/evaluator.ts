@@ -1,5 +1,5 @@
 // ==========================================
-// BỘ ĐÁNH GIÁ BIỂU THỨC AN TOÀN (SANDBOX EVALUATOR)
+// SAFE EXPRESSION EVALUATOR (SANDBOX EVALUATOR)
 // ==========================================
 
 import type { ExpressionAST } from '@vn-engine/shared-types';
@@ -18,7 +18,7 @@ export class SandboxEvaluator {
   private allowedFunctions: Map<string, AllowedFunction> = new Map();
 
   constructor(customFunctions?: Record<string, AllowedFunction>) {
-    // Mặc định cung cấp hàm has_item kiểm tra túi đồ (nếu có context inventory)
+    // Default built-in has_item helper function (checks inventory context if available)
     this.registerFunction('has_item', (itemId: unknown, contextInventory?: unknown) => {
       if (Array.isArray(contextInventory)) {
         return contextInventory.includes(itemId);
@@ -71,7 +71,7 @@ export class SandboxEvaluator {
         if (node.operator === '-') {
           if (typeof argVal !== 'number') {
             throw new VMRuntimeError(
-              `Toán tử đổi dấu âm "-" yêu cầu giá trị số học, nhận được: ${typeof argVal}`,
+              `Unary negation operator "-" requires numeric value, received: ${typeof argVal}`,
             );
           }
           return -argVal;
@@ -79,13 +79,13 @@ export class SandboxEvaluator {
         if (node.operator === '+') {
           if (typeof argVal !== 'number') {
             throw new VMRuntimeError(
-              `Toán tử "+" yêu cầu giá trị số học, nhận được: ${typeof argVal}`,
+              `Unary plus operator "+" requires numeric value, received: ${typeof argVal}`,
             );
           }
           return +argVal;
         }
 
-        throw new VMRuntimeError(`Toán tử một ngôi không được hỗ trợ: "${node.operator}"`);
+        throw new VMRuntimeError(`Unsupported unary operator: "${node.operator}"`);
       }
 
       case 'BinaryExpression': {
@@ -111,36 +111,38 @@ export class SandboxEvaluator {
               return leftVal + rightVal;
             }
             throw new VMRuntimeError(
-              `Phép cộng "+" chỉ hỗ trợ chuỗi hoặc số, nhận được: ${typeof leftVal} và ${typeof rightVal}`,
+              `Addition operator "+" only supports strings or numbers, received: ${typeof leftVal} and ${typeof rightVal}`,
             );
           }
           case '-': {
             if (typeof leftVal !== 'number' || typeof rightVal !== 'number') {
-              throw new VMRuntimeError('Phép trừ "-" yêu cầu cả hai toán hạng là số học');
+              throw new VMRuntimeError(
+                'Subtraction operator "-" requires both operands to be numeric',
+              );
             }
             return leftVal - rightVal;
           }
           case '*': {
             if (typeof leftVal !== 'number' || typeof rightVal !== 'number') {
-              throw new VMRuntimeError('Phép nhân "*" yêu cầu cả hai toán hạng là số học');
+              throw new VMRuntimeError('Multiplication "*" requires both operands to be numeric');
             }
             return leftVal * rightVal;
           }
           case '/': {
             if (typeof leftVal !== 'number' || typeof rightVal !== 'number') {
-              throw new VMRuntimeError('Phép chia "/" yêu cầu cả hai toán hạng là số học');
+              throw new VMRuntimeError('Division "/" requires both operands to be numeric');
             }
             if (rightVal === 0) {
-              throw new VMRuntimeError('Lỗi chia cho 0 trong biểu thức!');
+              throw new VMRuntimeError('Division by zero in expression!');
             }
             return leftVal / rightVal;
           }
           case '%': {
             if (typeof leftVal !== 'number' || typeof rightVal !== 'number') {
-              throw new VMRuntimeError('Phép chia lấy dư "%" yêu cầu cả hai toán hạng là số học');
+              throw new VMRuntimeError('Modulo "%" requires both operands to be numeric');
             }
             if (rightVal === 0) {
-              throw new VMRuntimeError('Lỗi chia cho 0 trong biểu thức!');
+              throw new VMRuntimeError('Division by zero in expression!');
             }
             return leftVal % rightVal;
           }
@@ -159,7 +161,7 @@ export class SandboxEvaluator {
           case '<=':
             return (leftVal as number) <= (rightVal as number);
           default:
-            throw new VMRuntimeError(`Toán tử hai ngôi không được hỗ trợ: "${node.operator}"`);
+            throw new VMRuntimeError(`Unsupported binary operator: "${node.operator}"`);
         }
       }
 
@@ -181,7 +183,7 @@ export class SandboxEvaluator {
 
       default:
         throw new VMRuntimeError(
-          `Loại nút biểu thức không được hỗ trợ: "${(node as { type: string }).type}"`,
+          `Unsupported expression node type: "${(node as { type: string }).type}"`,
         );
     }
   }

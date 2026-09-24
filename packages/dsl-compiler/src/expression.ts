@@ -56,7 +56,7 @@ function convertJsepNode(node: jsep.Expression): ExpressionAST {
     case 'CallExpression': {
       const call = node as jsep.CallExpression;
       if (call.callee.type !== 'Identifier') {
-        throw new Error('Chỉ hỗ trợ gọi hàm trực tiếp theo tên (Identifier)');
+        throw new Error('Only direct function calls by name (Identifier) are supported');
       }
       return {
         type: 'CallExpression',
@@ -69,7 +69,7 @@ function convertJsepNode(node: jsep.Expression): ExpressionAST {
     }
 
     default:
-      throw new Error(`Kiểu biểu thức không được hỗ trợ trong sandbox DSL: ${node.type}`);
+      throw new Error(`Unsupported expression type in DSL sandbox: ${node.type}`);
   }
 }
 
@@ -79,7 +79,7 @@ function convertJsepNode(node: jsep.Expression): ExpressionAST {
 export function parseExpression(exprString: string, loc?: SourceLocation): ExpressionAST {
   const trimmed = exprString.trim();
   if (!trimmed) {
-    throw new Error('Biểu thức không được để trống');
+    throw new Error('Expression cannot be empty');
   }
 
   try {
@@ -87,7 +87,7 @@ export function parseExpression(exprString: string, loc?: SourceLocation): Expre
     return convertJsepNode(jsepParsed);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    const atLoc = loc ? ` (tại dòng ${loc.line})` : '';
-    throw new Error(`Lỗi cú pháp biểu thức "${trimmed}"${atLoc}: ${msg}`);
+    const atLoc = loc ? ` (at line ${loc.line})` : '';
+    throw new Error(`Expression syntax error "${trimmed}"${atLoc}: ${msg}`);
   }
 }

@@ -1,5 +1,5 @@
 // ==========================================
-// QUẢN LÝ LƯU TRỮ TRẠNG THÁI (LOCALSTORAGE SAVE/LOAD)
+// STATE STORAGE MANAGER (LOCALSTORAGE SAVE/LOAD)
 // ==========================================
 
 export interface SaveSlotData {
@@ -18,7 +18,7 @@ export const SLOTS_PER_PAGE = 6;
 
 export class GameStorage {
   /**
-   * Lấy danh sách 12 slots lưu game
+   * Get list of 12 save game slots
    */
   public static getSlots(): (SaveSlotData | null)[] {
     try {
@@ -38,7 +38,7 @@ export class GameStorage {
   }
 
   /**
-   * Lưu vào một slot cụ thể
+   * Save to a specific slot
    */
   public static saveSlot(slotIndex: number, data: Omit<SaveSlotData, 'slotIndex'>): void {
     const slots = this.getSlots();
@@ -49,12 +49,12 @@ export class GameStorage {
     try {
       localStorage.setItem(STORAGE_KEY_SLOTS, JSON.stringify(slots));
     } catch (e) {
-      console.warn('[GameStorage] Không thể ghi vào localStorage:', e);
+      console.warn('[GameStorage] Unable to write to localStorage:', e);
     }
   }
 
   /**
-   * Xóa dữ liệu một slot
+   * Delete data from a slot
    */
   public static deleteSlot(slotIndex: number): void {
     const slots = this.getSlots();
@@ -62,12 +62,12 @@ export class GameStorage {
     try {
       localStorage.setItem(STORAGE_KEY_SLOTS, JSON.stringify(slots));
     } catch (e) {
-      console.warn('[GameStorage] Không thể xóa slot:', e);
+      console.warn('[GameStorage] Unable to delete slot:', e);
     }
   }
 
   /**
-   * Tải dữ liệu từ một slot
+   * Load data from a slot
    */
   public static loadSlot(slotIndex: number): SaveSlotData | null {
     const slots = this.getSlots();
@@ -75,7 +75,7 @@ export class GameStorage {
   }
 
   /**
-   * Lưu nhanh (Quick Save)
+   * Quick Save
    */
   public static quickSave(data: Omit<SaveSlotData, 'slotIndex'>): void {
     const slotData: SaveSlotData = {
@@ -85,12 +85,12 @@ export class GameStorage {
     try {
       localStorage.setItem(STORAGE_KEY_QUICK, JSON.stringify(slotData));
     } catch (e) {
-      console.warn('[GameStorage] Không thể ghi quicksave:', e);
+      console.warn('[GameStorage] Unable to write quicksave:', e);
     }
   }
 
   /**
-   * Tải nhanh (Quick Load)
+   * Quick Load
    */
   public static quickLoad(): SaveSlotData | null {
     try {

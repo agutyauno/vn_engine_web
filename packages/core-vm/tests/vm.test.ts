@@ -436,7 +436,7 @@ describe('VisualNovelVM Core', () => {
 
     // Kiểm tra bảo vệ khi nạp dữ liệu save hỏng
     expect(() => loadedVM.restore('not-valid-json')).toThrowError(VMRuntimeError);
-    expect(() => loadedVM.restore('{}')).toThrowError(/thiếu state/);
+    expect(() => loadedVM.restore('{}')).toThrowError(/missing state/);
   });
 
   it('should resolve local dot scenes strictly and reject unqualified suffix guessing', () => {

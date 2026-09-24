@@ -164,7 +164,7 @@ export class VNSAstBuilder extends BaseVNSVisitor {
     if (ctx.varDefineStatement) return this.visit(ctx.varDefineStatement[0]);
     if (ctx.varAssignStatement) return this.visit(ctx.varAssignStatement[0]);
 
-    throw new Error('Loại statement không xác định');
+    throw new Error('Unknown statement type');
   }
 
   dialogueStatement(ctx: any): DialogueStatement {
