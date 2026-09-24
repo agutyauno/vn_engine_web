@@ -47,7 +47,7 @@
 
 - Tích hợp **Monaco Editor** với đầy đủ Syntax Highlighting, Autocompletion, và phân tích ngữ nghĩa báo lỗi thời gian thực (Real-time Diagnostics).
 - **Trình quản lý Asset & Nhân vật**: Upload phông nền, âm thanh, biểu cảm sprite; cơ chế _Thêm nhanh (1-click)_ kèm màu đại diện Wireframe.
-- **Drawer Biến Watch & Biến cờ**: Theo dõi trạng thái biến Global / Local theo thời gian thực khi chạy thử kịch bản. 
+- **Drawer Biến Watch & Biến cờ**: Theo dõi trạng thái biến Global / Local theo thời gian thực khi chạy thử kịch bản.
 - **Cửa sổ rời (Pop-out Preview)**: Mở trình phát game ở màn hình riêng biệt hoặc xem trực tiếp bên cạnh kịch bản.
 
 ### 4. Máy Ảo Runtime & Trình Phát (Runtime Player)

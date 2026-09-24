@@ -6,7 +6,7 @@ import type { VMState, SaveFileData } from '@vn-engine/shared-types';
 import { CURRENT_SAVE_VERSION } from '@vn-engine/shared-types';
 import { InvalidSaveDataError } from './errors';
 
-export type SaveMigrationFn = (data: Record<string, any>) => Record<string, any>;
+export type SaveMigrationFn = (data: Record<string, unknown>) => Record<string, unknown>;
 
 const migrationRegistry = new Map<string, SaveMigrationFn>();
 
@@ -109,14 +109,14 @@ export function migrateSaveData(
     throw new InvalidSaveDataError('Dữ liệu save game phải là một object JSON.');
   }
 
-  let current = { ...(data as Record<string, any>) };
+  let current = { ...(data as Record<string, unknown>) };
 
   // 1. Xử lý dữ liệu save legacy (không có trường version)
   if (current['version'] === undefined || current['version'] === null) {
     if (!current['state']) {
       throw new InvalidSaveDataError('thiếu state.');
     }
-    const rawState = current['state'];
+    const rawState = current['state'] as Record<string, unknown>;
     if (!rawState || typeof rawState !== 'object') {
       throw new InvalidSaveDataError('thiếu state.');
     }
@@ -183,5 +183,5 @@ export function migrateSaveData(
     throw new InvalidSaveDataError('thiếu state.');
   }
 
-  return current as SaveFileData;
+  return current as unknown as SaveFileData;
 }

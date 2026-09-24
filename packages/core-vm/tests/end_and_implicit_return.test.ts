@@ -3,8 +3,8 @@ import { VisualNovelVM } from '../src/vm';
 import { compileString } from '@vn-engine/dsl-compiler';
 import type { DialogueInstruction } from '@vn-engine/shared-types';
 
-function asDialogue(stepResult: any): DialogueInstruction {
-  return stepResult.instruction as DialogueInstruction;
+function asDialogue(stepResult: unknown): DialogueInstruction {
+  return (stepResult as { instruction: DialogueInstruction }).instruction;
 }
 
 describe('End statement & Implicit Return at Scene Boundary', () => {
