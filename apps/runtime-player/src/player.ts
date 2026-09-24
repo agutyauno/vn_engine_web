@@ -296,7 +296,7 @@ export class VNPlayer {
     document.getElementById('btn-system-restart')?.addEventListener('click', () => {
       this.closeSettingsMenu();
       void this.reloadProgram(this.initialProgram);
-      this.showToast('Đã bắt đầu lại trò chơi!');
+      this.showToast('Game restarted!');
     });
 
     // Phím tắt toàn cầu (Keyboard Shortcuts)
@@ -438,12 +438,12 @@ export class VNPlayer {
     const btnMute = document.getElementById('btn-mute-toggle') as HTMLButtonElement;
     if (this.audio.isMuted()) {
       this.audio.unmute();
-      if (btnMute) btnMute.textContent = '[ Mute / Tắt tiếng: TẮT (Phím M) ]';
-      this.showToast('Âm thanh: BẬT');
+      if (btnMute) btnMute.textContent = '[ Mute: OFF (Key M) ]';
+      this.showToast('Audio: ON');
     } else {
       this.audio.mute();
-      if (btnMute) btnMute.textContent = '[ Mute / Tắt tiếng: BẬT (Phím M) ]';
-      this.showToast('Âm thanh: ĐÃ TẮT');
+      if (btnMute) btnMute.textContent = '[ Mute: ON (Key M) ]';
+      this.showToast('Audio: MUTED');
     }
   }
 
@@ -616,7 +616,7 @@ export class VNPlayer {
       this.clearSkip();
       this.dialogueBox.classList.add('hidden');
       this.speakerNameplate.classList.add('hidden');
-      this.nextIndicator.textContent = '■ Kết thúc';
+      this.nextIndicator.textContent = '■ End';
       this.nextIndicator.style.opacity = '0';
       this.updateControlsState();
     }
@@ -717,7 +717,7 @@ export class VNPlayer {
 
       if (!choice.enabled) {
         btn.disabled = true;
-        btn.innerHTML = `${keyHint}<span>${choice.text} (Chưa đủ điều kiện)</span>`;
+        btn.innerHTML = `${keyHint}<span>${choice.text} (Conditions not met)</span>`;
       } else {
         btn.innerHTML = `${keyHint}<span>${choice.text}</span>`;
         btn.addEventListener('click', () => {
@@ -761,7 +761,7 @@ export class VNPlayer {
    */
   public rollback(): boolean {
     if (!this.vm.canRollback()) {
-      this.showToast('Không thể tua lại câu thoại trước!');
+      this.showToast('Cannot rollback further!');
       return false;
     }
 
@@ -831,14 +831,14 @@ export class VNPlayer {
     if (this.isAuto) {
       this.clearSkip();
       this.btnAuto.classList.add('active');
-      this.showToast('Tự động chạy: BẬT');
+      this.showToast('Auto-forward: ON');
       if (!this.typewriter.isTyping()) {
         this.onDialogueLineFinished();
       }
     } else {
       this.clearAutoTimer();
       this.btnAuto.classList.remove('active');
-      this.showToast('Tự động chạy: TẮT');
+      this.showToast('Auto-forward: OFF');
     }
   }
 
@@ -850,7 +850,7 @@ export class VNPlayer {
     if (this.isSkip) {
       this.clearAutoTimer();
       this.btnSkip.classList.add('active');
-      this.showToast('Tua nhanh: BẬT');
+      this.showToast('Skip: ON');
       if (this.typewriter.isTyping()) {
         this.typewriter.finishImmediately();
       } else {
@@ -858,7 +858,7 @@ export class VNPlayer {
       }
     } else {
       this.clearSkip();
-      this.showToast('Tua nhanh: TẮT');
+      this.showToast('Skip: OFF');
     }
   }
 
@@ -904,31 +904,31 @@ export class VNPlayer {
       card.className = 'save-slot-card';
 
       if (slot) {
-        const dateStr = new Date(slot.timestamp).toLocaleString('vi-VN');
+        const dateStr = new Date(slot.timestamp).toLocaleString('en-US');
         card.innerHTML = `
           <div class="slot-header-row">
-            <span class="slot-scene">[Ô ${index + 1}] ${slot.sceneName}</span>
-            <span class="slot-badge saved">ĐÃ LƯU</span>
+            <span class="slot-scene">[Slot ${index + 1}] ${slot.sceneName}</span>
+            <span class="slot-badge saved">SAVED</span>
           </div>
           <img class="slot-thumbnail" src="${slot.thumbnail}" alt="Thumbnail" />
           <div class="slot-meta">
             <span>${dateStr}</span>
           </div>
           <div class="slot-actions">
-            <button class="slot-btn-action slot-btn-delete" data-action="delete" title="Xóa ô này">[Xóa]</button>
-            <button class="slot-btn-action" data-action="confirm">${this.activeModalMode === 'save' ? '[Ghi đè]' : '[Tải]'}</button>
+            <button class="slot-btn-action slot-btn-delete" data-action="delete" title="Delete this slot">[Delete]</button>
+            <button class="slot-btn-action" data-action="confirm">${this.activeModalMode === 'save' ? '[Overwrite]' : '[Load]'}</button>
           </div>
         `;
       } else {
         card.innerHTML = `
           <div class="slot-header-row">
-            <span class="slot-scene">[Ô ${index + 1}] Trống</span>
-            <span class="slot-badge">TRỐNG</span>
+            <span class="slot-scene">[Slot ${index + 1}] Empty</span>
+            <span class="slot-badge">EMPTY</span>
           </div>
-          <div class="slot-thumbnail">[ CHƯA CÓ DỮ LIỆU ]</div>
+          <div class="slot-thumbnail">[ NO DATA ]</div>
           <div class="slot-meta"><span>--/--/----</span></div>
           <div class="slot-actions">
-            <button class="slot-btn-action" data-action="confirm">${this.activeModalMode === 'save' ? '[Lưu vào đây]' : '[Không thể tải]'}</button>
+            <button class="slot-btn-action" data-action="confirm">${this.activeModalMode === 'save' ? '[Save here]' : '[Cannot load]'}</button>
           </div>
         `;
       }
@@ -941,22 +941,22 @@ export class VNPlayer {
         if (action === 'delete') {
           e.stopPropagation();
           GameStorage.deleteSlot(index);
-          this.showToast(`Đã xóa ô lưu số ${index + 1}`);
+          this.showToast(`Deleted save slot ${index + 1}`);
           this.renderSaveSlots();
           return;
         }
 
         if (this.activeModalMode === 'save') {
           await this.saveToSlot(index);
-          this.showToast(`Đã lưu thành công vào Ô ${index + 1}`);
+          this.showToast(`Successfully saved to Slot ${index + 1}`);
           this.renderSaveSlots();
         } else {
           if (slot) {
             this.loadFromSlot(index);
-            this.showToast(`Đã tải thành công Ô ${index + 1}`);
+            this.showToast(`Successfully loaded Slot ${index + 1}`);
             this.closeSettingsMenu();
           } else {
-            this.showToast('Ô này trống, không có dữ liệu tải!');
+            this.showToast('This slot is empty, no data to load!');
           }
         }
       });
@@ -994,17 +994,17 @@ export class VNPlayer {
       vmStateJson: this.vm.serialize(),
       dialoguePreview: stripControlTags(this.currentDialogueInstruction?.text || ''),
     });
-    this.showToast('● ĐÃ LƯU NHANH (QUICK SAVE)');
+    this.showToast('● QUICK SAVED');
   }
 
   public quickLoad(): void {
     const slot = GameStorage.quickLoad();
     if (!slot) {
-      this.showToast('Chưa có bản lưu nhanh nào!');
+      this.showToast('No quick save data found!');
       return;
     }
     this.restoreFromSlotData(slot);
-    this.showToast('● ĐÃ TẢI NHANH (QUICK LOAD)');
+    this.showToast('● QUICK LOADED');
   }
 
   private restoreFromSlotData(slot: SaveSlotData): void {
@@ -1111,8 +1111,8 @@ export class VNPlayer {
           <td>${ch.name}</td>
           <td>${ch.currentAssetId ?? '-'}</td>
           <td>${Math.round(ch.volume * 100)}%</td>
-          <td>${ch.loop ? 'Có' : 'Không'}</td>
-          <td>${ch.isPlaying ? 'Đang phát' : 'Dừng'}</td>
+          <td>${ch.loop ? 'Yes' : 'No'}</td>
+          <td>${ch.isPlaying ? 'Playing' : 'Stopped'}</td>
         `;
         audioBody.appendChild(tr);
       }
@@ -1153,7 +1153,7 @@ export class VNPlayer {
     this.dialogueText.textContent = '';
     this.speakerNameplate.textContent = '';
     this.speakerNameplate.classList.add('hidden');
-    this.nextIndicator.textContent = '▼ TIẾP TỤC [→]';
+    this.nextIndicator.textContent = '▼ CONTINUE [→]';
     this.nextIndicator.style.opacity = '0';
     this.closeAllModals();
 

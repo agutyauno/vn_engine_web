@@ -122,25 +122,25 @@ export class SandboxEvaluator {
           }
           case '*': {
             if (typeof leftVal !== 'number' || typeof rightVal !== 'number') {
-              throw new VMRuntimeError('Phép nhân "*" yêu cầu cả hai toán hạng là số học');
+              throw new VMRuntimeError('Multiplication "*" requires both operands to be numeric');
             }
             return leftVal * rightVal;
           }
           case '/': {
             if (typeof leftVal !== 'number' || typeof rightVal !== 'number') {
-              throw new VMRuntimeError('Phép chia "/" yêu cầu cả hai toán hạng là số học');
+              throw new VMRuntimeError('Division "/" requires both operands to be numeric');
             }
             if (rightVal === 0) {
-              throw new VMRuntimeError('Lỗi chia cho 0 trong biểu thức!');
+              throw new VMRuntimeError('Division by zero in expression!');
             }
             return leftVal / rightVal;
           }
           case '%': {
             if (typeof leftVal !== 'number' || typeof rightVal !== 'number') {
-              throw new VMRuntimeError('Phép chia lấy dư "%" yêu cầu cả hai toán hạng là số học');
+              throw new VMRuntimeError('Modulo "%" requires both operands to be numeric');
             }
             if (rightVal === 0) {
-              throw new VMRuntimeError('Lỗi chia cho 0 trong biểu thức!');
+              throw new VMRuntimeError('Division by zero in expression!');
             }
             return leftVal % rightVal;
           }
@@ -159,7 +159,7 @@ export class SandboxEvaluator {
           case '<=':
             return (leftVal as number) <= (rightVal as number);
           default:
-            throw new VMRuntimeError(`Toán tử hai ngôi không được hỗ trợ: "${node.operator}"`);
+            throw new VMRuntimeError(`Unsupported binary operator: "${node.operator}"`);
         }
       }
 
@@ -181,7 +181,7 @@ export class SandboxEvaluator {
 
       default:
         throw new VMRuntimeError(
-          `Loại nút biểu thức không được hỗ trợ: "${(node as { type: string }).type}"`,
+          `Unsupported expression node type: "${(node as { type: string }).type}"`,
         );
     }
   }

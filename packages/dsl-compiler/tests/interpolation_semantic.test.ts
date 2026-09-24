@@ -12,7 +12,9 @@ describe('Interpolation Semantic Validation (interpolation_semantic.test.ts)', (
 
     expect(result.success).toBe(false);
     expect(result.errors).toBeDefined();
-    expect(result.errors![0]?.message).toContain("Biến 'undeclared_hero' trong nội suy chuỗi");
+    expect(result.errors![0]?.message).toContain(
+      "Variable 'undeclared_hero' in string interpolation",
+    );
   });
 
   it('hợp lệ khi dùng biến Global đã define ở top-level', () => {

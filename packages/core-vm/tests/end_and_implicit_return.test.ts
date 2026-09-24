@@ -78,9 +78,7 @@ scene subsequent_scene {
     expect(vm.getState().callStack).toHaveLength(0);
 
     expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining(
-        "Scene 'my_sub' kết thúc mà không có lệnh 'return'. Đã tự động return về caller.",
-      ),
+      expect.stringContaining("Scene 'my_sub' reached end without an explicit 'return' statement"),
     );
 
     // 4. Lệnh end trong main -> HALTED
@@ -119,7 +117,7 @@ scene game_over_scene {
     expect(s3.stepResult.type).toBe('HALTED');
 
     expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining("Kịch bản thực thi 'end' khi call stack vẫn còn phần tử"),
+      expect.stringContaining("Script executed 'end' while call stack is not empty"),
     );
 
     warnSpy.mockRestore();

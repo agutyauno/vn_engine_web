@@ -98,7 +98,7 @@ describe('Variable Scoping & Declaration Specification (Stage 4 & 5)', () => {
     expect(result.success).toBe(false);
     expect(result.errors).toBeDefined();
     expect(result.errors![0]?.message).toContain(
-      'Biến global "score" bị định nghĩa trùng lặp ở top-level',
+      'Global variable "score" is defined multiple times at top-level',
     );
   });
 
@@ -115,7 +115,7 @@ describe('Variable Scoping & Declaration Specification (Stage 4 & 5)', () => {
     expect(result.success).toBe(false);
     expect(result.errors).toBeDefined();
     expect(result.errors![0]?.message).toContain(
-      "Biến 'score' đã được khai báo là global (ở top-level). Không thể dùng cùng tên 'score' làm biến local trong scene 'minigame'.",
+      "Variable 'score' is already declared as global (at top-level). Cannot reuse 'score' as a local variable in scene 'minigame'.",
     );
   });
 
@@ -131,7 +131,7 @@ describe('Variable Scoping & Declaration Specification (Stage 4 & 5)', () => {
     expect(result.success).toBe(false);
     expect(result.errors).toBeDefined();
     expect(result.errors![0]?.message).toContain(
-      "Biến local 'temp' bị khai báo trùng lặp trong scene 'main'.",
+      "Local variable 'temp' is defined multiple times in scene 'main'.",
     );
   });
 
@@ -164,7 +164,7 @@ describe('Variable Scoping & Declaration Specification (Stage 4 & 5)', () => {
     expect(result.success).toBe(false);
     expect(result.errors).toBeDefined();
     expect(result.errors![0]?.message).toContain(
-      "Biến 'unknown_var' chưa được khai báo trước khi gán giá trị trong scene 'main'. Vui lòng dùng 'define unknown_var = ...' trước.",
+      "Variable 'unknown_var' must be declared before assignment in scene 'main'. Please use 'define unknown_var = ...' first.",
     );
   });
 

@@ -58,7 +58,7 @@ function convertJsepNode(node: jsep.Expression): ExpressionAST {
     case 'CallExpression': {
       const call = node as jsep.CallExpression;
       if (call.callee.type !== 'Identifier') {
-        throw new Error('Chỉ hỗ trợ gọi hàm trực tiếp theo tên');
+        throw new Error('Only direct function calls by name are supported');
       }
       return {
         type: 'CallExpression',
@@ -71,7 +71,7 @@ function convertJsepNode(node: jsep.Expression): ExpressionAST {
     }
 
     default:
-      throw new Error(`Kiểu biểu thức không được hỗ trợ trong nội suy: ${node.type}`);
+      throw new Error(`Unsupported expression type in interpolation: ${node.type}`);
   }
 }
 

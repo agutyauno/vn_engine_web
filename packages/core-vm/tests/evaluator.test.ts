@@ -188,7 +188,7 @@ describe('SandboxEvaluator', () => {
         },
         variables,
       ),
-    ).toThrowError(/Lỗi chia cho 0/);
+    ).toThrowError(/Division by zero/);
 
     // modulo by zero throws error
     expect(() =>
@@ -201,7 +201,7 @@ describe('SandboxEvaluator', () => {
         },
         variables,
       ),
-    ).toThrowError(/Lỗi chia cho 0/);
+    ).toThrowError(/Division by zero/);
   });
 
   it('should support string concatenation with numbers and strings', () => {

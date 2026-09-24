@@ -1,19 +1,19 @@
 # ==============================================================
-# KỊCH BẢN MẪU: BÍ ẨN PHÒNG HỘI HỌC SINH (THE AFTER-SCHOOL MYSTERY)
-# Thể loại: Trinh thám học đường / Điều tra suy luận
-# Trình diễn đầy đủ:
-# - Sub-scenes cục bộ & điều hướng (local labels)
+# SAMPLE SCENARIO: THE STUDENT COUNCIL ROOM MYSTERY
+# Genre: School Mystery / Detective Deduction
+# Full Demonstration:
+# - Local sub-scenes & navigation (local labels)
 # - Call stack subroutines (call & return)
-# - Vòng lặp điều kiện (while) & điều kiện đa tầng (if / else if / else)
-# - Toán tử logic (!, &&, ||) và toán học (+, -, *, /)
-# - Danh tính ẩn danh & Lộ diện tên nhân vật (reveal as)
-# - Lựa chọn rẽ nhánh có điều kiện (conditional choices)
-# - Đổi cảnh nền, hiển thị nhiều nhân vật, chuyển kênh âm thanh
-# - Nhiều nhánh kết thúc (True, Normal, Bad, Coward Endings)
+# - Conditional loops (while) & multi-branch conditions (if / else if / else)
+# - Logical operators (!, &&, ||) and math (+, -, *, /)
+# - Anonymous identity & Name revelation (reveal as)
+# - Conditional choices
+# - Background changes, multiple characters, audio channels
+# - Multiple branching endings (True, Normal, Bad, Coward Endings)
 # ==============================================================
 
 # ==============================================================
-# BIẾN SỐ TOÀN CỤC (GLOBAL STATE)
+# GLOBAL STATE VARIABLES
 # ==============================================================
 define trust_score = 0
 define clues_count = 0
@@ -24,78 +24,78 @@ define found_footprint = false
 define found_key = false
 
 # --------------------------------------------------------------
-# MÀN 1: MỞ ĐẦU HOÀNG HÔN TẠI HÀNH LANG
+# ACT 1: TWILIGHT IN THE CORRIDOR
 # --------------------------------------------------------------
 scene prologue ui: "default" {
     background bg_corridor transition: "fade"
     play music "bgm_mystery" volume: 0.6 loop: true fade_in: 1.0s
     play sound "sfx_door_creak" volume: 0.8
 
-    narrator: "17 giờ 30 phút chiều. Ánh hoàng hôn đỏ quạch trải dài trên nền gạch vắng lặng của dãy hành lang tầng 3."
-    "Mọi học sinh đã ra về từ lâu. Chỉ còn tiếng quạt thông gió rít từng hồi khô khốc."
-    "Trước mắt bạn, cánh cửa phòng Hội học sinh — nơi luôn khóa trái nghiêm ngặt — đang hé mở một khe hẹp bất thường."
+    narrator: "5:30 PM. The crimson sunset stretches across the quiet tiles of the 3rd floor hallway."
+    "All students have long left. Only the dry hum of the ventilation fan echoes through the hall."
+    "Before you, the Student Council room door — usually strictly locked — stands slightly ajar."
 
     show alice.serious(position: "left", duration: 0.4s)
-    alice as "???": "{speed:slow}Này... {pause:0.6s}Cậu đang làm gì thập thò trước cửa phòng Hội học sinh vậy?{speed:normal}"
+    alice as "???": "{speed:slow}Hey... {pause:0.6s}What are you doing lurking in front of the Student Council room?{speed:normal}"
 
     choice {
-        "Tôi thấy cửa mở nên tò mò nhìn thử": goto .explain_curious
-        "Tôi chỉ đi ngang qua trên đường về thôi": goto .explain_passby
-        "(Im lặng lùi lại và chuẩn bị bỏ chạy)": goto .run_away
+        "I saw the door open and was curious": goto .explain_curious
+        "I was just passing by on my way home": goto .explain_passby
+        "(Step back silently and prepare to run)": goto .run_away
     }
 
     scene .explain_curious {
         ~ trust_score = 15
-        alice as "???": "Cửa mở sao? Lạ thật... Độ tin cậy của tôi dành cho cậu là {color:#38bdf8}{trust_score}%{/color}."
+        alice as "???": "The door was open? Strange... My trust in you is {color:#38bdf8}{trust_score}%{/color}."
         goto .meet_alice
     }
 
     scene .explain_passby {
-        alice as "???": "Giờ này mà vẫn còn nán lại trường sao? Cậu đáng ngờ lắm đấy."
+        alice as "???": "Still lingering around school at this hour? That sounds suspicious."
         ~ trust_score = 5
         goto .meet_alice
     }
 
     scene .run_away {
-        alice as "???": "Đứng lại! Đừng có chạy!"
+        alice as "???": "Hold on! Don't run away!"
         ~ trust_score = 0
         goto coward_ending
     }
 
     scene .meet_alice {
-        reveal alice as "Alice - Hội Phó"
+        reveal alice as "Alice - Vice President"
         show alice.smile(position: "left")
 
-        alice: "Tôi là Alice, Hội phó phụ trách kỷ luật. Nếu cửa đã mở, chúng ta phải vào kiểm tra xem có ai đột nhập không."
-        alice: "Cậu có dám vào trong cùng tôi một lát không?"
+        alice: "I'm Alice, Student Council Vice President. If the door was open, we need to check if someone broke in."
+        alice: "Would you come inside with me for a moment?"
 
         choice {
-            "Được thôi, tôi sẽ giúp cậu kiểm tra": goto chapter1_investigation
-            "Thôi, việc này nguy hiểm lắm, tôi về trước đây": goto coward_ending
+            "Sure, I'll help you check": goto chapter1_investigation
+            "No, that sounds dangerous. I'm heading home": goto coward_ending
         }
     }
 }
 
 # --------------------------------------------------------------
-# MÀN 2: BƯỚC VÀO CĂN PHÒNG & KHỞI ĐỘNG ĐIỀU TRA
+# ACT 2: ENTERING THE ROOM & BEGINNING INVESTIGATION
 # --------------------------------------------------------------
 scene chapter1_investigation {
     background bg_classroom transition: "fade"
     stop music fade_out: 1.0s
     play music "bgm_school" volume: 0.7 loop: true
 
-    alice: "Xem kìa... Tài liệu trên bàn làm việc bị xáo trộn lung tung cả lên!"
+    alice: "Look at this... The documents on the desk are completely scrambled!"
 
-    # Nhân vật thứ hai xuất hiện trong hồi tưởng
+    # Second character appears in flashback
     show bob.serious(position: "right", duration: 0.5s)
-    bob: "Alice, hôm nay tài liệu kết quả bầu cử Hội học sinh đang được niêm phong trong phòng đấy. Tuyệt đối không để ai xem trước."
+    bob: "Alice, the election results documents are sealed in the office today. Make sure no one peeks."
     hide bob
 
     show alice.serious(position: "left")
-    alice: "Két sắt đựng phong bì kết quả bầu cử có dấu hiệu bị cạy khóa!"
-    alice: "Chúng ta cần tìm ít nhất 3 manh mối để xác định xem ai là kẻ đã lén vào đây trước khi bác bảo vệ đi tuần."
+    alice: "The safe holding the election ballot envelopes shows signs of tampering!"
+    alice: "We need to find at least 3 clues to determine who sneaked in before the security guard patrols."
 
-    # Khởi tạo các biến số điều tra & năng lượng
+    # Initialize investigation variables & energy
     ~ clues_count = 0
     ~ energy = 100
     ~ has_flashlight = false
@@ -103,12 +103,12 @@ scene chapter1_investigation {
     ~ found_footprint = false
     ~ found_key = false
 
-    # Vòng lặp điều tra: lặp lại cho đến khi đủ 3 manh mối hoặc cạn kiệt thể lực
+    # Investigation loop: repeat until 3 clues found or energy depleted
     while clues_count < 3 && energy > 0 {
         call .investigate_turn
     }
 
-    # Đánh giá sau vòng lặp điều tra
+    # Post-investigation check
     if clues_count >= 3 {
         goto chapter2_confrontation
     } else {
@@ -116,33 +116,33 @@ scene chapter1_investigation {
     }
 
     # ----------------------------------------------------------
-    # SUBROUTINE ĐIỀU TRA (GỌI BẰNG CALL & RETURN)
+    # INVESTIGATION SUBROUTINE (INVOKED VIA CALL & RETURN)
     # ----------------------------------------------------------
     scene .investigate_turn {
-        alice: "Cậu muốn chúng ta bắt đầu kiểm tra từ khu vực nào trước?"
+        alice: "Where should we start searching first?"
 
         choice {
             if !found_diary {
-                "Lục soát giá sách và tập hồ sơ lưu trữ": goto .search_bookshelf
+                "Search the bookshelves and archive folders": goto .search_bookshelf
             }
             if !has_flashlight {
-                "Kiểm tra ngăn bàn giáo viên ở bục giảng": goto .search_desk
+                "Check the teacher's podium drawer": goto .search_desk
             }
             if !found_footprint {
-                "Kiểm tra dấu vết gần bệ cửa sổ thông gió": goto .search_window
+                "Examine marks near the ventilation window sill": goto .search_window
             }
             if has_flashlight && !found_key {
-                "Dùng đèn pin soi vào khe hẹp dưới chân tủ sắt": goto .search_safe
+                "Use the flashlight to inspect under the metal cabinet": goto .search_safe
             }
-            "Tạm dừng nghỉ ngơi 5 phút để lấy lại sức (+25 Thể lực)": goto .take_rest
+            "Take a 5-minute break to regain strength (+25 Stamina)": goto .take_rest
         }
     }
 
     scene .search_bookshelf {
-        "Bạn cẩn thận lật từng gáy sách dày cộp bám bụi..."
+        "You carefully inspect the spines of dusty, thick binders..."
         play sound "sfx_bell" volume: 0.7
         show alice.surprised(position: "left")
-        alice: "Nhìn này! Một cuốn nhật ký kẹp giữa đống sổ họp cũ. Có một trang bị xé dở ghi ngày hôm nay!"
+        alice: "Look! A diary tucked between old meeting records. A torn page is dated today!"
         ~ found_diary = true
         ~ clues_count = clues_count + 1
         ~ energy = energy - 20
@@ -151,19 +151,19 @@ scene chapter1_investigation {
     }
 
     scene .search_desk {
-        "Bạn cúi xuống mở ngăn kéo bàn giáo viên..."
+        "You reach down and open the teacher's podium drawer..."
         play sound "sfx_door_creak" volume: 0.6
-        "Ngăn kéo không có tài liệu, nhưng bạn tìm thấy một chiếc đèn pin nhỏ vẫn còn pin!"
+        "No documents inside, but you find a small flashlight with working batteries!"
         ~ has_flashlight = true
         ~ energy = energy - 15
-        alice: "Chiếc đèn pin này sẽ giúp chúng ta soi được những góc tối hẹp đấy!"
+        alice: "This flashlight will help us look into dark corners!"
         return
     }
 
     scene .search_window {
-        "Bạn bước lại gần khung cửa sổ mở hé nhìn ra sân trường..."
+        "You step closer to the window slightly open toward the courtyard..."
         show alice.serious(position: "left")
-        alice: "Cậu tinh ý thật! Nhìn lớp bụi trên bệ cửa kìa — có dấu giày thể thao dính bùn đất còn rất mới!"
+        alice: "Good eye! Look at the dust on the sill — fresh sneaker footprints with mud on them!"
         ~ found_footprint = true
         ~ clues_count = clues_count + 1
         ~ energy = energy - 20
@@ -172,10 +172,10 @@ scene chapter1_investigation {
     }
 
     scene .search_safe {
-        "Bạn bật đèn pin rọi vào gầm tủ sắt bám mạng nhện..."
+        "You aim the flashlight beam underneath the cobweb-covered cabinet..."
         play sound "sfx_bell" volume: 0.9
         show alice.happy(position: "center")
-        alice: "Trời ơi! Có một chiếc chìa khóa tủ dự phòng bị ai đó đánh rơi ở đây!"
+        alice: "Aha! Someone dropped a spare cabinet key down here!"
         ~ found_key = true
         ~ clues_count = clues_count + 1
         ~ energy = energy - 20
@@ -184,9 +184,9 @@ scene chapter1_investigation {
     }
 
     scene .take_rest {
-        "Bạn và Alice ngồi tựa vào mép bàn, uống ngụm nước để lấy lại bình tĩnh."
+        "You and Alice lean against the desk, taking a sip of water to catch your breath."
         show alice.smile(position: "left")
-        alice: "Đừng quá căng thẳng nhé, chúng ta nhất định sẽ tìm ra chân tướng."
+        alice: "Don't stress too much. We'll definitely uncover the truth."
         ~ energy = energy + 25
         if energy > 100 {
             ~ energy = 100
@@ -196,58 +196,58 @@ scene chapter1_investigation {
 }
 
 # --------------------------------------------------------------
-# MÀN 3: ĐỐI CHẤT & KẾT LUẬN SỰ VIỆC
+# ACT 3: CONFRONTATION & RESOLUTION
 # --------------------------------------------------------------
 scene chapter2_confrontation {
     background bg_courtyard transition: "fade"
     play music "bgm_evening" volume: 0.8 loop: true
 
     show alice.happy(position: "left")
-    alice: "Tuyệt vời! Chúng ta đã thu thập đủ cả 3 manh mối quan trọng:"
-    alice: "Trang nhật ký xé dở, vết giày thể thao dính bùn, và chiếc chìa khóa dự phòng!"
+    alice: "Awesome! We've collected all 3 crucial clues:"
+    alice: "The torn diary page, muddy sneaker prints, and the spare key!"
 
-    # Nhân vật Bob bất ngờ xuất hiện tại sân trường
+    # Bob unexpectedly appears in the courtyard
     show bob.serious(position: "right", duration: 0.5s)
-    bob: "Hai người các cậu... giờ này sao vẫn còn ở trong khu vực văn phòng Hội học sinh?"
+    bob: "You two... why are you still in the Student Council office area at this hour?"
 
     show alice.surprised(position: "left")
-    alice: "Anh Bob... đôi giày thể thao của anh... sao mũi giày lại dính bùn đất giống hệt vết ở bệ cửa sổ?"
+    alice: "Bob... your sneakers... why are the toes covered in the exact same mud as the window sill?"
 
     choice {
         if trust_score >= 35 {
-            "Thẳng thắn đối chất: Bob chính là người tự dàn cảnh cạy tủ!": goto .accuse_bob
+            "Confront him directly: Bob staged the break-in himself!": goto .accuse_bob
         }
-        "Bình tĩnh hỏi lý do anh Bob quay lại trường lúc này": goto .calm_question
-        "Sợ hãi im lặng và giấu hết các manh mối vừa tìm được": goto .keep_silent
+        "Calmly ask why Bob returned to school right now": goto .calm_question
+        "Stay silent in fear and conceal the clues found": goto .keep_silent
     }
 
     scene .accuse_bob {
-        bob: "Hả?! Các cậu dám nghi ngờ tôi ư... Khoan đã..."
+        bob: "What?! You suspect me... Wait, hold on..."
         show bob.angry(position: "right")
-        bob: "Được rồi... Tôi thừa nhận. Chiều nay tôi làm rơi chìa khóa két sắt khi trèo cửa sổ lấy quả bóng bị kẹt."
-        bob: "Tôi sợ mọi người chê trách mình vô trách nhiệm nên mới giả vờ là có kẻ đột nhập để trì hoãn."
+        bob: "Fine... I confess. This afternoon I dropped the safe key while climbing the window to retrieve a stuck ball."
+        bob: "I was afraid of being blamed for irresponsibility, so I pretended someone broke in to buy time."
         show alice.smile(position: "left")
-        alice: "Thật là... anh làm chúng em hết hồn! May mà có bạn học sinh mới này hỗ trợ điều tra."
+        alice: "Good grief... you startled us! Luckily our new student here helped with the investigation."
         goto true_ending
     }
 
     scene .calm_question {
-        bob: "Thật ra... tôi quay lại để tìm chiếc chìa khóa dự phòng bị rơi lúc chiều."
+        bob: "To tell the truth... I came back to search for a spare key I dropped earlier."
         show alice.smile(position: "left")
-        alice: "Chiếc chìa khóa này đúng không anh? Bọn em đã tìm thấy nó dưới gầm tủ rồi!"
+        alice: "Is it this key? We found it under the cabinet!"
         show bob.smile(position: "right")
-        bob: "Cảm ơn hai cậu rất nhiều! Các cậu đã cứu tôi một bàn thua trông thấy."
+        bob: "Thank you both so much! You really saved me from a disaster."
         goto normal_ending
     }
 
     scene .keep_silent {
-        bob: "Hai cậu ở lại muộn lại còn lén lút trong phòng Hội. Ngày mai lên phòng giám thị gặp tôi!"
+        bob: "Staying late and sneaking around the Council room? Report to the disciplinary office tomorrow!"
         goto bad_ending_caught
     }
 }
 
 # --------------------------------------------------------------
-# CÁC KẾT THÚC (ENDINGS)
+# ENDINGS
 # --------------------------------------------------------------
 scene true_ending {
     background bg_courtyard transition: "fade"
@@ -256,13 +256,13 @@ scene true_ending {
 
     show alice.happy(position: "center")
     show bob.smile(position: "right")
-    alice: "Cảm ơn cậu rất nhiều! Nhờ sự nhạy bén và dũng cảm của cậu, mọi hiểu lầm đã được giải tỏa hoàn toàn."
-    bob: "Hội học sinh rất cần những người nhiệt huyết như cậu. Cậu có muốn ứng cử vào ban điều tra của trường không?"
+    alice: "Thank you so much! Thanks to your keen eye and courage, the misunderstanding was completely resolved."
+    bob: "The Student Council needs passionate people like you. Would you like to run for our inquiry committee?"
 
-    narrator: "Hoàng hôn buông xuống, ánh đèn đường bật sáng ấm áp."
-    narrator: "Ngày đầu tiên ở ngôi trường mới đã khép lại bằng một cuộc phiêu lưu đáng nhớ và một tình bạn đẹp."
+    narrator: "Twilight settles over the campus as streetlights flicker on warmly."
+    narrator: "Your first day at the new school comes to a close with an unforgettable adventure and a new friendship."
     narrator: "═══════════════════════════════════════════════════"
-    narrator: "          ★ KẾT THÚC HOÀN HẢO (TRUE ENDING) ★        "
+    narrator: "             ★ TRUE ENDING: CASE CLOSED ★           "
     narrator: "═══════════════════════════════════════════════════"
     end
 }
@@ -270,10 +270,10 @@ scene true_ending {
 scene normal_ending {
     stop music fade_out: 1.5s
     show alice.smile(position: "center")
-    alice: "Mọi chuyện đã được giải quyết êm đẹp. Chúng ta về thôi kẻo muộn!"
-    narrator: "Bạn và Alice cùng nhau rảo bước ra về dưới bóng chiều tà."
+    alice: "Everything turned out fine. Let's head home before it gets too dark!"
+    narrator: "You and Alice walk out through the school gates under the evening sky."
     narrator: "═══════════════════════════════════════════════════"
-    narrator: "          ◆ KẾT THÚC TỐT ĐẸP (NORMAL ENDING) ◆       "
+    narrator: "            ◆ NORMAL ENDING: SAFE AND SOUND ◆       "
     narrator: "═══════════════════════════════════════════════════"
     end
 }
@@ -281,10 +281,10 @@ scene normal_ending {
 scene bad_ending_caught {
     stop music fade_out: 1.0s
     show bob.angry(position: "center")
-    narrator: "Sự im lặng và thiếu tự tin đã khiến bạn bị hiểu nhầm là kẻ có ý đồ xấu."
-    narrator: "Hình phạt: Trực nhật và dọn thư viện trường suốt một tháng!"
+    narrator: "Hesitation and silence led to being mistaken for a trespasser."
+    narrator: "Penalty: Detention and library duty for an entire month!"
     narrator: "═══════════════════════════════════════════════════"
-    narrator: "          ✖ KẾT THÚC TỆ: BỊ PHẠT TRỰC NHẬT ✖         "
+    narrator: "          ✖ BAD ENDING: DETENTION DUTY ✖            "
     narrator: "═══════════════════════════════════════════════════"
     end
 }
@@ -292,21 +292,21 @@ scene bad_ending_caught {
 scene exhausted_bad_ending {
     stop music fade_out: 1.0s
     show alice.serious(position: "left")
-    "Thể lực của bạn đã giảm về 0%! Bạn ngã quỵ xuống sàn vì kiệt sức..."
-    alice: "Cậu không sao chứ?! Trời ơi, tiếng động lớn quá, bác bảo vệ đang đi lên cầu thang rồi!"
-    narrator: "Hai người bị bảo vệ lập biên bản vì ở lại trường quá giờ quy định."
+    "Your stamina reached 0%! You collapse onto the floor from exhaustion..."
+    alice: "Are you okay?! Oh no, the noise was loud, the security guard is coming upstairs!"
+    narrator: "Both of you are caught and reprimanded for staying past curfew."
     narrator: "═══════════════════════════════════════════════════"
-    narrator: "          ✖ KẾT THÚC TỆ: KIỆT SỨC TRONG ĐÊM ✖        "
+    narrator: "          ✖ BAD ENDING: EXHAUSTED IN THE DARK ✖     "
     narrator: "═══════════════════════════════════════════════════"
     end
 }
 
 scene coward_ending {
     stop music fade_out: 1.0s
-    narrator: "Bạn quyết định quay lưng bỏ về nhà, không muốn dính líu vào rắc rối."
-    narrator: "Sáng hôm sau, tin tức về vụ cậy khóa phòng Hội học sinh lan truyền khắp trường, nhưng bạn sẽ không bao giờ biết được chân tướng thực sự..."
+    narrator: "You decide to turn back and hurry home, wanting nothing to do with trouble."
+    narrator: "The next morning, rumors about the Student Council break-in spread, but you will never know what truly happened..."
     narrator: "═══════════════════════════════════════════════════"
-    narrator: "          ― KẾT THÚC BỎ CUỘC (COWARD ENDING) ―       "
+    narrator: "             ― COWARD ENDING: WALK AWAY ―           "
     narrator: "═══════════════════════════════════════════════════"
     end
 }
