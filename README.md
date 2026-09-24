@@ -43,17 +43,33 @@
   - Tốc độ gõ chữ linh hoạt: `{speed:slow}`, `{speed:normal}`, `{speed:fast}`.
   - Đổi màu chữ cục bộ: `{color:#38bdf8}vật phẩm đặc biệt{/color}` (100% XSS-Safe qua text nodes).
 
-### 3. Studio Biên Kịch Trực Quan (Web Editor)
+### 3. Đồ Họa & Điều Khiển Hình Ảnh (Transforms & Motion System)
+
+- **Biến đổi hình học (Transforms)**:
+  - Phóng to / thu nhỏ linh hoạt (`scale`, `scaleX`, `scaleY`).
+  - Xoay đa chiều theo góc độ (`rotate: 15`, `rotate: -30`).
+  - Lật gương tức thì (`flipX: true`, `flipY: true`).
+  - Tùy chỉnh độ mờ / trong suốt (`alpha: 0.0` đến `1.0`).
+- **Định vị & Bố cục tinh tế**:
+  - Căn nhanh qua vị trí chuẩn hóa (`position: "left" | "center" | "right"`).
+  - Tọa độ tỷ lệ tương đối (`x`, `y` từ `0.0` đến `1.0`).
+  - Dịch chuyển bù đắp điểm ảnh (`offsetX`, `offsetY` dạng pixel).
+- **Preset Chuyển Động & Hiệu Ứng Phong Phú**:
+  - `shake` (rung chấn kinh ngạc/va đập), `hop` (nhảy cẫng vui sướng), `bounce` (tưng nảy), `wobble` (lắc lư bối rối), `pop` (nhún nảy xuất hiện), `zoom`, `slide`, `fade`.
+  - Bộ hàm gia tốc (Easing): `linear`, `ease_in`, `ease_out`, `ease_in_out`, `bounce`, `elastic`.
+- Áp dụng đồng bộ cho cả sprite nhân vật (`show`) lẫn phông nền (`background`).
+
+### 4. Studio Biên Kịch Trực Quan (Web Editor)
 
 - Tích hợp **Monaco Editor** với đầy đủ Syntax Highlighting, Autocompletion, và phân tích ngữ nghĩa báo lỗi thời gian thực (Real-time Diagnostics).
 - **Trình quản lý Asset & Nhân vật**: Upload phông nền, âm thanh, biểu cảm sprite; cơ chế _Thêm nhanh (1-click)_ kèm màu đại diện Wireframe.
 - **Drawer Biến Watch & Biến cờ**: Theo dõi trạng thái biến Global / Local theo thời gian thực khi chạy thử kịch bản.
 - **Cửa sổ rời (Pop-out Preview)**: Mở trình phát game ở màn hình riêng biệt hoặc xem trực tiếp bên cạnh kịch bản.
 
-### 4. Máy Ảo Runtime & Trình Phát (Runtime Player)
+### 5. Máy Ảo Runtime & Trình Phát (Runtime Player)
 
 - Hệ thống **Save / Load** nhiều trang với ảnh chụp màn hình thu nhỏ (Thumbnail preview).
-- **Rollback / Roll-forward** quay ngược hoặc tiến tới từng câu thoại dựa trên cấu trúc Ring Buffer.
+- **Rollback / Roll-forward** quay ngược hoặc tiến tới từng câu thoại dựa trên cấu trúc Ring Buffer (lưu giữ trọn vẹn toàn bộ transform & vị trí ảnh).
 - **Lịch sử thoại (Backlog)**: Xem lại toàn bộ hội thoại đã qua, tự động lọc sạch thẻ điều khiển nội suy.
 - Hỗ trợ chế độ đọc tự động (**Auto**) và tua nhanh (**Skip**).
 
@@ -153,13 +169,13 @@ define gold = 150000
 define trust_score = 0
 
 scene prologue ui: "default" {
-    background bg_corridor transition: "fade"
+    background bg_corridor(scale: 1.1, transition: "zoom", duration: 1.0s)
     play music "bgm_mystery" volume: 0.6 loop: true fade_in: 1.0s
     play sound "sfx_door_creak" volume: 0.8
 
     narrator: "Hoàng hôn buông xuống dãy hành lang vắng lặng."
 
-    show alice.serious(position: "left", duration: 0.4s)
+    show alice.serious(position: "left", flipX: true, duration: 0.4s)
     alice as "???": "{speed:slow}Này... {pause:0.6s}Cậu đang làm gì ở trước cửa phòng Hội học sinh?{speed:normal}"
 
     choice {
@@ -170,12 +186,14 @@ scene prologue ui: "default" {
     scene .explain_curious {
         ~ trust_score = 20
         reveal alice as "Alice"
+        show alice.happy(position: "center", scale: 1.2, transition: "hop", duration: 0.5s)
         alice: "Chào {player_name}! Điểm tin cậy của bạn hiện tại là {color:#38bdf8}{trust_score}%{/color}."
         alice: "Số tiền bạn đang mang theo: {gold:comma} vàng."
         goto chapter1_investigation
     }
 
     scene .explain_passby {
+        show alice.surprised(rotate: -10, transition: "shake", easing: "elastic", duration: 0.5s)
         alice as "???": "Đáng ngờ thật đấy. Tạm biệt!"
         end
     }

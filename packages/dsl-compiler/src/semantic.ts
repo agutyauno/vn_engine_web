@@ -14,6 +14,7 @@ import type {
   WhileStatement,
   VarDefineStatement,
   VarAssignStatement,
+  ShowStatement,
   SourceLocation,
 } from '@vn-engine/shared-types';
 
@@ -219,6 +220,14 @@ export function validateSemantics(ast: ProgramAST): CompileError[] {
       } else if (stmt.type === 'WhileStatement') {
         const wh = stmt as WhileStatement;
         checkStatements(sceneName, wh.body, sceneLocals);
+      } else if (stmt.type === 'ShowStatement') {
+        const showStmt = stmt as ShowStatement;
+        if (showStmt.position && (showStmt.x !== undefined || showStmt.y !== undefined)) {
+          errors.push({
+            message: `Trong câu lệnh show '${showStmt.character}', không được dùng đồng thời 'position' và tọa độ 'x'/'y'.`,
+            loc: showStmt.loc,
+          });
+        }
       }
     }
   }

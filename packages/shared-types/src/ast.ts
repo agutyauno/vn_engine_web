@@ -84,19 +84,36 @@ export interface RevealStatement extends BaseASTNode {
   displayName: string;
 }
 
-export interface BackgroundStatement extends BaseASTNode {
-  type: 'BackgroundStatement';
-  assetId: string;
-  transition?: string;
+export interface TransformProperties {
+  scale?: number;
+  scaleX?: number;
+  scaleY?: number;
+  rotate?: number; // degrees
+  flipX?: boolean;
+  flipY?: boolean;
+  x?: number;
+  y?: number;
+  offsetX?: number;
+  offsetY?: number;
+  alpha?: number;
 }
 
-export interface ShowStatement extends BaseASTNode {
+export interface MotionProperties {
+  transition?: string;
+  easing?: string;
+  duration?: number;
+}
+
+export interface BackgroundStatement extends BaseASTNode, TransformProperties, MotionProperties {
+  type: 'BackgroundStatement';
+  assetId: string;
+}
+
+export interface ShowStatement extends BaseASTNode, TransformProperties, MotionProperties {
   type: 'ShowStatement';
   character: string;
   sprite: string;
   position?: NamedPosition | CoordinatePosition;
-  transition?: string;
-  duration?: number;
 }
 
 export interface HideStatement extends BaseASTNode {

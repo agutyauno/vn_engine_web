@@ -318,6 +318,80 @@ describe('VisualNovelVM Core', () => {
     expect(catchUpRolled.currentDialogue?.text).toBe('Chào buổi sáng.');
   });
 
+  it('should accurately preserve image transform properties in getStateCatchUp across progress and rollback', () => {
+    const program: Instruction[] = [
+      { type: 'SCENE', name: 'stage1' },
+      {
+        type: 'BACKGROUND',
+        assetId: 'bg_day',
+        scale: 1.2,
+        rotate: 5,
+        alpha: 0.9,
+      },
+      {
+        type: 'SHOW',
+        character: 'alice',
+        sprite: 'happy',
+        scale: 1.5,
+        scaleX: 1.4,
+        scaleY: 1.6,
+        rotate: -20,
+        flipX: true,
+        x: 0.3,
+        y: 0.8,
+        offsetX: 15,
+        offsetY: -30,
+        alpha: 0.85,
+        transition: 'shake',
+        easing: 'ease_out',
+        duration: 0.5,
+      },
+      { type: 'DIALOGUE', character: 'alice', text: 'Biến đổi hình ảnh thành công!' },
+
+      { type: 'SCENE', name: 'stage2' },
+      {
+        type: 'SHOW',
+        character: 'alice',
+        sprite: 'shocked',
+        scale: 2.0,
+        rotate: 45,
+        flipX: false,
+      },
+      { type: 'DIALOGUE', character: 'alice', text: 'Phóng to hơn nữa!' },
+    ];
+
+    const vm = new VisualNovelVM(program);
+    vm.runUntilInteractive();
+
+    const catchUp1 = vm.getStateCatchUp();
+    expect(catchUp1.background?.scale).toBe(1.2);
+    expect(catchUp1.background?.rotate).toBe(5);
+    const alice1 = catchUp1.sprites.get('alice');
+    expect(alice1?.scale).toBe(1.5);
+    expect(alice1?.rotate).toBe(-20);
+    expect(alice1?.flipX).toBe(true);
+    expect(alice1?.x).toBe(0.3);
+    expect(alice1?.offsetX).toBe(15);
+    expect(alice1?.transition).toBe('shake');
+
+    // Stage 2
+    vm.runUntilInteractive();
+    const catchUp2 = vm.getStateCatchUp();
+    const alice2 = catchUp2.sprites.get('alice');
+    expect(alice2?.scale).toBe(2.0);
+    expect(alice2?.rotate).toBe(45);
+    expect(alice2?.flipX).toBe(false);
+
+    // Rollback về Stage 1
+    vm.rollback();
+    const catchUpRolled = vm.getStateCatchUp();
+    const aliceRolled = catchUpRolled.sprites.get('alice');
+    expect(aliceRolled?.scale).toBe(1.5);
+    expect(aliceRolled?.rotate).toBe(-20);
+    expect(aliceRolled?.flipX).toBe(true);
+    expect(aliceRolled?.offsetX).toBe(15);
+  });
+
   it('should support save/load (serialize/restore) and validate against corrupted save data', () => {
     const program: Instruction[] = [
       { type: 'SCENE', name: 'story' },

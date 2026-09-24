@@ -70,6 +70,20 @@ export const Ui = createToken({ name: 'Ui', pattern: /\bui\b/ });
 export const True = createToken({ name: 'True', pattern: /\btrue\b/ });
 export const False = createToken({ name: 'False', pattern: /\bfalse\b/ });
 
+// Image transform & motion attributes
+export const Scale = createToken({ name: 'Scale', pattern: /\bscale\b/ });
+export const ScaleX = createToken({ name: 'ScaleX', pattern: /\b(scale_x|scaleX)\b/ });
+export const ScaleY = createToken({ name: 'ScaleY', pattern: /\b(scale_y|scaleY)\b/ });
+export const Rotate = createToken({ name: 'Rotate', pattern: /\b(rotate|rotation)\b/ });
+export const FlipX = createToken({ name: 'FlipX', pattern: /\b(flip_x|flipX)\b/ });
+export const FlipY = createToken({ name: 'FlipY', pattern: /\b(flip_y|flipY)\b/ });
+export const CoordX = createToken({ name: 'CoordX', pattern: /\bx\b/ });
+export const CoordY = createToken({ name: 'CoordY', pattern: /\by\b/ });
+export const OffsetX = createToken({ name: 'OffsetX', pattern: /\b(offset_x|offsetX)\b/ });
+export const OffsetY = createToken({ name: 'OffsetY', pattern: /\b(offset_y|offsetY)\b/ });
+export const Alpha = createToken({ name: 'Alpha', pattern: /\b(alpha|opacity)\b/ });
+export const Easing = createToken({ name: 'Easing', pattern: /\beasing\b/ });
+
 // -----------------------------------------------------------------------------
 // 4. Toán tử đa ký tự (Multi-character Operators)
 // -----------------------------------------------------------------------------
@@ -149,6 +163,18 @@ export const allTokens: TokenType[] = [
   Ui,
   True,
   False,
+  Scale,
+  ScaleX,
+  ScaleY,
+  Rotate,
+  FlipX,
+  FlipY,
+  CoordX,
+  CoordY,
+  OffsetX,
+  OffsetY,
+  Alpha,
+  Easing,
 
   // Multi-character Operators (phải đứng trước single-character)
   LessEquals,

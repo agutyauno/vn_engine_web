@@ -273,6 +273,65 @@ describe('DSL Compiler Core (5-Stage Pipeline)', () => {
     expect(result.success).toBe(true);
   });
 
+  it('should compile show statement with all image transform and motion attributes', () => {
+    const dsl = `
+      scene test_transform {
+        show alice.happy(scale: 1.5, rotate: -25, flipX: true, flipY: false, x: 0.35, y: 0.85, offsetX: 10, offsetY: -20, alpha: 0.85, transition: "shake", easing: "ease_out", duration: 0.5s)
+      }
+    `;
+    const result = compileString(dsl);
+    expect(result.success).toBe(true);
+    const showInstr = result.program!.find(i => i.type === 'SHOW') as ShowInstruction;
+    expect(showInstr).toBeDefined();
+    expect(showInstr.character).toBe('alice');
+    expect(showInstr.sprite).toBe('happy');
+    expect(showInstr.scale).toBe(1.5);
+    expect(showInstr.rotate).toBe(-25);
+    expect(showInstr.flipX).toBe(true);
+    expect(showInstr.flipY).toBe(false);
+    expect(showInstr.x).toBe(0.35);
+    expect(showInstr.y).toBe(0.85);
+    expect(showInstr.offsetX).toBe(10);
+    expect(showInstr.offsetY).toBe(-20);
+    expect(showInstr.alpha).toBe(0.85);
+    expect(showInstr.transition).toBe('shake');
+    expect(showInstr.easing).toBe('ease_out');
+    expect(showInstr.duration).toBe(0.5);
+  });
+
+  it('should compile background statement with transform and motion parameters', () => {
+    const dsl = `
+      scene test_bg_transform {
+        background bg_garden(scale: 1.25, rotate: 5, flipX: true, x: 0.5, y: 0.5, alpha: 0.9, transition: "zoom", easing: "bounce", duration: 1.2s)
+      }
+    `;
+    const result = compileString(dsl);
+    expect(result.success).toBe(true);
+    const bgInstr = result.program!.find(i => i.type === 'BACKGROUND') as BackgroundInstruction;
+    expect(bgInstr).toBeDefined();
+    expect(bgInstr.assetId).toBe('bg_garden');
+    expect(bgInstr.scale).toBe(1.25);
+    expect(bgInstr.rotate).toBe(5);
+    expect(bgInstr.flipX).toBe(true);
+    expect(bgInstr.x).toBe(0.5);
+    expect(bgInstr.y).toBe(0.5);
+    expect(bgInstr.alpha).toBe(0.9);
+    expect(bgInstr.transition).toBe('zoom');
+    expect(bgInstr.easing).toBe('bounce');
+    expect(bgInstr.duration).toBe(1.2);
+  });
+
+  it('should report compile error when combining position and x/y in show', () => {
+    const dsl = `
+      scene test_invalid_pos {
+        show alice.happy(position: "left", x: 0.2)
+      }
+    `;
+    const result = compileString(dsl);
+    expect(result.success).toBe(false);
+    expect(result.errors?.some(e => e.message.includes('không được dùng đồng thời'))).toBe(true);
+  });
+
   it('should compile scenario.vns successfully without syntax or semantic errors', () => {
     const scenarioPath = path.resolve(__dirname, '../../../apps/runtime-player/src/scenario.vns');
     const content = fs.readFileSync(scenarioPath, 'utf-8');

@@ -643,7 +643,7 @@ export class VNPlayer {
         const found = this.projectData.assets?.find(a => a.name === assetKey || a.id === assetKey);
         return found?.storageUrl;
       };
-      await this.renderer.setBackground(instr.assetId, instr.transition, bgResolver);
+      await this.renderer.setBackground(instr, instr.transition, bgResolver);
     } else if (instr.type === 'SHOW') {
       const assetResolver = (assetKey: string) => {
         // 1. Khớp trực tiếp trong danh mục tài nguyên

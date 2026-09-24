@@ -3,13 +3,35 @@
 // ==========================================
 
 import { Application, Container, Sprite, Texture, Assets } from 'pixi.js';
-import type { ShowInstruction } from '@vn-engine/shared-types';
+import type { ShowInstruction, BackgroundInstruction } from '@vn-engine/shared-types';
 import {
-  resolveCharacterCoordinates,
+  resolveCharacterPlacement,
+  EASING_FUNCTIONS,
+  type EasingFunction,
   type AssetGraphicResolver,
   type CatchUpVisualState,
   type RendererOptions,
 } from './types';
+
+export function computeTargetScale(
+  scale: number | undefined,
+  scaleX: number | undefined,
+  scaleY: number | undefined,
+  flipX: boolean | undefined,
+  flipY: boolean | undefined,
+): { scaleX: number; scaleY: number } {
+  const baseScale = scale ?? 1.0;
+  const rawX = scaleX ?? baseScale;
+  const rawY = scaleY ?? baseScale;
+  const finalX = flipX ? -Math.abs(rawX) : rawX;
+  const finalY = flipY ? -Math.abs(rawY) : rawY;
+  return { scaleX: finalX, scaleY: finalY };
+}
+
+export function computeTargetRotation(rotateDeg: number | undefined): number {
+  if (rotateDeg === undefined) return 0;
+  return (rotateDeg * Math.PI) / 180;
+}
 
 interface ManagedCharacter {
   characterId: string;
@@ -18,8 +40,15 @@ interface ManagedCharacter {
   sprite: Sprite;
   targetX: number;
   targetY: number;
+  targetScaleX: number;
+  targetScaleY: number;
+  targetRotation: number;
+  targetAlpha: number;
   animating: boolean;
+  cancelAnimation?: () => void;
 }
+
+const defaultEaseOut: EasingFunction = (t: number): number => 1 - Math.pow(1 - t, 3);
 
 export class GameRenderer {
   public app: Application;
@@ -107,37 +136,131 @@ export class GameRenderer {
 
   /**
    * Đặt hình nền (Background). Nếu chưa có asset ảnh thật, tự động sinh phông nền Wireframe Blueprint.
+   * Hỗ trợ đầy đủ biến đổi: phóng to/thu nhỏ (scale), xoay (rotate), lật (flipX/flipY), tọa độ (x, y, offset) và chuyển cảnh.
    */
   public async setBackground(
-    assetId: string,
+    assetIdOrInstr: string | BackgroundInstruction,
     transition?: string,
     assetResolver?: AssetGraphicResolver,
   ): Promise<void> {
+    const isInstr = typeof assetIdOrInstr === 'object';
+    const assetId = isInstr ? assetIdOrInstr.assetId : assetIdOrInstr;
+    const trans = (isInstr ? assetIdOrInstr.transition : undefined) ?? transition;
+    const duration =
+      isInstr && assetIdOrInstr.duration !== undefined ? assetIdOrInstr.duration * 1000 : 400;
+    const easingKey = (
+      isInstr && assetIdOrInstr.easing ? assetIdOrInstr.easing : 'ease_out'
+    ).toLowerCase();
+    const easingFn: EasingFunction = EASING_FUNCTIONS[easingKey] ?? defaultEaseOut;
+
+    const { scaleX: targetScaleX, scaleY: targetScaleY } = computeTargetScale(
+      isInstr ? assetIdOrInstr.scale : undefined,
+      isInstr ? assetIdOrInstr.scaleX : undefined,
+      isInstr ? assetIdOrInstr.scaleY : undefined,
+      isInstr ? assetIdOrInstr.flipX : undefined,
+      isInstr ? assetIdOrInstr.flipY : undefined,
+    );
+    const targetRotation = computeTargetRotation(isInstr ? assetIdOrInstr.rotate : undefined);
+    const targetAlpha = isInstr && assetIdOrInstr.alpha !== undefined ? assetIdOrInstr.alpha : 1.0;
+
+    let targetX = this.baseWidth * 0.5;
+    let targetY = this.baseHeight * 0.5;
+    if (isInstr) {
+      if (assetIdOrInstr.x !== undefined) {
+        targetX =
+          assetIdOrInstr.x >= 0 && assetIdOrInstr.x <= 1
+            ? assetIdOrInstr.x * this.baseWidth
+            : assetIdOrInstr.x;
+      }
+      if (assetIdOrInstr.y !== undefined) {
+        targetY =
+          assetIdOrInstr.y >= 0 && assetIdOrInstr.y <= 1
+            ? assetIdOrInstr.y * this.baseHeight
+            : assetIdOrInstr.y;
+      }
+      if (assetIdOrInstr.offsetX !== undefined) targetX += assetIdOrInstr.offsetX;
+      if (assetIdOrInstr.offsetY !== undefined) targetY += assetIdOrInstr.offsetY;
+    }
+
     if (this.currentBackgroundId === assetId && this.currentBackgroundSprite) {
+      // Cùng ảnh nền: nếu có yêu cầu biến đổi (zoom/pan/rotate), thực hiện chuyển đổi mượt mà
+      const sprite = this.currentBackgroundSprite;
+      const startX = sprite.x;
+      const startY = sprite.y;
+      const startScaleX = sprite.scale.x;
+      const startScaleY = sprite.scale.y;
+      const startRot = sprite.rotation;
+      const startAlpha = sprite.alpha;
+
+      const deltaX = targetX - startX;
+      const deltaY = targetY - startY;
+      const deltaScaleX = targetScaleX - startScaleX;
+      const deltaScaleY = targetScaleY - startScaleY;
+      const deltaRot = targetRotation - startRot;
+      const deltaAlpha = targetAlpha - startAlpha;
+
+      if (duration > 0) {
+        const startTime = performance.now();
+        const animate = (now: number) => {
+          const elapsed = now - startTime;
+          const progress = Math.min(1, elapsed / duration);
+          const ease = easingFn(progress);
+
+          sprite.x = startX + deltaX * ease;
+          sprite.y = startY + deltaY * ease;
+          sprite.scale.x = startScaleX + deltaScaleX * ease;
+          sprite.scale.y = startScaleY + deltaScaleY * ease;
+          sprite.rotation = startRot + deltaRot * ease;
+          sprite.alpha = startAlpha + deltaAlpha * ease;
+
+          if (progress < 1) {
+            requestAnimationFrame(animate);
+          } else {
+            sprite.x = targetX;
+            sprite.y = targetY;
+            sprite.scale.x = targetScaleX;
+            sprite.scale.y = targetScaleY;
+            sprite.rotation = targetRotation;
+            sprite.alpha = targetAlpha;
+          }
+        };
+        requestAnimationFrame(animate);
+      } else {
+        sprite.x = targetX;
+        sprite.y = targetY;
+        sprite.scale.x = targetScaleX;
+        sprite.scale.y = targetScaleY;
+        sprite.rotation = targetRotation;
+        sprite.alpha = targetAlpha;
+      }
       return;
     }
 
     const texture = await this.resolveOrGenerateBackgroundTexture(assetId, assetResolver);
     const newSprite = new Sprite(texture);
+    newSprite.anchor.set(0.5, 0.5);
+    newSprite.x = targetX;
+    newSprite.y = targetY;
     newSprite.width = this.baseWidth;
     newSprite.height = this.baseHeight;
+    newSprite.scale.x *= targetScaleX;
+    newSprite.scale.y *= targetScaleY;
+    newSprite.rotation = targetRotation;
+    newSprite.alpha = targetAlpha;
 
     const oldSprite = this.currentBackgroundSprite;
     this.currentBackgroundId = assetId;
     this.currentBackgroundSprite = newSprite;
 
-    if (oldSprite && transition === 'fade') {
+    if (oldSprite && trans === 'fade' && duration > 0) {
       newSprite.alpha = 0;
       this.backgroundContainer.addChild(newSprite);
 
-      // Hiệu ứng Crossfade trong 400ms
       const startTime = performance.now();
-      const duration = 400;
-
       const animate = (now: number) => {
         const elapsed = now - startTime;
         const progress = Math.min(1, elapsed / duration);
-        newSprite.alpha = progress;
+        newSprite.alpha = targetAlpha * progress;
         oldSprite.alpha = 1 - progress;
 
         if (progress < 1) {
@@ -151,23 +274,37 @@ export class GameRenderer {
     } else {
       this.backgroundContainer.removeChildren();
       if (oldSprite) oldSprite.destroy();
-      newSprite.alpha = 1;
       this.backgroundContainer.addChild(newSprite);
     }
   }
 
   /**
    * Hiển thị nhân vật (SHOW Statement - ADR-018):
-   * - Nếu chưa có trên màn hình: Áp dụng hiệu ứng xuất hiện (Fade-in).
-   * - Nếu đã có trên màn hình: Áp dụng Tween trượt di chuyển (Slide).
+   * - Hỗ trợ đầy đủ phóng to/thu nhỏ (scale, scaleX, scaleY), xoay (rotate), lật (flipX, flipY),
+   *   tọa độ số x/y, offset pixel, độ trong suốt (alpha).
+   * - Hỗ trợ nhiều dạng animation phong phú: slide, fade, shake, hop, bounce, wobble, pop, zoom
+   *   kết hợp các hàm easing (linear, ease_in, ease_out, ease_in_out, bounce, elastic).
    */
   public async showCharacter(
     instr: ShowInstruction,
     assetResolver?: AssetGraphicResolver,
   ): Promise<void> {
-    const coords = resolveCharacterCoordinates(instr.position, this.baseWidth, this.baseHeight);
-    const existing = this.activeCharacters.get(instr.character);
+    const coords = resolveCharacterPlacement(instr, this.baseWidth, this.baseHeight);
+    const { scaleX: targetScaleX, scaleY: targetScaleY } = computeTargetScale(
+      instr.scale,
+      instr.scaleX,
+      instr.scaleY,
+      instr.flipX,
+      instr.flipY,
+    );
+    const targetRotation = computeTargetRotation(instr.rotate);
+    const targetAlpha = instr.alpha ?? 1.0;
+    const duration = instr.duration !== undefined ? instr.duration * 1000 : 350;
+    const transition = instr.transition;
+    const easingKey = (instr.easing ?? 'ease_out').toLowerCase();
+    const easingFn: EasingFunction = EASING_FUNCTIONS[easingKey] ?? defaultEaseOut;
 
+    const existing = this.activeCharacters.get(instr.character);
     const texture = await this.resolveOrGenerateCharacterTexture(
       instr.character,
       instr.sprite,
@@ -175,53 +312,133 @@ export class GameRenderer {
     );
 
     if (existing) {
-      // Nhân vật đã có: Cập nhật biểu cảm và Tween Slide tới vị trí mới (ADR-018)
+      if (existing.cancelAnimation) {
+        existing.cancelAnimation();
+        existing.cancelAnimation = undefined;
+      }
+
       existing.sprite.texture = texture;
       existing.currentSpriteId = instr.sprite;
 
       const startX = existing.container.x;
       const startY = existing.container.y;
+      const startScaleX = existing.container.scale.x;
+      const startScaleY = existing.container.scale.y;
+      const startRot = existing.container.rotation;
+      const startAlpha = existing.container.alpha;
+
       const deltaX = coords.x - startX;
       const deltaY = coords.y - startY;
+      const deltaScaleX = targetScaleX - startScaleX;
+      const deltaScaleY = targetScaleY - startScaleY;
+      const deltaRot = targetRotation - startRot;
+      const deltaAlpha = targetAlpha - startAlpha;
 
-      if (Math.abs(deltaX) > 1 || Math.abs(deltaY) > 1) {
+      const hasChange =
+        Math.abs(deltaX) > 0.5 ||
+        Math.abs(deltaY) > 0.5 ||
+        Math.abs(deltaScaleX) > 0.001 ||
+        Math.abs(deltaScaleY) > 0.001 ||
+        Math.abs(deltaRot) > 0.001 ||
+        Math.abs(deltaAlpha) > 0.01 ||
+        Boolean(transition);
+
+      if (hasChange && duration > 0) {
         existing.animating = true;
+        let cancelled = false;
+        existing.cancelAnimation = () => {
+          cancelled = true;
+          existing.animating = false;
+        };
+
         const startTime = performance.now();
-        const duration = (instr.duration ?? 0.35) * 1000;
 
         const animate = (now: number) => {
+          if (cancelled) return;
           const elapsed = now - startTime;
           const progress = Math.min(1, elapsed / duration);
-          // Easing cubic out
-          const ease = 1 - Math.pow(1 - progress, 3);
+          const ease = easingFn(progress);
 
-          existing.container.x = startX + deltaX * ease;
-          existing.container.y = startY + deltaY * ease;
+          let curX = startX + deltaX * ease;
+          let curY = startY + deltaY * ease;
+          let curScaleX = startScaleX + deltaScaleX * ease;
+          let curScaleY = startScaleY + deltaScaleY * ease;
+          let curRot = startRot + deltaRot * ease;
+          const curAlpha = startAlpha + deltaAlpha * ease;
+
+          // Animation Presets
+          if (transition === 'shake') {
+            const shakeOffset = Math.sin(progress * Math.PI * 10) * (1 - progress) * 20;
+            curX += shakeOffset;
+          } else if (transition === 'hop') {
+            const hopOffset = -Math.sin(progress * Math.PI) * 45;
+            curY += hopOffset;
+          } else if (transition === 'wobble') {
+            const wobbleOffset =
+              Math.sin(progress * Math.PI * 6) * (1 - progress) * ((10 * Math.PI) / 180);
+            curRot += wobbleOffset;
+          } else if (transition === 'pop') {
+            const popScaleFactor = 1 + Math.sin(progress * Math.PI) * 0.15;
+            curScaleX *= popScaleFactor;
+            curScaleY *= popScaleFactor;
+          }
+
+          existing.container.x = curX;
+          existing.container.y = curY;
+          existing.container.scale.x = curScaleX;
+          existing.container.scale.y = curScaleY;
+          existing.container.rotation = curRot;
+          existing.container.alpha = curAlpha;
 
           if (progress < 1) {
             requestAnimationFrame(animate);
           } else {
             existing.container.x = coords.x;
             existing.container.y = coords.y;
+            existing.container.scale.x = targetScaleX;
+            existing.container.scale.y = targetScaleY;
+            existing.container.rotation = targetRotation;
+            existing.container.alpha = targetAlpha;
+            existing.targetX = coords.x;
+            existing.targetY = coords.y;
+            existing.targetScaleX = targetScaleX;
+            existing.targetScaleY = targetScaleY;
+            existing.targetRotation = targetRotation;
+            existing.targetAlpha = targetAlpha;
             existing.animating = false;
+            existing.cancelAnimation = undefined;
           }
         };
         requestAnimationFrame(animate);
       } else {
         existing.container.x = coords.x;
         existing.container.y = coords.y;
+        existing.container.scale.x = targetScaleX;
+        existing.container.scale.y = targetScaleY;
+        existing.container.rotation = targetRotation;
+        existing.container.alpha = targetAlpha;
+        existing.targetX = coords.x;
+        existing.targetY = coords.y;
+        existing.targetScaleX = targetScaleX;
+        existing.targetScaleY = targetScaleY;
+        existing.targetRotation = targetRotation;
+        existing.targetAlpha = targetAlpha;
+        existing.animating = false;
       }
     } else {
-      // Nhân vật mới: Xuất hiện với Fade-in
+      // Nhân vật mới: Xuất hiện
       const container = new Container();
       container.x = coords.x;
       container.y = coords.y;
+      container.scale.x = targetScaleX;
+      container.scale.y = targetScaleY;
+      container.rotation = targetRotation;
+      container.alpha = 0;
 
       const sprite = new Sprite(texture);
       sprite.anchor.set(0.5, 1.0); // Neo tại đáy giữa (chân nhân vật)
       container.addChild(sprite);
 
-      container.alpha = 0;
       this.characterContainer.addChild(container);
 
       const managed: ManagedCharacter = {
@@ -231,26 +448,74 @@ export class GameRenderer {
         sprite,
         targetX: coords.x,
         targetY: coords.y,
+        targetScaleX,
+        targetScaleY,
+        targetRotation,
+        targetAlpha,
         animating: true,
       };
       this.activeCharacters.set(instr.character, managed);
 
-      const startTime = performance.now();
-      const duration = (instr.duration ?? 0.3) * 1000;
-
-      const animate = (now: number) => {
-        const elapsed = now - startTime;
-        const progress = Math.min(1, elapsed / duration);
-        container.alpha = progress;
-
-        if (progress < 1) {
-          requestAnimationFrame(animate);
-        } else {
-          container.alpha = 1;
+      if (duration > 0) {
+        let cancelled = false;
+        managed.cancelAnimation = () => {
+          cancelled = true;
           managed.animating = false;
-        }
-      };
-      requestAnimationFrame(animate);
+        };
+
+        const startTime = performance.now();
+
+        const animate = (now: number) => {
+          if (cancelled) return;
+          const elapsed = now - startTime;
+          const progress = Math.min(1, elapsed / duration);
+          const ease = easingFn(progress);
+
+          container.alpha = targetAlpha * ease;
+
+          let curX = coords.x;
+          let curY = coords.y;
+          let curScaleX = targetScaleX;
+          let curScaleY = targetScaleY;
+          let curRot = targetRotation;
+
+          if (transition === 'shake') {
+            curX += Math.sin(progress * Math.PI * 10) * (1 - progress) * 20;
+          } else if (transition === 'hop') {
+            curY += -Math.sin(progress * Math.PI) * 45;
+          } else if (transition === 'pop') {
+            const popScaleFactor = ease * (1 + Math.sin(progress * Math.PI) * 0.2);
+            curScaleX = targetScaleX * popScaleFactor;
+            curScaleY = targetScaleY * popScaleFactor;
+          } else if (transition === 'zoom') {
+            curScaleX = targetScaleX * ease;
+            curScaleY = targetScaleY * ease;
+          }
+
+          container.x = curX;
+          container.y = curY;
+          container.scale.x = curScaleX;
+          container.scale.y = curScaleY;
+          container.rotation = curRot;
+
+          if (progress < 1) {
+            requestAnimationFrame(animate);
+          } else {
+            container.alpha = targetAlpha;
+            container.x = coords.x;
+            container.y = coords.y;
+            container.scale.x = targetScaleX;
+            container.scale.y = targetScaleY;
+            container.rotation = targetRotation;
+            managed.animating = false;
+            managed.cancelAnimation = undefined;
+          }
+        };
+        requestAnimationFrame(animate);
+      } else {
+        container.alpha = targetAlpha;
+        managed.animating = false;
+      }
     }
   }
 
@@ -291,7 +556,7 @@ export class GameRenderer {
   ): Promise<void> {
     // 1. Đồng bộ Background tức thì
     if (catchUp.background) {
-      await this.setBackground(catchUp.background.assetId, undefined, assetResolver);
+      await this.setBackground({ ...catchUp.background, duration: 0 }, undefined, assetResolver);
     } else {
       this.backgroundContainer.removeChildren();
       this.currentBackgroundId = null;
@@ -301,6 +566,7 @@ export class GameRenderer {
     // 2. Xóa bỏ những nhân vật không còn trong danh sách catch-up
     for (const [charId, managed] of this.activeCharacters.entries()) {
       if (!catchUp.sprites.has(charId)) {
+        if (managed.cancelAnimation) managed.cancelAnimation();
         this.characterContainer.removeChild(managed.container);
         managed.container.destroy({ children: true });
         this.activeCharacters.delete(charId);
@@ -309,11 +575,17 @@ export class GameRenderer {
 
     // 3. Đặt lại vị trí và texture của những nhân vật cần hiển thị
     for (const [charId, showInstr] of catchUp.sprites.entries()) {
-      const coords = resolveCharacterCoordinates(
-        showInstr.position,
-        this.baseWidth,
-        this.baseHeight,
+      const coords = resolveCharacterPlacement(showInstr, this.baseWidth, this.baseHeight);
+      const { scaleX: targetScaleX, scaleY: targetScaleY } = computeTargetScale(
+        showInstr.scale,
+        showInstr.scaleX,
+        showInstr.scaleY,
+        showInstr.flipX,
+        showInstr.flipY,
       );
+      const targetRotation = computeTargetRotation(showInstr.rotate);
+      const targetAlpha = showInstr.alpha ?? 1.0;
+
       const texture = await this.resolveOrGenerateCharacterTexture(
         charId,
         showInstr.sprite,
@@ -322,17 +594,31 @@ export class GameRenderer {
 
       const existing = this.activeCharacters.get(charId);
       if (existing) {
+        if (existing.cancelAnimation) existing.cancelAnimation();
         existing.sprite.texture = texture;
         existing.currentSpriteId = showInstr.sprite;
         existing.container.x = coords.x;
         existing.container.y = coords.y;
-        existing.container.alpha = 1;
+        existing.container.scale.x = targetScaleX;
+        existing.container.scale.y = targetScaleY;
+        existing.container.rotation = targetRotation;
+        existing.container.alpha = targetAlpha;
+        existing.targetX = coords.x;
+        existing.targetY = coords.y;
+        existing.targetScaleX = targetScaleX;
+        existing.targetScaleY = targetScaleY;
+        existing.targetRotation = targetRotation;
+        existing.targetAlpha = targetAlpha;
         existing.animating = false;
+        existing.cancelAnimation = undefined;
       } else {
         const container = new Container();
         container.x = coords.x;
         container.y = coords.y;
-        container.alpha = 1;
+        container.scale.x = targetScaleX;
+        container.scale.y = targetScaleY;
+        container.rotation = targetRotation;
+        container.alpha = targetAlpha;
 
         const sprite = new Sprite(texture);
         sprite.anchor.set(0.5, 1.0);
@@ -346,6 +632,10 @@ export class GameRenderer {
           sprite,
           targetX: coords.x,
           targetY: coords.y,
+          targetScaleX,
+          targetScaleY,
+          targetRotation,
+          targetAlpha,
           animating: false,
         });
       }

@@ -2,7 +2,7 @@
 // TẬP LỆNH TRUNG GIAN (INSTRUCTION SET / IR — ADR-021)
 // ==========================================
 
-import type { ExpressionAST } from './ast';
+import type { ExpressionAST, TransformProperties, MotionProperties } from './ast';
 import type { NamedPosition, CoordinatePosition, SourceLocation } from './common';
 
 export interface BaseInstruction {
@@ -23,19 +23,17 @@ export interface RevealInstruction extends BaseInstruction {
   displayName: string;
 }
 
-export interface BackgroundInstruction extends BaseInstruction {
+export interface BackgroundInstruction
+  extends BaseInstruction, TransformProperties, MotionProperties {
   type: 'BACKGROUND';
   assetId: string;
-  transition?: string;
 }
 
-export interface ShowInstruction extends BaseInstruction {
+export interface ShowInstruction extends BaseInstruction, TransformProperties, MotionProperties {
   type: 'SHOW';
   character: string;
   sprite: string;
   position?: NamedPosition | CoordinatePosition;
-  transition?: string;
-  duration?: number;
 }
 
 export interface HideInstruction extends BaseInstruction {

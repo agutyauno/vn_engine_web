@@ -217,11 +217,61 @@ export class VNSAstBuilder extends BaseVNSVisitor {
 
   backgroundStatement(ctx: any): BackgroundStatement {
     const assetToken = ctx.Identifier[0];
-    const transition = ctx.StringLiteral ? cleanString(ctx.StringLiteral[0].image) : undefined;
+    let transition: string | undefined;
+    if (ctx.StringLiteral) {
+      transition = cleanString(ctx.StringLiteral[0].image);
+    }
+    let x: number | undefined;
+    let y: number | undefined;
+    let offsetX: number | undefined;
+    let offsetY: number | undefined;
+    let scale: number | undefined;
+    let scaleX: number | undefined;
+    let scaleY: number | undefined;
+    let rotate: number | undefined;
+    let flipX: boolean | undefined;
+    let flipY: boolean | undefined;
+    let alpha: number | undefined;
+    let easing: string | undefined;
+    let duration: number | undefined;
+
+    if (ctx.showArgument) {
+      for (const argCst of ctx.showArgument) {
+        const argRes = this.visit(argCst);
+        if (argRes.x !== undefined) x = argRes.x;
+        if (argRes.y !== undefined) y = argRes.y;
+        if (argRes.offsetX !== undefined) offsetX = argRes.offsetX;
+        if (argRes.offsetY !== undefined) offsetY = argRes.offsetY;
+        if (argRes.scale !== undefined) scale = argRes.scale;
+        if (argRes.scaleX !== undefined) scaleX = argRes.scaleX;
+        if (argRes.scaleY !== undefined) scaleY = argRes.scaleY;
+        if (argRes.rotate !== undefined) rotate = argRes.rotate;
+        if (argRes.flipX !== undefined) flipX = argRes.flipX;
+        if (argRes.flipY !== undefined) flipY = argRes.flipY;
+        if (argRes.alpha !== undefined) alpha = argRes.alpha;
+        if (argRes.transition !== undefined) transition = argRes.transition;
+        if (argRes.easing !== undefined) easing = argRes.easing;
+        if (argRes.duration !== undefined) duration = argRes.duration;
+      }
+    }
+
     return {
       type: 'BackgroundStatement',
       assetId: assetToken.image,
       transition,
+      x,
+      y,
+      offsetX,
+      offsetY,
+      scale,
+      scaleX,
+      scaleY,
+      rotate,
+      flipX,
+      flipY,
+      alpha,
+      easing,
+      duration,
       loc: extractLocation(assetToken, this.currentFileId),
     };
   }
@@ -235,14 +285,38 @@ export class VNSAstBuilder extends BaseVNSVisitor {
       sprite = ctx.Identifier[1].image;
     }
     let position: NamedPosition | undefined;
+    let x: number | undefined;
+    let y: number | undefined;
+    let offsetX: number | undefined;
+    let offsetY: number | undefined;
+    let scale: number | undefined;
+    let scaleX: number | undefined;
+    let scaleY: number | undefined;
+    let rotate: number | undefined;
+    let flipX: boolean | undefined;
+    let flipY: boolean | undefined;
+    let alpha: number | undefined;
     let transition: string | undefined;
+    let easing: string | undefined;
     let duration: number | undefined;
 
     if (ctx.showArgument) {
       for (const argCst of ctx.showArgument) {
         const argRes = this.visit(argCst);
-        if (argRes.position) position = argRes.position;
-        if (argRes.transition) transition = argRes.transition;
+        if (argRes.position !== undefined) position = argRes.position;
+        if (argRes.x !== undefined) x = argRes.x;
+        if (argRes.y !== undefined) y = argRes.y;
+        if (argRes.offsetX !== undefined) offsetX = argRes.offsetX;
+        if (argRes.offsetY !== undefined) offsetY = argRes.offsetY;
+        if (argRes.scale !== undefined) scale = argRes.scale;
+        if (argRes.scaleX !== undefined) scaleX = argRes.scaleX;
+        if (argRes.scaleY !== undefined) scaleY = argRes.scaleY;
+        if (argRes.rotate !== undefined) rotate = argRes.rotate;
+        if (argRes.flipX !== undefined) flipX = argRes.flipX;
+        if (argRes.flipY !== undefined) flipY = argRes.flipY;
+        if (argRes.alpha !== undefined) alpha = argRes.alpha;
+        if (argRes.transition !== undefined) transition = argRes.transition;
+        if (argRes.easing !== undefined) easing = argRes.easing;
         if (argRes.duration !== undefined) duration = argRes.duration;
       }
     }
@@ -252,22 +326,87 @@ export class VNSAstBuilder extends BaseVNSVisitor {
       character: charToken.image,
       sprite,
       position,
+      x,
+      y,
+      offsetX,
+      offsetY,
+      scale,
+      scaleX,
+      scaleY,
+      rotate,
+      flipX,
+      flipY,
+      alpha,
       transition,
+      easing,
       duration,
       loc: extractLocation(charToken, this.currentFileId),
     };
+  }
+
+  signedNumber(ctx: any): number {
+    const isNegative = Boolean(ctx.Minus);
+    const num = parseFloat(ctx.NumberLiteral[0].image);
+    return isNegative ? -num : num;
+  }
+
+  booleanLiteral(ctx: any): boolean {
+    return Boolean(ctx.True);
   }
 
   showArgument(ctx: any): any {
     if (ctx.Position) {
       return { position: cleanString(ctx.StringLiteral[0].image) as NamedPosition };
     }
+    if (ctx.CoordX) {
+      return { x: this.visit(ctx.signedNumber[0]) };
+    }
+    if (ctx.CoordY) {
+      return { y: this.visit(ctx.signedNumber[0]) };
+    }
+    if (ctx.OffsetX) {
+      return { offsetX: this.visit(ctx.signedNumber[0]) };
+    }
+    if (ctx.OffsetY) {
+      return { offsetY: this.visit(ctx.signedNumber[0]) };
+    }
+    if (ctx.Scale) {
+      return { scale: this.visit(ctx.signedNumber[0]) };
+    }
+    if (ctx.ScaleX) {
+      return { scaleX: this.visit(ctx.signedNumber[0]) };
+    }
+    if (ctx.ScaleY) {
+      return { scaleY: this.visit(ctx.signedNumber[0]) };
+    }
+    if (ctx.Rotate) {
+      return { rotate: this.visit(ctx.signedNumber[0]) };
+    }
+    if (ctx.FlipX) {
+      return { flipX: this.visit(ctx.booleanLiteral[0]) };
+    }
+    if (ctx.FlipY) {
+      return { flipY: this.visit(ctx.booleanLiteral[0]) };
+    }
+    if (ctx.Alpha) {
+      return { alpha: this.visit(ctx.signedNumber[0]) };
+    }
     if (ctx.Transition) {
       return { transition: cleanString(ctx.StringLiteral[0].image) };
     }
+    if (ctx.Easing) {
+      return { easing: cleanString(ctx.StringLiteral[0].image) };
+    }
     if (ctx.Duration) {
-      const durToken = ctx.DurationLiteral ? ctx.DurationLiteral[0] : ctx.NumberLiteral[0];
-      return { duration: parseDurationSeconds(durToken.image) };
+      if (ctx.DurationLiteral) {
+        return { duration: parseDurationSeconds(ctx.DurationLiteral[0].image) };
+      }
+      if (ctx.signedNumber) {
+        return { duration: this.visit(ctx.signedNumber[0]) };
+      }
+      if (ctx.NumberLiteral) {
+        return { duration: parseFloat(ctx.NumberLiteral[0].image) };
+      }
     }
     return {};
   }

@@ -83,6 +83,60 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): void {
         }
       }
 
+      // C2. Gợi ý thuộc tính biến đổi ảnh (Show & Background parameters)
+      if (/\b(show|background)\b[^(\n]*\([^)\n]*$/.test(textUntilPosition)) {
+        const paramOptions = [
+          {
+            label: 'scale: ',
+            insert: 'scale: 1.2',
+            doc: 'Phóng to/thu nhỏ đồng đều (vd: scale: 1.2)',
+          },
+          {
+            label: 'rotate: ',
+            insert: 'rotate: 15',
+            doc: 'Góc xoay theo độ (vd: rotate: 45 hoặc -30)',
+          },
+          { label: 'flipX: ', insert: 'flipX: true', doc: 'Lật gương ngang (flipX: true)' },
+          { label: 'flipY: ', insert: 'flipY: true', doc: 'Lật gương dọc (flipY: true)' },
+          {
+            label: 'position: ',
+            insert: 'position: "center"',
+            doc: 'Vị trí cố định ("left" | "center" | "right")',
+          },
+          { label: 'x: ', insert: 'x: 0.5', doc: 'Tọa độ số X tỉ lệ màn hình (0.0 đến 1.0)' },
+          { label: 'y: ', insert: 'y: 0.8', doc: 'Tọa độ số Y tỉ lệ màn hình (0.0 đến 1.0)' },
+          { label: 'offsetX: ', insert: 'offsetX: 20', doc: 'Độ lệch pixel theo trục ngang' },
+          { label: 'offsetY: ', insert: 'offsetY: -20', doc: 'Độ lệch pixel theo trục dọc' },
+          { label: 'alpha: ', insert: 'alpha: 0.8', doc: 'Độ trong suốt mờ ảo (0.0 đến 1.0)' },
+          {
+            label: 'transition: ',
+            insert: 'transition: "shake"',
+            doc: 'Hiệu ứng chuyển động ("shake" | "hop" | "bounce" | "wobble" | "pop" | "zoom" | "fade" | "slide")',
+          },
+          {
+            label: 'easing: ',
+            insert: 'easing: "ease_out"',
+            doc: 'Hàm gia tốc ("ease_out" | "ease_in_out" | "bounce" | "elastic" | "linear")',
+          },
+          {
+            label: 'duration: ',
+            insert: 'duration: 0.5s',
+            doc: 'Thời lượng chuyển động (vd: 0.5s)',
+          },
+        ];
+
+        for (const p of paramOptions) {
+          suggestions.push({
+            label: p.label,
+            kind: monaco.languages.CompletionItemKind.Property,
+            documentation: p.doc,
+            insertText: p.insert,
+            range,
+          });
+        }
+        return { suggestions };
+      }
+
       // D. Gợi ý Hình nền sau background
       if (/\bbackground\s+[a-zA-Z0-9_]*$/.test(textUntilPosition)) {
         const assets = context.getAssets();

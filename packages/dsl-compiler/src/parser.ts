@@ -32,6 +32,18 @@ import {
   Ui,
   True,
   False,
+  Scale,
+  ScaleX,
+  ScaleY,
+  Rotate,
+  FlipX,
+  FlipY,
+  CoordX,
+  CoordY,
+  OffsetX,
+  OffsetY,
+  Alpha,
+  Easing,
   Tilde,
   Colon,
   Dot,
@@ -165,13 +177,38 @@ export class VNSParser extends CstParser {
     this.CONSUME(StringLiteral);
   });
 
+  public signedNumber = this.RULE('signedNumber', () => {
+    this.OPTION(() => this.CONSUME(Minus));
+    this.CONSUME(NumberLiteral);
+  });
+
+  public booleanLiteral = this.RULE('booleanLiteral', () => {
+    this.OR([{ ALT: () => this.CONSUME(True) }, { ALT: () => this.CONSUME(False) }]);
+  });
+
   public backgroundStatement = this.RULE('backgroundStatement', () => {
     this.CONSUME(Background);
     this.CONSUME(Identifier);
     this.OPTION(() => {
-      this.CONSUME(Transition);
-      this.CONSUME(Colon);
-      this.CONSUME(StringLiteral);
+      this.OR([
+        {
+          ALT: () => {
+            this.CONSUME(LParen);
+            this.MANY_SEP({
+              SEP: Comma,
+              DEF: () => this.SUBRULE(this.showArgument),
+            });
+            this.CONSUME(RParen);
+          },
+        },
+        {
+          ALT: () => {
+            this.CONSUME(Transition);
+            this.CONSUME(Colon);
+            this.CONSUME(StringLiteral);
+          },
+        },
+      ]);
     });
   });
 
@@ -203,25 +240,46 @@ export class VNSParser extends CstParser {
     this.OR([
       {
         ALT: () => {
-          this.CONSUME(Position);
-          this.CONSUME(Colon);
+          this.OR1([
+            { ALT: () => this.CONSUME(Position) },
+            { ALT: () => this.CONSUME(Transition) },
+            { ALT: () => this.CONSUME(Easing) },
+          ]);
+          this.CONSUME1(Colon);
           this.CONSUME(StringLiteral);
         },
       },
       {
         ALT: () => {
-          this.CONSUME(Transition);
+          this.OR2([
+            { ALT: () => this.CONSUME(CoordX) },
+            { ALT: () => this.CONSUME(CoordY) },
+            { ALT: () => this.CONSUME(OffsetX) },
+            { ALT: () => this.CONSUME(OffsetY) },
+            { ALT: () => this.CONSUME(Scale) },
+            { ALT: () => this.CONSUME(ScaleX) },
+            { ALT: () => this.CONSUME(ScaleY) },
+            { ALT: () => this.CONSUME(Rotate) },
+            { ALT: () => this.CONSUME(Alpha) },
+          ]);
           this.CONSUME2(Colon);
-          this.CONSUME2(StringLiteral);
+          this.SUBRULE1(this.signedNumber);
+        },
+      },
+      {
+        ALT: () => {
+          this.OR3([{ ALT: () => this.CONSUME(FlipX) }, { ALT: () => this.CONSUME(FlipY) }]);
+          this.CONSUME3(Colon);
+          this.SUBRULE(this.booleanLiteral);
         },
       },
       {
         ALT: () => {
           this.CONSUME(Duration);
-          this.CONSUME3(Colon);
-          this.OR2([
+          this.CONSUME4(Colon);
+          this.OR4([
             { ALT: () => this.CONSUME(DurationLiteral) },
-            { ALT: () => this.CONSUME(NumberLiteral) },
+            { ALT: () => this.SUBRULE2(this.signedNumber) },
           ]);
         },
       },
@@ -485,6 +543,18 @@ export class VNSParser extends CstParser {
       { ALT: () => this.CONSUME(DurationLiteral) },
       { ALT: () => this.CONSUME(True) },
       { ALT: () => this.CONSUME(False) },
+      { ALT: () => this.CONSUME(Scale) },
+      { ALT: () => this.CONSUME(ScaleX) },
+      { ALT: () => this.CONSUME(ScaleY) },
+      { ALT: () => this.CONSUME(Rotate) },
+      { ALT: () => this.CONSUME(FlipX) },
+      { ALT: () => this.CONSUME(FlipY) },
+      { ALT: () => this.CONSUME(CoordX) },
+      { ALT: () => this.CONSUME(CoordY) },
+      { ALT: () => this.CONSUME(OffsetX) },
+      { ALT: () => this.CONSUME(OffsetY) },
+      { ALT: () => this.CONSUME(Alpha) },
+      { ALT: () => this.CONSUME(Easing) },
       { ALT: () => this.CONSUME(LParen) },
       { ALT: () => this.CONSUME(RParen) },
       { ALT: () => this.CONSUME(Comma) },
