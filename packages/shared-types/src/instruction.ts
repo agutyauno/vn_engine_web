@@ -41,6 +41,10 @@ export interface HideInstruction extends BaseInstruction {
   character: string;
 }
 
+export interface HideDialogueInstruction extends BaseInstruction {
+  type: 'HIDE_DIALOGUE';
+}
+
 export interface PlayInstruction extends BaseInstruction {
   type: 'PLAY';
   channel: string;
@@ -140,6 +144,7 @@ export type Instruction =
   | BackgroundInstruction
   | ShowInstruction
   | HideInstruction
+  | HideDialogueInstruction
   | PlayInstruction
   | StopInstruction
   | ChoiceInstruction

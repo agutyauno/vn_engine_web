@@ -58,6 +58,7 @@ export const Else = createToken({ name: 'Else', pattern: /\belse\b/ });
 export const While = createToken({ name: 'While', pattern: /\bwhile\b/ });
 export const Wait = createToken({ name: 'Wait', pattern: /\bwait\b/ });
 export const Define = createToken({ name: 'Define', pattern: /\bdefine\b/ });
+export const Dialogue = createToken({ name: 'Dialogue', pattern: /\bdialogue\b/ });
 
 // Named attributes / options
 export const Volume = createToken({ name: 'Volume', pattern: /\bvolume\b/ });
@@ -155,6 +156,7 @@ export const allTokens: TokenType[] = [
   While,
   Wait,
   Define,
+  Dialogue,
   Volume,
   FadeIn,
   FadeOut,

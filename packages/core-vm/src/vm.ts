@@ -209,6 +209,7 @@ export class VisualNovelVM {
       case 'BACKGROUND':
       case 'SHOW':
       case 'HIDE':
+      case 'HIDE_DIALOGUE':
       case 'PLAY':
       case 'STOP':
       case 'RUN_SCRIPT':
@@ -529,6 +530,8 @@ export class VisualNovelVM {
         audio.delete(instr.channel);
       } else if (instr.type === 'DIALOGUE') {
         currentDialogue = instr;
+      } else if (instr.type === 'HIDE_DIALOGUE') {
+        currentDialogue = undefined;
       }
     }
 

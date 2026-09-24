@@ -56,6 +56,7 @@ export type StatementAST =
   | BackgroundStatement
   | ShowStatement
   | HideStatement
+  | HideDialogueStatement
   | PlayStatement
   | StopStatement
   | ChoiceStatement
@@ -125,6 +126,10 @@ export interface ShowStatement extends BaseASTNode, TransformProperties, MotionP
 export interface HideStatement extends BaseASTNode {
   type: 'HideStatement';
   character: string;
+}
+
+export interface HideDialogueStatement extends BaseASTNode {
+  type: 'HideDialogueStatement';
 }
 
 export interface PlayStatement extends BaseASTNode {

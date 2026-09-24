@@ -47,8 +47,17 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): void {
         return { suggestions };
       }
 
-      // B. Gợi ý Nhân vật sau show hoặc hide
+      // B. Gợi ý Nhân vật hoặc dialogue sau show hoặc hide
       if (/\b(show|hide)\s+[a-zA-Z0-9_]*$/.test(textUntilPosition)) {
+        if (/\bhide\s+[a-zA-Z0-9_]*$/.test(textUntilPosition)) {
+          suggestions.push({
+            label: 'dialogue',
+            kind: monaco.languages.CompletionItemKind.Keyword,
+            documentation: 'Hide dialogue box without blocking script flow (cutscene mode)',
+            insertText: 'dialogue',
+            range,
+          });
+        }
         const chars = context.getCharacters();
         for (const [charId, info] of chars) {
           suggestions.push({
@@ -209,6 +218,11 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): void {
           label: 'hide',
           doc: 'Hide character from stage: hide charId',
           snippet: 'hide ${1:character}',
+        },
+        {
+          label: 'hide dialogue',
+          doc: 'Hide dialogue box without blocking script: hide dialogue',
+          snippet: 'hide dialogue',
         },
         {
           label: 'background',

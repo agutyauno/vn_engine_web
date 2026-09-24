@@ -695,6 +695,10 @@ export class VNPlayer {
       await this.renderer.showCharacter(instr, assetResolver);
     } else if (instr.type === 'HIDE') {
       this.renderer.hideCharacter(instr.character);
+    } else if (instr.type === 'HIDE_DIALOGUE') {
+      this.dialogueBox.classList.add('hidden');
+      this.speakerNameplate.classList.add('hidden');
+      this.nextIndicator.style.opacity = '0';
     } else if (instr.type === 'PLAY') {
       const audioResolver = (assetKey: string) => {
         const found = this.projectData.assets?.find(a => a.name === assetKey || a.id === assetKey);

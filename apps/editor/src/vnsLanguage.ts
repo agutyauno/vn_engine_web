@@ -50,6 +50,7 @@ export function registerVnsLanguage(): void {
       'else',
       'while',
       'wait',
+      'dialogue',
       'volume',
       'fade_in',
       'fadeIn',

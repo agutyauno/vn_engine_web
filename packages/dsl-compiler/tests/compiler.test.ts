@@ -352,6 +352,22 @@ describe('DSL Compiler Core (5-Stage Pipeline)', () => {
     expect(waits[1]).toMatchObject({ type: 'WAIT', duration: 1.0 });
   });
 
+  it('should compile hide dialogue statement into HIDE_DIALOGUE instruction', () => {
+    const dsl = `
+      scene start {
+        alice: "Hello"
+        hide dialogue
+        show alice.happy(x: 0.1, y: 1)
+        wait 0.5s
+      }
+    `;
+    const result = compileString(dsl);
+    expect(result.success).toBe(true);
+    const hideDialogue = result.program!.find(i => i.type === 'HIDE_DIALOGUE');
+    expect(hideDialogue).toBeDefined();
+    expect(hideDialogue).toMatchObject({ type: 'HIDE_DIALOGUE' });
+  });
+
   it('should compile scenario.vns successfully without syntax or semantic errors', () => {
     const scenarioPath = path.resolve(__dirname, '../../../apps/runtime-player/src/scenario.vns');
     const content = fs.readFileSync(scenarioPath, 'utf-8');

@@ -506,4 +506,24 @@ describe('VisualNovelVM Core', () => {
     // Tuyệt đối không được đoán hậu tố (suffix match) mà phải quăng lỗi SceneNotFoundError
     expect(() => vm.jumpToScene('ask_question')).toThrowError(SceneNotFoundError);
   });
+
+  it('should emit HIDE_DIALOGUE as side effect and reset currentDialogue in getStateCatchUp', () => {
+    const program: Instruction[] = [
+      { type: 'SCENE', name: 'main' },
+      { type: 'DIALOGUE', character: 'amiya', text: 'Hello' },
+      { type: 'HIDE_DIALOGUE' },
+      { type: 'WAIT', duration: 1.0 },
+    ];
+
+    const vm = new VisualNovelVM(program);
+    const r1 = vm.runUntilInteractive();
+    expect(r1.stepResult.type).toBe('SUSPEND_DIALOGUE');
+
+    const r2 = vm.runUntilInteractive();
+    expect(r2.sideEffects).toEqual([{ type: 'HIDE_DIALOGUE' }]);
+    expect(r2.stepResult.type).toBe('SUSPEND_WAIT');
+
+    const catchUp = vm.getStateCatchUp();
+    expect(catchUp.currentDialogue).toBeUndefined();
+  });
 });

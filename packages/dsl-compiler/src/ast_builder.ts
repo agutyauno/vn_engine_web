@@ -13,6 +13,7 @@ import type {
   BackgroundStatement,
   ShowStatement,
   HideStatement,
+  HideDialogueStatement,
   PlayStatement,
   StopStatement,
   ChoiceStatement,
@@ -413,8 +414,21 @@ export class VNSAstBuilder extends BaseVNSVisitor {
     return {};
   }
 
-  hideStatement(ctx: any): HideStatement {
+  hideStatement(ctx: any): HideStatement | HideDialogueStatement {
+    if (ctx.Dialogue) {
+      const dialogueToken = ctx.Dialogue[0];
+      return {
+        type: 'HideDialogueStatement',
+        loc: extractLocation(dialogueToken, this.currentFileId),
+      };
+    }
     const charToken = ctx.Identifier[0];
+    if (charToken.image.toLowerCase() === 'dialogue') {
+      return {
+        type: 'HideDialogueStatement',
+        loc: extractLocation(charToken, this.currentFileId),
+      };
+    }
     return {
       type: 'HideStatement',
       character: charToken.image,

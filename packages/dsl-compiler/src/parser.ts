@@ -23,6 +23,7 @@ import {
   While,
   Wait,
   Define,
+  Dialogue,
   Volume,
   FadeIn,
   FadeOut,
@@ -290,7 +291,7 @@ export class VNSParser extends CstParser {
 
   public hideStatement = this.RULE('hideStatement', () => {
     this.CONSUME(Hide);
-    this.CONSUME(Identifier);
+    this.OR([{ ALT: () => this.CONSUME(Dialogue) }, { ALT: () => this.CONSUME(Identifier) }]);
   });
 
   public playStatement = this.RULE('playStatement', () => {

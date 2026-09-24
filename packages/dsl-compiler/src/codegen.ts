@@ -12,6 +12,7 @@ import type {
   BackgroundStatement,
   ShowStatement,
   HideStatement,
+  HideDialogueStatement,
   PlayStatement,
   StopStatement,
   ChoiceStatement,
@@ -187,9 +188,25 @@ export class CodeGenerator {
 
       case 'HideStatement': {
         const h = stmt as HideStatement;
+        if (h.character.toLowerCase() === 'dialogue') {
+          this.instructions.push({
+            type: 'HIDE_DIALOGUE',
+            loc: h.loc,
+          });
+        } else {
+          this.instructions.push({
+            type: 'HIDE',
+            character: h.character,
+            loc: h.loc,
+          });
+        }
+        break;
+      }
+
+      case 'HideDialogueStatement': {
+        const h = stmt as HideDialogueStatement;
         this.instructions.push({
-          type: 'HIDE',
-          character: h.character,
+          type: 'HIDE_DIALOGUE',
           loc: h.loc,
         });
         break;
