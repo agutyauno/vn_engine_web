@@ -129,6 +129,11 @@ export interface SceneInstruction extends BaseInstruction {
   name: string;
 }
 
+export interface WaitInstruction extends BaseInstruction {
+  type: 'WAIT';
+  duration: number; // in seconds
+}
+
 export type Instruction =
   | DialogueInstruction
   | RevealInstruction
@@ -144,6 +149,7 @@ export type Instruction =
   | LoopEndInstruction
   | CallInstruction
   | ReturnInstruction
+  | WaitInstruction
   | HaltInstruction
   | SceneEndInstruction
   | AssignInstruction

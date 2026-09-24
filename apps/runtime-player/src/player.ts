@@ -46,6 +46,7 @@ export class VNPlayer {
   private autoTimerId: number | null = null;
   private skipTimerId: number | null = null;
   private toastTimerId: number | null = null;
+  private waitTimerId: number | null = null;
   private currentSavePage: number = 0;
 
   // Dữ liệu dự án được cập nhật từ Studio (Characters & Assets)
@@ -518,6 +519,12 @@ export class VNPlayer {
       return;
     }
 
+    if (this.waitTimerId !== null) {
+      this.clearWaitTimer();
+      void this.advance();
+      return;
+    }
+
     if (this.typewriter.isTyping()) {
       this.typewriter.finishImmediately();
       return;
@@ -535,6 +542,7 @@ export class VNPlayer {
    */
   public async advance(): Promise<void> {
     this.clearAutoTimer();
+    this.clearWaitTimer();
 
     const runResult = this.vm.runUntilInteractive();
 
@@ -611,6 +619,12 @@ export class VNPlayer {
       this.dialogueBox.classList.add('hidden');
       this.speakerNameplate.classList.add('hidden');
       this.presentChoices();
+    } else if (step.type === 'SUSPEND_WAIT') {
+      const durationMs = this.isSkip ? 20 : Math.max(0, step.duration * 1000);
+      this.waitTimerId = window.setTimeout(() => {
+        this.waitTimerId = null;
+        void this.advance();
+      }, durationMs);
     } else if (step.type === 'HALTED') {
       this.clearAutoTimer();
       this.clearSkip();
@@ -767,6 +781,7 @@ export class VNPlayer {
 
     this.clearAutoTimer();
     this.clearSkip();
+    this.clearWaitTimer();
     this.choiceOverlay.classList.add('hidden');
 
     const success = this.vm.rollback();
@@ -866,6 +881,13 @@ export class VNPlayer {
     if (this.autoTimerId !== null) {
       clearTimeout(this.autoTimerId);
       this.autoTimerId = null;
+    }
+  }
+
+  private clearWaitTimer(): void {
+    if (this.waitTimerId !== null) {
+      clearTimeout(this.waitTimerId);
+      this.waitTimerId = null;
     }
   }
 
@@ -1128,6 +1150,7 @@ export class VNPlayer {
     // 1. Dừng các tiến trình tự động hoặc tua nhanh
     this.clearAutoTimer();
     this.clearSkip();
+    this.clearWaitTimer();
 
     // 2. Dừng âm thanh đang phát trên các kênh
     this.audio.stop('music');

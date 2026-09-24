@@ -197,6 +197,15 @@ export class VisualNovelVM {
         return { type: 'SIDE_EFFECT', instruction: instr };
       }
 
+      case 'WAIT': {
+        this.state.instructionPointer++;
+        return {
+          type: 'SUSPEND_WAIT',
+          instruction: instr,
+          duration: instr.duration,
+        };
+      }
+
       case 'BACKGROUND':
       case 'SHOW':
       case 'HIDE':
@@ -363,7 +372,11 @@ export class VisualNovelVM {
       const result = this.step();
       steps++;
 
-      if (result.type === 'SUSPEND_DIALOGUE' || result.type === 'SUSPEND_CHOICE') {
+      if (
+        result.type === 'SUSPEND_DIALOGUE' ||
+        result.type === 'SUSPEND_CHOICE' ||
+        result.type === 'SUSPEND_WAIT'
+      ) {
         return { stepResult: result, sideEffects };
       }
 

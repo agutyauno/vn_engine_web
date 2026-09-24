@@ -2,7 +2,7 @@
 // TRẠNG THÁI MÁY ẢO & ROLLBACK (VM STATE & RUNTIME CONTRACTS)
 // ==========================================
 
-import type { Instruction } from './instruction';
+import type { Instruction, WaitInstruction } from './instruction';
 
 export interface CallFrame {
   scene: string;
@@ -23,6 +23,7 @@ export interface VMState {
 export type StepResult =
   | { type: 'SUSPEND_DIALOGUE'; instruction: Instruction }
   | { type: 'SUSPEND_CHOICE'; instruction: Instruction }
+  | { type: 'SUSPEND_WAIT'; instruction: WaitInstruction; duration: number }
   | { type: 'SIDE_EFFECT'; instruction: Instruction }
   | { type: 'HALTED' };
 

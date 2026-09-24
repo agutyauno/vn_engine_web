@@ -21,6 +21,7 @@ import {
   If,
   Else,
   While,
+  Wait,
   Define,
   Volume,
   FadeIn,
@@ -127,6 +128,7 @@ export class VNSParser extends CstParser {
       { ALT: () => this.SUBRULE(this.callStatement) },
       { ALT: () => this.SUBRULE(this.returnStatement) },
       { ALT: () => this.SUBRULE(this.endStatement) },
+      { ALT: () => this.SUBRULE(this.waitStatement) },
       { ALT: () => this.SUBRULE(this.whileStatement) },
       { ALT: () => this.SUBRULE(this.ifStatement) },
       { ALT: () => this.SUBRULE(this.varDefineStatement) },
@@ -358,6 +360,14 @@ export class VNSParser extends CstParser {
 
   public endStatement = this.RULE('endStatement', () => {
     this.CONSUME(End);
+  });
+
+  public waitStatement = this.RULE('waitStatement', () => {
+    this.CONSUME(Wait);
+    this.OR([
+      { ALT: () => this.CONSUME(DurationLiteral) },
+      { ALT: () => this.CONSUME(NumberLiteral) },
+    ]);
   });
 
   public choiceStatement = this.RULE('choiceStatement', () => {

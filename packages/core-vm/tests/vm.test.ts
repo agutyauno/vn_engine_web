@@ -65,6 +65,37 @@ describe('VisualNovelVM Core', () => {
     expect(res3.stepResult.type).toBe('HALTED');
   });
 
+  it('should suspend on WAIT instruction and resume to next interactive step', () => {
+    const program: Instruction[] = [
+      { type: 'SCENE', name: 'wait_demo' },
+      { type: 'SHOW', character: 'amiya', sprite: 'default', x: 0.1, y: 1 },
+      { type: 'WAIT', duration: 0.5 },
+      { type: 'SHOW', character: 'amiya', sprite: 'default', x: 0.5, y: 1 },
+      { type: 'DIALOGUE', character: 'amiya', text: 'hi doctor' },
+    ];
+
+    const vm = new VisualNovelVM(program);
+
+    // Turn 1: runs SHOW 1 then pauses at WAIT
+    const r1 = vm.runUntilInteractive();
+    expect(r1.stepResult.type).toBe('SUSPEND_WAIT');
+    if (r1.stepResult.type === 'SUSPEND_WAIT') {
+      expect(r1.stepResult.duration).toBe(0.5);
+    }
+    expect(r1.sideEffects).toHaveLength(2); // SCENE + SHOW 1
+    expect(r1.sideEffects[1]?.type).toBe('SHOW');
+
+    // Turn 2: resumes from WAIT, executes SHOW 2 and pauses at DIALOGUE
+    const r2 = vm.runUntilInteractive();
+    expect(r2.stepResult.type).toBe('SUSPEND_DIALOGUE');
+    expect(r2.sideEffects).toHaveLength(1); // SHOW 2
+    expect(r2.sideEffects[0]?.type).toBe('SHOW');
+
+    // Turn 3: finishes
+    const r3 = vm.runUntilInteractive();
+    expect(r3.stepResult.type).toBe('HALTED');
+  });
+
   it('should handle empty programs and programs with only side effects', () => {
     // 1. Chương trình hoàn toàn rỗng
     const emptyVM = new VisualNovelVM([]);

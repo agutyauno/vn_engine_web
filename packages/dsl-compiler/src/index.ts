@@ -7,3 +7,4 @@ export * from './merge_pass';
 export * from './semantic';
 export * from './codegen';
 export * from './compiler';
+export * from './formatter';

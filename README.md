@@ -30,7 +30,7 @@
   - Khai báo ngoài scene (`define affection = 0`) $\rightarrow$ Biến **Global** (lưu trữ trọn đời game).
   - Khai báo trong scene (`define counter = 0`) $\rightarrow$ Biến **Local** (phạm vi riêng, reset khi vào lại scene).
   - Tái gán an toàn bằng `~ bien = gia_tri` (Strict Mode: bắt lỗi nếu biến chưa từng được `define`).
-- **Cấu trúc điều khiển**: Rẽ nhánh `if / else`, vòng lặp `while`, nhảy `goto`, gọi hàm có hồi quy `call ... return`, kết thúc hạ màn `end`.
+- **Cấu trúc điều khiển**: Rẽ nhánh `if / else`, vòng lặp `while`, nhảy `goto`, gọi hàm có hồi quy `call ... return`, tạm dừng kịch bản tự động `wait <duration>`, kết thúc hạ màn `end`.
 - **Lựa chọn phân nhánh (`choice`)**: Hỗ trợ lựa chọn có điều kiện lồng nhau `if`.
 
 ### 2. Nội Suy Chuỗi & Thẻ Nhịp Điệu Typewriter
@@ -61,7 +61,7 @@
 
 ### 4. Studio Biên Kịch Trực Quan (Web Editor)
 
-- Tích hợp **Monaco Editor** với đầy đủ Syntax Highlighting, Autocompletion, và phân tích ngữ nghĩa báo lỗi thời gian thực (Real-time Diagnostics).
+- Tích hợp **Monaco Editor** với đầy đủ Syntax Highlighting, Autocompletion (Snippet Templates), phân tích ngữ nghĩa báo lỗi thời gian thực (Real-time Diagnostics), và **Tự động định dạng mã nguồn (Auto-Format)** qua phím tắt `Shift + Alt + F`, nút bấm `⚡ Format`, hoặc menu chuột phải.
 - **Trình quản lý Asset & Nhân vật**: Upload phông nền, âm thanh, biểu cảm sprite; cơ chế _Thêm nhanh (1-click)_ kèm màu đại diện Wireframe.
 - **Drawer Biến Watch & Biến cờ**: Theo dõi trạng thái biến Global / Local theo thời gian thực khi chạy thử kịch bản.
 - **Cửa sổ rời (Pop-out Preview)**: Mở trình phát game ở màn hình riêng biệt hoặc xem trực tiếp bên cạnh kịch bản.
@@ -187,6 +187,7 @@ scene prologue ui: "default" {
         ~ trust_score = 20
         reveal alice as "Alice"
         show alice.happy(position: "center", scale: 1.2, transition: "hop", duration: 0.5s)
+        wait 0.5s
         alice: "Chào {player_name}! Điểm tin cậy của bạn hiện tại là {color:#38bdf8}{trust_score}%{/color}."
         alice: "Số tiền bạn đang mang theo: {gold:comma} vàng."
         goto chapter1_investigation

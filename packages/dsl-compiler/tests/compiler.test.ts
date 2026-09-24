@@ -334,6 +334,24 @@ describe('DSL Compiler Core (5-Stage Pipeline)', () => {
     ).toBe(true);
   });
 
+  it('should compile wait statement with duration and number literals', () => {
+    const dsl = `
+      scene test_wait {
+        show alice.happy(x: 0.1, y: 1, transition: "shake", duration: 0.5s)
+        wait 0.5s
+        show alice.happy(x: 0.5, y: 1)
+        wait 1
+        alice: "hi doctor"
+      }
+    `;
+    const result = compileString(dsl);
+    expect(result.success).toBe(true);
+    const waits = result.program!.filter(i => i.type === 'WAIT');
+    expect(waits).toHaveLength(2);
+    expect(waits[0]).toMatchObject({ type: 'WAIT', duration: 0.5 });
+    expect(waits[1]).toMatchObject({ type: 'WAIT', duration: 1.0 });
+  });
+
   it('should compile scenario.vns successfully without syntax or semantic errors', () => {
     const scenarioPath = path.resolve(__dirname, '../../../apps/runtime-player/src/scenario.vns');
     const content = fs.readFileSync(scenarioPath, 'utf-8');

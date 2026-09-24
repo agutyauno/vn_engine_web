@@ -63,12 +63,18 @@ export type StatementAST =
   | CallStatement
   | ReturnStatement
   | EndStatement
+  | WaitStatement
   | IfStatement
   | WhileStatement
   | VarDefineStatement
   | VarAssignStatement
   | RunScriptStatement
   | SpawnScriptStatement;
+
+export interface WaitStatement extends BaseASTNode {
+  type: 'WaitStatement';
+  duration: number; // in seconds
+}
 
 export interface DialogueStatement extends BaseASTNode {
   type: 'DialogueStatement';

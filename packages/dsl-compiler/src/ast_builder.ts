@@ -21,6 +21,7 @@ import type {
   CallStatement,
   ReturnStatement,
   EndStatement,
+  WaitStatement,
   WhileStatement,
   IfStatement,
   VarDefineStatement,
@@ -159,6 +160,7 @@ export class VNSAstBuilder extends BaseVNSVisitor {
     if (ctx.callStatement) return this.visit(ctx.callStatement[0]);
     if (ctx.returnStatement) return this.visit(ctx.returnStatement[0]);
     if (ctx.endStatement) return this.visit(ctx.endStatement[0]);
+    if (ctx.waitStatement) return this.visit(ctx.waitStatement[0]);
     if (ctx.whileStatement) return this.visit(ctx.whileStatement[0]);
     if (ctx.ifStatement) return this.visit(ctx.ifStatement[0]);
     if (ctx.varDefineStatement) return this.visit(ctx.varDefineStatement[0]);
@@ -507,6 +509,15 @@ export class VNSAstBuilder extends BaseVNSVisitor {
     return {
       type: 'EndStatement',
       loc: extractLocation(ctx.End[0], this.currentFileId),
+    };
+  }
+
+  waitStatement(ctx: any): WaitStatement {
+    const token = ctx.DurationLiteral ? ctx.DurationLiteral[0] : ctx.NumberLiteral[0];
+    return {
+      type: 'WaitStatement',
+      duration: parseDurationSeconds(token.image),
+      loc: extractLocation(ctx.Wait[0], this.currentFileId),
     };
   }
 

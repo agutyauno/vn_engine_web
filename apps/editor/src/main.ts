@@ -5,7 +5,7 @@
 
 import * as monaco from 'monaco-editor';
 import editorWorker from 'monaco-editor/editor/editor.worker?worker';
-import { Compiler, type CompileError } from '@vn-engine/dsl-compiler';
+import { Compiler, formatVns, type CompileError } from '@vn-engine/dsl-compiler';
 import type {
   Project,
   ScriptFile,
@@ -364,6 +364,13 @@ export class StudioApp {
     this.editorInstance.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
       this.runFromLine();
     });
+
+    this.editorInstance.addCommand(
+      monaco.KeyMod.Shift | monaco.KeyMod.Alt | monaco.KeyCode.KeyF,
+      () => {
+        this.formatActiveDocument();
+      },
+    );
 
     window.addEventListener('resize', () => {
       this.editorInstance?.layout();
@@ -2302,6 +2309,40 @@ export class StudioApp {
       const targetTab = this.lastActiveManagementTab || 'characters';
       this.switchWorkspaceTab(targetTab);
     });
+
+    document.getElementById('btn-format-document')?.addEventListener('click', () => {
+      this.formatActiveDocument();
+    });
+  }
+
+  public formatActiveDocument(): void {
+    if (!this.editorInstance) return;
+    const action = this.editorInstance.getAction('editor.action.formatDocument');
+    if (action) {
+      void action.run();
+    } else {
+      const model = this.editorInstance.getModel();
+      if (model) {
+        const formatted = formatVns(model.getValue(), { indentSize: 2 });
+        this.editorInstance.executeEdits('auto-format', [
+          {
+            range: model.getFullModelRange(),
+            text: formatted,
+          },
+        ]);
+      }
+    }
+
+    const btn = document.getElementById('btn-format-document');
+    if (btn) {
+      btn.classList.add('formatted-flash');
+      btn.textContent = '✓ Formatted';
+      setTimeout(() => {
+        btn.classList.remove('formatted-flash');
+        btn.textContent = '⚡ Format';
+      }, 1200);
+    }
+    this.showToast('Document formatted (Shift+Alt+F)');
   }
 
   private runFromStart(): void {

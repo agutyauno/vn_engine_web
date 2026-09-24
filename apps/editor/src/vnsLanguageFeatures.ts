@@ -4,6 +4,7 @@
 // ================================================================
 
 import * as monaco from 'monaco-editor';
+import { formatVns } from '@vn-engine/dsl-compiler';
 
 export interface VnsProjectContext {
   getFiles: () => Record<string, string>;
@@ -182,37 +183,124 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): void {
         return { suggestions };
       }
 
-      // G. Danh sách Từ khóa Cú pháp Cốt lõi (Keywords)
-      const keywords = [
-        { label: 'scene', doc: 'Declare new scene: scene scene_name:' },
-        { label: 'reveal', doc: 'Declare character display name: reveal charId as "Display Name"' },
-        { label: 'show', doc: 'Show character on stage: show charId sprite' },
-        { label: 'hide', doc: 'Hide character from stage: hide charId' },
-        { label: 'background', doc: 'Change background: background bg_id with fade' },
-        { label: 'play music', doc: 'Play looping background music: play music bgm_id' },
-        { label: 'play sound', doc: 'Play sound effect once: play sound sfx_id' },
-        { label: 'stop', doc: 'Stop audio channel: stop music with fade 1s' },
-        { label: 'choice', doc: 'Branching choice menu: choice: "Option A" goto sceneA' },
-        { label: 'goto', doc: 'Jump to scene: goto scene_id' },
-        { label: 'call', doc: 'Call subroutine scene and return: call sub_scene' },
-        { label: 'return', doc: 'Return from subroutine call' },
+      // G. Danh sách Từ khóa Cú pháp Cốt lõi & Snippets (Keywords & Snippets)
+      const keywordSnippets: Array<{
+        label: string;
+        doc: string;
+        snippet?: string;
+        kind?: monaco.languages.CompletionItemKind;
+      }> = [
+        {
+          label: 'scene',
+          doc: 'Declare new scene block: scene name { ... }',
+          snippet: 'scene ${1:name} {\n\t$0\n}',
+        },
+        {
+          label: 'wait',
+          doc: 'Pause execution for duration without user click: wait 0.5s',
+          snippet: 'wait ${1:0.5s}',
+        },
+        {
+          label: 'show',
+          doc: 'Show character on stage: show charId.sprite',
+          snippet: 'show ${1:character}.${2:sprite}',
+        },
+        {
+          label: 'hide',
+          doc: 'Hide character from stage: hide charId',
+          snippet: 'hide ${1:character}',
+        },
+        {
+          label: 'background',
+          doc: 'Change stage background: background bg_id transition: "fade"',
+          snippet: 'background ${1:bg_asset} transition: "${2:fade}"',
+        },
+        {
+          label: 'choice',
+          doc: 'Branching choice menu block',
+          snippet: 'choice {\n\t"${1:Choice 1}": goto ${2:target_scene}\n\t$0\n}',
+        },
+        {
+          label: 'play music',
+          doc: 'Play looping background music: play music "bgm_id" volume: 0.8 loop: true',
+          snippet: 'play music "${1:bgm_asset}" volume: ${2:0.8} loop: true',
+        },
+        {
+          label: 'play sound',
+          doc: 'Play sound effect once: play sound "sfx_id" volume: 0.8',
+          snippet: 'play sound "${1:sfx_asset}" volume: ${2:0.8}',
+        },
+        {
+          label: 'stop',
+          doc: 'Stop audio channel: stop music fade_out: 1.0s',
+          snippet: 'stop ${1:music} fade_out: ${2:1.0s}',
+        },
+        {
+          label: 'goto',
+          doc: 'Jump to scene: goto target_scene',
+          snippet: 'goto ${1:scene_name}',
+        },
+        {
+          label: 'call',
+          doc: 'Call subroutine scene and return: call sub_scene',
+          snippet: 'call ${1:scene_name}',
+        },
+        {
+          label: 'reveal',
+          doc: 'Declare character display name: reveal charId as "Display Name"',
+          snippet: 'reveal ${1:character} as "${2:Display Name}"',
+        },
         {
           label: 'define',
-          doc: 'Declare variable: define var_name = value (outside scene: Global, inside scene: Local)',
+          doc: 'Declare variable: define var_name = value',
+          snippet: 'define ${1:variable_name} = ${2:0}',
         },
-        { label: 'if', doc: 'Conditional statement: if (variable == true) { ... }' },
-        { label: 'else', doc: 'Alternative branch of if statement: else { ... }' },
-        { label: 'while', doc: 'Conditional loop: while (count < 5) { ... }' },
+        {
+          label: 'if',
+          doc: 'Conditional block: if (condition) { ... }',
+          snippet: 'if ${1:condition} {\n\t$0\n}',
+        },
+        {
+          label: 'else',
+          doc: 'Alternative branch block: else { ... }',
+          snippet: 'else {\n\t$0\n}',
+        },
+        {
+          label: 'while',
+          doc: 'Conditional loop: while (condition) { ... }',
+          snippet: 'while ${1:condition} {\n\t$0\n}',
+        },
+        {
+          label: 'return',
+          doc: 'Return from subroutine call',
+          kind: monaco.languages.CompletionItemKind.Keyword,
+        },
+        {
+          label: 'end',
+          doc: 'End the visual novel story',
+          kind: monaco.languages.CompletionItemKind.Keyword,
+        },
       ];
 
-      for (const kw of keywords) {
-        suggestions.push({
-          label: kw.label,
-          kind: monaco.languages.CompletionItemKind.Keyword,
-          documentation: kw.doc,
-          insertText: kw.label,
-          range,
-        });
+      for (const kw of keywordSnippets) {
+        if (kw.snippet) {
+          suggestions.push({
+            label: kw.label,
+            kind: kw.kind ?? monaco.languages.CompletionItemKind.Snippet,
+            documentation: kw.doc,
+            insertText: kw.snippet,
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range,
+          });
+        } else {
+          suggestions.push({
+            label: kw.label,
+            kind: kw.kind ?? monaco.languages.CompletionItemKind.Keyword,
+            documentation: kw.doc,
+            insertText: kw.label,
+            range,
+          });
+        }
       }
 
       return { suggestions };
@@ -255,6 +343,28 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): void {
       }
 
       return null;
+    },
+  });
+
+  // 3. DOCUMENT FORMATTING PROVIDER (Auto-Format: Shift + Alt + F)
+  monaco.languages.registerDocumentFormattingEditProvider('vns', {
+    provideDocumentFormattingEdits: (model, options) => {
+      const originalText = model.getValue();
+      const formattedText = formatVns(originalText, {
+        indentSize: options.tabSize,
+        useTabs: !options.insertSpaces,
+      });
+
+      if (formattedText === originalText) {
+        return [];
+      }
+
+      return [
+        {
+          range: model.getFullModelRange(),
+          text: formattedText,
+        },
+      ];
     },
   });
 }
