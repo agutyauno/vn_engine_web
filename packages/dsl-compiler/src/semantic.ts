@@ -2,20 +2,25 @@
 // STAGE 4: KIỂM TRA NGỮ NGHĨA (SEMANTIC VALIDATION)
 // ==========================================
 
-import type {
-  ProgramAST,
-  StatementAST,
-  GotoStatement,
-  CallStatement,
-  ChoiceStatement,
-  DialogueStatement,
-  RevealStatement,
-  IfStatement,
-  WhileStatement,
-  VarDefineStatement,
-  VarAssignStatement,
-  ShowStatement,
-  SourceLocation,
+import {
+  SUPPORTED_TRANSITIONS,
+  SUPPORTED_EASINGS,
+  SUPPORTED_NAMED_POSITIONS,
+  type ProgramAST,
+  type StatementAST,
+  type GotoStatement,
+  type CallStatement,
+  type ChoiceStatement,
+  type DialogueStatement,
+  type RevealStatement,
+  type IfStatement,
+  type WhileStatement,
+  type VarDefineStatement,
+  type VarAssignStatement,
+  type InspectStatement,
+  type ShowStatement,
+  type BackgroundStatement,
+  type SourceLocation,
 } from '@vn-engine/shared-types';
 
 export interface CompileError {
@@ -23,7 +28,11 @@ export interface CompileError {
   loc?: SourceLocation;
 }
 
-const CONTROL_TAG_PATTERN = /^(pause|wait):|^(speed):|^(color):|^\/color$/i;
+const VALID_TRANSITION_SET = new Set<string>(SUPPORTED_TRANSITIONS);
+const VALID_EASING_SET = new Set<string>(SUPPORTED_EASINGS);
+const VALID_POSITION_SET = new Set<string>(SUPPORTED_NAMED_POSITIONS);
+
+const CONTROL_TAG_PATTERN = /^(pause|wait)\s*:|^(speed)\s*:|^(color)\s*:|^\s*\/color\s*$/i;
 const KNOWN_FILTERS = new Set(['comma', 'upper', 'lower', 'capitalize', 'round']);
 
 function checkInterpolatedVariables(
@@ -220,12 +229,55 @@ export function validateSemantics(ast: ProgramAST): CompileError[] {
       } else if (stmt.type === 'WhileStatement') {
         const wh = stmt as WhileStatement;
         checkStatements(sceneName, wh.body, sceneLocals);
+      } else if (stmt.type === 'InspectStatement') {
+        const ins = stmt as InspectStatement;
+        if (ins.title) {
+          checkInterpolatedVariables(ins.title, globals, sceneLocals, sceneName, ins.loc, errors);
+        }
+        if (ins.body) {
+          checkStatements(sceneName, ins.body, sceneLocals);
+        }
       } else if (stmt.type === 'ShowStatement') {
         const showStmt = stmt as ShowStatement;
         if (showStmt.position && (showStmt.x !== undefined || showStmt.y !== undefined)) {
           errors.push({
             message: `In show statement '${showStmt.character}', cannot use both 'position' and 'x'/'y' coordinates simultaneously.`,
             loc: showStmt.loc,
+          });
+        }
+        if (
+          typeof showStmt.position === 'string' &&
+          !VALID_POSITION_SET.has(showStmt.position.toLowerCase())
+        ) {
+          errors.push({
+            message: `In show statement '${showStmt.character}', unknown position "${showStmt.position}". Supported positions: ${SUPPORTED_NAMED_POSITIONS.join(', ')}.`,
+            loc: showStmt.loc,
+          });
+        }
+        if (showStmt.transition && !VALID_TRANSITION_SET.has(showStmt.transition.toLowerCase())) {
+          errors.push({
+            message: `In show statement '${showStmt.character}', unknown transition "${showStmt.transition}". Supported transitions: ${SUPPORTED_TRANSITIONS.join(', ')}.`,
+            loc: showStmt.loc,
+          });
+        }
+        if (showStmt.easing && !VALID_EASING_SET.has(showStmt.easing.toLowerCase())) {
+          errors.push({
+            message: `In show statement '${showStmt.character}', unknown easing "${showStmt.easing}". Supported easings: ${SUPPORTED_EASINGS.join(', ')}.`,
+            loc: showStmt.loc,
+          });
+        }
+      } else if (stmt.type === 'BackgroundStatement') {
+        const bgStmt = stmt as BackgroundStatement;
+        if (bgStmt.transition && !VALID_TRANSITION_SET.has(bgStmt.transition.toLowerCase())) {
+          errors.push({
+            message: `In background statement '${bgStmt.assetId}', unknown transition "${bgStmt.transition}". Supported transitions: ${SUPPORTED_TRANSITIONS.join(', ')}.`,
+            loc: bgStmt.loc,
+          });
+        }
+        if (bgStmt.easing && !VALID_EASING_SET.has(bgStmt.easing.toLowerCase())) {
+          errors.push({
+            message: `In background statement '${bgStmt.assetId}', unknown easing "${bgStmt.easing}". Supported easings: ${SUPPORTED_EASINGS.join(', ')}.`,
+            loc: bgStmt.loc,
           });
         }
       }

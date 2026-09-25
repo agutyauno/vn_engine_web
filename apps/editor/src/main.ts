@@ -1285,7 +1285,14 @@ export class StudioApp {
     this.charReconciliationEl.innerHTML = '';
 
     const declaredIds = new Set((this.project.characters || []).map(c => c.id));
+    const assetNames = new Set((this.project.assets || []).map(a => a.name.toLowerCase()));
+    const assetIds = new Set((this.project.assets || []).map(a => a.id.toLowerCase()));
+
     for (const [charId, info] of astCharacters) {
+      if (assetNames.has(charId.toLowerCase()) || assetIds.has(charId.toLowerCase())) {
+        // Đạo cụ sân khấu hoặc vật phẩm (Stage Prop / Item), không phải nhân vật thiếu khai báo
+        continue;
+      }
       if (!declaredIds.has(charId)) {
         const alertCard = document.createElement('div');
         alertCard.className = 'reconciliation-alert-card';

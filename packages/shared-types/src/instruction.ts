@@ -45,6 +45,16 @@ export interface HideDialogueInstruction extends BaseInstruction {
   type: 'HIDE_DIALOGUE';
 }
 
+export interface InspectBeginInstruction extends BaseInstruction {
+  type: 'INSPECT_BEGIN';
+  assetId: string;
+  title?: string;
+}
+
+export interface InspectEndInstruction extends BaseInstruction {
+  type: 'INSPECT_END';
+}
+
 export interface PlayInstruction extends BaseInstruction {
   type: 'PLAY';
   channel: string;
@@ -161,4 +171,6 @@ export type Instruction =
   | LabelInstruction
   | RunScriptInstruction
   | SpawnScriptInstruction
-  | SceneInstruction;
+  | SceneInstruction
+  | InspectBeginInstruction
+  | InspectEndInstruction;

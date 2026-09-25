@@ -96,6 +96,12 @@ export function validateVMState(state: unknown): asserts state is VMState {
   ) {
     throw new InvalidSaveDataError('state.customScriptState must be an object.');
   }
+
+  if (s['activeInspect'] !== undefined && s['activeInspect'] !== null) {
+    if (typeof s['activeInspect'] !== 'object' || Array.isArray(s['activeInspect'])) {
+      throw new InvalidSaveDataError('state.activeInspect must be an object or null.');
+    }
+  }
 }
 
 /**

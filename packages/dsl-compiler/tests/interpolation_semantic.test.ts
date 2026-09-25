@@ -50,6 +50,7 @@ describe('Interpolation Semantic Validation (interpolation_semantic.test.ts)', (
 
       scene main {
         alice: "{speed:slow}Khoan đã... {pause:0.8s}Mục tiêu là {color:#ef4444}{target}{/color}!{speed:normal}"
+        doctor: "Hi {pause: 1s} Amiya {speed: fast}here{ /color }"
       }
     `;
     const result = compileString(dsl);

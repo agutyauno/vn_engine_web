@@ -50,6 +50,13 @@ interface ManagedCharacter {
 
 const defaultEaseOut: EasingFunction = (t: number): number => 1 - Math.pow(1 - t, 3);
 
+function safeRequestAnimationFrame(callback: (now: number) => void): number {
+  if (typeof requestAnimationFrame !== 'undefined') {
+    return requestAnimationFrame(callback);
+  }
+  return setTimeout(() => callback(performance.now()), 16) as unknown as number;
+}
+
 export class GameRenderer {
   public app: Application;
   public baseWidth: number;
@@ -214,7 +221,7 @@ export class GameRenderer {
           sprite.alpha = startAlpha + deltaAlpha * ease;
 
           if (progress < 1) {
-            requestAnimationFrame(animate);
+            safeRequestAnimationFrame(animate);
           } else {
             sprite.x = targetX;
             sprite.y = targetY;
@@ -224,7 +231,7 @@ export class GameRenderer {
             sprite.alpha = targetAlpha;
           }
         };
-        requestAnimationFrame(animate);
+        safeRequestAnimationFrame(animate);
       } else {
         sprite.x = targetX;
         sprite.y = targetY;
@@ -252,7 +259,7 @@ export class GameRenderer {
     this.currentBackgroundId = assetId;
     this.currentBackgroundSprite = newSprite;
 
-    if (oldSprite && trans === 'fade' && duration > 0) {
+    if (oldSprite && duration > 0) {
       newSprite.alpha = 0;
       this.backgroundContainer.addChild(newSprite);
 
@@ -260,17 +267,58 @@ export class GameRenderer {
       const animate = (now: number) => {
         const elapsed = now - startTime;
         const progress = Math.min(1, elapsed / duration);
-        newSprite.alpha = targetAlpha * progress;
-        oldSprite.alpha = 1 - progress;
+        const ease = easingFn(progress);
+
+        if (trans === 'zoom') {
+          newSprite.alpha = targetAlpha * progress;
+          oldSprite.alpha = 1 - progress;
+          const currentZoom = 1.1 - 0.1 * ease;
+          newSprite.scale.x = targetScaleX * currentZoom;
+          newSprite.scale.y = targetScaleY * currentZoom;
+        } else if (trans === 'slide' || trans === 'slide_left') {
+          newSprite.alpha = targetAlpha;
+          oldSprite.x = targetX - this.baseWidth * ease;
+          newSprite.x = targetX + this.baseWidth * (1 - ease);
+        } else if (trans === 'slide_right') {
+          newSprite.alpha = targetAlpha;
+          oldSprite.x = targetX + this.baseWidth * ease;
+          newSprite.x = targetX - this.baseWidth * (1 - ease);
+        } else if (trans === 'slide_up') {
+          newSprite.alpha = targetAlpha;
+          oldSprite.y = targetY - this.baseHeight * ease;
+          newSprite.y = targetY + this.baseHeight * (1 - ease);
+        } else if (trans === 'slide_down') {
+          newSprite.alpha = targetAlpha;
+          oldSprite.y = targetY + this.baseHeight * ease;
+          newSprite.y = targetY - this.baseHeight * (1 - ease);
+        } else if (trans === 'shake') {
+          newSprite.alpha = targetAlpha * progress;
+          oldSprite.alpha = 1 - progress;
+          newSprite.x = targetX + Math.sin(progress * Math.PI * 10) * (1 - progress) * 25;
+        } else {
+          // fade / dissolve / default
+          if (trans && trans !== 'fade' && trans !== 'dissolve') {
+            console.warn(
+              `[Renderer] Unknown background transition "${trans}", falling back to fade.`,
+            );
+          }
+          newSprite.alpha = targetAlpha * progress;
+          oldSprite.alpha = 1 - progress;
+        }
 
         if (progress < 1) {
-          requestAnimationFrame(animate);
+          safeRequestAnimationFrame(animate);
         } else {
+          newSprite.x = targetX;
+          newSprite.y = targetY;
+          newSprite.scale.x = targetScaleX;
+          newSprite.scale.y = targetScaleY;
+          newSprite.alpha = targetAlpha;
           this.backgroundContainer.removeChild(oldSprite);
           oldSprite.destroy();
         }
       };
-      requestAnimationFrame(animate);
+      safeRequestAnimationFrame(animate);
     } else {
       this.backgroundContainer.removeChildren();
       if (oldSprite) oldSprite.destroy();
@@ -288,8 +336,9 @@ export class GameRenderer {
   public async showCharacter(
     instr: ShowInstruction,
     assetResolver?: AssetGraphicResolver,
+    isProp = false,
   ): Promise<void> {
-    const coords = resolveCharacterPlacement(instr, this.baseWidth, this.baseHeight);
+    const coords = resolveCharacterPlacement(instr, this.baseWidth, this.baseHeight, isProp);
     const { scaleX: targetScaleX, scaleY: targetScaleY } = computeTargetScale(
       instr.scale,
       instr.scaleX,
@@ -309,6 +358,7 @@ export class GameRenderer {
       instr.character,
       instr.sprite,
       assetResolver,
+      isProp,
     );
 
     if (existing) {
@@ -318,6 +368,7 @@ export class GameRenderer {
       }
 
       existing.sprite.texture = texture;
+      existing.sprite.anchor.set(0.5, isProp ? 0.5 : 1.0);
       existing.currentSpriteId = instr.sprite;
 
       const startX = existing.container.x;
@@ -373,6 +424,9 @@ export class GameRenderer {
           } else if (transition === 'hop') {
             const hopOffset = -Math.sin(progress * Math.PI) * 45;
             curY += hopOffset;
+          } else if (transition === 'bounce') {
+            const bounceOffset = -Math.abs(Math.sin(progress * Math.PI * 3)) * (1 - progress) * 35;
+            curY += bounceOffset;
           } else if (transition === 'wobble') {
             const wobbleOffset =
               Math.sin(progress * Math.PI * 6) * (1 - progress) * ((10 * Math.PI) / 180);
@@ -381,6 +435,10 @@ export class GameRenderer {
             const popScaleFactor = 1 + Math.sin(progress * Math.PI) * 0.15;
             curScaleX *= popScaleFactor;
             curScaleY *= popScaleFactor;
+          } else if (transition === 'zoom') {
+            const zoomScaleFactor = 1 + Math.sin(progress * Math.PI) * 0.15;
+            curScaleX *= zoomScaleFactor;
+            curScaleY *= zoomScaleFactor;
           }
 
           existing.container.x = curX;
@@ -391,7 +449,7 @@ export class GameRenderer {
           existing.container.alpha = curAlpha;
 
           if (progress < 1) {
-            requestAnimationFrame(animate);
+            safeRequestAnimationFrame(animate);
           } else {
             existing.container.x = coords.x;
             existing.container.y = coords.y;
@@ -409,7 +467,7 @@ export class GameRenderer {
             existing.cancelAnimation = undefined;
           }
         };
-        requestAnimationFrame(animate);
+        safeRequestAnimationFrame(animate);
       } else {
         existing.container.x = coords.x;
         existing.container.y = coords.y;
@@ -436,7 +494,7 @@ export class GameRenderer {
       container.alpha = 0;
 
       const sprite = new Sprite(texture);
-      sprite.anchor.set(0.5, 1.0); // Neo tại đáy giữa (chân nhân vật)
+      sprite.anchor.set(0.5, isProp ? 0.5 : 1.0); // Neo tại đáy giữa (chân nhân vật) hoặc tâm (đạo cụ)
       container.addChild(sprite);
 
       this.characterContainer.addChild(container);
@@ -483,6 +541,12 @@ export class GameRenderer {
             curX += Math.sin(progress * Math.PI * 10) * (1 - progress) * 20;
           } else if (transition === 'hop') {
             curY += -Math.sin(progress * Math.PI) * 45;
+          } else if (transition === 'bounce') {
+            const bounceFall = (1 - ease) * 100;
+            const bounceRebound = Math.abs(Math.sin(progress * Math.PI * 3)) * (1 - progress) * 30;
+            curY -= bounceFall - bounceRebound;
+          } else if (transition === 'wobble') {
+            curRot += Math.sin(progress * Math.PI * 6) * (1 - progress) * ((15 * Math.PI) / 180);
           } else if (transition === 'pop') {
             const popScaleFactor = ease * (1 + Math.sin(progress * Math.PI) * 0.2);
             curScaleX = targetScaleX * popScaleFactor;
@@ -490,6 +554,16 @@ export class GameRenderer {
           } else if (transition === 'zoom') {
             curScaleX = targetScaleX * ease;
             curScaleY = targetScaleY * ease;
+          } else if (transition === 'slide' || transition === 'slide_left') {
+            curX -= this.baseWidth * 0.2 * (1 - ease);
+          } else if (transition === 'slide_right') {
+            curX += this.baseWidth * 0.2 * (1 - ease);
+          } else if (transition === 'slide_up') {
+            curY += this.baseHeight * 0.2 * (1 - ease);
+          } else if (transition === 'slide_down') {
+            curY -= this.baseHeight * 0.2 * (1 - ease);
+          } else if (transition && transition !== 'fade' && transition !== 'dissolve') {
+            console.warn(`[Renderer] Unknown transition "${transition}", falling back to fade.`);
           }
 
           container.x = curX;
@@ -499,7 +573,7 @@ export class GameRenderer {
           container.rotation = curRot;
 
           if (progress < 1) {
-            requestAnimationFrame(animate);
+            safeRequestAnimationFrame(animate);
           } else {
             container.alpha = targetAlpha;
             container.x = coords.x;
@@ -511,7 +585,7 @@ export class GameRenderer {
             managed.cancelAnimation = undefined;
           }
         };
-        requestAnimationFrame(animate);
+        safeRequestAnimationFrame(animate);
       } else {
         container.alpha = targetAlpha;
         managed.animating = false;
@@ -538,13 +612,21 @@ export class GameRenderer {
       container.alpha = 1 - progress;
 
       if (progress < 1) {
-        requestAnimationFrame(animate);
+        safeRequestAnimationFrame(animate);
       } else {
         this.characterContainer.removeChild(container);
         container.destroy({ children: true });
       }
     };
-    requestAnimationFrame(animate);
+    safeRequestAnimationFrame(animate);
+  }
+
+  public getCurrentBackgroundId(): string | null {
+    return this.currentBackgroundId;
+  }
+
+  public hasCharacter(characterId: string): boolean {
+    return this.activeCharacters.has(characterId.toLowerCase());
   }
 
   /**
@@ -769,6 +851,7 @@ export class GameRenderer {
     characterId: string,
     spriteId: string,
     assetResolver?: AssetGraphicResolver,
+    isProp = false,
   ): Promise<Texture> {
     const fullAssetId = `${characterId}_${spriteId}`;
     const url = assetResolver?.(fullAssetId) ?? assetResolver?.(characterId);
@@ -783,6 +866,45 @@ export class GameRenderer {
 
     if (typeof document === 'undefined') {
       return Texture.WHITE;
+    }
+
+    if (isProp) {
+      const w = 400;
+      const h = 400;
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d')!;
+
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(8, 8, w - 16, h - 16);
+
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(8, 8, w - 16, h - 16);
+
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(8, 8, w - 16, 42);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '700 16px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(characterId.toUpperCase(), w / 2, 29);
+
+      ctx.fillStyle = '#000000';
+      ctx.font = '700 12px monospace';
+      ctx.fillText('[ PROP / ITEM ]', w / 2, 70);
+
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(40, 100, w - 80, h - 140);
+
+      ctx.fillStyle = '#555555';
+      ctx.font = '500 14px monospace';
+      ctx.fillText('// ASSET IMAGE', w / 2, h / 2 + 10);
+
+      return Texture.from(canvas);
     }
 
     const w = 320;
@@ -874,6 +996,10 @@ export class GameRenderer {
    */
   public destroy(): void {
     this.activeCharacters.clear();
-    this.app.destroy(true, { children: true, texture: true });
+    try {
+      this.app.destroy(true, { children: true, texture: true });
+    } catch {
+      // Bỏ qua lỗi destroy trên môi trường headless/node test không có window listener
+    }
   }
 }

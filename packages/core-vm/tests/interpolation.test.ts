@@ -59,6 +59,12 @@ describe('String Interpolation Module (interpolation.ts)', () => {
     expect(result).toBe(
       '{speed:slow}Khoan đã... {pause:0.5s}{color:#38bdf8}Alice{/color}!{speed:normal}',
     );
+
+    // Hỗ trợ cả thẻ có khoảng trắng như {pause: 1s}, {speed: slow}, {color: #hex}
+    const withSpaces = 'Hi {pause: 1s} {speed: fast}{playerName}{ /color }';
+    expect(interpolate(withSpaces, context, evaluator)).toBe(
+      'Hi {pause: 1s} {speed: fast}Alice{ /color }',
+    );
   });
 
   it('hỗ trợ biểu thức tính toán an toàn qua Sandbox Evaluator', () => {

@@ -51,6 +51,8 @@ export function registerVnsLanguage(): void {
       'while',
       'wait',
       'dialogue',
+      'inspect',
+      'title',
       'volume',
       'fade_in',
       'fadeIn',

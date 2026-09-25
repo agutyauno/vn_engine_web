@@ -176,4 +176,55 @@ describe('Semantic Validator & Multi-File Compilation', () => {
     expect(gotos[0]?.targetScene).toBe('chapter1.ask_question');
     expect(gotos[1]?.targetScene).toBe('chapter5.ask_question');
   });
+
+  it('should validate supported transitions, easings, and positions without error', () => {
+    const dsl = `
+      scene motion_valid {
+        background bg_room transition: "fade"
+        background bg_forest(transition: "zoom", easing: "bounce", duration: 1.0s)
+        show amiya.happy(position: "left", transition: "shake", easing: "ease_out", duration: 0.5s)
+        show amiya(position: "center", transition: "hop", duration: 0.4s)
+        show amiya(position: "right", transition: "wobble", duration: 0.6s)
+        show amiya(x: 0.5, y: 0.8, transition: "slide_left", duration: 0.5s)
+        show amiya(x: 0.5, y: 0.8, transition: "bounce", easing: "elastic", duration: 0.8s)
+      }
+    `;
+
+    const result = compileString(dsl, 'motion_valid.vns');
+    expect(result.success).toBe(true);
+    expect(result.errors).toBeUndefined();
+  });
+
+  it('should reject unsupported transitions in show and background statements', () => {
+    const dsl = `
+      scene motion_invalid {
+        background bg_room transition: "teleport_now"
+        show amiya.happy(position: "center", transition: "flying_car", duration: 0.5s)
+      }
+    `;
+
+    const result = compileString(dsl, 'motion_invalid.vns');
+    expect(result.success).toBe(false);
+    expect(result.errors).toBeDefined();
+    expect(result.errors).toHaveLength(2);
+    expect(result.errors![0]?.message).toContain('unknown transition "teleport_now"');
+    expect(result.errors![1]?.message).toContain('unknown transition "flying_car"');
+  });
+
+  it('should reject unsupported easings and named positions', () => {
+    const dsl = `
+      scene invalid_easing_and_pos {
+        show amiya(position: "somewhere_far", easing: "hyper_speed")
+        background bg_room(easing: "invalid_curve")
+      }
+    `;
+
+    const result = compileString(dsl, 'invalid_easing_and_pos.vns');
+    expect(result.success).toBe(false);
+    expect(result.errors).toBeDefined();
+    expect(result.errors).toHaveLength(3);
+    expect(result.errors![0]?.message).toContain('unknown position "somewhere_far"');
+    expect(result.errors![1]?.message).toContain('unknown easing "hyper_speed"');
+    expect(result.errors![2]?.message).toContain('unknown easing "invalid_curve"');
+  });
 });

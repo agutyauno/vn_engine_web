@@ -22,8 +22,8 @@ export function parseTypewriterTokens(text: string, baseSpeedMs = 24): Typewrite
       if (closeIdx !== -1) {
         const tag = text.slice(i + 1, closeIdx).trim();
 
-        // 1. Thẻ tạm dừng: {pause:0.5s} hoặc {wait:0.5s}
-        const pauseMatch = tag.match(/^(?:pause|wait):([0-9]+(?:\.[0-9]+)?)s?$/i);
+        // 1. Thẻ tạm dừng: {pause:0.5s}, {wait:0.5s}, {pause: 1s}, v.v.
+        const pauseMatch = tag.match(/^(?:pause|wait)\s*:\s*([0-9]+(?:\.[0-9]+)?)s?$/i);
         if (pauseMatch && pauseMatch[1]) {
           const sec = parseFloat(pauseMatch[1]);
           const durationMs = isNaN(sec) ? 500 : Math.round(sec * 1000);
@@ -32,8 +32,8 @@ export function parseTypewriterTokens(text: string, baseSpeedMs = 24): Typewrite
           continue;
         }
 
-        // 2. Thẻ tốc độ: {speed:slow|normal|fast}
-        const speedMatch = tag.match(/^speed:(slow|normal|fast)$/i);
+        // 2. Thẻ tốc độ: {speed:slow|normal|fast} hoặc {speed: slow}
+        const speedMatch = tag.match(/^speed\s*:\s*(slow|normal|fast)$/i);
         if (speedMatch && speedMatch[1]) {
           const mode = speedMatch[1].toLowerCase();
           let speedMs = baseSpeedMs;
@@ -44,16 +44,16 @@ export function parseTypewriterTokens(text: string, baseSpeedMs = 24): Typewrite
           continue;
         }
 
-        // 3. Thẻ đổi màu: {color:#hex}
-        const colorMatch = tag.match(/^color:(#[0-9a-fA-F]{3,8}|[a-zA-Z]+)$/i);
+        // 3. Thẻ đổi màu: {color:#hex} hoặc {color: #hex}
+        const colorMatch = tag.match(/^color\s*:\s*(#[0-9a-fA-F]{3,8}|[a-zA-Z]+)$/i);
         if (colorMatch && colorMatch[1]) {
           currentColor = colorMatch[1];
           i = closeIdx + 1;
           continue;
         }
 
-        // 4. Thẻ đóng màu: {/color}
-        if (tag.toLowerCase() === '/color') {
+        // 4. Thẻ đóng màu: {/color} hoặc { /color }
+        if (tag.replace(/\s+/g, '').toLowerCase() === '/color') {
           currentColor = undefined;
           i = closeIdx + 1;
           continue;
@@ -79,10 +79,10 @@ export function parseTypewriterTokens(text: string, baseSpeedMs = 24): Typewrite
 export function stripControlTags(text: string): string {
   if (!text) return '';
   return text
-    .replace(/\{(?:pause|wait):[^}]+\}/gi, '')
-    .replace(/\{speed:[^}]+\}/gi, '')
-    .replace(/\{color:[^}]+\}/gi, '')
-    .replace(/\{\/color\}/gi, '');
+    .replace(/\{(?:pause|wait)\s*:[^}]+\}/gi, '')
+    .replace(/\{speed\s*:[^}]+\}/gi, '')
+    .replace(/\{color\s*:[^}]+\}/gi, '')
+    .replace(/\{\s*\/color\s*\}/gi, '');
 }
 
 /**

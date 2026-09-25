@@ -70,7 +70,8 @@ export type StatementAST =
   | VarDefineStatement
   | VarAssignStatement
   | RunScriptStatement
-  | SpawnScriptStatement;
+  | SpawnScriptStatement
+  | InspectStatement;
 
 export interface WaitStatement extends BaseASTNode {
   type: 'WaitStatement';
@@ -211,6 +212,13 @@ export interface RunScriptStatement extends BaseASTNode {
 export interface SpawnScriptStatement extends BaseASTNode {
   type: 'SpawnScriptStatement';
   screenId: string;
+}
+
+export interface InspectStatement extends BaseASTNode {
+  type: 'InspectStatement';
+  assetId: string;
+  title?: string;
+  body: StatementAST[];
 }
 
 export interface SceneASTNode extends BaseASTNode {

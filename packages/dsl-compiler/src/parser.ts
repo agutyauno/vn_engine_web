@@ -24,6 +24,8 @@ import {
   Wait,
   Define,
   Dialogue,
+  Inspect,
+  Title,
   Volume,
   FadeIn,
   FadeOut,
@@ -122,6 +124,7 @@ export class VNSParser extends CstParser {
       { ALT: () => this.SUBRULE(this.backgroundStatement) },
       { ALT: () => this.SUBRULE(this.showStatement) },
       { ALT: () => this.SUBRULE(this.hideStatement) },
+      { ALT: () => this.SUBRULE(this.inspectStatement) },
       { ALT: () => this.SUBRULE(this.playStatement) },
       { ALT: () => this.SUBRULE(this.stopStatement) },
       { ALT: () => this.SUBRULE(this.choiceStatement) },
@@ -292,6 +295,21 @@ export class VNSParser extends CstParser {
   public hideStatement = this.RULE('hideStatement', () => {
     this.CONSUME(Hide);
     this.OR([{ ALT: () => this.CONSUME(Dialogue) }, { ALT: () => this.CONSUME(Identifier) }]);
+  });
+
+  public inspectStatement = this.RULE('inspectStatement', () => {
+    this.CONSUME(Inspect);
+    this.CONSUME(Identifier);
+    this.OPTION(() => {
+      this.CONSUME(Title);
+      this.CONSUME(Colon);
+      this.CONSUME(StringLiteral);
+    });
+    this.CONSUME(LCurly);
+    this.MANY(() => {
+      this.SUBRULE(this.statement);
+    });
+    this.CONSUME(RCurly);
   });
 
   public playStatement = this.RULE('playStatement', () => {
@@ -493,6 +511,7 @@ export class VNSParser extends CstParser {
       nextType === While ||
       nextType === If ||
       nextType === Define ||
+      nextType === Inspect ||
       nextType === Tilde ||
       nextType === RCurly ||
       nextType === LCurly

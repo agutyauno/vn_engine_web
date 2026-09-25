@@ -13,6 +13,7 @@ import type {
   ShowStatement,
   HideStatement,
   HideDialogueStatement,
+  InspectStatement,
   PlayStatement,
   StopStatement,
   ChoiceStatement,
@@ -208,6 +209,26 @@ export class CodeGenerator {
         this.instructions.push({
           type: 'HIDE_DIALOGUE',
           loc: h.loc,
+        });
+        break;
+      }
+
+      case 'InspectStatement': {
+        const ins = stmt as InspectStatement;
+        this.instructions.push({
+          type: 'INSPECT_BEGIN',
+          assetId: ins.assetId,
+          title: ins.title,
+          loc: ins.loc,
+        });
+        if (ins.body) {
+          for (const s of ins.body) {
+            this.generateStatement(sceneName, s);
+          }
+        }
+        this.instructions.push({
+          type: 'INSPECT_END',
+          loc: ins.loc,
         });
         break;
       }

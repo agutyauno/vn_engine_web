@@ -161,6 +161,26 @@ scene main {
     expect(formattedTabs).toBe(`scene demo {\n\treturn\n}\n`);
   });
 
+  it('formats inspect statements with title and inner dialogue', () => {
+    const raw = `
+scene examine {
+inspect gold_key title:"Chìa khóa cổ"{
+"Một chiếc chìa khóa cổ xưa."
+alice:"Nó rất đẹp!"
+}
+}
+`;
+    const expected = `scene examine {
+  inspect gold_key title: "Chìa khóa cổ" {
+    "Một chiếc chìa khóa cổ xưa."
+    alice: "Nó rất đẹp!"
+  }
+}
+`;
+    const formatted = formatVns(raw, { indentSize: 2 });
+    expect(formatted).toBe(expected);
+  });
+
   it('formats golden scenario and ensures the formatted code compiles successfully', () => {
     const fixturePath = path.join(__dirname, 'fixtures', 'golden_scenario_p0.vns');
     const content = fs.readFileSync(fixturePath, 'utf-8');

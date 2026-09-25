@@ -883,3 +883,119 @@ body.is-embedded .public-footer {
   display: none !important;
 }
 
+/* ================================================================
+   11. KHẢO SÁT VẬT PHẨM & ĐẠO CỤ (CINEMATIC INSPECT MODAL)
+   ================================================================ */
+.inspect-modal {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding-top: 40px;
+  pointer-events: auto;
+  transition: opacity var(--vn-transition-normal);
+}
+
+.inspect-modal.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.inspect-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 1;
+}
+
+.inspect-content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 600px;
+  animation: inspectPopIn 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes inspectPopIn {
+  from {
+    transform: scale(0.92);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.inspect-title {
+  background: #000000;
+  color: #ffffff;
+  border: 1.5px solid var(--vn-border-primary);
+  font-family: var(--vn-font-mono);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 6px 20px;
+  margin-bottom: 14px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.7);
+}
+
+.inspect-title.hidden {
+  display: none;
+}
+
+.inspect-image-wrapper {
+  position: relative;
+  background: rgba(10, 10, 10, 0.95);
+  border: 2px solid var(--vn-border-primary);
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.85);
+  min-width: 240px;
+  min-height: 200px;
+  max-width: 480px;
+  max-height: 340px;
+}
+
+.inspect-image-wrapper img {
+  max-width: 450px;
+  max-height: 310px;
+  object-fit: contain;
+  display: block;
+}
+
+.inspect-close-btn {
+  position: absolute;
+  top: -14px;
+  right: -14px;
+  background: #000000;
+  color: #ffffff;
+  border: 1.5px solid var(--vn-border-primary);
+  font-family: var(--vn-font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 8px;
+  cursor: pointer;
+  z-index: 3;
+  transition: all var(--vn-transition-fast);
+}
+
+.inspect-close-btn:hover {
+  background: #ffffff;
+  color: #000000;
+}
+
+

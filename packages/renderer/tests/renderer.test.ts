@@ -120,4 +120,79 @@ describe('@vn-engine/renderer - Coordinate Resolution & GameRenderer Setup', () 
     expect(EASING_FUNCTIONS.elastic!(0)).toBe(0);
     expect(EASING_FUNCTIONS.elastic!(1)).toBe(1);
   });
+
+  it('nên hỗ trợ các transition mở rộng (slide, bounce, wobble, zoom, shake, pop) trên GameRenderer', async () => {
+    const renderer = new GameRenderer({ width: 1280, height: 720 });
+
+    // Background transition
+    await renderer.setBackground({
+      type: 'BACKGROUND',
+      assetId: 'bg_test',
+      transition: 'zoom',
+      duration: 0.1,
+    });
+    expect(renderer.getCurrentBackgroundId()).toBe('bg_test');
+
+    await renderer.setBackground({
+      type: 'BACKGROUND',
+      assetId: 'bg_test2',
+      transition: 'slide_left',
+      duration: 0.1,
+    });
+    expect(renderer.getCurrentBackgroundId()).toBe('bg_test2');
+
+    // Show character with entrance transition
+    await renderer.showCharacter({
+      type: 'SHOW',
+      character: 'amiya',
+      sprite: 'normal',
+      position: 'center',
+      transition: 'bounce',
+      duration: 0.1,
+    });
+    expect(renderer.hasCharacter('amiya')).toBe(true);
+
+    // Show character with movement transition
+    await renderer.showCharacter({
+      type: 'SHOW',
+      character: 'amiya',
+      sprite: 'happy',
+      position: 'right',
+      transition: 'wobble',
+      duration: 0.1,
+    });
+    expect(renderer.hasCharacter('amiya')).toBe(true);
+
+    renderer.destroy();
+  });
+
+  it('nên tự động căn giữa (y = baseHeight * 0.5) và neo anchor (0.5, 0.5) khi hiển thị prop/vật phẩm', async () => {
+    const baseW = 1280;
+    const baseH = 720;
+
+    // 1. Phân giải vị trí prop: mặc định x = 0.5 * W, y = 0.5 * H
+    const propCoords = resolveCharacterPlacement({}, baseW, baseH, true);
+    expect(propCoords.x).toBeCloseTo(baseW * 0.5);
+    expect(propCoords.y).toBeCloseTo(baseH * 0.5);
+
+    // 2. Phân giải vị trí nhân vật: mặc định y = baseH (chân chạm đáy)
+    const charCoords = resolveCharacterPlacement({}, baseW, baseH, false);
+    expect(charCoords.y).toBe(baseH);
+
+    // 3. Hiển thị prop trên GameRenderer
+    const renderer = new GameRenderer({ width: baseW, height: baseH });
+    await renderer.showCharacter(
+      {
+        type: 'SHOW',
+        character: 'key_gold',
+        sprite: 'default',
+        duration: 0,
+      },
+      undefined,
+      true, // isProp = true
+    );
+
+    expect(renderer.hasCharacter('key_gold')).toBe(true);
+    renderer.destroy();
+  });
 });

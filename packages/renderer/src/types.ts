@@ -96,6 +96,7 @@ export function resolveCharacterPlacement(
   },
   baseWidth = 1920,
   baseHeight = 1080,
+  isProp = false,
 ): CharacterPlacement {
   let x: number;
   let y: number;
@@ -120,7 +121,7 @@ export function resolveCharacterPlacement(
         ? instr.position.y * baseHeight
         : instr.position.y;
   } else {
-    y = baseHeight;
+    y = isProp ? baseHeight * 0.5 : baseHeight;
   }
 
   if (instr.offsetX !== undefined) {

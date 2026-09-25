@@ -226,6 +226,31 @@ function formatStatement(trimmedCode: string): string {
     return 'choice {';
   }
 
+  // 2b. Inspect statement: inspect <assetId> [title: "..."] {
+  const inspectMatch = trimmedCode.match(
+    /^inspect\s+([a-zA-Z0-9_]+)(?:\s+title:\s*("([^"\\]|\\.)*"))?\s*\{$/,
+  );
+  if (inspectMatch && inspectMatch[1]) {
+    const assetId = inspectMatch[1];
+    const titleAttr = inspectMatch[2];
+    if (titleAttr) {
+      return `inspect ${assetId} title: ${titleAttr} {`;
+    }
+    return `inspect ${assetId} {`;
+  }
+
+  const emptyInspectMatch = trimmedCode.match(
+    /^inspect\s+([a-zA-Z0-9_]+)(?:\s+title:\s*("([^"\\]|\\.)*"))?\s*\{\s*\}$/,
+  );
+  if (emptyInspectMatch && emptyInspectMatch[1]) {
+    const assetId = emptyInspectMatch[1];
+    const titleAttr = emptyInspectMatch[2];
+    if (titleAttr) {
+      return `inspect ${assetId} title: ${titleAttr} {}`;
+    }
+    return `inspect ${assetId} {}`;
+  }
+
   // 3. Conditionals & Loops
   // } else if <cond> {
   const closeElseIfMatch = trimmedCode.match(/^\}\s*else\s+if\s+(.+?)\s*\{$/);

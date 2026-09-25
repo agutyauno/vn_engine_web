@@ -14,6 +14,7 @@ import type {
   ShowStatement,
   HideStatement,
   HideDialogueStatement,
+  InspectStatement,
   PlayStatement,
   StopStatement,
   ChoiceStatement,
@@ -154,6 +155,7 @@ export class VNSAstBuilder extends BaseVNSVisitor {
     if (ctx.backgroundStatement) return this.visit(ctx.backgroundStatement[0]);
     if (ctx.showStatement) return this.visit(ctx.showStatement[0]);
     if (ctx.hideStatement) return this.visit(ctx.hideStatement[0]);
+    if (ctx.inspectStatement) return this.visit(ctx.inspectStatement[0]);
     if (ctx.playStatement) return this.visit(ctx.playStatement[0]);
     if (ctx.stopStatement) return this.visit(ctx.stopStatement[0]);
     if (ctx.choiceStatement) return this.visit(ctx.choiceStatement[0]);
@@ -433,6 +435,22 @@ export class VNSAstBuilder extends BaseVNSVisitor {
       type: 'HideStatement',
       character: charToken.image,
       loc: extractLocation(charToken, this.currentFileId),
+    };
+  }
+
+  inspectStatement(ctx: any): InspectStatement {
+    const assetToken = ctx.Identifier[0];
+    let title: string | undefined;
+    if (ctx.Title && ctx.StringLiteral) {
+      title = cleanString(ctx.StringLiteral[0].image);
+    }
+    const body: StatementAST[] = ctx.statement ? ctx.statement.map((s: any) => this.visit(s)) : [];
+    return {
+      type: 'InspectStatement',
+      assetId: assetToken.image,
+      title,
+      body,
+      loc: extractLocation(assetToken, this.currentFileId),
     };
   }
 

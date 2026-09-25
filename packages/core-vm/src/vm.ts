@@ -66,6 +66,7 @@ export class VisualNovelVM {
       localVariables: { ...(initialState?.localVariables ?? {}) },
       characterDisplayOverrides: { ...(initialState?.characterDisplayOverrides ?? {}) },
       customScriptState: { ...(initialState?.customScriptState ?? {}) },
+      activeInspect: initialState?.activeInspect ?? null,
     };
 
     // Lập bản đồ chỉ mục Scene để nhảy O(1)
@@ -214,6 +215,31 @@ export class VisualNovelVM {
       case 'STOP':
       case 'RUN_SCRIPT':
       case 'SPAWN_SCRIPT': {
+        this.state.instructionPointer++;
+        return { type: 'SIDE_EFFECT', instruction: instr };
+      }
+
+      case 'INSPECT_BEGIN': {
+        const evalContext = this.getEvalContext();
+        const interpolatedTitle = instr.title
+          ? interpolate(instr.title, evalContext, this.evaluator)
+          : undefined;
+        this.state.activeInspect = {
+          assetId: instr.assetId,
+          title: interpolatedTitle,
+        };
+        this.state.instructionPointer++;
+        return {
+          type: 'SIDE_EFFECT',
+          instruction: {
+            ...instr,
+            title: interpolatedTitle,
+          },
+        };
+      }
+
+      case 'INSPECT_END': {
+        this.state.activeInspect = null;
         this.state.instructionPointer++;
         return { type: 'SIDE_EFFECT', instruction: instr };
       }
@@ -509,11 +535,13 @@ export class VisualNovelVM {
     sprites: Map<string, ShowInstruction>;
     audio: Map<string, PlayInstruction>;
     currentDialogue?: DialogueInstruction;
+    activeInspect?: { assetId: string; title?: string } | null;
   } {
     let background: BackgroundInstruction | undefined;
     const sprites = new Map<string, ShowInstruction>();
     const audio = new Map<string, PlayInstruction>();
     let currentDialogue: DialogueInstruction | undefined;
+    let activeInspect: { assetId: string; title?: string } | null = null;
 
     // Quét từ đầu chương trình tới con trỏ lệnh hiện tại
     for (let i = 0; i < this.state.instructionPointer; i++) {
@@ -532,6 +560,10 @@ export class VisualNovelVM {
         currentDialogue = instr;
       } else if (instr.type === 'HIDE_DIALOGUE') {
         currentDialogue = undefined;
+      } else if (instr.type === 'INSPECT_BEGIN') {
+        activeInspect = { assetId: instr.assetId, title: instr.title };
+      } else if (instr.type === 'INSPECT_END') {
+        activeInspect = null;
       }
     }
 
@@ -546,7 +578,15 @@ export class VisualNovelVM {
       };
     }
 
-    return { background, sprites, audio, currentDialogue };
+    if (activeInspect && activeInspect.title) {
+      const evalContext = this.getEvalContext();
+      activeInspect = {
+        ...activeInspect,
+        title: interpolate(activeInspect.title, evalContext, this.evaluator),
+      };
+    }
+
+    return { background, sprites, audio, currentDialogue, activeInspect };
   }
 
   /**

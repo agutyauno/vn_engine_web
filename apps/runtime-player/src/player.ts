@@ -97,6 +97,13 @@ export class VNPlayer {
   private activeModalMode: 'save' | 'load' = 'save';
   private currentDialogueInstruction: DialogueInstruction | null = null;
 
+  // Cinematic Inspect Modal
+  private inspectModal: HTMLElement;
+  private inspectBackdrop: HTMLElement;
+  private inspectTitle: HTMLElement;
+  private inspectImage: HTMLImageElement;
+  private btnCloseInspect: HTMLButtonElement | null;
+
   constructor(program: Instruction[]) {
     this.initialProgram = program;
     this.vm = new VisualNovelVM(program, undefined, {
@@ -140,6 +147,13 @@ export class VNPlayer {
     this.btnModeSave = document.getElementById('btn-mode-save') as HTMLButtonElement | null;
     this.btnModeLoad = document.getElementById('btn-mode-load') as HTMLButtonElement | null;
     this.backlogContainer = document.getElementById('backlog-container')!;
+
+    // Inspect Modal Elements
+    this.inspectModal = document.getElementById('inspect-modal')!;
+    this.inspectBackdrop = document.getElementById('inspect-backdrop')!;
+    this.inspectTitle = document.getElementById('inspect-title')!;
+    this.inspectImage = document.getElementById('inspect-image') as HTMLImageElement;
+    this.btnCloseInspect = document.getElementById('btn-close-inspect') as HTMLButtonElement | null;
 
     this.typewriter = new Typewriter(this.dialogueText, 22);
   }
@@ -237,6 +251,14 @@ export class VNPlayer {
     // Đóng Settings Menu Modal
     this.btnCloseSettingsMenu?.addEventListener('click', () => {
       this.closeSettingsMenu();
+    });
+
+    // Đóng Cinematic Inspect Modal
+    this.btnCloseInspect?.addEventListener('click', () => {
+      this.hideInspectModal();
+    });
+    this.inspectBackdrop?.addEventListener('click', () => {
+      this.hideInspectModal();
     });
 
     // Nút chuyển chế độ Lưu / Tải trong Tab SaveLoad
@@ -449,11 +471,46 @@ export class VNPlayer {
   }
 
   public isAnyModalOpen(): boolean {
-    return !this.modalSettingsMenu.classList.contains('hidden');
+    return (
+      !this.modalSettingsMenu.classList.contains('hidden') ||
+      (this.inspectModal && !this.inspectModal.classList.contains('hidden'))
+    );
   }
 
   public closeAllModals(): void {
     this.modalSettingsMenu.classList.add('hidden');
+    this.hideInspectModal();
+  }
+
+  public showInspectModal(assetId: string, title?: string): void {
+    if (!this.inspectModal) return;
+
+    if (title && title.trim().length > 0) {
+      this.inspectTitle.textContent = title;
+      this.inspectTitle.classList.remove('hidden');
+    } else {
+      this.inspectTitle.textContent = '';
+      this.inspectTitle.classList.add('hidden');
+    }
+
+    const foundAsset = this.projectData.assets?.find(
+      a =>
+        a.name.toLowerCase() === assetId.toLowerCase() ||
+        a.id.toLowerCase() === assetId.toLowerCase(),
+    );
+    if (foundAsset?.storageUrl) {
+      this.inspectImage.src = foundAsset.storageUrl;
+    } else {
+      const label = assetId.toUpperCase();
+      this.inspectImage.src = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"><rect width="400" height="300" fill="%23111111" stroke="%23ffffff" stroke-width="2"/><text x="200" y="140" fill="%23ffffff" font-family="monospace" font-size="16" font-weight="bold" text-anchor="middle">[ ITEM // ${encodeURIComponent(label)} ]</text><text x="200" y="175" fill="%23888888" font-family="monospace" font-size="12" text-anchor="middle">// WIREFRAME INSPECT VIEW</text></svg>`;
+    }
+
+    this.inspectModal.classList.remove('hidden');
+  }
+
+  public hideInspectModal(): void {
+    if (!this.inspectModal) return;
+    this.inspectModal.classList.add('hidden');
   }
 
   public openSettingsMenu(
@@ -659,10 +716,23 @@ export class VNPlayer {
       };
       await this.renderer.setBackground(instr, instr.transition, bgResolver);
     } else if (instr.type === 'SHOW') {
+      const isProp =
+        !this.projectData.characters?.some(
+          c => c.id.toLowerCase() === instr.character.toLowerCase(),
+        ) &&
+        Boolean(
+          this.projectData.assets?.some(
+            a =>
+              a.name.toLowerCase() === instr.character.toLowerCase() ||
+              a.id.toLowerCase() === instr.character.toLowerCase(),
+          ),
+        );
       const assetResolver = (assetKey: string) => {
         // 1. Khớp trực tiếp trong danh mục tài nguyên
         const foundAsset = this.projectData.assets?.find(
-          a => a.name === assetKey || a.id === assetKey,
+          a =>
+            a.name.toLowerCase() === assetKey.toLowerCase() ||
+            a.id.toLowerCase() === assetKey.toLowerCase(),
         );
         if (foundAsset?.storageUrl) return foundAsset.storageUrl;
 
@@ -692,13 +762,17 @@ export class VNPlayer {
         }
         return undefined;
       };
-      await this.renderer.showCharacter(instr, assetResolver);
+      await this.renderer.showCharacter(instr, assetResolver, isProp);
     } else if (instr.type === 'HIDE') {
       this.renderer.hideCharacter(instr.character);
     } else if (instr.type === 'HIDE_DIALOGUE') {
       this.dialogueBox.classList.add('hidden');
       this.speakerNameplate.classList.add('hidden');
       this.nextIndicator.style.opacity = '0';
+    } else if (instr.type === 'INSPECT_BEGIN') {
+      this.showInspectModal(instr.assetId, instr.title);
+    } else if (instr.type === 'INSPECT_END') {
+      this.hideInspectModal();
     } else if (instr.type === 'PLAY') {
       const audioResolver = (assetKey: string) => {
         const found = this.projectData.assets?.find(a => a.name === assetKey || a.id === assetKey);
@@ -836,6 +910,12 @@ export class VNPlayer {
     } else {
       this.dialogueBox.classList.add('hidden');
       this.speakerNameplate.classList.add('hidden');
+    }
+
+    if (catchUp.activeInspect) {
+      this.showInspectModal(catchUp.activeInspect.assetId, catchUp.activeInspect.title);
+    } else {
+      this.hideInspectModal();
     }
 
     this.updateControlsState();
@@ -1072,6 +1152,12 @@ export class VNPlayer {
     } else {
       this.dialogueBox.classList.add('hidden');
       this.speakerNameplate.classList.add('hidden');
+    }
+
+    if (catchUp.activeInspect) {
+      this.showInspectModal(catchUp.activeInspect.assetId, catchUp.activeInspect.title);
+    } else {
+      this.hideInspectModal();
     }
 
     this.updateControlsState();

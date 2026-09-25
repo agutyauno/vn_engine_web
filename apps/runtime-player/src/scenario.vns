@@ -174,8 +174,13 @@ scene chapter1_investigation {
     scene .search_safe {
         "You aim the flashlight beam underneath the cobweb-covered cabinet..."
         play sound "sfx_bell" volume: 0.9
+        inspect key_gold title: "Antique Brass Key" {
+            "Underneath the cabinet, you spot a heavy brass key wrapped in an engraved leather tag."
+            "The engraving bears the crest of St. Carroll Academy's archive room."
+            alice: "Aha! Someone dropped the spare archive key down here!"
+        }
         show alice.happy(position: "center")
-        alice: "Aha! Someone dropped a spare cabinet key down here!"
+        alice: "With this key, we can unlock the restricted cabinet in the corner!"
         ~ found_key = true
         ~ clues_count = clues_count + 1
         ~ energy = energy - 20

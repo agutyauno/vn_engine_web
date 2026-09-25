@@ -526,4 +526,40 @@ describe('VisualNovelVM Core', () => {
     const catchUp = vm.getStateCatchUp();
     expect(catchUp.currentDialogue).toBeUndefined();
   });
+
+  it('should execute INSPECT_BEGIN and INSPECT_END with activeInspect state and catch-up', () => {
+    const program: Instruction[] = [
+      { type: 'SCENE', name: 'main' },
+      { type: 'INSPECT_BEGIN', assetId: 'key_gold', title: 'Ancient Key' },
+      { type: 'DIALOGUE', character: null, text: 'A rusted gold key.' },
+      { type: 'INSPECT_END' },
+      { type: 'DIALOGUE', character: 'amiya', text: 'Nice find!' },
+    ];
+
+    const vm = new VisualNovelVM(program);
+    const r1 = vm.runUntilInteractive();
+    expect(r1.stepResult.type).toBe('SUSPEND_DIALOGUE');
+    expect(r1.sideEffects).toEqual([
+      { type: 'SCENE', name: 'main' },
+      { type: 'INSPECT_BEGIN', assetId: 'key_gold', title: 'Ancient Key' },
+    ]);
+    expect(vm.getState().activeInspect).toEqual({
+      assetId: 'key_gold',
+      title: 'Ancient Key',
+    });
+
+    const catchUp1 = vm.getStateCatchUp();
+    expect(catchUp1.activeInspect).toEqual({
+      assetId: 'key_gold',
+      title: 'Ancient Key',
+    });
+
+    const r2 = vm.runUntilInteractive();
+    expect(r2.stepResult.type).toBe('SUSPEND_DIALOGUE');
+    expect(r2.sideEffects).toEqual([{ type: 'INSPECT_END' }]);
+    expect(vm.getState().activeInspect).toBeNull();
+
+    const catchUp2 = vm.getStateCatchUp();
+    expect(catchUp2.activeInspect).toBeNull();
+  });
 });

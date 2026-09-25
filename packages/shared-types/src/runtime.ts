@@ -18,6 +18,7 @@ export interface VMState {
   localVariables: Record<string, string | number | boolean>;
   characterDisplayOverrides: Record<string, string>; // characterId -> revealedName (ADR-020)
   customScriptState: Record<string, string>; // screenId -> validated JSON
+  activeInspect?: { assetId: string; title?: string } | null;
 }
 
 export type StepResult =

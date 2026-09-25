@@ -9,7 +9,7 @@ import type { SandboxEvaluator } from './evaluator';
 const ESC_LCURLY = '\uE000';
 const ESC_RCURLY = '\uE001';
 
-const CONTROL_TAG_PATTERN = /^(pause|wait):|^(speed):|^(color):|^\/color$/i;
+const CONTROL_TAG_PATTERN = /^(pause|wait)\s*:|^(speed)\s*:|^(color)\s*:|^\s*\/color\s*$/i;
 const KNOWN_FILTERS = new Set(['comma', 'upper', 'lower', 'capitalize', 'round']);
 
 /**

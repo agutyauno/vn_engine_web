@@ -70,6 +70,37 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): void {
             range,
           });
         }
+
+        // Gợi ý cả Image Assets làm đạo cụ sân khấu (Props / Items)
+        if (/\bshow\s+[a-zA-Z0-9_]*$/.test(textUntilPosition)) {
+          const assets = context.getAssets();
+          for (const assetId of assets.backgrounds) {
+            if (!chars.has(assetId)) {
+              suggestions.push({
+                label: assetId,
+                kind: monaco.languages.CompletionItemKind.File,
+                documentation: `Prop / Item asset: ${assetId} (Default center anchor 0.5, 0.5)`,
+                insertText: assetId,
+                range,
+              });
+            }
+          }
+        }
+        return { suggestions };
+      }
+
+      // B1. Gợi ý Image Assets sau inspect
+      if (/\binspect\s+[a-zA-Z0-9_]*$/.test(textUntilPosition)) {
+        const assets = context.getAssets();
+        for (const assetId of assets.backgrounds) {
+          suggestions.push({
+            label: assetId,
+            kind: monaco.languages.CompletionItemKind.File,
+            documentation: `Inspect item / asset: ${assetId}`,
+            insertText: assetId,
+            range,
+          });
+        }
         return { suggestions };
       }
 
@@ -93,7 +124,80 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): void {
         }
       }
 
-      // C2. Gợi ý thuộc tính biến đổi ảnh (Show & Background parameters)
+      // C1. Gợi ý giá trị cho transition:
+      if (/\btransition:\s*"?([a-zA-Z0-9_]*)$/.test(textUntilPosition)) {
+        const hasOpeningQuote = /"[^"]*$/.test(textUntilPosition);
+        const transList: Array<{ name: string; doc: string }> = [
+          { name: 'fade', doc: 'Fade in / cross-fade opacity' },
+          { name: 'dissolve', doc: 'Smooth cross-dissolve' },
+          { name: 'shake', doc: 'Violent horizontal screen/sprite shake' },
+          { name: 'hop', doc: 'Cheerful vertical jump and land' },
+          { name: 'bounce', doc: 'Bouncy drop and floor recoil' },
+          { name: 'wobble', doc: 'Playful rotational rocking oscillation' },
+          { name: 'pop', doc: 'Punchy scale overshoot and rebound' },
+          { name: 'zoom', doc: 'Scale zoom in from center' },
+          { name: 'slide', doc: 'Slide smoothly into position' },
+          { name: 'slide_left', doc: 'Slide in from screen left' },
+          { name: 'slide_right', doc: 'Slide in from screen right' },
+          { name: 'slide_up', doc: 'Slide in from screen bottom' },
+          { name: 'slide_down', doc: 'Slide in from screen top' },
+        ];
+        for (const t of transList) {
+          suggestions.push({
+            label: t.name,
+            kind: monaco.languages.CompletionItemKind.Value,
+            documentation: t.doc,
+            insertText: hasOpeningQuote ? t.name : `"${t.name}"`,
+            range,
+          });
+        }
+        return { suggestions };
+      }
+
+      // C2. Gợi ý giá trị cho easing:
+      if (/\beasing:\s*"?([a-zA-Z0-9_]*)$/.test(textUntilPosition)) {
+        const hasOpeningQuote = /"[^"]*$/.test(textUntilPosition);
+        const easingList: Array<{ name: string; doc: string }> = [
+          { name: 'ease_out', doc: 'Natural deceleration (default, smoothest visual feel)' },
+          { name: 'ease_in_out', doc: 'Smooth acceleration and deceleration' },
+          { name: 'ease_in', doc: 'Gradual acceleration from rest' },
+          { name: 'bounce', doc: 'Physically based mechanical bounce' },
+          { name: 'elastic', doc: 'Rubber band spring oscillation' },
+          { name: 'linear', doc: 'Constant velocity motion' },
+        ];
+        for (const e of easingList) {
+          suggestions.push({
+            label: e.name,
+            kind: monaco.languages.CompletionItemKind.Value,
+            documentation: e.doc,
+            insertText: hasOpeningQuote ? e.name : `"${e.name}"`,
+            range,
+          });
+        }
+        return { suggestions };
+      }
+
+      // C3. Gợi ý giá trị cho position:
+      if (/\bposition:\s*"?([a-zA-Z0-9_]*)$/.test(textUntilPosition)) {
+        const hasOpeningQuote = /"[^"]*$/.test(textUntilPosition);
+        const posList: Array<{ name: string; doc: string }> = [
+          { name: 'left', doc: 'Left anchor position (22% screen width)' },
+          { name: 'center', doc: 'Center anchor position (50% screen width)' },
+          { name: 'right', doc: 'Right anchor position (78% screen width)' },
+        ];
+        for (const p of posList) {
+          suggestions.push({
+            label: p.name,
+            kind: monaco.languages.CompletionItemKind.Value,
+            documentation: p.doc,
+            insertText: hasOpeningQuote ? p.name : `"${p.name}"`,
+            range,
+          });
+        }
+        return { suggestions };
+      }
+
+      // C4. Gợi ý thuộc tính biến đổi ảnh (Show & Background parameters)
       if (/\b(show|background)\b[^(\n]*\([^)\n]*$/.test(textUntilPosition)) {
         const paramOptions = [
           {
@@ -223,6 +327,11 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): void {
           label: 'hide dialogue',
           doc: 'Hide dialogue box without blocking script: hide dialogue',
           snippet: 'hide dialogue',
+        },
+        {
+          label: 'inspect',
+          doc: 'Inspect item modal with backdrop blur: inspect item_id title: "..." { ... }',
+          snippet: 'inspect ${1:asset_id} title: "${2:Item Title}" {\n\t"$0"\n}',
         },
         {
           label: 'background',

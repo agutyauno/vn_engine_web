@@ -368,6 +368,33 @@ describe('DSL Compiler Core (5-Stage Pipeline)', () => {
     expect(hideDialogue).toMatchObject({ type: 'HIDE_DIALOGUE' });
   });
 
+  it('should compile inspect statement into INSPECT_BEGIN, nested statements, and INSPECT_END', () => {
+    const dsl = `
+      scene examine_item {
+        inspect gold_key title: "Chìa khóa cổ" {
+          "Một chiếc chìa khóa bằng đồng đã rỉ sét theo năm tháng."
+          alice: "Trông nó có vẻ mở được cánh cửa đấy!"
+        }
+      }
+    `;
+    const result = compileString(dsl);
+    expect(result.success).toBe(true);
+
+    const begin = result.program!.find(i => i.type === 'INSPECT_BEGIN');
+    const end = result.program!.find(i => i.type === 'INSPECT_END');
+    expect(begin).toMatchObject({
+      type: 'INSPECT_BEGIN',
+      assetId: 'gold_key',
+      title: 'Chìa khóa cổ',
+    });
+    expect(end).toMatchObject({
+      type: 'INSPECT_END',
+    });
+
+    const dialogues = result.program!.filter(i => i.type === 'DIALOGUE');
+    expect(dialogues).toHaveLength(2);
+  });
+
   it('should compile scenario.vns successfully without syntax or semantic errors', () => {
     const scenarioPath = path.resolve(__dirname, '../../../apps/runtime-player/src/scenario.vns');
     const content = fs.readFileSync(scenarioPath, 'utf-8');
