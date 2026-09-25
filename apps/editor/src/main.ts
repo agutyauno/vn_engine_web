@@ -2254,7 +2254,10 @@ export class StudioApp {
     });
   }
 
-  private sendProgramToPreview(program: Instruction[]): void {
+  private sendProgramToPreview(
+    program: Instruction[],
+    options?: { targetScene?: string | null; targetLine?: number | null; fileId?: string | null },
+  ): void {
     const targetOrigin = this.getPreviewOrigin();
 
     const payload = {
@@ -2262,6 +2265,9 @@ export class StudioApp {
       program,
       characters: this.project.characters,
       assets: this.project.assets,
+      targetScene: options?.targetScene,
+      targetLine: options?.targetLine,
+      fileId: options?.fileId,
     };
 
     if (this.previewIframe.contentWindow) {
@@ -2370,20 +2376,38 @@ export class StudioApp {
     let currentScene: string | null = null;
 
     if (model) {
+      // Quét ngược tìm scene gần nhất phía trên dòng con trỏ (hỗ trợ cả scene cha lẫn local scene .sub)
       for (let i = currentLine; i >= 1; i--) {
         const lineContent = model.getLineContent(i);
-        const match = lineContent.match(/scene\s+([a-zA-Z0-9_]+)/);
+        const match = lineContent.match(/scene\s+(\.?[a-zA-Z0-9_]+)/);
         if (match && match[1]) {
-          currentScene = match[1];
+          const rawScene = match[1];
+          if (rawScene.startsWith('.')) {
+            // Local scene: quét ngược tiếp tìm scene cha để tạo canonical name: parent.sub
+            for (let j = i - 1; j >= 1; j--) {
+              const parentMatch = model.getLineContent(j).match(/scene\s+([a-zA-Z0-9_]+)/);
+              if (parentMatch && parentMatch[1] && !parentMatch[1].startsWith('.')) {
+                currentScene = `${parentMatch[1]}${rawScene}`;
+                break;
+              }
+            }
+            if (!currentScene) currentScene = rawScene;
+          } else {
+            currentScene = rawScene;
+          }
           break;
         }
       }
     }
 
-    this.sendProgramToPreview(this.latestProgram);
+    this.sendProgramToPreview(this.latestProgram, {
+      targetScene: currentScene,
+      targetLine: currentLine,
+      fileId: this.activeFile,
+    });
 
     if (currentScene) {
-      this.showToast(`▶ Running from current scene: "${currentScene}"!`);
+      this.showToast(`▶ Running from scene: "${currentScene}" (line ${currentLine})!`);
     } else {
       this.showToast(`▶ Running script from line ${currentLine}!`);
     }

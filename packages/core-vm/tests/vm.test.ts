@@ -634,4 +634,67 @@ describe('VisualNovelVM Core', () => {
 
     warnSpy.mockRestore();
   });
+
+  it('should jump to target line and update currentScene accurately', () => {
+    const program: Instruction[] = [
+      { type: 'SCENE', name: 'start', loc: { fileId: 'main.vns', line: 1, col: 1 } },
+      { type: 'DIALOGUE', character: 'sys', text: 'Line 2', loc: { fileId: 'main.vns', line: 2, col: 1 } },
+      { type: 'SCENE_END', sceneName: 'start', loc: { fileId: 'main.vns', line: 5, col: 1 } },
+      { type: 'SCENE', name: 'scene2', loc: { fileId: 'main.vns', line: 10, col: 1 } },
+      { type: 'DIALOGUE', character: 'sys', text: 'Line 11', loc: { fileId: 'main.vns', line: 11, col: 1 } },
+      { type: 'DIALOGUE', character: 'sys', text: 'Line 12', loc: { fileId: 'main.vns', line: 12, col: 1 } },
+      { type: 'SCENE_END', sceneName: 'scene2', loc: { fileId: 'main.vns', line: 15, col: 1 } },
+    ];
+
+    const vm = new VisualNovelVM(program);
+    // Nhảy tới dòng 12 (trong scene2)
+    const success = vm.jumpToLine(12, 'main.vns');
+    expect(success).toBe(true);
+    expect(vm.getState().currentScene).toBe('scene2');
+
+    const res = vm.runUntilInteractive();
+    expect(asDialogue(res.stepResult).text).toBe('Line 12');
+  });
+
+  it('should run smoothly with numeric scene names and sub-scenes', () => {
+    const program: Instruction[] = [
+      { type: 'SCENE', name: '1' },
+      { type: 'DIALOGUE', character: 'sys', text: 'In scene 1' },
+      { type: 'GOTO', targetScene: '2' },
+      { type: 'SCENE_END', sceneName: '1' },
+
+      { type: 'SCENE', name: '2' },
+      { type: 'DIALOGUE', character: 'sys', text: 'In scene 2' },
+      { type: 'CALL', targetScene: '2.1' },
+      { type: 'DIALOGUE', character: 'sys', text: 'Back in scene 2' },
+      { type: 'HALT' },
+      { type: 'SCENE_END', sceneName: '2' },
+
+      { type: 'SCENE', name: '2.1' },
+      { type: 'DIALOGUE', character: 'sys', text: 'In sub-scene 2.1' },
+      { type: 'RETURN' },
+      { type: 'SCENE_END', sceneName: '2.1' },
+    ];
+
+    const vm = new VisualNovelVM(program);
+    const r1 = vm.runUntilInteractive();
+    expect(asDialogue(r1.stepResult).text).toBe('In scene 1');
+    expect(vm.getState().currentScene).toBe('1');
+
+    const r2 = vm.runUntilInteractive();
+    expect(asDialogue(r2.stepResult).text).toBe('In scene 2');
+    expect(vm.getState().currentScene).toBe('2');
+
+    const r3 = vm.runUntilInteractive();
+    expect(asDialogue(r3.stepResult).text).toBe('In sub-scene 2.1');
+    expect(vm.getState().currentScene).toBe('2.1');
+
+    const r4 = vm.runUntilInteractive();
+    expect(asDialogue(r4.stepResult).text).toBe('Back in scene 2');
+    expect(vm.getState().currentScene).toBe('2');
+
+    const r5 = vm.runUntilInteractive();
+    expect(r5.stepResult.type).toBe('HALTED');
+  });
 });
+

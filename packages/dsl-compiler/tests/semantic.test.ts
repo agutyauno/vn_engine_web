@@ -227,4 +227,186 @@ describe('Semantic Validator & Multi-File Compilation', () => {
     expect(result.errors![1]?.message).toContain('unknown easing "hyper_speed"');
     expect(result.errors![2]?.message).toContain('unknown easing "invalid_curve"');
   });
+
+  it('should reject local scenes nested inside other local scenes with exact error message (ADR-015)', () => {
+    const dsl = `
+      scene start {
+        background lighthouse
+        choice {
+          "Choice 1": goto .c1
+          "Choice 2": goto .c2
+        }
+
+        scene .c1 {
+          "c1"
+          scene .c2 {
+            "c2"
+          }
+        }
+      }
+    `;
+
+    const result = compileString(dsl, 'nested_subscene.vns');
+    expect(result.success).toBe(false);
+    expect(result.errors).toBeDefined();
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors![0]?.message).toBe(
+      'Local scene ".c2" cannot be nested inside another local scene ".c1". Sub-scenes are strictly limited to 1 level'
+    );
+  });
+
+  it('should reject multiple levels of nested sub-scenes', () => {
+    const dsl = `
+      scene start {
+        scene .c1 {
+          scene .c2 {
+            scene .c3 {
+              "c3"
+            }
+          }
+        }
+      }
+    `;
+
+    const result = compileString(dsl, 'multi_level_subscene.vns');
+    expect(result.success).toBe(false);
+    expect(result.errors).toBeDefined();
+    expect(result.errors).toHaveLength(2);
+    expect(result.errors![0]?.message).toBe(
+      'Local scene ".c2" cannot be nested inside another local scene ".c1". Sub-scenes are strictly limited to 1 level'
+    );
+    expect(result.errors![1]?.message).toBe(
+      'Local scene ".c3" cannot be nested inside another local scene ".c2". Sub-scenes are strictly limited to 1 level'
+    );
+  });
+
+  it('should reject local scene declared at top-level', () => {
+    const dsl = `
+      scene .orphan {
+        "orphan"
+      }
+    `;
+
+    const result = compileString(dsl, 'orphan_subscene.vns');
+    expect(result.success).toBe(false);
+    expect(result.errors).toBeDefined();
+    expect(result.errors![0]?.message).toContain(
+      'Local scene ".orphan" cannot be declared at top-level. Sub-scenes must be nested inside a global scene.'
+    );
+  });
+
+  it('should allow valid 1-level sub-scenes', () => {
+    const dsl = `
+      scene start {
+        choice {
+          "Choice 1": call .c1
+          "Choice 2": call .c2
+        }
+
+        scene .c1 {
+          "c1"
+        }
+
+        scene .c2 {
+          "c2"
+        }
+
+        "next"
+        end
+      }
+    `;
+
+    const result = compileString(dsl, 'valid_subscenes.vns');
+    expect(result.success).toBe(true);
+    expect(result.errors).toBeUndefined();
+  });
+
+  it('should support pure numeric global scenes and numeric sub-scenes (e.g., scene 1, goto 2, scene .1)', () => {
+    const dsl = `
+      scene 1 {
+        "Starting scene 1"
+        choice {
+          "Call sub 1": call .1
+          "Call sub 2": call .2
+          "Goto scene 2": goto 2
+        }
+
+        scene .1 {
+          "This is sub 1"
+        }
+
+        scene .2 {
+          "This is sub 2"
+        }
+
+        goto 2
+        end
+      }
+
+      scene 2 {
+        "This is scene 2"
+      }
+    `;
+
+    const result = compileString(dsl, 'numeric_scenes.vns');
+    expect(result.success).toBe(true);
+    expect(result.errors).toBeUndefined();
+    expect(result.program).toBeDefined();
+
+    // Verify scene names in bytecode
+    const sceneInsts = result.program!.filter(i => i.type === 'SCENE') as { name: string }[];
+    const sceneNames = sceneInsts.map(s => s.name);
+    expect(sceneNames).toContain('1');
+    expect(sceneNames).toContain('1.1');
+    expect(sceneNames).toContain('1.2');
+    expect(sceneNames).toContain('2');
+  });
+
+  it('should support alphanumeric scene names starting with numbers (e.g., scene 1_intro, scene .1_branch)', () => {
+    const dsl = `
+      scene 1_intro {
+        choice {
+          "Branch": goto .1_branch
+        }
+
+        scene .1_branch {
+          "Branch content"
+        }
+
+        goto 2nd_phase
+      }
+
+      scene 2nd_phase {
+        "Phase 2 content"
+      }
+    `;
+
+    const result = compileString(dsl, 'alphanumeric_scenes.vns');
+    expect(result.success).toBe(true);
+    expect(result.errors).toBeUndefined();
+    expect(result.program).toBeDefined();
+
+    const sceneInsts = result.program!.filter(i => i.type === 'SCENE') as { name: string }[];
+    const sceneNames = sceneInsts.map(s => s.name);
+    expect(sceneNames).toContain('1_intro');
+    expect(sceneNames).toContain('1_intro.1_branch');
+    expect(sceneNames).toContain('2nd_phase');
+  });
+
+  it('should reject global scene names containing dots (e.g., scene 1.5)', () => {
+    const dsl = `
+      scene 1.5 {
+        "Invalid global scene name"
+      }
+    `;
+
+    const result = compileString(dsl, 'dot_global_scene.vns');
+    expect(result.success).toBe(false);
+    expect(result.errors).toBeDefined();
+    expect(result.errors![0]?.message).toContain(
+      'Global scene "1.5" cannot contain \'.\' in its name. Dots are reserved for sub-scenes.'
+    );
+  });
 });
+
+

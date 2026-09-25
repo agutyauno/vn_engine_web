@@ -98,11 +98,14 @@ export function registerVnsLanguage(): void {
         // Duration literals (1s, 2.5s)
         [/[0-9]+(\.[0-9]+)?s\b/, 'number.duration'],
 
+        // Dot identifier (.local_scene, .1, .c1)
+        [/\.[a-zA-Z0-9_]+/, 'type.identifier'],
+
+        // Alphanumeric identifier starting with numbers (1_intro, 2nd)
+        [/[0-9]+[a-zA-Z_][a-zA-Z0-9_]*/, 'identifier'],
+
         // Number literals
         [/[0-9]+(\.[0-9]+)?/, 'number'],
-
-        // Dot identifier (.local_scene)
-        [/\.[a-zA-Z_][a-zA-Z0-9_]*/, 'type.identifier'],
 
         // Tilde variable assignment
         [/~/, 'delimiter'],

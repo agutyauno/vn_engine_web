@@ -7,6 +7,7 @@ import {
   SUPPORTED_EASINGS,
   SUPPORTED_NAMED_POSITIONS,
   type ProgramAST,
+  type SceneASTNode,
   type StatementAST,
   type GotoStatement,
   type CallStatement,
@@ -104,6 +105,91 @@ export function buildGlobalVariableSet(ast: ProgramAST): Set<string> {
     }
   }
   return globals;
+}
+
+/**
+ * Thu thập tất cả các SceneASTNode lồng bên trong danh sách câu lệnh (kể cả trong if, while, inspect)
+ */
+function collectSubScenes(statements: StatementAST[]): SceneASTNode[] {
+  const result: SceneASTNode[] = [];
+  for (const stmt of statements) {
+    if ((stmt as unknown as { type: string }).type === 'Scene') {
+      result.push(stmt as unknown as SceneASTNode);
+    } else if (stmt.type === 'IfStatement') {
+      const ifStmt = stmt as IfStatement;
+      result.push(...collectSubScenes(ifStmt.consequent));
+      if (Array.isArray(ifStmt.alternate)) {
+        result.push(...collectSubScenes(ifStmt.alternate));
+      } else if (ifStmt.alternate) {
+        result.push(...collectSubScenes([ifStmt.alternate]));
+      }
+    } else if (stmt.type === 'WhileStatement') {
+      const wh = stmt as WhileStatement;
+      result.push(...collectSubScenes(wh.body));
+    } else if (stmt.type === 'InspectStatement') {
+      const ins = stmt as InspectStatement;
+      if (ins.body) {
+        result.push(...collectSubScenes(ins.body));
+      }
+    }
+  }
+  return result;
+}
+
+/**
+ * Đệ quy kiểm tra các sub-scene bị lồng sâu hơn 1 cấp bên trong một local scene (ADR-015)
+ */
+function checkNestedSubScenes(parentSub: SceneASTNode, errors: CompileError[]) {
+  const nestedScenes = collectSubScenes(parentSub.body);
+  for (const nested of nestedScenes) {
+    errors.push({
+      message: `Local scene "${nested.name}" cannot be nested inside another local scene "${parentSub.name}". Sub-scenes are strictly limited to 1 level`,
+      loc: nested.loc,
+    });
+    checkNestedSubScenes(nested, errors);
+  }
+}
+
+/**
+ * Kiểm tra tính hợp lệ của cấu trúc phân cấp Scene & Sub-scene (ADR-015: giới hạn tối đa 1 cấp lồng)
+ * Áp dụng trên AST thô (raw AST) trước khi Merge Pass phẳng hóa.
+ */
+export function validateSceneStructure(ast: ProgramAST): CompileError[] {
+  const errors: CompileError[] = [];
+
+  for (const scene of ast.scenes) {
+    // Không cho phép khai báo local scene bắt đầu bằng dấu '.' ở top-level
+    if (scene.name.startsWith('.')) {
+      errors.push({
+        message: `Local scene "${scene.name}" cannot be declared at top-level. Sub-scenes must be nested inside a global scene.`,
+        loc: scene.loc,
+      });
+    } else if (scene.name.includes('.')) {
+      errors.push({
+        message: `Global scene "${scene.name}" cannot contain '.' in its name. Dots are reserved for sub-scenes.`,
+        loc: scene.loc,
+      });
+    }
+
+    // Quét các câu lệnh trong scene.body
+    for (const stmt of scene.body) {
+      if ((stmt as unknown as { type: string }).type === 'Scene') {
+        const sub = stmt as unknown as SceneASTNode;
+        checkNestedSubScenes(sub, errors);
+      } else {
+        const blockSubScenes = collectSubScenes([stmt]);
+        for (const nestedInBlock of blockSubScenes) {
+          errors.push({
+            message: `Local scene "${nestedInBlock.name}" cannot be declared inside a block. Sub-scenes must be declared directly in the scene body.`,
+            loc: nestedInBlock.loc,
+          });
+          checkNestedSubScenes(nestedInBlock, errors);
+        }
+      }
+    }
+  }
+
+  return errors;
 }
 
 export function validateSemantics(ast: ProgramAST): CompileError[] {

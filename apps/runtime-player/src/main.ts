@@ -93,7 +93,11 @@ window.addEventListener('message', async (event: MessageEvent) => {
           assets: event.data.assets,
         });
       }
-      await player.reloadProgram(event.data.program);
+      await player.reloadProgram(event.data.program, {
+        targetScene: event.data.targetScene,
+        targetLine: event.data.targetLine,
+        fileId: event.data.fileId,
+      });
     }
   }
 });

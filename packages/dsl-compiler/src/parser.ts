@@ -71,6 +71,7 @@ import {
   Or,
   Exclamation,
   DotIdentifier,
+  AlphanumericIdentifier,
   Identifier,
   DurationLiteral,
   NumberLiteral,
@@ -100,7 +101,12 @@ export class VNSParser extends CstParser {
 
   public sceneDeclaration = this.RULE('sceneDeclaration', () => {
     this.CONSUME(Scene);
-    this.OR([{ ALT: () => this.CONSUME(Identifier) }, { ALT: () => this.CONSUME(DotIdentifier) }]);
+    this.OR([
+      { ALT: () => this.CONSUME(Identifier) },
+      { ALT: () => this.CONSUME(DotIdentifier) },
+      { ALT: () => this.CONSUME(NumberLiteral) },
+      { ALT: () => this.CONSUME(AlphanumericIdentifier) },
+    ]);
     this.OPTION(() => {
       this.CONSUME(Ui);
       this.CONSUME(Colon);
@@ -365,12 +371,22 @@ export class VNSParser extends CstParser {
 
   public gotoStatement = this.RULE('gotoStatement', () => {
     this.CONSUME(Goto);
-    this.OR([{ ALT: () => this.CONSUME(DotIdentifier) }, { ALT: () => this.CONSUME(Identifier) }]);
+    this.OR([
+      { ALT: () => this.CONSUME(DotIdentifier) },
+      { ALT: () => this.CONSUME(Identifier) },
+      { ALT: () => this.CONSUME(NumberLiteral) },
+      { ALT: () => this.CONSUME(AlphanumericIdentifier) },
+    ]);
   });
 
   public callStatement = this.RULE('callStatement', () => {
     this.CONSUME(Call);
-    this.OR([{ ALT: () => this.CONSUME(DotIdentifier) }, { ALT: () => this.CONSUME(Identifier) }]);
+    this.OR([
+      { ALT: () => this.CONSUME(DotIdentifier) },
+      { ALT: () => this.CONSUME(Identifier) },
+      { ALT: () => this.CONSUME(NumberLiteral) },
+      { ALT: () => this.CONSUME(AlphanumericIdentifier) },
+    ]);
   });
 
   public returnStatement = this.RULE('returnStatement', () => {
@@ -429,7 +445,12 @@ export class VNSParser extends CstParser {
       { ALT: () => this.CONSUME(Goto) },
       { ALT: () => this.CONSUME(Call) },
     ]);
-    this.OR2([{ ALT: () => this.CONSUME(DotIdentifier) }, { ALT: () => this.CONSUME(Identifier) }]);
+    this.OR2([
+      { ALT: () => this.CONSUME(DotIdentifier) },
+      { ALT: () => this.CONSUME(Identifier) },
+      { ALT: () => this.CONSUME(NumberLiteral) },
+      { ALT: () => this.CONSUME(AlphanumericIdentifier) },
+    ]);
   });
 
   public whileStatement = this.RULE('whileStatement', () => {
@@ -571,6 +592,7 @@ export class VNSParser extends CstParser {
     this.OR([
       { ALT: () => this.CONSUME(Identifier) },
       { ALT: () => this.CONSUME(DotIdentifier) },
+      { ALT: () => this.CONSUME(AlphanumericIdentifier) },
       { ALT: () => this.CONSUME(NumberLiteral) },
       { ALT: () => this.CONSUME(StringLiteral) },
       { ALT: () => this.CONSUME(DurationLiteral) },

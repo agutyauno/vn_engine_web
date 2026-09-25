@@ -14,7 +14,7 @@ import { VNSLexer } from './lexer';
 import { parserInstance } from './parser';
 import { VNSAstBuilder } from './ast_builder';
 import { runMergePass } from './merge_pass';
-import { validateSemantics, type CompileError } from './semantic';
+import { validateSemantics, validateSceneStructure, type CompileError } from './semantic';
 import { generateBytecode } from './codegen';
 
 export interface CompilerOptions {
@@ -92,6 +92,16 @@ export class Compiler {
       topLevelStatements: allTopLevelStatements.length > 0 ? allTopLevelStatements : undefined,
       scenes: allScenes,
     };
+
+    // Stage 3.5: Kiểm tra cấu trúc phân cấp Scene & Sub-scene (ADR-015: giới hạn 1 cấp)
+    const structureErrors = validateSceneStructure(rawAst);
+    if (structureErrors.length > 0) {
+      return {
+        success: false,
+        ast: rawAst,
+        errors: structureErrors,
+      };
+    }
 
     // Stage 0 Merge Pass: Phẳng hóa local sub-scenes và kế thừa UI
     const mergedAst = runMergePass(rawAst);

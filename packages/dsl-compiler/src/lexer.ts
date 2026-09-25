@@ -118,10 +118,16 @@ export const Less = createToken({ name: 'Less', pattern: /</ });
 export const Greater = createToken({ name: 'Greater', pattern: />/ });
 export const Exclamation = createToken({ name: 'Exclamation', pattern: /!/ });
 
-// DotIdentifier (như .ask_question, .flower_result)
+// DotIdentifier (như .ask_question, .flower_result, .1, .c1, .1_choice)
 export const DotIdentifier = createToken({
   name: 'DotIdentifier',
-  pattern: /\.[a-zA-Z_][a-zA-Z0-9_]*/,
+  pattern: /\.[a-zA-Z0-9_]+/,
+});
+
+// AlphanumericIdentifier (như 1_intro, 2nd, 01_branch)
+export const AlphanumericIdentifier = createToken({
+  name: 'AlphanumericIdentifier',
+  pattern: /[0-9]+[a-zA-Z_][a-zA-Z0-9_]*/,
 });
 
 export const Identifier = createToken({
@@ -136,6 +142,7 @@ export const allTokens: TokenType[] = [
 
   // Literals đặc biệt
   DurationLiteral,
+  AlphanumericIdentifier,
   NumberLiteral,
   StringLiteral,
 

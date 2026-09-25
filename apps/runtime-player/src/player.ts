@@ -1262,7 +1262,14 @@ export class VNPlayer {
   /**
    * Tải lại và bắt đầu thực thi chương trình bytecode mới (Hot Reload / Live Preview)
    */
-  public async reloadProgram(program: Instruction[]): Promise<void> {
+  public async reloadProgram(
+    program: Instruction[],
+    options?: {
+      targetScene?: string | null;
+      targetLine?: number | null;
+      fileId?: string | null;
+    },
+  ): Promise<void> {
     this.initialProgram = program;
 
     // 1. Dừng các tiến trình tự động hoặc tua nhanh
@@ -1299,7 +1306,31 @@ export class VNPlayer {
     this.nextIndicator.style.opacity = '0';
     this.closeAllModals();
 
-    // 6. Cập nhật thanh điều khiển và bước vào kịch bản mới
+    // 6. Xử lý điểm nhảy bắt đầu (nếu có yêu cầu Run from Line / Run from Scene)
+    let jumped = false;
+    if (options?.targetLine) {
+      jumped = this.vm.jumpToLine(options.targetLine, options.fileId ?? undefined);
+    }
+    if (!jumped && options?.targetScene) {
+      try {
+        this.vm.jumpToScene(options.targetScene);
+        jumped = true;
+      } catch (e) {
+        console.warn(`[RuntimePlayer] Cannot jump to scene "${options.targetScene}":`, e);
+      }
+    }
+
+    // 7. Đồng bộ đồ họa / âm thanh State Catch-up tới điểm nhảy
+    if (jumped) {
+      const catchUp = this.vm.getStateCatchUp();
+      await this.renderer.syncStateCatchUp({
+        background: catchUp.background,
+        sprites: catchUp.sprites,
+      });
+      this.audio.syncStateCatchUp(catchUp.audio, (id: string) => id);
+    }
+
+    // 8. Cập nhật thanh điều khiển và bước vào kịch bản mới
     this.updateControlsState();
     if (program.length > 0) {
       await this.advance();

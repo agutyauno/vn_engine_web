@@ -103,7 +103,11 @@ export class VNSAstBuilder extends BaseVNSVisitor {
   }
 
   sceneDeclaration(ctx: any): SceneASTNode {
-    const nameToken = ctx.Identifier ? ctx.Identifier[0] : ctx.DotIdentifier[0];
+    const nameToken =
+      ctx.Identifier?.[0] ??
+      ctx.DotIdentifier?.[0] ??
+      ctx.NumberLiteral?.[0] ??
+      ctx.AlphanumericIdentifier?.[0];
     const uiScreenId = ctx.StringLiteral ? cleanString(ctx.StringLiteral[0].image) : undefined;
     const body: StatementAST[] = [];
 
@@ -513,7 +517,11 @@ export class VNSAstBuilder extends BaseVNSVisitor {
   }
 
   gotoStatement(ctx: any): GotoStatement {
-    const targetToken = ctx.DotIdentifier ? ctx.DotIdentifier[0] : ctx.Identifier[0];
+    const targetToken =
+      ctx.DotIdentifier?.[0] ??
+      ctx.Identifier?.[0] ??
+      ctx.NumberLiteral?.[0] ??
+      ctx.AlphanumericIdentifier?.[0];
     return {
       type: 'GotoStatement',
       targetScene: targetToken.image,
@@ -522,7 +530,11 @@ export class VNSAstBuilder extends BaseVNSVisitor {
   }
 
   callStatement(ctx: any): CallStatement {
-    const targetToken = ctx.DotIdentifier ? ctx.DotIdentifier[0] : ctx.Identifier[0];
+    const targetToken =
+      ctx.DotIdentifier?.[0] ??
+      ctx.Identifier?.[0] ??
+      ctx.NumberLiteral?.[0] ??
+      ctx.AlphanumericIdentifier?.[0];
     return {
       type: 'CallStatement',
       targetScene: targetToken.image,
@@ -591,7 +603,11 @@ export class VNSAstBuilder extends BaseVNSVisitor {
 
   choiceDirectOption(ctx: any): { text: string; action: 'goto' | 'call'; targetScene: string; loc?: SourceLocation } {
     const textToken = ctx.StringLiteral[0];
-    const targetToken = ctx.DotIdentifier ? ctx.DotIdentifier[0] : ctx.Identifier[0];
+    const targetToken =
+      ctx.DotIdentifier?.[0] ??
+      ctx.Identifier?.[0] ??
+      ctx.NumberLiteral?.[0] ??
+      ctx.AlphanumericIdentifier?.[0];
     const action: 'goto' | 'call' = ctx.Call ? 'call' : 'goto';
     return {
       text: cleanString(textToken.image),

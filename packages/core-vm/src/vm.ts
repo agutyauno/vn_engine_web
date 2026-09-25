@@ -138,6 +138,43 @@ export class VisualNovelVM {
   }
 
   /**
+   * Nhảy con trỏ lệnh tới câu lệnh gần nhất tương ứng với dòng kịch bản trong file
+   */
+  public jumpToLine(line: number, fileId?: string): boolean {
+    let targetIndex = -1;
+    let minDiff = Infinity;
+
+    for (let i = 0; i < this.program.length; i++) {
+      const instr = this.program[i]!;
+      if (!instr.loc) continue;
+      if (fileId && instr.loc.fileId && instr.loc.fileId !== fileId) continue;
+
+      if (instr.loc.line >= line) {
+        const diff = instr.loc.line - line;
+        if (diff < minDiff) {
+          minDiff = diff;
+          targetIndex = i;
+          if (diff === 0) break;
+        }
+      }
+    }
+
+    if (targetIndex !== -1) {
+      this.state.instructionPointer = targetIndex;
+      // Cập nhật currentScene tương ứng
+      for (let i = targetIndex; i >= 0; i--) {
+        const instr = this.program[i]!;
+        if (instr.type === 'SCENE') {
+          this.state.currentScene = instr.name;
+          break;
+        }
+      }
+      return true;
+    }
+    return false;
+  }
+
+  /**
    * Thực thi duy nhất 1 instruction tại instructionPointer
    */
   public step(): StepResult {
