@@ -215,6 +215,7 @@ export class StudioApp {
     // 4. Khởi tạo các module giao diện
     this.setupProjectTitleRename();
     this.setupResizeHandles();
+    this.setupBottomDrawer();
     this.setupSidebarTabs();
     this.setupCharacterManagement();
     this.setupAssetManagement();
@@ -839,6 +840,41 @@ export class StudioApp {
       });
     }
 
+    // THANH KÉO NGANG: ĐIỀU CHỈNH ĐỘ CAO BOTTOM DRAWER (UP / DOWN)
+    const drawerHandle = document.getElementById('drawer-resize-handle');
+    const bottomDrawer = document.getElementById('studio-bottom-drawer');
+    const editorMain = document.getElementById('editor-main');
+
+    if (drawerHandle && bottomDrawer && editorMain) {
+      drawerHandle.addEventListener('mousedown', e => {
+        e.preventDefault();
+        drawerHandle.classList.add('dragging');
+        bottomDrawer.classList.remove('collapsed');
+        const toggleBtn = document.getElementById('drawer-toggle-btn');
+        if (toggleBtn) toggleBtn.textContent = '▾';
+
+        const onMouseMove = (moveEvent: MouseEvent) => {
+          const editorRect = editorMain.getBoundingClientRect();
+          const newHeight = Math.max(
+            30,
+            Math.min(editorRect.height - 100, editorRect.bottom - moveEvent.clientY),
+          );
+          bottomDrawer.style.height = `${newHeight}px`;
+          this.editorInstance?.layout();
+        };
+
+        const onMouseUp = () => {
+          drawerHandle.classList.remove('dragging');
+          this.editorInstance?.layout();
+          window.removeEventListener('mousemove', onMouseMove);
+          window.removeEventListener('mouseup', onMouseUp);
+        };
+
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('mouseup', onMouseUp);
+      });
+    }
+
     // TỰ ĐỘNG CẬP NHẬT LAYOUT MONACO KHI CONTAINER THAY ĐỔI KÍCH THƯỚC
     const monacoContainer = document.getElementById('monaco-container');
     if (monacoContainer && window.ResizeObserver) {
@@ -847,6 +883,55 @@ export class StudioApp {
       });
       resizeObserver.observe(monacoContainer);
     }
+  }
+
+  // ================================================================
+  // 3b. QUẢN LÝ BẢNG THÔNG TIN ĐÁY EDITOR (BOTTOM DRAWER: PROBLEMS & VARIABLES WATCH)
+  // ================================================================
+  private setupBottomDrawer(): void {
+    const drawerTabs = document.querySelectorAll<HTMLButtonElement>('.drawer-tab-btn');
+    const drawerPanes = document.querySelectorAll<HTMLElement>('.drawer-pane');
+    const bottomDrawer = document.getElementById('studio-bottom-drawer');
+    const toggleBtn = document.getElementById('drawer-toggle-btn');
+
+    drawerTabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        const targetTab = tab.dataset.drawerTab;
+        drawerTabs.forEach(t => t.classList.toggle('active', t === tab));
+        drawerPanes.forEach(p => {
+          p.classList.toggle('active', p.id === `drawer-pane-${targetTab}`);
+        });
+
+        if (bottomDrawer?.classList.contains('collapsed')) {
+          bottomDrawer.classList.remove('collapsed');
+          if (toggleBtn) toggleBtn.textContent = '▾';
+          this.editorInstance?.layout();
+        }
+      });
+    });
+
+    if (toggleBtn && bottomDrawer) {
+      toggleBtn.addEventListener('click', () => {
+        const isCollapsed = bottomDrawer.classList.toggle('collapsed');
+        toggleBtn.textContent = isCollapsed ? '▴' : '▾';
+        this.editorInstance?.layout();
+      });
+    }
+
+    const drawerHeader = document.querySelector('.drawer-header');
+    drawerHeader?.addEventListener('dblclick', e => {
+      if (
+        (e.target as HTMLElement).closest('.drawer-tab-btn') ||
+        (e.target as HTMLElement).closest('.drawer-toggle-btn')
+      ) {
+        return;
+      }
+      if (bottomDrawer) {
+        const isCollapsed = bottomDrawer.classList.toggle('collapsed');
+        if (toggleBtn) toggleBtn.textContent = isCollapsed ? '▴' : '▾';
+        this.editorInstance?.layout();
+      }
+    });
   }
 
   // ================================================================
@@ -978,7 +1063,7 @@ export class StudioApp {
 
       this.drawerTabProblems.classList.remove('has-error');
       this.problemsSummary.textContent = '● Problems (0 errors)';
-      this.problemsList.innerHTML = '';
+      this.problemsList.innerHTML = '<div class="no-problem-message">✓ No problems detected in script.</div>';
 
       if (currentModel) {
         monaco.editor.setModelMarkers(currentModel, 'vns-compiler', []);
@@ -998,6 +1083,22 @@ export class StudioApp {
 
       this.drawerTabProblems.classList.add('has-error');
       this.problemsSummary.textContent = `● Problems (${errors.length} errors)`;
+
+      const bottomDrawer = document.getElementById('studio-bottom-drawer');
+      if (bottomDrawer?.classList.contains('collapsed')) {
+        bottomDrawer.classList.remove('collapsed');
+        const toggleBtn = document.getElementById('drawer-toggle-btn');
+        if (toggleBtn) toggleBtn.textContent = '▾';
+        this.editorInstance?.layout();
+      }
+
+      // Đảm bảo tab Problems active trong bottom drawer
+      const problemsTab = document.getElementById('drawer-tab-problems');
+      const problemsPane = document.getElementById('drawer-pane-problems');
+      if (problemsTab && !problemsTab.classList.contains('active')) {
+        document.querySelectorAll('.drawer-tab-btn').forEach(t => t.classList.toggle('active', t === problemsTab));
+        document.querySelectorAll('.drawer-pane').forEach(p => p.classList.toggle('active', p === problemsPane));
+      }
 
       // Tạo markers gạch chân đỏ trên Monaco
       if (currentModel) {

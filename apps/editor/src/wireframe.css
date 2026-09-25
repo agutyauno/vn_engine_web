@@ -1216,6 +1216,7 @@ body, html {
   flex-shrink: 0;
   transition: background-color 0.15s;
   z-index: 5;
+  user-select: none;
 }
 
 .drawer-resize-handle:hover,
@@ -1227,11 +1228,42 @@ body, html {
   display: none;
 }
 
+.h-handle-grip {
+  font-family: var(--vn-font-mono);
+  font-size: 14px;
+  line-height: 6px;
+  color: var(--studio-text-muted);
+  user-select: none;
+  pointer-events: none;
+}
+
 #studio-bottom-drawer {
   background-color: var(--studio-surface);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
+  height: 160px;
+  min-height: 30px;
+  max-height: 50%;
+  border-top: 1px solid var(--studio-border);
+  overflow: hidden;
+}
+
+#studio-bottom-drawer.collapsed {
+  height: 30px !important;
+}
+
+#studio-bottom-drawer.collapsed .drawer-body {
+  display: none;
+}
+
+.drawer-pane {
+  display: none;
+  height: 100%;
+}
+
+.drawer-pane.active {
+  display: block;
 }
 
 .drawer-header {
@@ -1242,6 +1274,7 @@ body, html {
   align-items: center;
   justify-content: space-between;
   padding: 0 12px;
+  user-select: none;
 }
 
 .drawer-tabs {
@@ -1284,6 +1317,12 @@ body, html {
   border-bottom-color: #ef4444;
 }
 
+.drawer-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .drawer-toggle-btn {
   background: transparent;
   border: 1px solid transparent;
@@ -1307,7 +1346,7 @@ body, html {
 .drawer-body {
   flex: 1;
   overflow-y: auto;
-  padding: 12px;
+  padding: 10px 12px;
   font-family: var(--vn-font-mono);
   font-size: 12px;
 }
@@ -1318,14 +1357,17 @@ body, html {
 
 .problem-row {
   color: #ef4444;
-  padding: 4px 0;
+  padding: 5px 8px;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 8px;
+  border-radius: 2px;
+  transition: background-color 0.15s;
 }
 
 .problem-row:hover {
+  background-color: rgba(239, 68, 68, 0.12);
   text-decoration: underline;
 }
 

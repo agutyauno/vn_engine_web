@@ -37,12 +37,62 @@
             <span class="tab-dirty-indicator">●</span>
           </div>
           <div class="editor-tabs-actions">
+            <span class="compiler-status-indicator" id="compiler-indicator">Auto compilation: READY</span>
             <button class="wf-btn-sm btn-format" id="btn-format-document" title="Auto Format Script (Shift+Alt+F)">⚡ Format</button>
           </div>
         </div>
 
         <div id="monaco-container"></div>
-        <div id="drawer-resize-handle" class="drawer-resize-handle hidden"></div>
+
+        <!-- RESIZE HANDLE FOR BOTTOM DRAWER -->
+        <div id="drawer-resize-handle" class="drawer-resize-handle" title="Drag up/down to resize bottom drawer">
+          <div class="h-handle-grip">···</div>
+        </div>
+
+        <!-- BOTTOM DRAWER: PROBLEMS (ERRORS) & WATCH VARIABLES -->
+        <div id="studio-bottom-drawer">
+          <div class="drawer-header">
+            <div class="drawer-tabs">
+              <button class="drawer-tab-btn active" id="drawer-tab-problems" data-drawer-tab="problems" title="Compiler error list">
+                <span id="problems-summary">● Problems (0 errors)</span>
+              </button>
+              <button class="drawer-tab-btn" id="drawer-tab-variables" data-drawer-tab="variables-watch" title="Real-time variable values">
+                <span>Watch Variables</span>
+              </button>
+            </div>
+            <div class="drawer-actions">
+              <button class="drawer-toggle-btn" id="drawer-toggle-btn" title="Collapse / Expand Drawer">▾</button>
+            </div>
+          </div>
+
+          <div class="drawer-body" id="drawer-body">
+            <!-- PANE 1: PROBLEMS -->
+            <div class="drawer-pane active" id="drawer-pane-problems">
+              <div id="problems-list">
+                <div class="no-problem-message">✓ No problems detected in script.</div>
+              </div>
+            </div>
+
+            <!-- PANE 2: VARIABLES WATCH -->
+            <div class="drawer-pane" id="drawer-pane-variables">
+              <div id="vars-watch-list">
+                <table class="vars-watch-table">
+                  <thead>
+                    <tr>
+                      <th>Variable Name</th>
+                      <th>Scope</th>
+                      <th>Type</th>
+                      <th>Initial Value</th>
+                    </tr>
+                  </thead>
+                  <tbody id="vars-watch-tbody">
+                    <tr><td colspan="4" style="color: #666;">No variables.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
       </section>
 
       <!-- VERTICAL RESIZE HANDLE -->
@@ -59,12 +109,6 @@
           <button class="workspace-tab sidebar-tab" data-tab="characters" id="tab-btn-characters">Characters</button>
           <button class="workspace-tab sidebar-tab" data-tab="assets" id="tab-btn-assets">Assets</button>
           <button class="workspace-tab sidebar-tab" data-tab="variables" id="tab-btn-variables">Variables</button>
-          <button class="workspace-tab sidebar-tab" data-tab="problems" id="drawer-tab-problems">
-            <span id="problems-summary">Problems (0 errors)</span>
-          </button>
-          <button class="workspace-tab sidebar-tab" data-tab="variables-watch" id="drawer-tab-variables">
-            <span>Watch Variables</span>
-          </button>
           <div class="workspace-actions">
             <button class="wf-btn-sm" id="btn-reload-preview" title="Reload Live Preview">Reload</button>
             <button class="wf-btn-sm" id="btn-popout-preview"
@@ -124,38 +168,6 @@
               <span>SCRIPT STATE VARIABLES</span>
             </div>
             <div id="variable-list-container"></div>
-          </div>
-
-          <!-- TAB 5: PROBLEMS (COMPILER ERRORS) -->
-          <div class="workspace-pane sidebar-pane" id="pane-problems">
-            <div id="drawer-pane-problems">
-              <div class="pane-heading">
-                <span>COMPILER PROBLEMS LIST</span>
-              </div>
-              <div id="problems-list"></div>
-            </div>
-          </div>
-
-          <!-- TAB 6: VARIABLES WATCH -->
-          <div class="workspace-pane sidebar-pane" id="pane-variables-watch">
-            <div id="drawer-pane-variables">
-              <div class="pane-heading">
-                <span>RUNNING VARIABLES WATCH</span>
-              </div>
-              <div id="vars-watch-list">
-                <table class="vars-watch-table">
-                  <thead>
-                    <tr>
-                      <th>Variable Name</th>
-                      <th>Scope</th>
-                      <th>Type</th>
-                      <th>Initial Value</th>
-                    </tr>
-                  </thead>
-                  <tbody id="vars-watch-tbody"></tbody>
-                </table>
-              </div>
-            </div>
           </div>
         </div>
       </section>
