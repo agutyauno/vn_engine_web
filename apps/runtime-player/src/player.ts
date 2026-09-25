@@ -3,7 +3,7 @@
 // Tuân thủ tài liệu đặc tả UI/UX Specification v1.0 & Architecture
 // ================================================================
 
-import { VisualNovelVM } from '@vn-engine/core-vm';
+import { VisualNovelVM, type RunResult } from '@vn-engine/core-vm';
 import { GameRenderer } from '@vn-engine/renderer';
 import { AudioManager } from '@vn-engine/audio';
 import type {
@@ -110,6 +110,7 @@ export class VNPlayer {
       customFunctions: {
         has_item: (item: unknown) => item === 'flower',
       },
+      emptyCallStackBehavior: 'halt',
     });
     this.renderer = new GameRenderer({ width: 1920, height: 1080 });
     this.audio = new AudioManager();
@@ -455,6 +456,22 @@ export class VNPlayer {
   }
 
   /**
+   * Xử lý lỗi ngoại lệ Runtime của máy ảo một cách an toàn, tránh treo giao diện
+   */
+  private handleRuntimeError(err: unknown): void {
+    console.error('[VN Player Runtime Error]', err);
+    this.clearAutoTimer();
+    this.clearWaitTimer();
+    this.clearSkip();
+
+    const msg = err instanceof Error ? err.message : String(err);
+    this.showToast(`⚠️ [Lỗi kịch bản] ${msg}`);
+    this.nextIndicator.textContent = '■ Error';
+    this.nextIndicator.style.opacity = '1';
+    this.updateControlsState();
+  }
+
+  /**
    * Bật/tắt Mute âm thanh
    */
   public toggleMute(): void {
@@ -601,7 +618,13 @@ export class VNPlayer {
     this.clearAutoTimer();
     this.clearWaitTimer();
 
-    const runResult = this.vm.runUntilInteractive();
+    let runResult: RunResult;
+    try {
+      runResult = this.vm.runUntilInteractive();
+    } catch (err: unknown) {
+      this.handleRuntimeError(err);
+      return;
+    }
 
     // 1. Thực thi các side-effects tích lũy dọc đường (chuyển cảnh, hiện sprite, âm thanh)
     for (const sideEffect of runResult.sideEffects) {
@@ -814,7 +837,12 @@ export class VNPlayer {
         btn.innerHTML = `${keyHint}<span>${choice.text}</span>`;
         btn.addEventListener('click', () => {
           this.choiceOverlay.classList.add('hidden');
-          this.vm.choose(index);
+          try {
+            this.vm.choose(index);
+          } catch (err: unknown) {
+            this.handleRuntimeError(err);
+            return;
+          }
           void this.advance();
         });
       }
@@ -1254,6 +1282,7 @@ export class VNPlayer {
       customFunctions: {
         has_item: (item: unknown) => item === 'flower',
       },
+      emptyCallStackBehavior: 'halt',
     });
     this.backlog = [];
     this.currentDialogueInstruction = null;

@@ -425,8 +425,11 @@ export class VNSParser extends CstParser {
   public choiceDirectOption = this.RULE('choiceDirectOption', () => {
     this.CONSUME(StringLiteral);
     this.CONSUME(Colon);
-    this.CONSUME(Goto);
-    this.OR([{ ALT: () => this.CONSUME(DotIdentifier) }, { ALT: () => this.CONSUME(Identifier) }]);
+    this.OR([
+      { ALT: () => this.CONSUME(Goto) },
+      { ALT: () => this.CONSUME(Call) },
+    ]);
+    this.OR2([{ ALT: () => this.CONSUME(DotIdentifier) }, { ALT: () => this.CONSUME(Identifier) }]);
   });
 
   public whileStatement = this.RULE('whileStatement', () => {

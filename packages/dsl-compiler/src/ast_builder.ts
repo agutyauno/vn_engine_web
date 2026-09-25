@@ -582,17 +582,20 @@ export class VNSAstBuilder extends BaseVNSVisitor {
     const direct = this.visit(ctx.choiceDirectOption[0]);
     return {
       text: direct.text,
+      action: direct.action,
       targetScene: direct.targetScene,
       condition,
       loc: direct.loc,
     };
   }
 
-  choiceDirectOption(ctx: any): { text: string; targetScene: string; loc?: SourceLocation } {
+  choiceDirectOption(ctx: any): { text: string; action: 'goto' | 'call'; targetScene: string; loc?: SourceLocation } {
     const textToken = ctx.StringLiteral[0];
     const targetToken = ctx.DotIdentifier ? ctx.DotIdentifier[0] : ctx.Identifier[0];
+    const action: 'goto' | 'call' = ctx.Call ? 'call' : 'goto';
     return {
       text: cleanString(textToken.image),
+      action,
       targetScene: targetToken.image,
       loc: extractLocation(textToken, this.currentFileId),
     };

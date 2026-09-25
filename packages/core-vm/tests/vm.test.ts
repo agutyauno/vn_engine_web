@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { VisualNovelVM } from '../src/vm';
 import {
   InstructionBudgetExceededError,
@@ -561,5 +561,77 @@ describe('VisualNovelVM Core', () => {
 
     const catchUp2 = vm.getStateCatchUp();
     expect(catchUp2.activeInspect).toBeNull();
+  });
+
+  it('should support choice with call action, returning to instruction following choice', () => {
+    const program: Instruction[] = [
+      { type: 'SCENE', name: 'start' },
+      {
+        type: 'CHOICE',
+        choices: [
+          { text: 'Call Branch 1', action: 'call', targetScene: 'start.c1' },
+          { text: 'Goto Branch 2', action: 'goto', targetScene: 'start.c2' },
+        ],
+      },
+      { type: 'DIALOGUE', character: 'sys', text: 'After choice continuation.' },
+      { type: 'HALT' },
+      { type: 'SCENE_END', sceneName: 'start' },
+
+      { type: 'SCENE', name: 'start.c1' },
+      { type: 'DIALOGUE', character: 'sys', text: 'Inside branch 1.' },
+      { type: 'RETURN' },
+      { type: 'SCENE_END', sceneName: 'start.c1' },
+
+      { type: 'SCENE', name: 'start.c2' },
+      { type: 'DIALOGUE', character: 'sys', text: 'Inside branch 2.' },
+      { type: 'HALT' },
+      { type: 'SCENE_END', sceneName: 'start.c2' },
+    ];
+
+    const vm = new VisualNovelVM(program);
+    const r1 = vm.runUntilInteractive();
+    expect(r1.stepResult.type).toBe('SUSPEND_CHOICE');
+
+    // Chọn lựa chọn 0 (Call)
+    vm.choose(0);
+    expect(vm.getState().callStack).toHaveLength(1);
+    expect(vm.getState().currentScene).toBe('start.c1');
+
+    // Chạy tới câu thoại trong branch 1
+    const r2 = vm.runUntilInteractive();
+    expect(asDialogue(r2.stepResult).text).toBe('Inside branch 1.');
+
+    // Chạy tiếp -> gặp RETURN trong branch 1, tự pop callStack và quay lại câu thoại "After choice continuation." trong scene start
+    const r3 = vm.runUntilInteractive();
+    expect(asDialogue(r3.stepResult).text).toBe('After choice continuation.');
+    expect(vm.getState().currentScene).toBe('start');
+    expect(vm.getState().callStack).toHaveLength(0);
+
+    // Chạy tiếp -> HALT
+    const r4 = vm.runUntilInteractive();
+    expect(r4.stepResult.type).toBe('HALTED');
+  });
+
+  it('should safely halt without throw when emptyCallStackBehavior is halt', () => {
+    const program: Instruction[] = [
+      { type: 'SCENE', name: 'main' },
+      { type: 'DIALOGUE', character: 'sys', text: 'Hello' },
+      { type: 'RETURN' },
+    ];
+
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const vm = new VisualNovelVM(program, undefined, { emptyCallStackBehavior: 'halt' });
+
+    const r1 = vm.runUntilInteractive();
+    expect(asDialogue(r1.stepResult).text).toBe('Hello');
+
+    // Chạy lệnh RETURN khi callStack rỗng với emptyCallStackBehavior: 'halt'
+    const r2 = vm.runUntilInteractive();
+    expect(r2.stepResult.type).toBe('HALTED');
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("Script executed 'return' while call stack is empty"),
+    );
+
+    warnSpy.mockRestore();
   });
 });

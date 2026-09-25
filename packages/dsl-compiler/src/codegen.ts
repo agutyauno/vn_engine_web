@@ -337,6 +337,7 @@ export class CodeGenerator {
           type: 'CHOICE',
           choices: ch.choices.map(c => ({
             text: c.text,
+            action: c.action ?? 'goto',
             targetScene: c.targetScene,
             condition: c.condition,
           })),

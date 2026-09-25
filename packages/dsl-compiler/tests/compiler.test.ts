@@ -395,6 +395,42 @@ describe('DSL Compiler Core (5-Stage Pipeline)', () => {
     expect(dialogues).toHaveLength(2);
   });
 
+  it('should compile choice statement supporting both goto and call actions', () => {
+    const dsl = `
+      scene menu_test {
+        choice {
+          "Branch 1": goto .sub_goto
+          "Branch 2": call .sub_call
+        }
+
+        scene .sub_goto {
+          "Goto branch"
+        }
+
+        scene .sub_call {
+          "Call branch"
+          return
+        }
+      }
+    `;
+    const result = compileString(dsl);
+    expect(result.success).toBe(true);
+
+    const choiceInstr = result.program!.find(i => i.type === 'CHOICE') as ChoiceInstruction;
+    expect(choiceInstr).toBeDefined();
+    expect(choiceInstr.choices).toHaveLength(2);
+    expect(choiceInstr.choices[0]).toMatchObject({
+      text: 'Branch 1',
+      action: 'goto',
+      targetScene: 'menu_test.sub_goto',
+    });
+    expect(choiceInstr.choices[1]).toMatchObject({
+      text: 'Branch 2',
+      action: 'call',
+      targetScene: 'menu_test.sub_call',
+    });
+  });
+
   it('should compile scenario.vns successfully without syntax or semantic errors', () => {
     const scenarioPath = path.resolve(__dirname, '../../../apps/runtime-player/src/scenario.vns');
     const content = fs.readFileSync(scenarioPath, 'utf-8');

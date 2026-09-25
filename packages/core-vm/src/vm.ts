@@ -32,6 +32,7 @@ export interface VMOptions {
   maxInstructionBudget?: number;
   customFunctions?: Record<string, AllowedFunction>;
   initialVariables?: Record<string, string | number | boolean>;
+  emptyCallStackBehavior?: 'throw' | 'halt';
 }
 
 export interface RunResult {
@@ -47,12 +48,14 @@ export class VisualNovelVM {
   private dialogueCounter = 0;
   private sceneIndexMap: Map<string, number> = new Map();
   private maxInstructionBudget: number;
+  private emptyCallStackBehavior: 'throw' | 'halt';
 
   constructor(program: Instruction[], initialState?: Partial<VMState>, options?: VMOptions) {
     this.program = program;
     this.maxInstructionBudget = options?.maxInstructionBudget ?? 100000;
     this.ringBuffer = new SnapshotRingBuffer(options?.ringBufferCapacity ?? 50);
     this.evaluator = new SandboxEvaluator(options?.customFunctions);
+    this.emptyCallStackBehavior = options?.emptyCallStackBehavior ?? 'throw';
 
     // Khởi tạo trạng thái mặc định
     this.state = {
@@ -303,6 +306,13 @@ export class VisualNovelVM {
 
       case 'RETURN': {
         if (this.state.callStack.length === 0) {
+          if (this.emptyCallStackBehavior === 'halt') {
+            console.warn(
+              `[VN Engine Warning] Script executed 'return' while call stack is empty. Game halted safely.`,
+            );
+            this.state.instructionPointer = this.program.length;
+            return { type: 'HALTED' };
+          }
           throw new EmptyCallStackError();
         }
         const frame = this.state.callStack.pop()!;
@@ -458,6 +468,14 @@ export class VisualNovelVM {
     // Xóa ngăn xếp roll-forward vì người chơi đã rẽ một nhánh mới
     this.ringBuffer.clearForward();
 
+    if (choice.action === 'call') {
+      this.state.callStack.push({
+        scene: this.state.currentScene,
+        ip: this.state.instructionPointer + 1,
+        savedLocalVariables: { ...this.state.localVariables },
+      });
+    }
+
     // Chuyển hướng con trỏ sang targetScene của lựa chọn
     this.jumpToScene(choice.targetScene);
   }
@@ -468,6 +486,7 @@ export class VisualNovelVM {
   public getAvailableChoices(): Array<{
     text: string;
     targetScene: string;
+    action?: 'goto' | 'call';
     enabled: boolean;
   }> {
     if (this.state.instructionPointer >= this.program.length) return [];
@@ -481,6 +500,7 @@ export class VisualNovelVM {
       }
       return {
         text: c.text,
+        action: c.action ?? 'goto',
         targetScene: c.targetScene,
         enabled,
       };

@@ -72,7 +72,12 @@ export interface StopInstruction extends BaseInstruction {
 
 export interface ChoiceInstruction extends BaseInstruction {
   type: 'CHOICE';
-  choices: Array<{ text: string; targetScene: string; condition?: ExpressionAST }>;
+  choices: Array<{
+    text: string;
+    targetScene: string;
+    action?: 'goto' | 'call';
+    condition?: ExpressionAST;
+  }>;
   uiScreenId?: string;
 }
 

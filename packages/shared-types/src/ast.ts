@@ -150,6 +150,7 @@ export interface StopStatement extends BaseASTNode {
 
 export interface ChoiceOption {
   text: string;
+  action?: 'goto' | 'call';
   targetScene: string;
   condition?: ExpressionAST;
   loc?: SourceLocation;

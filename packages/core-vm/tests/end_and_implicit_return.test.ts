@@ -153,4 +153,47 @@ scene scene_b {
 
     warnSpy.mockRestore();
   });
+
+  it('should support choice with call, running subscene and returning to continuation in caller scene', () => {
+    const script = `
+scene start {
+  choice {
+    "Choice 1": call .c1
+    "Choice 2": call .c2
+  }
+
+  scene .c1 {
+    "c1"
+    return
+  }
+
+  scene .c2 {
+    "c2"
+    return
+  }
+
+  "next"
+  end
+}
+`;
+    const res = compileString(script, 'test_choice_call.vns');
+    expect(res.success).toBe(true);
+
+    const vm = new VisualNovelVM(res.program!);
+    const s1 = vm.runUntilInteractive();
+    expect(s1.stepResult.type).toBe('SUSPEND_CHOICE');
+
+    // Chọn Choice 1 (call .c1)
+    vm.choose(0);
+    const s2 = vm.runUntilInteractive();
+    expect(asDialogue(s2.stepResult).text).toBe('c1');
+
+    // Chạy tiếp -> return về continuation "next"
+    const s3 = vm.runUntilInteractive();
+    expect(asDialogue(s3.stepResult).text).toBe('next');
+
+    // Chạy tiếp -> end
+    const s4 = vm.runUntilInteractive();
+    expect(s4.stepResult.type).toBe('HALTED');
+  });
 });
