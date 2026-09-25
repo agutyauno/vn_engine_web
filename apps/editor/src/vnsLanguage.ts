@@ -92,8 +92,11 @@ export function registerVnsLanguage(): void {
         // Comments
         [/#.*$/, 'comment'],
 
-        // Strings
-        [/"([^"\\]|\\.)*"/, 'string'],
+        // Triple-quoted multiline strings
+        [/"""/, 'string', '@tripleQuoteString'],
+
+        // Strings (supports multiline and rich tags)
+        [/"/, 'string', '@stringLiteral'],
 
         // Duration literals (1s, 2.5s)
         [/[0-9]+(\.[0-9]+)?s\b/, 'number.duration'],
@@ -128,6 +131,22 @@ export function registerVnsLanguage(): void {
         // Operators
         [/<=|>=|==|!=|&&|\|\||[=+\-*/<>!]/, 'operator'],
       ],
+
+      tripleQuoteString: [
+        [/\{[a-zA-Z0-9_:#\/\.\s\-]+\}/, 'tag'],
+        [/"""/, 'string', '@pop'],
+        [/\\./, 'string.escape'],
+        [/[^\\"{]+/, 'string'],
+        [/["\\{]/, 'string'],
+      ],
+
+      stringLiteral: [
+        [/\{[a-zA-Z0-9_:#\/\.\s\-]+\}/, 'tag'],
+        [/"/, 'string', '@pop'],
+        [/\\./, 'string.escape'],
+        [/[^\\"{]+/, 'string'],
+        [/["\\{]/, 'string'],
+      ],
     },
   });
 
@@ -138,6 +157,8 @@ export function registerVnsLanguage(): void {
       { token: 'comment', foreground: '71717a', fontStyle: 'italic' },
       { token: 'keyword', foreground: '38bdf8', fontStyle: 'bold' },
       { token: 'string', foreground: '4ade80' },
+      { token: 'string.escape', foreground: '34d399' },
+      { token: 'tag', foreground: 'f472b6', fontStyle: 'bold' },
       { token: 'number', foreground: 'fbbf24' },
       { token: 'number.duration', foreground: 'f59e0b' },
       { token: 'type.identifier', foreground: 'c084fc' },

@@ -296,6 +296,187 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): void {
         return { suggestions };
       }
 
+      // F1. Gợi ý Nhân vật sau reveal
+      if (/\breveal\s+[a-zA-Z0-9_]*$/.test(textUntilPosition)) {
+        const chars = context.getCharacters();
+        for (const [charId, info] of chars) {
+          suggestions.push({
+            label: charId,
+            kind: monaco.languages.CompletionItemKind.User,
+            detail: info.displayName ? `${charId} (${info.displayName})` : charId,
+            documentation: `Reveal real name for character "${charId}"`,
+            insertText: `${charId} as "\${1:${info.displayName || 'Display Name'}}"`,
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range,
+          });
+        }
+        return { suggestions };
+      }
+
+      // F2. Gợi ý chuỗi thoại ngay sau dấu hai chấm (hoặc sau character: / narrator:)
+      if (/^[ \t]*[a-zA-Z_][a-zA-Z0-9_]*(?:\s+as\s+"[^"]*")?:\s*$/.test(textUntilPosition)) {
+        suggestions.push({
+          label: '"dialogue"',
+          kind: monaco.languages.CompletionItemKind.Snippet,
+          detail: 'Single-line dialogue string',
+          documentation: 'Insert single-line dialogue text',
+          insertText: '"${1:dialogue}"',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          sortText: '01_dialogue',
+          range,
+        });
+        suggestions.push({
+          label: '"""multiline dialogue"""',
+          kind: monaco.languages.CompletionItemKind.Snippet,
+          detail: 'Multiline dialogue block with triple quotes',
+          documentation: 'Insert multiline dialogue enclosed in triple quotes',
+          insertText: '"""\n\t$0\n"""',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          sortText: '02_multiline',
+          range,
+        });
+        return { suggestions };
+      }
+
+      // F3. Gợi ý dấu hai chấm / alias sau khi đã gõ tên nhân vật ở đầu dòng: e.g. "alice "
+      const charSpaceMatch = textUntilPosition.match(/^[ \t]*([a-zA-Z_][a-zA-Z0-9_]*)\s+$/);
+      if (charSpaceMatch && charSpaceMatch[1]) {
+        const id = charSpaceMatch[1];
+        const chars = context.getCharacters();
+        if (chars.has(id) || id === 'narrator') {
+          suggestions.push({
+            label: ': "dialogue"',
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            detail: 'Complete dialogue line',
+            documentation: `Insert colon and dialogue for ${id}`,
+            insertText: ': "${1:dialogue}"',
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            sortText: '01_colon_dialogue',
+            range,
+          });
+          suggestions.push({
+            label: ': """multiline"""',
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            detail: 'Complete multiline dialogue',
+            documentation: `Insert colon and multiline dialogue for ${id}`,
+            insertText: ': """\n\t$0\n"""',
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            sortText: '02_colon_multiline',
+            range,
+          });
+          if (id !== 'narrator') {
+            const charInfo = chars.get(id);
+            suggestions.push({
+              label: 'as "Name": "dialogue"',
+              kind: monaco.languages.CompletionItemKind.Snippet,
+              detail: 'Dialogue with temporary display name',
+              documentation: `Override display name for ${id}`,
+              insertText: `as "\${1:${charInfo?.displayName || 'Name'}}": "\${2:dialogue}"`,
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              sortText: '03_as_dialogue',
+              range,
+            });
+          }
+          return { suggestions };
+        }
+      }
+
+      // G0. Gợi ý Nhân vật cho câu thoại (Character Dialogue Statements)
+      const projectChars = context.getCharacters();
+      for (const [charId, info] of projectChars) {
+        // Gợi ý thoại chuẩn: charId: "..."
+        suggestions.push({
+          label: `${charId}: "..."`,
+          kind: monaco.languages.CompletionItemKind.Snippet,
+          detail: info.displayName ? `Dialogue: ${info.displayName}` : `Dialogue: ${charId}`,
+          documentation: `Dialogue statement for ${charId}${info.displayName ? ` (${info.displayName})` : ''}`,
+          insertText: `${charId}: "\${1:dialogue}"`,
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          sortText: `01_${charId}_1`,
+          range,
+        });
+
+        // Gợi ý thoại nhiều dòng: charId: """..."""
+        suggestions.push({
+          label: `${charId}: """..."""`,
+          kind: monaco.languages.CompletionItemKind.Snippet,
+          detail: `Multiline dialogue: ${charId}`,
+          documentation: `Multiline dialogue statement with triple quotes for ${charId}`,
+          insertText: `${charId}: """\n\t$0\n"""`,
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          sortText: `01_${charId}_2`,
+          range,
+        });
+
+        // Gợi ý thoại kèm bí danh: charId as "Name": "..."
+        suggestions.push({
+          label: `${charId} as "..."`,
+          kind: monaco.languages.CompletionItemKind.Snippet,
+          detail: `Dialogue with display name override`,
+          documentation: `Dialogue statement with alias for ${charId}`,
+          insertText: `${charId} as "\${1:${info.displayName || 'Name'}}": "\${2:dialogue}"`,
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          sortText: `01_${charId}_3`,
+          range,
+        });
+
+        // Gợi ý tên nhân vật thuần túy (User ID)
+        suggestions.push({
+          label: charId,
+          kind: monaco.languages.CompletionItemKind.User,
+          detail: info.displayName ? `Character: ${charId} (${info.displayName})` : `Character: ${charId}`,
+          documentation: `Character ID "${charId}"`,
+          insertText: charId,
+          sortText: `01_${charId}_4`,
+          range,
+        });
+      }
+
+      // Gợi ý thoại Người dẫn chuyện (Narrator)
+      suggestions.push({
+        label: 'narrator: "..."',
+        kind: monaco.languages.CompletionItemKind.Snippet,
+        detail: 'Narrator monologue',
+        documentation: 'Dialogue statement without speaker nameplate',
+        insertText: 'narrator: "${1:dialogue}"',
+        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+        sortText: '02_narrator_1',
+        range,
+      });
+
+      suggestions.push({
+        label: 'narrator: """..."""',
+        kind: monaco.languages.CompletionItemKind.Snippet,
+        detail: 'Multiline narrator monologue',
+        documentation: 'Multiline narrator monologue with triple quotes',
+        insertText: 'narrator: """\n\t$0\n"""',
+        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+        sortText: '02_narrator_2',
+        range,
+      });
+
+      suggestions.push({
+        label: '"..." (narrator line)',
+        kind: monaco.languages.CompletionItemKind.Snippet,
+        detail: 'Anonymous narration line',
+        documentation: 'Anonymous dialogue statement without character name',
+        insertText: '"${1:dialogue}"',
+        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+        sortText: '03_narrator_line',
+        range,
+      });
+
+      suggestions.push({
+        label: '"""...""" (multiline narrator)',
+        kind: monaco.languages.CompletionItemKind.Snippet,
+        detail: 'Anonymous multiline narration block',
+        documentation: 'Anonymous multiline dialogue statement enclosed in triple quotes',
+        insertText: '"""\n\t$0\n"""',
+        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+        sortText: '03_narrator_multiline',
+        range,
+      });
+
       // G. Danh sách Từ khóa Cú pháp Cốt lõi & Snippets (Keywords & Snippets)
       const keywordSnippets: Array<{
         label: string;
@@ -413,6 +594,7 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): void {
             documentation: kw.doc,
             insertText: kw.snippet,
             insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            sortText: `04_${kw.label}`,
             range,
           });
         } else {
@@ -421,6 +603,7 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): void {
             kind: kw.kind ?? monaco.languages.CompletionItemKind.Keyword,
             documentation: kw.doc,
             insertText: kw.label,
+            sortText: `04_${kw.label}`,
             range,
           });
         }

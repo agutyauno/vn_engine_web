@@ -14,6 +14,7 @@ import type {
   Instruction,
   ProgramAST,
   StatementAST,
+  DialogueStatement,
   ShowStatement,
   RevealStatement,
   BackgroundStatement,
@@ -1085,6 +1086,16 @@ export class StudioApp {
           }
           if (s.sprite && s.sprite.trim().length > 0) {
             characters.get(s.character)!.sprites.add(s.sprite);
+          }
+        } else if (stmt.type === 'DialogueStatement') {
+          const d = stmt as DialogueStatement;
+          if (d.character) {
+            if (!characters.has(d.character)) {
+              characters.set(d.character, { sprites: new Set() });
+            }
+            if (d.displayNameOverride && !characters.get(d.character)!.displayName) {
+              characters.get(d.character)!.displayName = d.displayNameOverride;
+            }
           }
         } else if (stmt.type === 'RevealStatement') {
           const r = stmt as RevealStatement;

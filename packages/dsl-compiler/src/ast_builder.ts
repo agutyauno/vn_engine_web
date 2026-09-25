@@ -37,6 +37,20 @@ import { parseExpression } from './expression';
 const BaseVNSVisitor = parserInstance.getBaseCstVisitorConstructor();
 
 export function cleanString(raw: string): string {
+  if (raw.startsWith('"""') && raw.endsWith('"""') && raw.length >= 6) {
+    let content = raw.slice(3, -3);
+    if (content.startsWith('\r\n')) {
+      content = content.slice(2);
+    } else if (content.startsWith('\n')) {
+      content = content.slice(1);
+    }
+    if (content.endsWith('\r\n')) {
+      content = content.slice(0, -2);
+    } else if (content.endsWith('\n')) {
+      content = content.slice(0, -1);
+    }
+    return content.replace(/\\"/g, '"').replace(/\\n/g, '\n');
+  }
   if (raw.startsWith('"') && raw.endsWith('"')) {
     return raw.slice(1, -1).replace(/\\"/g, '"').replace(/\\n/g, '\n');
   }
@@ -187,7 +201,7 @@ export class VNSAstBuilder extends BaseVNSVisitor {
       let displayNameOverride: string | undefined;
       let textToken: IToken;
 
-      if (ctx.As && ctx.StringLiteral) {
+      if (ctx.As && ctx.StringLiteral && ctx.StringLiteral.length > 1) {
         displayNameOverride = cleanString(ctx.StringLiteral[0].image);
         textToken = ctx.StringLiteral[1];
       } else {

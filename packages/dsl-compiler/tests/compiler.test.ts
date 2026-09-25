@@ -442,4 +442,60 @@ describe('DSL Compiler Core (5-Stage Pipeline)', () => {
     expect(result.errors).toBeUndefined();
     expect(result.program!.length).toBeGreaterThan(50);
   });
+
+  it('should compile multiline dialogue and narrator with triple quotes and literal newlines', () => {
+    const dsl = `
+      scene multiline_test {
+        alice: """
+Dòng thoại 1 của Alice
+Dòng thoại 2 của Alice
+"""
+
+        narrator: """
+Dòng dẫn chuyện 1
+Dòng dẫn chuyện 2
+"""
+
+        """
+Dẫn chuyện ẩn danh dòng 1
+Dẫn chuyện ẩn danh dòng 2
+"""
+
+        bob as "Bác sĩ": "Dòng 1 của Bob
+Dòng 2 của Bob"
+
+        "Dẫn chuyện dòng 1
+Dẫn chuyện dòng 2"
+      }
+    `;
+
+    const result = compileString(dsl);
+    expect(result.success).toBe(true);
+    expect(result.errors).toBeUndefined();
+
+    const dialogues = result.program!.filter(i => i.type === 'DIALOGUE') as DialogueInstruction[];
+    expect(dialogues).toHaveLength(5);
+
+    // 1. Alice triple-quoted dialogue
+    expect(dialogues[0]!.character).toBe('alice');
+    expect(dialogues[0]!.text).toBe('Dòng thoại 1 của Alice\nDòng thoại 2 của Alice');
+
+    // 2. Explicit narrator triple-quoted
+    expect(dialogues[1]!.character).toBeNull();
+    expect(dialogues[1]!.text).toBe('Dòng dẫn chuyện 1\nDòng dẫn chuyện 2');
+
+    // 3. Anonymous narrator triple-quoted
+    expect(dialogues[2]!.character).toBeNull();
+    expect(dialogues[2]!.text).toBe('Dẫn chuyện ẩn danh dòng 1\nDẫn chuyện ẩn danh dòng 2');
+
+    // 4. Bob with alias and literal newline
+    expect(dialogues[3]!.character).toBe('bob');
+    expect(dialogues[3]!.displayNameOverride).toBe('Bác sĩ');
+    expect(dialogues[3]!.text).toBe('Dòng 1 của Bob\nDòng 2 của Bob');
+
+    // 5. Anonymous narrator with literal newline
+    expect(dialogues[4]!.character).toBeNull();
+    expect(dialogues[4]!.text).toBe('Dẫn chuyện dòng 1\nDẫn chuyện dòng 2');
+  });
 });
+

@@ -281,6 +281,7 @@ body.is-embedded #game-root {
   color: var(--vn-text-primary);
   min-height: 56px;
   word-wrap: break-word;
+  white-space: pre-wrap;
   font-weight: 400;
   letter-spacing: 0.2px;
 }
@@ -768,6 +769,8 @@ kbd {
   font-size: 16px;
   color: var(--vn-text-secondary);
   line-height: 1.5;
+  white-space: pre-wrap;
+  word-wrap: break-word;
 }
 
 /* BẢNG DEBUG INSPECTOR */
