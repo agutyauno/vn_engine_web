@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.117.2",
     "@vn-engine/core-vm": "workspace:*",
     "@vn-engine/dsl-compiler": "workspace:*",
     "@vn-engine/shared-types": "workspace:*",

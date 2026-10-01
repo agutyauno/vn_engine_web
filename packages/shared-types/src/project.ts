@@ -23,6 +23,7 @@ export interface ScriptFile {
   content: string; // Nội dung DSL
   order: number;
   version: number;
+  updatedBy?: string; // Supabase auth.uid() của người sửa gần nhất (P1)
 }
 
 export interface Character {
@@ -44,17 +45,21 @@ export interface AssetRef {
   type: 'image' | 'audio' | 'font';
   storageUrl: string; // URL CDN Cloudflare R2
   sizeBytes: number;
+  version?: number; // Optimistic Concurrency Check (ADR-011)
 }
 
 export interface UICustomScreen {
-  id: string; // "phone_message_style"
+  id: string; // UUIDv4
   name: string;
-  templateHtml?: string;
-  cssContent?: string;
+  targetSlot: 'dialogueBox' | 'choiceMenu' | 'backlog' | 'mainMenu' | 'settingsMenu' | 'saveLoadScreen';
+  template: string;
+  version?: number;
 }
 
 export interface CustomScriptScreen {
-  id: string; // "minigame_archery"
+  id: string; // UUIDv4
   name: string;
   scriptContent: string;
+  version?: number;
 }
+

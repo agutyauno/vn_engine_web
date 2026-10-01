@@ -27,9 +27,10 @@ import type {
 import { registerVnsLanguage } from './vnsLanguage';
 import { registerVnsLanguageFeatures } from './vnsLanguageFeatures';
 import {
-  IndexedDBProjectRepository,
   type IProjectRepository,
 } from './repository/projectRepository';
+import { SupabaseProjectRepository } from './repository/supabaseProjectRepository';
+import { AppRouter } from './router';
 
 // Configure Web Worker for Monaco Editor in Vite
 self.MonacoEnvironment = {
@@ -156,9 +157,9 @@ export class StudioApp {
   private editorDebounceTimerId: number | null = null;
   private toastTimerId: number | null = null;
 
-  constructor() {
+  constructor(repository?: IProjectRepository) {
     this.compiler = new Compiler();
-    this.repository = new IndexedDBProjectRepository();
+    this.repository = repository || new SupabaseProjectRepository();
 
     // DOM Header
     this.projectTitleEl = document.getElementById('project-title')!;
@@ -459,6 +460,56 @@ export class StudioApp {
     };
     this.activeFile = 'main.vns';
     await this.repository.saveProject(this.project);
+  }
+
+  public async loadProjectById(projectId: string): Promise<void> {
+    if (this.editorDebounceTimerId !== null) {
+      this.flushEditorChanges();
+    }
+    await this.saveProjectToStorage();
+
+    try {
+      const loaded = await this.repository.getProject(projectId);
+      if (loaded) {
+        this.project = loaded;
+        if (!this.project.title) this.project.title = 'Untitled Project';
+        if (!Array.isArray(this.project.characters)) this.project.characters = [];
+        if (!Array.isArray(this.project.assets)) this.project.assets = [];
+        if (!Array.isArray(this.project.files) || this.project.files.length === 0) {
+          this.project.files = [
+            {
+              id: 'main.vns',
+              name: 'main.vns',
+              content: DEFAULT_STARTER_SCRIPT,
+              order: 0,
+              version: 1,
+            },
+          ];
+        }
+        const fileNames = this.project.files.map(f => f.name);
+        this.activeFile = fileNames[0] ?? 'main.vns';
+
+        this.projectTitleEl.textContent = this.project.title;
+        this.activeFilenameEl.textContent = this.activeFile;
+        this.renderFileList();
+        this.renderCharacterList();
+        this.renderAssetList();
+
+        const content = this.getFileContent(this.activeFile);
+        const model = this.getOrCreateTextModel(this.activeFile, content);
+        if (this.editorInstance) {
+          this.editorInstance.setModel(model);
+          this.editorInstance.layout();
+        }
+        this.compileCurrentScript();
+      } else {
+        console.warn(`[StudioApp] Project ${projectId} not found, redirecting to projects dashboard.`);
+        window.location.hash = '#/projects';
+      }
+    } catch (err) {
+      console.error('[StudioApp] Error loading project by ID:', err);
+      window.location.hash = '#/projects';
+    }
   }
 
   private async saveProjectToStorage(): Promise<void> {
@@ -2395,6 +2446,14 @@ export class StudioApp {
   // 9. HEADER ACTIONS: [▶ Run from Start] [▶ Run this Line] [Export]
   // ================================================================
   private setupHeaderActions(): void {
+    document.getElementById('btn-back-to-projects')?.addEventListener('click', async () => {
+      if (this.editorDebounceTimerId !== null) {
+        this.flushEditorChanges();
+      }
+      await this.saveProjectToStorage();
+      window.location.hash = '#/projects';
+    });
+
     document.getElementById('btn-run-from-start')?.addEventListener('click', () => {
       this.runFromStart();
     });
@@ -2656,8 +2715,14 @@ export class StudioApp {
   }
 }
 
-// Initialize Studio when DOM is ready
-window.addEventListener('DOMContentLoaded', () => {
-  const app = new StudioApp();
-  void app.init();
+// Initialize Studio & AppRouter when DOM is ready
+window.addEventListener('DOMContentLoaded', async () => {
+  const repository = new SupabaseProjectRepository();
+  const app = new StudioApp(repository);
+  await app.init();
+
+  const router = new AppRouter(repository);
+  router.init(async (projectId: string) => {
+    await app.loadProjectById(projectId);
+  });
 });

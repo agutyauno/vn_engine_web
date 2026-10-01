@@ -9,21 +9,36 @@
 </head>
 
 <body>
-  <div id="studio-root">
-    <!-- HEADER CONTROLS (#studio-header) -->
-    <header id="studio-header">
-      <div class="header-left">
-        <div class="studio-logo">VN-STUDIO</div>
-        <div class="project-title-wrapper">
-          <div class="project-title" id="project-title" title="Click to rename project">Academy Mystery</div>
-        </div>
-        <span class="save-status-pill" id="save-status">● SAVED</span>
-      </div>
+  <div id="app-root">
+    <!-- VIEW 1: AUTHENTICATION / LOGIN PAGE -->
+    <div id="view-login" class="page-view"></div>
+
+    <!-- VIEW 2: PROJECTS DASHBOARD -->
+    <div id="view-projects" class="page-view"></div>
+
+    <!-- VIEW 3: STUDIO EDITOR -->
+    <div id="view-editor" class="page-view">
+      <div id="studio-root">
+        <!-- HEADER CONTROLS (#studio-header) -->
+        <header id="studio-header">
+          <div class="header-left">
+            <button class="wf-btn btn-back-projects" id="btn-back-to-projects" title="Back to Projects Dashboard (Ctrl+Q)">
+              ← Projects
+            </button>
+            <div class="studio-logo">VN-STUDIO</div>
+            <div class="project-title-wrapper">
+              <div class="project-title" id="project-title" title="Click to rename project">Academy Mystery</div>
+            </div>
+            <span class="save-status-pill" id="save-status">● SAVED</span>
+          </div>
 
       <div class="header-right">
-        <button class="wf-btn btn-primary" id="btn-run-from-start" title="Run script from start (F5)">▶ Run from Start</button>
-        <button class="wf-btn" id="btn-run-from-line" title="Run from scene at cursor line (Ctrl+Enter)">▶ Run this Line</button>
-        <button class="wf-btn btn-accent" id="btn-export-game" title="Open game export & distribution portal">Export</button>
+        <button class="wf-btn btn-primary" id="btn-run-from-start" title="Run script from start (F5)">▶ Run from
+          Start</button>
+        <button class="wf-btn" id="btn-run-from-line" title="Run from scene at cursor line (Ctrl+Enter)">▶ Run this
+          Line</button>
+        <button class="wf-btn btn-accent" id="btn-export-game"
+          title="Open game export & distribution portal">Export</button>
       </div>
     </header>
 
@@ -38,7 +53,8 @@
           </div>
           <div class="editor-tabs-actions">
             <span class="compiler-status-indicator" id="compiler-indicator">Auto compilation: READY</span>
-            <button class="wf-btn-sm btn-format" id="btn-format-document" title="Auto Format Script (Shift+Alt+F)">⚡ Format</button>
+            <button class="wf-btn-sm btn-format" id="btn-format-document" title="Auto Format Script (Shift+Alt+F)">⚡
+              Format</button>
           </div>
         </div>
 
@@ -53,10 +69,12 @@
         <div id="studio-bottom-drawer">
           <div class="drawer-header">
             <div class="drawer-tabs">
-              <button class="drawer-tab-btn active" id="drawer-tab-problems" data-drawer-tab="problems" title="Compiler error list">
+              <button class="drawer-tab-btn active" id="drawer-tab-problems" data-drawer-tab="problems"
+                title="Compiler error list">
                 <span id="problems-summary">● Problems (0 errors)</span>
               </button>
-              <button class="drawer-tab-btn" id="drawer-tab-variables" data-drawer-tab="variables-watch" title="Real-time variable values">
+              <button class="drawer-tab-btn" id="drawer-tab-variables" data-drawer-tab="variables-watch"
+                title="Real-time variable values">
                 <span>Watch Variables</span>
               </button>
             </div>
@@ -86,7 +104,9 @@
                     </tr>
                   </thead>
                   <tbody id="vars-watch-tbody">
-                    <tr><td colspan="4" style="color: #666;">No variables.</td></tr>
+                    <tr>
+                      <td colspan="4" style="color: #666;">No variables.</td>
+                    </tr>
                   </tbody>
                 </table>
               </div>
@@ -141,7 +161,8 @@
           <div class="workspace-pane sidebar-pane" id="pane-characters">
             <div class="pane-heading">
               <span>PROJECT CHARACTERS</span>
-              <button class="wf-btn-sm" id="btn-add-character" title="Add new character to project">+ Add Character</button>
+              <button class="wf-btn-sm" id="btn-add-character" title="Add new character to project">+ Add
+                Character</button>
             </div>
             <div id="char-reconciliation-alerts"></div>
             <div id="character-list-container"></div>
@@ -181,7 +202,8 @@
         </div>
         <div class="wf-modal-body">
           <div class="export-card">
-            <div class="export-card-title">1. Playable Web Link <span class="dock-meta-badge" style="color: #eab308;">(P1 - Coming Soon)</span></div>
+            <div class="export-card-title">1. Playable Web Link <span class="dock-meta-badge"
+                style="color: #eab308;">(P1 - Coming Soon)</span></div>
             <div class="export-card-desc">Direct playable link on Edge CDN:
             </div>
             <div class="export-input-row">
@@ -204,7 +226,8 @@
 
           <div class="export-card">
             <div class="export-card-title">2. Web Bundle / HTML5 ZIP Package (itch.io - Ready)</div>
-            <div class="export-card-desc">Bundle all scripts, bytecode, and project assets into a self-contained package to load into runner or upload to itch.io:</div>
+            <div class="export-card-desc">Bundle all scripts, bytecode, and project assets into a self-contained package
+              to load into runner or upload to itch.io:</div>
             <div class="export-input-row" style="margin-top: 8px;">
               <button class="wf-btn" id="btn-download-bundle">Export Game Bundle (bundle.json)</button>
               <button class="wf-btn" id="btn-download-zip">Download game.zip</button>
@@ -212,10 +235,13 @@
           </div>
 
           <div class="export-card">
-            <div class="export-card-title">3. Desktop App Package <span class="dock-meta-badge" style="color: #eab308;">(P1 - Coming Soon)</span></div>
-            <div class="export-card-desc">Package as a standalone desktop application via Electron & GitHub Actions.</div>
+            <div class="export-card-title">3. Desktop App Package <span class="dock-meta-badge"
+                style="color: #eab308;">(P1 - Coming Soon)</span></div>
+            <div class="export-card-desc">Package as a standalone desktop application via Electron & GitHub Actions.
+            </div>
             <div class="export-input-row" style="margin-top: 8px;">
-              <button class="wf-btn" id="btn-build-desktop" disabled style="opacity: 0.5;">Request Desktop Build (P1)</button>
+              <button class="wf-btn" id="btn-build-desktop" disabled style="opacity: 0.5;">Request Desktop Build
+                (P1)</button>
             </div>
           </div>
         </div>
@@ -235,32 +261,45 @@
 
           <div class="wf-form-group">
             <label class="wf-form-label" for="char-input-id">Character ID (Used in script) *</label>
-            <div class="wf-form-hint">Used in commands: alice:, show alice happy (lowercase letters, numbers, underscores)</div>
-            <input type="text" id="char-input-id" class="wf-form-input" required placeholder="e.g.: alice, bob, teacher_minh" pattern="^[a-zA-Z0-9_]+$" />
+            <div class="wf-form-hint">Used in commands: alice:, show alice happy (lowercase letters, numbers,
+              underscores)</div>
+            <input type="text" id="char-input-id" class="wf-form-input" required
+              placeholder="e.g.: alice, bob, teacher_minh" pattern="^[a-zA-Z0-9_]+$" />
           </div>
 
           <div class="wf-form-group">
             <label class="wf-form-label" for="char-input-name">Dialogue Display Name *</label>
             <div class="wf-form-hint">Name shown on character nameplate during dialogue</div>
-            <input type="text" id="char-input-name" class="wf-form-input" required placeholder="e.g.: Alice Carroll, Teacher Minh" />
+            <input type="text" id="char-input-name" class="wf-form-input" required
+              placeholder="e.g.: Alice Carroll, Teacher Minh" />
           </div>
 
           <div class="wf-form-group">
             <label class="wf-form-label">Nameplate Color (HEX Code) *</label>
             <div class="wf-form-hint">Enter HEX code (e.g. #38BDF8) or pick from palette and presets</div>
             <div class="char-color-hex-group">
-              <input type="text" id="char-input-color-hex" class="wf-form-input font-mono" value="#38BDF8" maxlength="7" placeholder="#38BDF8" style="width: 100px; text-transform: uppercase;" required />
-              <input type="color" id="char-input-color" value="#38bdf8" class="wf-color-input" title="Pick color from palette" />
+              <input type="text" id="char-input-color-hex" class="wf-form-input font-mono" value="#38BDF8" maxlength="7"
+                placeholder="#38BDF8" style="width: 100px; text-transform: uppercase;" required />
+              <input type="color" id="char-input-color" value="#38bdf8" class="wf-color-input"
+                title="Pick color from palette" />
               <div class="color-presets">
-                <button type="button" class="color-preset-btn" style="background:#38bdf8;" data-color="#38bdf8" title="Sky Blue (#38BDF8)"></button>
-                <button type="button" class="color-preset-btn" style="background:#f43f5e;" data-color="#f43f5e" title="Rose Pink (#F43F5E)"></button>
-                <button type="button" class="color-preset-btn" style="background:#10b981;" data-color="#10b981" title="Emerald Green (#10B981)"></button>
-                <button type="button" class="color-preset-btn" style="background:#eab308;" data-color="#eab308" title="Amber Yellow (#EAB308)"></button>
-                <button type="button" class="color-preset-btn" style="background:#a855f7;" data-color="#a855f7" title="Amethyst Purple (#A855F7)"></button>
-                <button type="button" class="color-preset-btn" style="background:#fb923c;" data-color="#fb923c" title="Vibrant Orange (#FB923C)"></button>
-                <button type="button" class="color-preset-btn" style="background:#ffffff;" data-color="#ffffff" title="Bright White (#FFFFFF)"></button>
+                <button type="button" class="color-preset-btn" style="background:#38bdf8;" data-color="#38bdf8"
+                  title="Sky Blue (#38BDF8)"></button>
+                <button type="button" class="color-preset-btn" style="background:#f43f5e;" data-color="#f43f5e"
+                  title="Rose Pink (#F43F5E)"></button>
+                <button type="button" class="color-preset-btn" style="background:#10b981;" data-color="#10b981"
+                  title="Emerald Green (#10B981)"></button>
+                <button type="button" class="color-preset-btn" style="background:#eab308;" data-color="#eab308"
+                  title="Amber Yellow (#EAB308)"></button>
+                <button type="button" class="color-preset-btn" style="background:#a855f7;" data-color="#a855f7"
+                  title="Amethyst Purple (#A855F7)"></button>
+                <button type="button" class="color-preset-btn" style="background:#fb923c;" data-color="#fb923c"
+                  title="Vibrant Orange (#FB923C)"></button>
+                <button type="button" class="color-preset-btn" style="background:#ffffff;" data-color="#ffffff"
+                  title="Bright White (#FFFFFF)"></button>
               </div>
-              <div class="char-color-preview-tag" id="char-color-preview-tag" style="color: #38bdf8; border-color: #38bdf8;">Display Name</div>
+              <div class="char-color-preview-tag" id="char-color-preview-tag"
+                style="color: #38bdf8; border-color: #38bdf8;">Display Name</div>
             </div>
           </div>
 
@@ -269,7 +308,8 @@
               <label class="wf-form-label">Character Expressions & Images (Each image is 1 expression)</label>
               <button type="button" id="btn-add-sprite-row" class="wf-btn-sm">+ Add Expression</button>
             </div>
-            <div class="wf-form-hint">Each expression corresponds to a sprite image (PNG, JPG, WebP). The first expression or 'default' will be used as default in scripts (e.g. show alice).</div>
+            <div class="wf-form-hint">Each expression corresponds to a sprite image (PNG, JPG, WebP). The first
+              expression or 'default' will be used as default in scripts (e.g. show alice).</div>
             <div id="char-sprites-manager-list" class="sprites-manager-list">
               <!-- Rendered dynamically by JavaScript -->
             </div>
@@ -305,7 +345,8 @@
           <div class="wf-form-group">
             <label class="wf-form-label" for="asset-input-name">Asset Name (Used in script) *</label>
             <div class="wf-form-hint">e.g.: background bg_courtyard or play music theme_peaceful</div>
-            <input type="text" id="asset-input-name" class="wf-form-input" required placeholder="e.g.: bg_courtyard, theme_peaceful, sfx_bell" />
+            <input type="text" id="asset-input-name" class="wf-form-input" required
+              placeholder="e.g.: bg_courtyard, theme_peaceful, sfx_bell" />
           </div>
 
           <div class="wf-form-group">
@@ -316,7 +357,8 @@
 
           <div class="wf-form-group">
             <label class="wf-form-label" for="asset-input-url">Or Enter Path / Storage URL</label>
-            <input type="text" id="asset-input-url" class="wf-form-input" placeholder="assets/bg_courtyard.png or https://..." />
+            <input type="text" id="asset-input-url" class="wf-form-input"
+              placeholder="assets/bg_courtyard.png or https://..." />
           </div>
 
           <div class="wf-modal-actions">
@@ -328,6 +370,8 @@
     </div>
 
     <div id="studio-toast" class="toast-popup hidden"></div>
+      </div>
+    </div>
   </div>
 
   <script type="module" src="/src/main.ts"></script>
