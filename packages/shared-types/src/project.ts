@@ -41,8 +41,8 @@ export interface VariableDeclaration {
 
 export interface AssetRef {
   id: string; // UUIDv4
-  name: string; // "bg_classroom.png"
-  type: 'image' | 'audio' | 'font';
+  name: string; // "bg_classroom.png", "op_movie.mp4"
+  type: 'image' | 'audio' | 'video' | 'font';
   storageUrl: string; // URL CDN Cloudflare R2
   sizeBytes: number;
   version?: number; // Optimistic Concurrency Check (ADR-011)

@@ -55,12 +55,12 @@ CREATE POLICY "Users can manage script files in their projects"
           AND projects.owner_id = auth.uid()
     ));
 
--- 3. BẢNG ASSETS (Metadata tài nguyên media hình ảnh, âm thanh, font)
+-- 3. BẢNG ASSETS (Metadata tài nguyên media hình ảnh, âm thanh, video, font)
 CREATE TABLE IF NOT EXISTS public.assets (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     project_id UUID NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
-    type VARCHAR(20) NOT NULL CHECK (type IN ('image', 'audio', 'font')),
+    type VARCHAR(20) NOT NULL CHECK (type IN ('image', 'audio', 'video', 'font')),
     storage_url TEXT NOT NULL,
     storage_path TEXT NOT NULL,
     size_bytes BIGINT NOT NULL DEFAULT 0,

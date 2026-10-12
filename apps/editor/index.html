@@ -178,6 +178,7 @@
               <button class="asset-filter-btn active" data-filter="all">All</button>
               <button class="asset-filter-btn" data-filter="image">Images</button>
               <button class="asset-filter-btn" data-filter="audio">Audio</button>
+              <button class="asset-filter-btn" data-filter="video">Videos</button>
             </div>
             <div id="asset-reconciliation-alerts"></div>
             <div id="asset-list-container"></div>
@@ -337,8 +338,9 @@
           <div class="wf-form-group">
             <label class="wf-form-label" for="asset-input-type">Asset Type *</label>
             <select id="asset-input-type" class="wf-form-select">
-              <option value="image">🖼 Image (Background, sprite, CG)</option>
+              <option value="image">🖼 Image (Background, sprite, CG, GIF)</option>
               <option value="audio">🎵 Audio (BGM, SFX)</option>
+              <option value="video">🎥 Video (Cutscene, Opening, Movie)</option>
             </select>
           </div>
 
@@ -352,7 +354,7 @@
           <div class="wf-form-group">
             <label class="wf-form-label" for="asset-input-file">Upload File from Device (Optional)</label>
             <div class="wf-form-hint">Data is stored directly in project IndexedDB database</div>
-            <input type="file" id="asset-input-file" class="wf-form-file" accept="image/*,audio/*" />
+            <input type="file" id="asset-input-file" class="wf-form-file" accept="image/*,audio/*,video/*" />
           </div>
 
           <div class="wf-form-group">

@@ -138,7 +138,7 @@ export class StudioApp {
   private btnAddAsset: HTMLElement | null;
   private charReconciliationEl: HTMLElement | null;
   private assetReconciliationEl: HTMLElement | null;
-  private activeAssetFilter: 'all' | 'image' | 'audio' = 'all';
+  private activeAssetFilter: 'all' | 'image' | 'audio' | 'video' | 'font' = 'all';
 
   // Modals quản lý
   private modalCharForm: HTMLElement | null;
@@ -1785,7 +1785,14 @@ export class StudioApp {
 
       const icon = document.createElement('div');
       icon.className = 'asset-card-icon';
-      icon.textContent = asset.type === 'audio' ? '🎵' : '🖼';
+      icon.textContent =
+        asset.type === 'audio'
+          ? '🎵'
+          : asset.type === 'video'
+          ? '🎥'
+          : asset.type === 'font'
+          ? '🔤'
+          : '🖼';
 
       const info = document.createElement('div');
       info.className = 'asset-card-info';
@@ -1809,6 +1816,8 @@ export class StudioApp {
       const isUsed =
         asset.type === 'audio'
           ? usedAudio.has(asset.name) || usedAudio.has(asset.id)
+          : asset.type === 'video' || asset.type === 'font'
+          ? true
           : usedBackgrounds.has(asset.name) || usedBackgrounds.has(asset.id);
 
       if (!isUsed) {
@@ -2245,7 +2254,7 @@ export class StudioApp {
         filterBtns.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         this.activeAssetFilter =
-          (btn.getAttribute('data-filter') as 'all' | 'image' | 'audio') || 'all';
+          (btn.getAttribute('data-filter') as 'all' | 'image' | 'audio' | 'video' | 'font') || 'all';
         this.renderAssetList();
       });
     });
@@ -2261,7 +2270,7 @@ export class StudioApp {
   private openAssetModal(
     assetId?: string,
     prefillName?: string,
-    prefillType?: 'image' | 'audio',
+    prefillType?: 'image' | 'audio' | 'video' | 'font',
   ): void {
     if (!this.modalAssetForm) return;
 
@@ -2313,7 +2322,7 @@ export class StudioApp {
     const urlInput = document.getElementById('asset-input-url') as HTMLInputElement;
 
     const assetName = nameInput.value.trim();
-    const assetType = (typeSelect.value as 'image' | 'audio' | 'font') || 'image';
+    const assetType = (typeSelect.value as 'image' | 'audio' | 'video' | 'font') || 'image';
     let storageUrl = urlInput.value.trim();
 
     if (!assetName) {

@@ -176,6 +176,22 @@ export class SupabaseProjectRepository implements IProjectRepository {
           });
         }
       }
+
+      // Upsert assets
+      if (project.assets && project.assets.length > 0) {
+        for (const asset of project.assets) {
+          await supabase.from('assets').upsert({
+            id: asset.id,
+            project_id: project.id,
+            name: asset.name,
+            type: asset.type,
+            storage_url: asset.storageUrl,
+            storage_path: asset.name,
+            size_bytes: asset.sizeBytes,
+            version: asset.version || 1,
+          });
+        }
+      }
     } catch (err) {
       console.error('[SupabaseProjectRepository] Error saving to cloud:', err);
     }
