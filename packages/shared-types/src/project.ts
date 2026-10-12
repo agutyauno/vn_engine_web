@@ -53,6 +53,7 @@ export interface UICustomScreen {
   name: string;
   targetSlot: 'dialogueBox' | 'choiceMenu' | 'backlog' | 'mainMenu' | 'settingsMenu' | 'saveLoadScreen';
   template: string;
+  cssContent?: string;
   version?: number;
 }
 

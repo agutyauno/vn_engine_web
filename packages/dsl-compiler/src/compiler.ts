@@ -38,48 +38,64 @@ export class Compiler {
     const sortedFiles = [...files].sort((a, b) => a.order - b.order);
 
     for (const file of sortedFiles) {
-      // Stage 1: Phân tích từ vựng (Lexer)
-      const lexResult = VNSLexer.tokenize(file.content);
-      if (lexResult.errors.length > 0) {
-        for (const err of lexResult.errors) {
-          errors.push({
-            message: `Lexer error: ${err.message}`,
-            loc: {
-              fileId: file.id,
-              line: err.line ?? 1,
-              col: err.column ?? 1,
-            },
-          });
+      try {
+        // Stage 1: Phân tích từ vựng (Lexer)
+        const lexResult = VNSLexer.tokenize(file.content);
+        if (lexResult.errors.length > 0) {
+          for (const err of lexResult.errors) {
+            errors.push({
+              message: `Lexer error: ${err.message}`,
+              loc: {
+                fileId: file.id,
+                line: typeof err.line === 'number' && Number.isFinite(err.line) ? err.line : 1,
+                col: typeof err.column === 'number' && Number.isFinite(err.column) ? err.column : 1,
+              },
+            });
+          }
+          continue;
         }
-        continue;
-      }
 
-      // Stage 2: Phân tích cú pháp (Parser)
-      parserInstance.input = lexResult.tokens;
-      const cst = parserInstance.program();
+        // Stage 2: Phân tích cú pháp (Parser)
+        parserInstance.input = lexResult.tokens;
+        const cst = parserInstance.program();
 
-      if (parserInstance.errors.length > 0) {
-        for (const err of parserInstance.errors) {
-          errors.push({
-            message: `Syntax error: ${err.message}`,
-            loc: {
-              fileId: file.id,
-              line: err.token.startLine ?? 1,
-              col: err.token.startColumn ?? 1,
-            },
-          });
+        if (parserInstance.errors.length > 0) {
+          for (const err of parserInstance.errors) {
+            const startLine = err.token?.startLine;
+            const startColumn = err.token?.startColumn;
+            errors.push({
+              message: `Syntax error: ${err.message}`,
+              loc: {
+                fileId: file.id,
+                line: typeof startLine === 'number' && Number.isFinite(startLine) ? startLine : 1,
+                col: typeof startColumn === 'number' && Number.isFinite(startColumn) ? startColumn : 1,
+              },
+            });
+          }
+          continue;
         }
-        continue;
-      }
 
-      // Xây dựng AST cho từng file
-      const builder = new VNSAstBuilder(file.id);
-      const fileAst = builder.visit(cst) as ProgramAST;
-      if (fileAst?.topLevelStatements) {
-        allTopLevelStatements.push(...fileAst.topLevelStatements);
-      }
-      if (fileAst?.scenes) {
-        allScenes.push(...fileAst.scenes);
+        // Xây dựng AST cho từng file
+        const builder = new VNSAstBuilder(file.id);
+        const fileAst = builder.visit(cst) as ProgramAST;
+        if (fileAst?.topLevelStatements) {
+          allTopLevelStatements.push(...fileAst.topLevelStatements);
+        }
+        if (fileAst?.scenes) {
+          allScenes.push(...fileAst.scenes);
+        }
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        const lineMatch = msg.match(/at line (\d+)/i);
+        const line = lineMatch ? parseInt(lineMatch[1]!, 10) : 1;
+        errors.push({
+          message: msg,
+          loc: {
+            fileId: file.id,
+            line: Number.isFinite(line) ? line : 1,
+            col: 1,
+          },
+        });
       }
     }
 
@@ -87,43 +103,51 @@ export class Compiler {
       return { success: false, errors };
     }
 
-    const rawAst: ProgramAST = {
-      type: 'Program',
-      topLevelStatements: allTopLevelStatements.length > 0 ? allTopLevelStatements : undefined,
-      scenes: allScenes,
-    };
-
-    // Stage 3.5: Kiểm tra cấu trúc phân cấp Scene & Sub-scene (ADR-015: giới hạn 1 cấp)
-    const structureErrors = validateSceneStructure(rawAst);
-    if (structureErrors.length > 0) {
-      return {
-        success: false,
-        ast: rawAst,
-        errors: structureErrors,
+    try {
+      const rawAst: ProgramAST = {
+        type: 'Program',
+        topLevelStatements: allTopLevelStatements.length > 0 ? allTopLevelStatements : undefined,
+        scenes: allScenes,
       };
-    }
 
-    // Stage 0 Merge Pass: Phẳng hóa local sub-scenes và kế thừa UI
-    const mergedAst = runMergePass(rawAst);
+      // Stage 3.5: Kiểm tra cấu trúc phân cấp Scene & Sub-scene (ADR-015: giới hạn 1 cấp)
+      const structureErrors = validateSceneStructure(rawAst);
+      if (structureErrors.length > 0) {
+        return {
+          success: false,
+          ast: rawAst,
+          errors: structureErrors,
+        };
+      }
 
-    // Stage 4: Kiểm tra ngữ nghĩa (Semantic Validation)
-    const semanticErrors = validateSemantics(mergedAst);
-    if (semanticErrors.length > 0) {
+      // Stage 0 Merge Pass: Phẳng hóa local sub-scenes và kế thừa UI
+      const mergedAst = runMergePass(rawAst);
+
+      // Stage 4: Kiểm tra ngữ nghĩa (Semantic Validation)
+      const semanticErrors = validateSemantics(mergedAst);
+      if (semanticErrors.length > 0) {
+        return {
+          success: false,
+          ast: mergedAst,
+          errors: semanticErrors,
+        };
+      }
+
+      // Stage 5: Sinh Bytecode (Instruction Set)
+      const program = generateBytecode(mergedAst, options?.characters);
+
       return {
-        success: false,
+        success: true,
+        program,
         ast: mergedAst,
-        errors: semanticErrors,
+      };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return {
+        success: false,
+        errors: [{ message: msg }],
       };
     }
-
-    // Stage 5: Sinh Bytecode (Instruction Set)
-    const program = generateBytecode(mergedAst, options?.characters);
-
-    return {
-      success: true,
-      program,
-      ast: mergedAst,
-    };
   }
 
   /**

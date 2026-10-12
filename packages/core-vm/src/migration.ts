@@ -104,6 +104,47 @@ export function validateVMState(state: unknown): asserts state is VMState {
   }
 }
 
+export const defaultMigrationV1ToV2: SaveMigrationFn = (prev: Record<string, unknown>) => {
+  const prevState = (prev['state'] as Record<string, unknown>) || {};
+  return {
+    ...prev,
+    version: 2,
+    projectId: prev['projectId'] ?? undefined,
+    scriptHash: prev['scriptHash'] ?? undefined,
+    sceneOffset:
+      prev['sceneOffset'] ??
+      (typeof prevState['instructionPointer'] === 'number' ? prevState['instructionPointer'] : 0),
+    backlog: Array.isArray(prev['backlog']) ? prev['backlog'] : [],
+    state: {
+      ...prevState,
+      localVariables:
+        prevState['localVariables'] && typeof prevState['localVariables'] === 'object'
+          ? prevState['localVariables']
+          : {},
+      activeInspect: prevState['activeInspect'] !== undefined ? prevState['activeInspect'] : null,
+      activeSprites:
+        prevState['activeSprites'] && typeof prevState['activeSprites'] === 'object'
+          ? prevState['activeSprites']
+          : {},
+      activeAudio:
+        prevState['activeAudio'] && typeof prevState['activeAudio'] === 'object'
+          ? prevState['activeAudio']
+          : {},
+      characterDisplayOverrides:
+        prevState['characterDisplayOverrides'] &&
+        typeof prevState['characterDisplayOverrides'] === 'object'
+          ? prevState['characterDisplayOverrides']
+          : {},
+      customScriptState:
+        prevState['customScriptState'] && typeof prevState['customScriptState'] === 'object'
+          ? prevState['customScriptState']
+          : {},
+    },
+  };
+};
+
+registerSaveMigration(1, 2, defaultMigrationV1ToV2);
+
 /**
  * Di trú dữ liệu save game từ phiên bản cũ lên phiên bản targetVersion
  */
@@ -174,7 +215,8 @@ export function migrateSaveData(
   while (v < targetVersion) {
     const nextV = v + 1;
     const key = getMigrationKey(v, nextV);
-    const migrator = migrationRegistry.get(key);
+    const migrator =
+      migrationRegistry.get(key) ?? (v === 1 && nextV === 2 ? defaultMigrationV1ToV2 : undefined);
     if (!migrator) {
       throw new InvalidSaveDataError(
         `No migration function found to convert from v${v} to v${nextV}.`,

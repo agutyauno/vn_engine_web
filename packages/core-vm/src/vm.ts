@@ -12,6 +12,7 @@ import type {
   BackgroundInstruction,
   ShowInstruction,
   PlayInstruction,
+  AssignInstruction,
 } from '@vn-engine/shared-types';
 import { CURRENT_SAVE_VERSION } from '@vn-engine/shared-types';
 import { SandboxEvaluator, type AllowedFunction } from './evaluator';
@@ -70,6 +71,10 @@ export class VisualNovelVM {
       characterDisplayOverrides: { ...(initialState?.characterDisplayOverrides ?? {}) },
       customScriptState: { ...(initialState?.customScriptState ?? {}) },
       activeInspect: initialState?.activeInspect ?? null,
+      activeBackground: initialState?.activeBackground,
+      activeSprites: { ...(initialState?.activeSprites ?? {}) },
+      activeAudio: { ...(initialState?.activeAudio ?? {}) },
+      currentDialogue: initialState?.currentDialogue,
     };
 
     // Lập bản đồ chỉ mục Scene để nhảy O(1)
@@ -126,10 +131,69 @@ export class VisualNovelVM {
   }
 
   /**
+   * Thực thi các lệnh ASSIGN toàn cục ở phần đầu chương trình (Preamble)
+   */
+  public executePreamble(): void {
+    let i = 0;
+    while (i < this.program.length) {
+      const instr = this.program[i]!;
+      if (instr.type === 'SCENE') {
+        break;
+      }
+      if (instr.type === 'ASSIGN' && instr.scope === 'global') {
+        const assign = instr as AssignInstruction;
+        const evalVal = this.evaluator.evaluate(assign.value, this.getEvalContext());
+        if (evalVal !== null) {
+          this.state.variables[assign.variable] = evalVal;
+        }
+      }
+      i++;
+    }
+  }
+
+  /**
+   * Quét và nạp trạng thái hiển thị tích lũy tới điểm nhảy (cho Run from Line / Scene khi VM mới)
+   */
+  private seedCatchUpStateUpTo(targetIndex: number): void {
+    for (let i = 0; i < targetIndex; i++) {
+      const instr = this.program[i]!;
+      if (instr.type === 'BACKGROUND') {
+        this.state.activeBackground = instr;
+      } else if (instr.type === 'SHOW') {
+        if (!this.state.activeSprites) this.state.activeSprites = {};
+        this.state.activeSprites[instr.character] = instr;
+      } else if (instr.type === 'HIDE') {
+        if (this.state.activeSprites) {
+          delete this.state.activeSprites[instr.character];
+        }
+      } else if (instr.type === 'PLAY') {
+        if (!this.state.activeAudio) this.state.activeAudio = {};
+        this.state.activeAudio[instr.channel] = instr;
+      } else if (instr.type === 'STOP') {
+        if (this.state.activeAudio) {
+          delete this.state.activeAudio[instr.channel];
+        }
+      } else if (instr.type === 'DIALOGUE') {
+        this.state.currentDialogue = instr;
+      } else if (instr.type === 'HIDE_DIALOGUE') {
+        this.state.currentDialogue = undefined;
+      } else if (instr.type === 'INSPECT_BEGIN') {
+        this.state.activeInspect = { assetId: instr.assetId, title: instr.title };
+      } else if (instr.type === 'INSPECT_END') {
+        this.state.activeInspect = null;
+      }
+    }
+  }
+
+  /**
    * Nhảy con trỏ lệnh tới scene mục tiêu
    */
   public jumpToScene(targetScene: string): void {
     const targetIndex = this.resolveSceneIndex(targetScene);
+    if (this.dialogueCounter === 0) {
+      this.executePreamble();
+      this.seedCatchUpStateUpTo(targetIndex);
+    }
     this.state.instructionPointer = targetIndex;
     const sceneInstr = this.program[targetIndex]!;
     if (sceneInstr.type === 'SCENE') {
@@ -160,6 +224,10 @@ export class VisualNovelVM {
     }
 
     if (targetIndex !== -1) {
+      if (this.dialogueCounter === 0) {
+        this.executePreamble();
+        this.seedCatchUpStateUpTo(targetIndex);
+      }
       this.state.instructionPointer = targetIndex;
       // Cập nhật currentScene tương ứng
       for (let i = targetIndex; i >= 0; i--) {
@@ -202,6 +270,7 @@ export class VisualNovelVM {
       case 'DIALOGUE': {
         this.state.instructionPointer++;
         this.dialogueCounter++;
+        this.state.currentDialogue = instr;
 
         // Lưu snapshot phục vụ Rollback ngay tại điểm bắt đầu câu thoại
         const snapshot: VMSnapshot = {
@@ -247,12 +316,48 @@ export class VisualNovelVM {
         };
       }
 
-      case 'BACKGROUND':
-      case 'SHOW':
-      case 'HIDE':
-      case 'HIDE_DIALOGUE':
-      case 'PLAY':
-      case 'STOP':
+      case 'BACKGROUND': {
+        this.state.activeBackground = instr;
+        this.state.instructionPointer++;
+        return { type: 'SIDE_EFFECT', instruction: instr };
+      }
+
+      case 'SHOW': {
+        if (!this.state.activeSprites) this.state.activeSprites = {};
+        this.state.activeSprites[instr.character] = instr;
+        this.state.instructionPointer++;
+        return { type: 'SIDE_EFFECT', instruction: instr };
+      }
+
+      case 'HIDE': {
+        if (this.state.activeSprites) {
+          delete this.state.activeSprites[instr.character];
+        }
+        this.state.instructionPointer++;
+        return { type: 'SIDE_EFFECT', instruction: instr };
+      }
+
+      case 'HIDE_DIALOGUE': {
+        this.state.currentDialogue = undefined;
+        this.state.instructionPointer++;
+        return { type: 'SIDE_EFFECT', instruction: instr };
+      }
+
+      case 'PLAY': {
+        if (!this.state.activeAudio) this.state.activeAudio = {};
+        this.state.activeAudio[instr.channel] = instr;
+        this.state.instructionPointer++;
+        return { type: 'SIDE_EFFECT', instruction: instr };
+      }
+
+      case 'STOP': {
+        if (this.state.activeAudio) {
+          delete this.state.activeAudio[instr.channel];
+        }
+        this.state.instructionPointer++;
+        return { type: 'SIDE_EFFECT', instruction: instr };
+      }
+
       case 'RUN_SCRIPT':
       case 'SPAWN_SCRIPT': {
         this.state.instructionPointer++;
@@ -334,6 +439,7 @@ export class VisualNovelVM {
         // Lưu frame quay lại vào callStack kèm biến local của caller
         this.state.callStack.push({
           scene: this.state.currentScene,
+          targetScene: instr.targetScene,
           ip: this.state.instructionPointer + 1,
           savedLocalVariables: { ...this.state.localVariables },
         });
@@ -370,7 +476,8 @@ export class VisualNovelVM {
       }
 
       case 'SCENE_END': {
-        if (this.state.callStack.length > 0) {
+        const topFrame = this.state.callStack[this.state.callStack.length - 1];
+        if (topFrame && topFrame.targetScene === instr.sceneName) {
           console.warn(
             `[VN Engine Warning] Scene '${instr.sceneName}' reached end without an explicit 'return' statement. Implicit return to caller executed.`,
           );
@@ -594,35 +701,15 @@ export class VisualNovelVM {
     currentDialogue?: DialogueInstruction;
     activeInspect?: { assetId: string; title?: string } | null;
   } {
-    let background: BackgroundInstruction | undefined;
-    const sprites = new Map<string, ShowInstruction>();
-    const audio = new Map<string, PlayInstruction>();
-    let currentDialogue: DialogueInstruction | undefined;
-    let activeInspect: { assetId: string; title?: string } | null = null;
-
-    // Quét từ đầu chương trình tới con trỏ lệnh hiện tại
-    for (let i = 0; i < this.state.instructionPointer; i++) {
-      const instr = this.program[i]!;
-      if (instr.type === 'BACKGROUND') {
-        background = instr;
-      } else if (instr.type === 'SHOW') {
-        sprites.set(instr.character, instr);
-      } else if (instr.type === 'HIDE') {
-        sprites.delete(instr.character);
-      } else if (instr.type === 'PLAY') {
-        audio.set(instr.channel, instr);
-      } else if (instr.type === 'STOP') {
-        audio.delete(instr.channel);
-      } else if (instr.type === 'DIALOGUE') {
-        currentDialogue = instr;
-      } else if (instr.type === 'HIDE_DIALOGUE') {
-        currentDialogue = undefined;
-      } else if (instr.type === 'INSPECT_BEGIN') {
-        activeInspect = { assetId: instr.assetId, title: instr.title };
-      } else if (instr.type === 'INSPECT_END') {
-        activeInspect = null;
-      }
-    }
+    const background = this.state.activeBackground;
+    const sprites = new Map<string, ShowInstruction>(
+      Object.entries(this.state.activeSprites || {}),
+    );
+    const audio = new Map<string, PlayInstruction>(
+      Object.entries(this.state.activeAudio || {}),
+    );
+    let currentDialogue = this.state.currentDialogue;
+    let activeInspect = this.state.activeInspect ?? null;
 
     if (currentDialogue) {
       const evalContext = this.getEvalContext();
@@ -649,10 +736,25 @@ export class VisualNovelVM {
   /**
    * Serialize trạng thái máy ảo thành chuỗi JSON thuần túy theo cấu trúc SaveFileData (Save Game - TAD 4.4)
    */
-  public serialize(dslVersion?: string): string {
+  public serialize(
+    options?: string | { dslVersion?: string; projectId?: string; scriptHash?: string },
+  ): string {
+    const meta = typeof options === 'string' ? { dslVersion: options } : (options ?? {});
+
+    let sceneOffset = 0;
+    const sceneIdx = this.program.findIndex(
+      i => i.type === 'SCENE' && i.name === this.state.currentScene,
+    );
+    if (sceneIdx !== -1 && this.state.instructionPointer >= sceneIdx) {
+      sceneOffset = this.state.instructionPointer - sceneIdx;
+    }
+
     const saveData: SaveFileData = {
       version: CURRENT_SAVE_VERSION,
-      dslVersion: dslVersion ?? '1.0.0',
+      projectId: meta.projectId,
+      scriptHash: meta.scriptHash,
+      sceneOffset,
+      dslVersion: meta.dslVersion ?? '1.0.0',
       timestamp: Date.now(),
       state: this.state,
       dialogueCounter: this.dialogueCounter,
@@ -662,7 +764,7 @@ export class VisualNovelVM {
 
   /**
    * Khôi phục trạng thái máy ảo từ chuỗi JSON (Load Game - TAD 4.4)
-   * Tự động kiểm tra schema VMState và migrate save file nếu khác phiên bản
+   * Tự động kiểm tra schema VMState, migrate save file và neo lại an toàn theo sceneOffset
    */
   public restore(json: string): void {
     try {
@@ -682,7 +784,31 @@ export class VisualNovelVM {
       const saveData = migrateSaveData(data, CURRENT_SAVE_VERSION);
       validateVMState(saveData.state);
 
-      this.state = saveData.state;
+      this.state = {
+        ...saveData.state,
+        activeSprites: saveData.state.activeSprites ? { ...saveData.state.activeSprites } : {},
+        activeAudio: saveData.state.activeAudio ? { ...saveData.state.activeAudio } : {},
+      };
+
+      // Tái neo con trỏ IP theo sceneOffset nếu kịch bản bị sửa đổi làm lệch IP tuyệt đối
+      if (
+        this.program.length > 0 &&
+        saveData.sceneOffset !== undefined &&
+        saveData.state.currentScene
+      ) {
+        const sceneIdx = this.program.findIndex(
+          i => i.type === 'SCENE' && i.name === saveData.state.currentScene,
+        );
+        if (sceneIdx !== -1) {
+          const expectedIP = sceneIdx + saveData.sceneOffset;
+          const nextSceneIdx = this.program.findIndex(
+            (instr, idx) => idx > sceneIdx && instr.type === 'SCENE',
+          );
+          const maxIP = nextSceneIdx !== -1 ? nextSceneIdx : this.program.length;
+          this.state.instructionPointer = Math.min(Math.max(expectedIP, sceneIdx), maxIP);
+        }
+      }
+
       this.dialogueCounter = saveData.dialogueCounter ?? 0;
       this.ringBuffer.clear();
     } catch (err: unknown) {

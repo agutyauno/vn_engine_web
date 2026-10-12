@@ -9,6 +9,7 @@ import {
   VMRuntimeError,
 } from '../src';
 import type { VMState, Instruction } from '@vn-engine/shared-types';
+import { CURRENT_SAVE_VERSION } from '@vn-engine/shared-types';
 
 describe('Save Schema Validation & Migration Engine (TAD 4.4)', () => {
   beforeEach(() => {
@@ -232,7 +233,7 @@ describe('Save Schema Validation & Migration Engine (TAD 4.4)', () => {
       const serialized = vm.serialize('2.0.0');
       const parsed = JSON.parse(serialized);
 
-      expect(parsed.version).toBe(1);
+      expect(parsed.version).toBe(CURRENT_SAVE_VERSION);
       expect(parsed.dslVersion).toBe('2.0.0');
       expect(typeof parsed.timestamp).toBe('number');
       expect(parsed.state.variables['points']).toBe(42);

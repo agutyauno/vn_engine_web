@@ -1,0 +1,317 @@
+# ==============================================================
+# SAMPLE SCENARIO: THE STUDENT COUNCIL ROOM MYSTERY
+# Genre: School Mystery / Detective Deduction
+# Full Demonstration:
+# - Local sub-scenes & navigation (local labels)
+# - Call stack subroutines (call & return)
+# - Conditional loops (while) & multi-branch conditions (if / else if / else)
+# - Logical operators (!, &&, ||) and math (+, -, *, /)
+# - Anonymous identity & Name revelation (reveal as)
+# - Conditional choices
+# - Background changes, multiple characters, audio channels
+# - Multiple branching endings (True, Normal, Bad, Coward Endings)
+# ==============================================================
+
+# ==============================================================
+# GLOBAL STATE VARIABLES
+# ==============================================================
+define trust_score = 0
+define clues_count = 0
+define energy = 100
+define has_flashlight = false
+define found_diary = false
+define found_footprint = false
+define found_key = false
+
+# --------------------------------------------------------------
+# ACT 1: TWILIGHT IN THE CORRIDOR
+# --------------------------------------------------------------
+scene prologue ui: "default" {
+    background bg_corridor transition: "fade"
+    play music "bgm_mystery" volume: 0.6 loop: true fade_in: 1.0s
+    play sound "sfx_door_creak" volume: 0.8
+
+    narrator: "5:30 PM. The crimson sunset stretches across the quiet tiles of the 3rd floor hallway."
+    "All students have long left. Only the dry hum of the ventilation fan echoes through the hall."
+    "Before you, the Student Council room door — usually strictly locked — stands slightly ajar."
+
+    show alice.serious(position: "left", duration: 0.4s)
+    alice as "???": "{speed:slow}Hey... {pause:0.6s}What are you doing lurking in front of the Student Council room?{speed:normal}"
+
+    choice {
+        "I saw the door open and was curious": goto .explain_curious
+        "I was just passing by on my way home": goto .explain_passby
+        "(Step back silently and prepare to run)": goto .run_away
+    }
+
+    scene .explain_curious {
+        ~ trust_score = 15
+        alice as "???": "The door was open? Strange... My trust in you is {color:#38bdf8}{trust_score}%{/color}."
+        goto .meet_alice
+    }
+
+    scene .explain_passby {
+        alice as "???": "Still lingering around school at this hour? That sounds suspicious."
+        ~ trust_score = 5
+        goto .meet_alice
+    }
+
+    scene .run_away {
+        alice as "???": "Hold on! Don't run away!"
+        ~ trust_score = 0
+        goto coward_ending
+    }
+
+    scene .meet_alice {
+        reveal alice as "Alice - Vice President"
+        show alice.smile(position: "left")
+
+        alice: "I'm Alice, Student Council Vice President. If the door was open, we need to check if someone broke in."
+        alice: "Would you come inside with me for a moment?"
+
+        choice {
+            "Sure, I'll help you check": goto chapter1_investigation
+            "No, that sounds dangerous. I'm heading home": goto coward_ending
+        }
+    }
+}
+
+# --------------------------------------------------------------
+# ACT 2: ENTERING THE ROOM & BEGINNING INVESTIGATION
+# --------------------------------------------------------------
+scene chapter1_investigation {
+    background bg_classroom transition: "fade"
+    stop music fade_out: 1.0s
+    play music "bgm_school" volume: 0.7 loop: true
+
+    alice: "Look at this... The documents on the desk are completely scrambled!"
+
+    # Second character appears in flashback
+    show bob.serious(position: "right", duration: 0.5s)
+    bob: "Alice, the election results documents are sealed in the office today. Make sure no one peeks."
+    hide bob
+
+    show alice.serious(position: "left")
+    alice: "The safe holding the election ballot envelopes shows signs of tampering!"
+    alice: "We need to find at least 3 clues to determine who sneaked in before the security guard patrols."
+
+    # Initialize investigation variables & energy
+    ~ clues_count = 0
+    ~ energy = 100
+    ~ has_flashlight = false
+    ~ found_diary = false
+    ~ found_footprint = false
+    ~ found_key = false
+
+    # Investigation loop: repeat until 3 clues found or energy depleted
+    while clues_count < 3 && energy > 0 {
+        call .investigate_turn
+    }
+
+    # Post-investigation check
+    if clues_count >= 3 {
+        goto chapter2_confrontation
+    } else {
+        goto exhausted_bad_ending
+    }
+
+    # ----------------------------------------------------------
+    # INVESTIGATION SUBROUTINE (INVOKED VIA CALL & RETURN)
+    # ----------------------------------------------------------
+    scene .investigate_turn {
+        alice: "Where should we start searching first?"
+
+        choice {
+            if !found_diary {
+                "Search the bookshelves and archive folders": goto .search_bookshelf
+            }
+            if !has_flashlight {
+                "Check the teacher's podium drawer": goto .search_desk
+            }
+            if !found_footprint {
+                "Examine marks near the ventilation window sill": goto .search_window
+            }
+            if has_flashlight && !found_key {
+                "Use the flashlight to inspect under the metal cabinet": goto .search_safe
+            }
+            "Take a 5-minute break to regain strength (+25 Stamina)": goto .take_rest
+        }
+    }
+
+    scene .search_bookshelf {
+        "You carefully inspect the spines of dusty, thick binders..."
+        play sound "sfx_bell" volume: 0.7
+        show alice.surprised(position: "left")
+        alice: "Look! A diary tucked between old meeting records. A torn page is dated today!"
+        ~ found_diary = true
+        ~ clues_count = clues_count + 1
+        ~ energy = energy - 20
+        ~ trust_score = trust_score + 10
+        return
+    }
+
+    scene .search_desk {
+        "You reach down and open the teacher's podium drawer..."
+        play sound "sfx_door_creak" volume: 0.6
+        "No documents inside, but you find a small flashlight with working batteries!"
+        ~ has_flashlight = true
+        ~ energy = energy - 15
+        alice: "This flashlight will help us look into dark corners!"
+        return
+    }
+
+    scene .search_window {
+        "You step closer to the window slightly open toward the courtyard..."
+        show alice.serious(position: "left")
+        alice: "Good eye! Look at the dust on the sill — fresh sneaker footprints with mud on them!"
+        ~ found_footprint = true
+        ~ clues_count = clues_count + 1
+        ~ energy = energy - 20
+        ~ trust_score = trust_score + 10
+        return
+    }
+
+    scene .search_safe {
+        "You aim the flashlight beam underneath the cobweb-covered cabinet..."
+        play sound "sfx_bell" volume: 0.9
+        inspect key_gold title: "Antique Brass Key" {
+            "Underneath the cabinet, you spot a heavy brass key wrapped in an engraved leather tag."
+            "The engraving bears the crest of St. Carroll Academy's archive room."
+            alice: "Aha! Someone dropped the spare archive key down here!"
+        }
+        show alice.happy(position: "center")
+        alice: "With this key, we can unlock the restricted cabinet in the corner!"
+        ~ found_key = true
+        ~ clues_count = clues_count + 1
+        ~ energy = energy - 20
+        ~ trust_score = trust_score + 20
+        return
+    }
+
+    scene .take_rest {
+        "You and Alice lean against the desk, taking a sip of water to catch your breath."
+        show alice.smile(position: "left")
+        alice: "Don't stress too much. We'll definitely uncover the truth."
+        ~ energy = energy + 25
+        if energy > 100 {
+            ~ energy = 100
+        }
+        return
+    }
+}
+
+# --------------------------------------------------------------
+# ACT 3: CONFRONTATION & RESOLUTION
+# --------------------------------------------------------------
+scene chapter2_confrontation {
+    background bg_courtyard transition: "fade"
+    play music "bgm_evening" volume: 0.8 loop: true
+
+    show alice.happy(position: "left")
+    alice: "Awesome! We've collected all 3 crucial clues:"
+    alice: "The torn diary page, muddy sneaker prints, and the spare key!"
+
+    # Bob unexpectedly appears in the courtyard
+    show bob.serious(position: "right", duration: 0.5s)
+    bob: "You two... why are you still in the Student Council office area at this hour?"
+
+    show alice.surprised(position: "left")
+    alice: "Bob... your sneakers... why are the toes covered in the exact same mud as the window sill?"
+
+    choice {
+        if trust_score >= 35 {
+            "Confront him directly: Bob staged the break-in himself!": goto .accuse_bob
+        }
+        "Calmly ask why Bob returned to school right now": goto .calm_question
+        "Stay silent in fear and conceal the clues found": goto .keep_silent
+    }
+
+    scene .accuse_bob {
+        bob: "What?! You suspect me... Wait, hold on..."
+        show bob.angry(position: "right")
+        bob: "Fine... I confess. This afternoon I dropped the safe key while climbing the window to retrieve a stuck ball."
+        bob: "I was afraid of being blamed for irresponsibility, so I pretended someone broke in to buy time."
+        show alice.smile(position: "left")
+        alice: "Good grief... you startled us! Luckily our new student here helped with the investigation."
+        goto true_ending
+    }
+
+    scene .calm_question {
+        bob: "To tell the truth... I came back to search for a spare key I dropped earlier."
+        show alice.smile(position: "left")
+        alice: "Is it this key? We found it under the cabinet!"
+        show bob.smile(position: "right")
+        bob: "Thank you both so much! You really saved me from a disaster."
+        goto normal_ending
+    }
+
+    scene .keep_silent {
+        bob: "Staying late and sneaking around the Council room? Report to the disciplinary office tomorrow!"
+        goto bad_ending_caught
+    }
+}
+
+# --------------------------------------------------------------
+# ENDINGS
+# --------------------------------------------------------------
+scene true_ending {
+    background bg_courtyard transition: "fade"
+    stop music fade_out: 2.0s
+    play music "bgm_peaceful" volume: 0.7 loop: true
+
+    show alice.happy(position: "center")
+    show bob.smile(position: "right")
+    alice: "Thank you so much! Thanks to your keen eye and courage, the misunderstanding was completely resolved."
+    bob: "The Student Council needs passionate people like you. Would you like to run for our inquiry committee?"
+
+    narrator: "Twilight settles over the campus as streetlights flicker on warmly."
+    narrator: "Your first day at the new school comes to a close with an unforgettable adventure and a new friendship."
+    narrator: "═══════════════════════════════════════════════════"
+    narrator: "             ★ TRUE ENDING: CASE CLOSED ★           "
+    narrator: "═══════════════════════════════════════════════════"
+    end
+}
+
+scene normal_ending {
+    stop music fade_out: 1.5s
+    show alice.smile(position: "center")
+    alice: "Everything turned out fine. Let's head home before it gets too dark!"
+    narrator: "You and Alice walk out through the school gates under the evening sky."
+    narrator: "═══════════════════════════════════════════════════"
+    narrator: "            ◆ NORMAL ENDING: SAFE AND SOUND ◆       "
+    narrator: "═══════════════════════════════════════════════════"
+    end
+}
+
+scene bad_ending_caught {
+    stop music fade_out: 1.0s
+    show bob.angry(position: "center")
+    narrator: "Hesitation and silence led to being mistaken for a trespasser."
+    narrator: "Penalty: Detention and library duty for an entire month!"
+    narrator: "═══════════════════════════════════════════════════"
+    narrator: "          ✖ BAD ENDING: DETENTION DUTY ✖            "
+    narrator: "═══════════════════════════════════════════════════"
+    end
+}
+
+scene exhausted_bad_ending {
+    stop music fade_out: 1.0s
+    show alice.serious(position: "left")
+    "Your stamina reached 0%! You collapse onto the floor from exhaustion..."
+    alice: "Are you okay?! Oh no, the noise was loud, the security guard is coming upstairs!"
+    narrator: "Both of you are caught and reprimanded for staying past curfew."
+    narrator: "═══════════════════════════════════════════════════"
+    narrator: "          ✖ BAD ENDING: EXHAUSTED IN THE DARK ✖     "
+    narrator: "═══════════════════════════════════════════════════"
+    end
+}
+
+scene coward_ending {
+    stop music fade_out: 1.0s
+    narrator: "You decide to turn back and hurry home, wanting nothing to do with trouble."
+    narrator: "The next morning, rumors about the Student Council break-in spread, but you will never know what truly happened..."
+    narrator: "═══════════════════════════════════════════════════"
+    narrator: "             ― COWARD ENDING: WALK AWAY ―           "
+    narrator: "═══════════════════════════════════════════════════"
+    end
+}

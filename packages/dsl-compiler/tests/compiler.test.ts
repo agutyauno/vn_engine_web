@@ -193,7 +193,7 @@ describe('DSL Compiler Core (5-Stage Pipeline)', () => {
       scene var_scene {
         define score = 100
         ~ score = score + 25
-        define isWinner = score >= 120 && hasTicket == true
+        define isWinner = score >= 120 && score <= 150
       }
     `;
 
@@ -234,6 +234,7 @@ describe('DSL Compiler Core (5-Stage Pipeline)', () => {
   it('should compile if/else branch with conditional jumps', () => {
     const dsl = `
       scene branch_scene {
+        define score = 60
         if score > 50 {
           alice: "Điểm cao!"
         } else {
@@ -432,7 +433,7 @@ describe('DSL Compiler Core (5-Stage Pipeline)', () => {
   });
 
   it('should compile scenario.vns successfully without syntax or semantic errors', () => {
-    const scenarioPath = path.resolve(__dirname, '../../../apps/runtime-player/src/scenario.vns');
+    const scenarioPath = path.join(__dirname, 'fixtures', 'scenario.vns');
     const content = fs.readFileSync(scenarioPath, 'utf-8');
     const result = compileString(content, 'scenario.vns');
     if (!result.success) {

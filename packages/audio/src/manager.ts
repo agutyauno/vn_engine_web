@@ -17,7 +17,8 @@ interface InternalChannel {
   currentAssetId: string | null;
   currentUrl: string | null;
   howl: Howl | null;
-  volume: number;
+  volume: number; // Volume người dùng chỉnh (0..1)
+  scriptVolume: number; // Hệ số âm lượng do script chỉ định (mặc định: 1.0)
   loop: boolean;
   isPlaying: boolean;
 }
@@ -80,6 +81,7 @@ export class AudioManager {
         currentUrl: null,
         howl: null,
         volume: preset.defaultVolume,
+        scriptVolume: 1.0,
         loop: preset.defaultLoop,
         isPlaying: false,
       };
@@ -99,13 +101,14 @@ export class AudioManager {
     };
 
     const targetLoop = options?.loop ?? preset.defaultLoop;
-    const targetVolume = Math.max(0, Math.min(1, options?.volume ?? channel.volume));
+    const scriptVolume = options?.volume !== undefined ? Math.max(0, Math.min(1, options.volume)) : 1.0;
+    channel.scriptVolume = scriptVolume;
+    const targetVolume = Math.max(0, Math.min(1, channel.volume * channel.scriptVolume));
 
     // Nếu bài này đang phát chính xác trên kênh này, chỉ cần cập nhật volume / loop nếu cần
     if (channel.isPlaying && channel.currentAssetId === assetId && channel.howl) {
       channel.howl.loop(targetLoop);
       channel.howl.volume(targetVolume);
-      channel.volume = targetVolume;
       channel.loop = targetLoop;
       return;
     }
@@ -146,7 +149,6 @@ export class AudioManager {
       channel.currentAssetId = assetId;
       channel.currentUrl = url;
       channel.howl = howl;
-      channel.volume = targetVolume;
       channel.loop = targetLoop;
       channel.isPlaying = true;
 
@@ -242,7 +244,7 @@ export class AudioManager {
     const channel = this.getOrCreateChannel(channelName);
     channel.volume = clamped;
     if (channel.howl) {
-      channel.howl.volume(clamped);
+      channel.howl.volume(clamped * channel.scriptVolume);
     }
   }
 

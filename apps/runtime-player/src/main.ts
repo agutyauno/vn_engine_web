@@ -6,6 +6,17 @@ import { compileString } from '@vn-engine/dsl-compiler';
 import { VNPlayer } from './player';
 import scenarioSource from './scenario.vns?raw';
 
+function isAllowedEditorOrigin(origin: string): boolean {
+  const allowedOrigins = [
+    'http://localhost:3001',
+    'http://127.0.0.1:3001',
+    window.location.origin,
+  ];
+  if (allowedOrigins.includes(origin)) return true;
+  const userContentRegex = /^https?:\/\/([a-zA-Z0-9-]+\.)*usercontent-platform\.com(:\d+)?$/;
+  return userContentRegex.test(origin);
+}
+
 window.addEventListener('DOMContentLoaded', async () => {
   console.log('[RuntimePlayer] Loading and compiling sample VNS scenario...');
 
@@ -61,7 +72,17 @@ window.addEventListener('DOMContentLoaded', async () => {
   });
 
   // Báo cho parent (Editor / Live Preview Container) biết Player đã sẵn sàng
-  const targetOrigin = window.location.hostname === 'localhost' ? 'http://localhost:3001' : '*';
+  let targetOrigin = window.location.hostname === 'localhost' ? 'http://localhost:3001' : window.location.origin;
+  if (document.referrer) {
+    try {
+      const refUrl = new URL(document.referrer);
+      if (isAllowedEditorOrigin(refUrl.origin)) {
+        targetOrigin = refUrl.origin;
+      }
+    } catch {
+      // ignore
+    }
+  }
   if (isEmbedded) {
     window.parent.postMessage({ type: 'PLAYER_READY' }, targetOrigin);
   }
@@ -72,12 +93,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 
 // Lắng nghe sự kiện Hot Reload từ Editor có kiểm tra origin an toàn (SAD 3.6)
 window.addEventListener('message', async (event: MessageEvent) => {
-  const allowedOrigins = ['http://localhost:3001', 'http://127.0.0.1:3001', window.location.origin];
-
-  if (
-    !allowedOrigins.includes(event.origin) &&
-    !event.origin.endsWith('.usercontent-platform.com')
-  ) {
+  if (!isAllowedEditorOrigin(event.origin)) {
     return;
   }
 

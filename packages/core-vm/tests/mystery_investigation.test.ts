@@ -19,10 +19,10 @@ const __dirname = path.dirname(__filename);
 
 describe('Mystery Investigation Scenario E2E Simulation', () => {
   it('should compile and simulate a full playthrough to True Ending', () => {
-    // 1. Đọc kịch bản điều tra từ tests/fixtures/mystery_investigation.vns
+    // 1. Đọc kịch bản điều tra từ packages/dsl-compiler/tests/fixtures/mystery_investigation.vns
     const fixturePath = path.resolve(
       __dirname,
-      '../../../tests/fixtures/mystery_investigation.vns',
+      '../../dsl-compiler/tests/fixtures/mystery_investigation.vns',
     );
     const source = fs.readFileSync(fixturePath, 'utf-8');
 

@@ -696,5 +696,62 @@ describe('VisualNovelVM Core', () => {
     const r5 = vm.runUntilInteractive();
     expect(r5.stepResult.type).toBe('HALTED');
   });
+
+  it('should only execute implicit return at SCENE_END if current scene matches targetScene of CallFrame (Issue 104)', () => {
+    // Kịch bản: A calls B. B goto C. C reaches SCENE_END without explicit return.
+    // SCENE_END của C không được pop frame của B và return về A!
+    const program: Instruction[] = [
+      { type: 'SCENE', name: 'scene_a' },
+      { type: 'CALL', targetScene: 'scene_b' },
+      { type: 'DIALOGUE', character: 'sys', text: 'Back in scene A' },
+      { type: 'HALT' },
+      { type: 'SCENE_END', sceneName: 'scene_a' },
+
+      { type: 'SCENE', name: 'scene_b' },
+      { type: 'GOTO', targetScene: 'scene_c' },
+      { type: 'SCENE_END', sceneName: 'scene_b' },
+
+      { type: 'SCENE', name: 'scene_c' },
+      { type: 'DIALOGUE', character: 'sys', text: 'In scene C' },
+      { type: 'SCENE_END', sceneName: 'scene_c' },
+    ];
+
+    const vm = new VisualNovelVM(program);
+    const r1 = vm.runUntilInteractive();
+    expect(asDialogue(r1.stepResult).text).toBe('In scene C');
+    expect(vm.getState().currentScene).toBe('scene_c');
+    expect(vm.getState().callStack).toHaveLength(1);
+    expect(vm.getState().callStack[0]?.targetScene).toBe('scene_b');
+
+    // Chạy tiếp qua SCENE_END của scene_c
+    const r2 = vm.runUntilInteractive();
+    // Vì scene_c !== callStack[0].targetScene ('scene_b'), VM KHÔNG pop frame và KHÔNG return về scene_a.
+    // Thay vào đó chương trình kết thúc vì hết program.
+    expect(r2.stepResult.type).toBe('HALTED');
+    expect(vm.getState().currentScene).toBe('scene_c');
+  });
+
+  it('should evaluate modulo operator (%) correctly in expressions', () => {
+    const program: Instruction[] = [
+      { type: 'SCENE', name: 'math_test' },
+      {
+        type: 'ASSIGN',
+        variable: 'res',
+        scope: 'local',
+        value: {
+          type: 'BinaryExpression',
+          operator: '%',
+          left: { type: 'Literal', value: 25, raw: '25' },
+          right: { type: 'Literal', value: 7, raw: '7' },
+        },
+      },
+      { type: 'HALT' },
+      { type: 'SCENE_END', sceneName: 'math_test' },
+    ];
+
+    const vm = new VisualNovelVM(program);
+    vm.runUntilInteractive();
+    expect(vm.getState().localVariables['res']).toBe(4);
+  });
 });
 

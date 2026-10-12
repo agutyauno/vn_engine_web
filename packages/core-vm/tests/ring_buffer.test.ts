@@ -10,6 +10,7 @@ function createMockSnapshot(dialogueIndex: number, affection: number): VMSnapsho
     variables: { affection },
     characterDisplayOverrides: {},
     customScriptState: {},
+    localVariables: {},
   };
 
   return {

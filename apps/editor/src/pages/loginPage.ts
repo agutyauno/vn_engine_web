@@ -141,7 +141,7 @@ export class LoginPage {
         } else {
           const res = await this.authService.signUp(email, password);
           if (res.success) {
-            successMsg.textContent = 'Account created successfully! Check your email or sign in.';
+            successMsg.textContent = res.message || 'Account created successfully! Check your email to confirm registration.';
             successMsg.style.display = 'block';
             this.activeTab = 'signin';
             tabSignin?.classList.add('active');
@@ -151,8 +151,8 @@ export class LoginPage {
             errorMsg.style.display = 'block';
           }
         }
-      } catch (err: any) {
-        errorMsg.textContent = err.message || 'An unexpected error occurred.';
+      } catch (err: unknown) {
+        errorMsg.textContent = (err as Error)?.message || 'An unexpected error occurred.';
         errorMsg.style.display = 'block';
       } finally {
         submitBtn.disabled = false;

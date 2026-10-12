@@ -137,7 +137,7 @@ describe('Shared Types & Data Contracts', () => {
     });
   });
 
-  it('should cover all 15 standardized Instruction types with full properties and source locations', () => {
+  it('should cover all 16 standardized Instruction types with full properties and source locations', () => {
     const instructions: Instruction[] = [
       {
         type: 'SCENE',
@@ -310,6 +310,7 @@ describe('Shared Types & Data Contracts', () => {
       },
       characterDisplayOverrides: { alice: 'Alice', bob: 'Bóng Đen' },
       customScriptState: { minigameScore: '999' },
+      localVariables: {},
     };
 
     const snapshot: VMSnapshot = {
@@ -343,6 +344,7 @@ describe('Shared Types & Data Contracts', () => {
         variables: { score: 100 },
         characterDisplayOverrides: {},
         customScriptState: {},
+        localVariables: {},
       },
     };
 

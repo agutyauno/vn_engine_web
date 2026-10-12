@@ -36,6 +36,25 @@ import { parseExpression } from './expression';
 
 const BaseVNSVisitor = parserInstance.getBaseCstVisitorConstructor();
 
+function unescapeString(str: string): string {
+  return str.replace(/\\(\\|"|n|r|t)/g, (_, esc) => {
+    switch (esc) {
+      case '\\':
+        return '\\';
+      case '"':
+        return '"';
+      case 'n':
+        return '\n';
+      case 'r':
+        return '\r';
+      case 't':
+        return '\t';
+      default:
+        return esc;
+    }
+  });
+}
+
 export function cleanString(raw: string): string {
   if (raw.startsWith('"""') && raw.endsWith('"""') && raw.length >= 6) {
     let content = raw.slice(3, -3);
@@ -49,10 +68,10 @@ export function cleanString(raw: string): string {
     } else if (content.endsWith('\n')) {
       content = content.slice(0, -1);
     }
-    return content.replace(/\\"/g, '"').replace(/\\n/g, '\n');
+    return unescapeString(content);
   }
   if (raw.startsWith('"') && raw.endsWith('"')) {
-    return raw.slice(1, -1).replace(/\\"/g, '"').replace(/\\n/g, '\n');
+    return unescapeString(raw.slice(1, -1));
   }
   return raw;
 }
@@ -69,10 +88,12 @@ export function extractLocation(
   fileId: string = 'main.vns',
 ): SourceLocation | undefined {
   if (!token) return undefined;
+  const line = Number.isFinite(token.startLine) ? (token.startLine as number) : 1;
+  const col = Number.isFinite(token.startColumn) ? (token.startColumn as number) : 1;
   return {
     fileId,
-    line: token.startLine ?? 1,
-    col: token.startColumn ?? 1,
+    line,
+    col,
   };
 }
 
@@ -91,6 +112,24 @@ export class VNSAstBuilder extends BaseVNSVisitor {
 
   public setFileId(fileId: string) {
     this.currentFileId = fileId;
+  }
+
+  variableIdentifier(ctx: any): IToken {
+    const firstKey = Object.keys(ctx)[0];
+    return ctx[firstKey!][0];
+  }
+
+  sceneTarget(ctx: any): { targetScene: string; token: IToken } {
+    if (ctx.DotIdentifier && !ctx.Identifier && !ctx.NumberLiteral && !ctx.AlphanumericIdentifier) {
+      return { targetScene: ctx.DotIdentifier[0].image, token: ctx.DotIdentifier[0] };
+    }
+    const baseToken =
+      ctx.Identifier?.[0] ?? ctx.NumberLiteral?.[0] ?? ctx.AlphanumericIdentifier?.[0];
+    let name = baseToken.image;
+    if (ctx.DotIdentifier) {
+      name += ctx.DotIdentifier[0].image;
+    }
+    return { targetScene: name, token: baseToken };
   }
 
   program(ctx: any): ProgramAST {
@@ -191,8 +230,9 @@ export class VNSAstBuilder extends BaseVNSVisitor {
   }
 
   dialogueStatement(ctx: any): DialogueStatement {
-    if (ctx.Identifier) {
-      const charToken = ctx.Identifier[0];
+    const charNode = ctx.character?.[0] ?? ctx.variableIdentifier?.[0] ?? ctx.Identifier?.[0];
+    if (charNode) {
+      const charToken = charNode.image ? charNode : this.visit(charNode);
       let character: string | null = charToken.image;
       if (character === 'narrator') {
         character = null;
@@ -300,10 +340,15 @@ export class VNSAstBuilder extends BaseVNSVisitor {
   }
 
   showStatement(ctx: any): ShowStatement {
-    const charToken = ctx.Identifier[0];
+    const charNode = ctx.character?.[0] ?? ctx.variableIdentifier?.[0] ?? ctx.Identifier?.[0];
+    const charToken = charNode.image ? charNode : this.visit(charNode);
     let sprite = '';
     if (ctx.DotIdentifier) {
       sprite = ctx.DotIdentifier[0].image.slice(1);
+    } else if (ctx.sprite) {
+      const spriteNode = ctx.sprite[0];
+      const spriteToken = spriteNode.image ? spriteNode : this.visit(spriteNode);
+      sprite = spriteToken.image;
     } else if (ctx.Identifier && ctx.Identifier[1]) {
       sprite = ctx.Identifier[1].image;
     }
@@ -531,28 +576,48 @@ export class VNSAstBuilder extends BaseVNSVisitor {
   }
 
   gotoStatement(ctx: any): GotoStatement {
-    const targetToken =
-      ctx.DotIdentifier?.[0] ??
-      ctx.Identifier?.[0] ??
-      ctx.NumberLiteral?.[0] ??
-      ctx.AlphanumericIdentifier?.[0];
+    const targetInfo = ctx.sceneTarget
+      ? this.visit(ctx.sceneTarget[0])
+      : {
+          targetScene: (
+            ctx.DotIdentifier?.[0] ??
+            ctx.Identifier?.[0] ??
+            ctx.NumberLiteral?.[0] ??
+            ctx.AlphanumericIdentifier?.[0]
+          ).image,
+          token:
+            ctx.DotIdentifier?.[0] ??
+            ctx.Identifier?.[0] ??
+            ctx.NumberLiteral?.[0] ??
+            ctx.AlphanumericIdentifier?.[0],
+        };
     return {
       type: 'GotoStatement',
-      targetScene: targetToken.image,
-      loc: extractLocation(targetToken, this.currentFileId),
+      targetScene: targetInfo.targetScene,
+      loc: extractLocation(targetInfo.token, this.currentFileId),
     };
   }
 
   callStatement(ctx: any): CallStatement {
-    const targetToken =
-      ctx.DotIdentifier?.[0] ??
-      ctx.Identifier?.[0] ??
-      ctx.NumberLiteral?.[0] ??
-      ctx.AlphanumericIdentifier?.[0];
+    const targetInfo = ctx.sceneTarget
+      ? this.visit(ctx.sceneTarget[0])
+      : {
+          targetScene: (
+            ctx.DotIdentifier?.[0] ??
+            ctx.Identifier?.[0] ??
+            ctx.NumberLiteral?.[0] ??
+            ctx.AlphanumericIdentifier?.[0]
+          ).image,
+          token:
+            ctx.DotIdentifier?.[0] ??
+            ctx.Identifier?.[0] ??
+            ctx.NumberLiteral?.[0] ??
+            ctx.AlphanumericIdentifier?.[0],
+        };
     return {
       type: 'CallStatement',
-      targetScene: targetToken.image,
-      loc: extractLocation(targetToken, this.currentFileId),
+      targetScene: targetInfo.targetScene,
+      loc: extractLocation(targetInfo.token, this.currentFileId),
     };
   }
 
@@ -585,7 +650,12 @@ export class VNSAstBuilder extends BaseVNSVisitor {
 
     if (ctx.choiceOption) {
       for (const optCst of ctx.choiceOption) {
-        choices.push(this.visit(optCst));
+        const res = this.visit(optCst);
+        if (Array.isArray(res)) {
+          choices.push(...res);
+        } else if (res) {
+          choices.push(res);
+        }
       }
     }
 
@@ -597,7 +667,7 @@ export class VNSAstBuilder extends BaseVNSVisitor {
     };
   }
 
-  choiceOption(ctx: any): ChoiceOption {
+  choiceOption(ctx: any): ChoiceOption | ChoiceOption[] {
     let condition: any = undefined;
     if (ctx.If && ctx.condition) {
       const exprStr = this.visit(ctx.condition[0]);
@@ -605,28 +675,50 @@ export class VNSAstBuilder extends BaseVNSVisitor {
       condition = parseExpression(exprStr, loc);
     }
 
-    const direct = this.visit(ctx.choiceDirectOption[0]);
-    return {
-      text: direct.text,
-      action: direct.action,
-      targetScene: direct.targetScene,
-      condition,
-      loc: direct.loc,
-    };
+    if (ctx.choiceDirectOption) {
+      const results: ChoiceOption[] = [];
+      for (const directCst of ctx.choiceDirectOption) {
+        const direct = this.visit(directCst);
+        results.push({
+          text: direct.text,
+          action: direct.action,
+          targetScene: direct.targetScene,
+          condition,
+          loc: direct.loc,
+        });
+      }
+      return results.length === 1 ? results[0]! : results;
+    }
+    throw new Error('Invalid choice option');
   }
 
-  choiceDirectOption(ctx: any): { text: string; action: 'goto' | 'call'; targetScene: string; loc?: SourceLocation } {
+  choiceDirectOption(ctx: any): {
+    text: string;
+    action: 'goto' | 'call';
+    targetScene: string;
+    loc?: SourceLocation;
+  } {
     const textToken = ctx.StringLiteral[0];
-    const targetToken =
-      ctx.DotIdentifier?.[0] ??
-      ctx.Identifier?.[0] ??
-      ctx.NumberLiteral?.[0] ??
-      ctx.AlphanumericIdentifier?.[0];
+    const targetInfo = ctx.sceneTarget
+      ? this.visit(ctx.sceneTarget[0])
+      : {
+          targetScene: (
+            ctx.DotIdentifier?.[0] ??
+            ctx.Identifier?.[0] ??
+            ctx.NumberLiteral?.[0] ??
+            ctx.AlphanumericIdentifier?.[0]
+          ).image,
+          token:
+            ctx.DotIdentifier?.[0] ??
+            ctx.Identifier?.[0] ??
+            ctx.NumberLiteral?.[0] ??
+            ctx.AlphanumericIdentifier?.[0],
+        };
     const action: 'goto' | 'call' = ctx.Call ? 'call' : 'goto';
     return {
       text: cleanString(textToken.image),
       action,
-      targetScene: targetToken.image,
+      targetScene: targetInfo.targetScene,
       loc: extractLocation(textToken, this.currentFileId),
     };
   }
@@ -688,7 +780,9 @@ export class VNSAstBuilder extends BaseVNSVisitor {
   }
 
   varDefineStatement(ctx: any): VarDefineStatement {
-    const varToken = ctx.Identifier[0];
+    const varToken = ctx.variableIdentifier
+      ? this.visit(ctx.variableIdentifier[0])
+      : ctx.Identifier[0];
     const exprStr = this.visit(ctx.value[0]);
     const loc = extractLocation(ctx.Define[0], this.currentFileId);
     const value = parseExpression(exprStr, loc);
@@ -702,7 +796,9 @@ export class VNSAstBuilder extends BaseVNSVisitor {
   }
 
   varAssignStatement(ctx: any): VarAssignStatement {
-    const varToken = ctx.Identifier[0];
+    const varToken = ctx.variableIdentifier
+      ? this.visit(ctx.variableIdentifier[0])
+      : ctx.Identifier[0];
     const exprStr = this.visit(ctx.value[0]);
     const loc = extractLocation(ctx.Tilde[0], this.currentFileId);
     const value = parseExpression(exprStr, loc);

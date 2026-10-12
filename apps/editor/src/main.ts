@@ -23,6 +23,7 @@ import type {
   VarAssignStatement,
   IfStatement,
   WhileStatement,
+  InspectStatement,
 } from '@vn-engine/shared-types';
 import { registerVnsLanguage } from './vnsLanguage';
 import { registerVnsLanguageFeatures } from './vnsLanguageFeatures';
@@ -98,6 +99,7 @@ export class StudioApp {
 
   private activeFile: string = 'main.vns';
   private latestProgram: Instruction[] | null = null;
+  private isDirty: boolean = false;
   private popoutWindow: Window | null = null;
 
   // Bộ đệm Metadata từ AST để phục vụ Autocomplete & Go-To-Definition
@@ -249,8 +251,11 @@ export class StudioApp {
   private setFileContent(fileName: string, content: string): void {
     const f = this.project.files.find(item => item.name === fileName);
     if (f) {
-      f.content = content;
-      f.version = (f.version || 1) + 1;
+      if (f.content !== content) {
+        f.content = content;
+        f.version = (f.version || 1) + 1;
+        this.isDirty = true;
+      }
     } else {
       this.project.files.push({
         id: fileName,
@@ -259,11 +264,13 @@ export class StudioApp {
         order: this.project.files.length,
         version: 1,
       });
+      this.isDirty = true;
     }
   }
 
   private removeFile(fileName: string): void {
     this.project.files = this.project.files.filter(f => f.name !== fileName);
+    this.isDirty = true;
   }
 
   private renameFileKey(oldName: string, newName: string): void {
@@ -272,6 +279,7 @@ export class StudioApp {
       f.name = newName;
       f.id = newName;
       f.version = (f.version || 1) + 1;
+      this.isDirty = true;
     }
   }
 
@@ -393,23 +401,23 @@ export class StudioApp {
   // ================================================================
   private async loadProjectFromStorage(): Promise<void> {
     try {
-      const loaded = await this.repository.getProject('local_default_project');
-      if (loaded && Array.isArray(loaded.files) && loaded.files.length > 0) {
-        this.project = loaded;
-        if (!this.project.title) this.project.title = 'Academy Mystery';
-        if (!Array.isArray(this.project.characters)) this.project.characters = [];
-        if (!Array.isArray(this.project.assets)) this.project.assets = [];
-        const fileNames = this.project.files.map(f => f.name);
-        if (!fileNames.includes(this.activeFile)) {
-          this.activeFile = fileNames[0] ?? 'main.vns';
+      const projects = await this.repository.listProjects();
+      if (projects.length > 0 && projects[0]) {
+        const fullProj = await this.repository.getProject(projects[0].id);
+        if (fullProj && Array.isArray(fullProj.files) && fullProj.files.length > 0) {
+          this.project = fullProj;
+          const fileNames = this.project.files.map(f => f.name);
+          if (!fileNames.includes(this.activeFile)) {
+            this.activeFile = fileNames[0] ?? 'main.vns';
+          }
+          return;
         }
-        return;
       }
     } catch (e) {
-      console.warn('[StudioApp] Could not load project from IndexedDB:', e);
+      console.warn('[StudioApp] Could not load project from repository:', e);
     }
 
-    // Default initial project
+    // Default initial project in memory only (không tự động lưu vào storage tránh project ma)
     this.project = {
       id: 'local_default_project',
       title: 'Academy Mystery',
@@ -459,14 +467,21 @@ export class StudioApp {
       customScripts: [],
     };
     this.activeFile = 'main.vns';
-    await this.repository.saveProject(this.project);
   }
 
   public async loadProjectById(projectId: string): Promise<void> {
     if (this.editorDebounceTimerId !== null) {
       this.flushEditorChanges();
     }
-    await this.saveProjectToStorage();
+    if (
+      this.isDirty &&
+      this.project?.id &&
+      this.project.id !== projectId &&
+      this.project.id !== 'local_default_project'
+    ) {
+      await this.saveProjectToStorage();
+    }
+    this.isDirty = false;
 
     try {
       const loaded = await this.repository.getProject(projectId);
@@ -517,13 +532,16 @@ export class StudioApp {
       this.saveStatusPill.textContent = '● SAVING...';
       this.saveStatusPill.className = 'save-status-pill syncing';
 
-      this.project.version = (this.project.version || 1) + 1;
+      if (this.isDirty) {
+        this.project.version = (this.project.version || 1) + 1;
+      }
       await this.repository.saveProject(this.project);
+      this.isDirty = false;
 
       this.saveStatusPill.textContent = '● SAVED';
       this.saveStatusPill.className = 'save-status-pill';
     } catch (e) {
-      console.error('[StudioApp] Error saving to IndexedDB:', e);
+      console.error('[StudioApp] Error saving to storage:', e);
       this.saveStatusPill.textContent = '● SAVE ERROR';
       this.saveStatusPill.className = 'save-status-pill error';
     }
@@ -1153,8 +1171,11 @@ export class StudioApp {
 
       // Tạo markers gạch chân đỏ trên Monaco
       if (currentModel) {
+        const activeFileObj = this.project.files.find(f => f.name === this.activeFile);
+        const activeFileId = activeFileObj?.id;
+
         const markers: monaco.editor.IMarkerData[] = errors
-          .filter(err => !err.loc?.fileId || err.loc.fileId === this.activeFile)
+          .filter(err => !err.loc?.fileId || err.loc.fileId === this.activeFile || err.loc.fileId === activeFileId)
           .map(err => {
             const line = err.loc?.line ?? 1;
             const col = err.loc?.col ?? 1;
@@ -1177,7 +1198,9 @@ export class StudioApp {
         row.className = 'problem-row';
         const line = err.loc?.line ?? 1;
         const col = err.loc?.col ?? 1;
-        const file = err.loc?.fileId ? `[${err.loc.fileId}] ` : '';
+        const matchingFile = this.project.files.find(f => f.id === err.loc?.fileId || f.name === err.loc?.fileId);
+        const displayFileName = matchingFile ? matchingFile.name : (err.loc?.fileId || this.activeFile);
+        const file = `[${displayFileName}] `;
         row.textContent = `✕ ${file}Line ${line}, Col ${col}: ${err.message}`;
         row.addEventListener('click', () => {
           if (err.loc?.fileId && err.loc.fileId !== this.activeFile) {
@@ -1233,6 +1256,7 @@ export class StudioApp {
       for (const stmt of stmts) {
         if (stmt.type === 'ShowStatement') {
           const s = stmt as ShowStatement;
+          backgrounds.add(s.character);
           if (!characters.has(s.character)) {
             characters.set(s.character, { sprites: new Set() });
           }
@@ -1258,6 +1282,9 @@ export class StudioApp {
         } else if (stmt.type === 'BackgroundStatement') {
           const b = stmt as BackgroundStatement;
           backgrounds.add(b.assetId);
+        } else if (stmt.type === 'InspectStatement') {
+          const insp = stmt as InspectStatement;
+          backgrounds.add(insp.assetId);
         } else if (stmt.type === 'PlayStatement') {
           const p = stmt as PlayStatement;
           if (p.channel === 'music') musicAssets.add(p.assetId);
@@ -1297,10 +1324,12 @@ export class StudioApp {
       }
     };
 
-    if (ast.scenes) {
-      for (const [scName, sc] of Object.entries(ast.scenes)) {
-        scenesList.push(scName);
-        if (sc.body) traverse(sc.body, scName);
+    if (Array.isArray(ast.scenes)) {
+      for (const sc of ast.scenes) {
+        if (sc && sc.name) {
+          scenesList.push(sc.name);
+          if (sc.body) traverse(sc.body, sc.name);
+        }
       }
     }
 
@@ -2408,10 +2437,10 @@ export class StudioApp {
         window.location.origin,
       ];
 
-      if (
-        !allowedOrigins.includes(event.origin) &&
-        !event.origin.endsWith('.usercontent-platform.com')
-      ) {
+      const userContentRegex = /^https?:\/\/([a-zA-Z0-9-]+\.)*usercontent-platform\.com(:\d+)?$/;
+      const isAllowed = allowedOrigins.includes(event.origin) || userContentRegex.test(event.origin);
+
+      if (!isAllowed) {
         return;
       }
 

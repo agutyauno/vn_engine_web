@@ -22,6 +22,7 @@ import {
   type ShowStatement,
   type BackgroundStatement,
   type SourceLocation,
+  type ExpressionAST,
 } from '@vn-engine/shared-types';
 
 export interface CompileError {
@@ -91,6 +92,58 @@ function checkInterpolatedVariables(
           });
         }
       }
+    }
+  }
+}
+
+const ALLOWED_EXPR_FUNCTIONS = new Set(['has_item', 'get_script_result']);
+const BUILTIN_EXPR_IDENTIFIERS = new Set(['true', 'false', 'null', 'undefined']);
+
+function validateExpressionAST(
+  expr: ExpressionAST | undefined,
+  globals: Set<string>,
+  sceneLocals: Set<string>,
+  sceneName: string,
+  loc: SourceLocation | undefined,
+  errors: CompileError[],
+) {
+  if (!expr) return;
+
+  switch (expr.type) {
+    case 'Identifier': {
+      if (!BUILTIN_EXPR_IDENTIFIERS.has(expr.name)) {
+        if (!globals.has(expr.name) && !sceneLocals.has(expr.name)) {
+          errors.push({
+            message: `Variable '${expr.name}' in expression has not been defined in scene '${sceneName}'.`,
+            loc,
+          });
+        }
+      }
+      break;
+    }
+    case 'BinaryExpression': {
+      validateExpressionAST(expr.left, globals, sceneLocals, sceneName, loc, errors);
+      validateExpressionAST(expr.right, globals, sceneLocals, sceneName, loc, errors);
+      break;
+    }
+    case 'UnaryExpression': {
+      validateExpressionAST(expr.argument, globals, sceneLocals, sceneName, loc, errors);
+      break;
+    }
+    case 'CallExpression': {
+      if (!ALLOWED_EXPR_FUNCTIONS.has(expr.callee.name)) {
+        errors.push({
+          message: `Unknown function '${expr.callee.name}' called in expression. Allowed functions: ${Array.from(ALLOWED_EXPR_FUNCTIONS).join(', ')}.`,
+          loc,
+        });
+      }
+      for (const arg of expr.arguments) {
+        validateExpressionAST(arg, globals, sceneLocals, sceneName, loc, errors);
+      }
+      break;
+    }
+    case 'Literal': {
+      break;
     }
   }
 }
@@ -208,6 +261,7 @@ export function validateSemantics(ast: ProgramAST): CompileError[] {
             loc: def.loc,
           });
         }
+        validateExpressionAST(def.value, globals, new Set<string>(), 'top-level', def.loc, errors);
         globals.add(def.variable);
       }
     }
@@ -274,6 +328,9 @@ export function validateSemantics(ast: ProgramAST): CompileError[] {
         const ch = stmt as ChoiceStatement;
         for (const opt of ch.choices) {
           checkInterpolatedVariables(opt.text, globals, sceneLocals, sceneName, opt.loc, errors);
+          if (opt.condition) {
+            validateExpressionAST(opt.condition, globals, sceneLocals, sceneName, opt.loc, errors);
+          }
           if (!definedSceneNames.has(opt.targetScene)) {
             errors.push({
               message: `Choice "${opt.text}" points to non-existent scene: "${opt.targetScene}".`,
@@ -283,6 +340,7 @@ export function validateSemantics(ast: ProgramAST): CompileError[] {
         }
       } else if (stmt.type === 'VarDefineStatement') {
         const def = stmt as VarDefineStatement;
+        validateExpressionAST(def.value, globals, sceneLocals, sceneName, def.loc, errors);
         if (globals.has(def.variable)) {
           errors.push({
             message: `Variable '${def.variable}' is already declared as global (at top-level). Cannot reuse '${def.variable}' as a local variable in scene '${sceneName}'.`,
@@ -298,6 +356,7 @@ export function validateSemantics(ast: ProgramAST): CompileError[] {
         }
       } else if (stmt.type === 'VarAssignStatement') {
         const va = stmt as VarAssignStatement;
+        validateExpressionAST(va.value, globals, sceneLocals, sceneName, va.loc, errors);
         if (!globals.has(va.variable) && !sceneLocals.has(va.variable)) {
           errors.push({
             message: `Variable '${va.variable}' must be declared before assignment in scene '${sceneName}'. Please use 'define ${va.variable} = ...' first.`,
@@ -306,6 +365,7 @@ export function validateSemantics(ast: ProgramAST): CompileError[] {
         }
       } else if (stmt.type === 'IfStatement') {
         const ifStmt = stmt as IfStatement;
+        validateExpressionAST(ifStmt.condition, globals, sceneLocals, sceneName, ifStmt.loc, errors);
         checkStatements(sceneName, ifStmt.consequent, sceneLocals);
         if (Array.isArray(ifStmt.alternate)) {
           checkStatements(sceneName, ifStmt.alternate, sceneLocals);
@@ -314,6 +374,7 @@ export function validateSemantics(ast: ProgramAST): CompileError[] {
         }
       } else if (stmt.type === 'WhileStatement') {
         const wh = stmt as WhileStatement;
+        validateExpressionAST(wh.condition, globals, sceneLocals, sceneName, wh.loc, errors);
         checkStatements(sceneName, wh.body, sceneLocals);
       } else if (stmt.type === 'InspectStatement') {
         const ins = stmt as InspectStatement;

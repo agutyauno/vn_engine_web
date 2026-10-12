@@ -405,7 +405,7 @@ function formatStatement(trimmedCode: string): string {
 
   // Play: play <channel> "<asset>" [params]
   const playMatch = trimmedCode.match(
-    /^play\s+(music|sound|voice)\s+("([^"\\]|\\.)*")(?:\s+(.+))?$/,
+    /^play\s+([a-zA-Z0-9_]+)\s+("([^"\\]|\\.)*")(?:\s+(.+))?$/,
   );
   if (playMatch && playMatch[1] && playMatch[2]) {
     const channel = playMatch[1];
@@ -424,7 +424,7 @@ function formatStatement(trimmedCode: string): string {
 
   // Stop: stop <channel> [fade_out: duration]
   const stopMatch = trimmedCode.match(
-    /^stop\s+(music|sound|voice)(?:\s+(?:fade_out|fadeOut):\s*([0-9]+(?:\.[0-9]+)?s?))?$/,
+    /^stop\s+([a-zA-Z0-9_]+)(?:\s+(?:fade_out|fadeOut):\s*([0-9]+(?:\.[0-9]+)?s?))?$/,
   );
   if (stopMatch && stopMatch[1]) {
     const channel = stopMatch[1];
@@ -437,6 +437,24 @@ function formatStatement(trimmedCode: string): string {
 
   // Fallback an toàn: giữ nguyên nội dung code gốc (chỉ loại bỏ khoảng trắng thừa 2 đầu)
   return trimmedCode;
+}
+
+function countTripleQuotes(line: string): number {
+  let count = 0;
+  let idx = 0;
+  while ((idx = line.indexOf('"""', idx)) !== -1) {
+    let backslashCount = 0;
+    let b = idx - 1;
+    while (b >= 0 && line[b] === '\\') {
+      backslashCount++;
+      b--;
+    }
+    if (backslashCount % 2 === 0) {
+      count++;
+    }
+    idx += 3;
+  }
+  return count;
 }
 
 /**
@@ -455,9 +473,21 @@ export function formatVns(source: string, options?: VnsFormatOptions): string {
 
   let currentIndent = 0;
   let consecutiveBlankLines = 0;
+  let inMultilineString = false;
 
   for (let i = 0; i < rawLines.length; i++) {
     const rawLine = rawLines[i] ?? '';
+
+    // Nếu đang trong chuỗi nhiều dòng """...""", giữ nguyên 100% dòng hiện tại
+    if (inMultilineString) {
+      resultLines.push(rawLine);
+      const quotes = countTripleQuotes(rawLine);
+      if (quotes % 2 === 1) {
+        inMultilineString = false;
+      }
+      continue;
+    }
+
     const trimmedRaw = rawLine.trim();
 
     // 1. Xử lý dòng trống
@@ -471,6 +501,18 @@ export function formatVns(source: string, options?: VnsFormatOptions): string {
     }
 
     consecutiveBlankLines = 0;
+
+    // Kiểm tra nếu dòng này bắt đầu một multiline string (số lượng """ là lẻ)
+    const tripleQuotesInLine = countTripleQuotes(rawLine);
+    if (tripleQuotesInLine % 2 === 1) {
+      const { opens, closes, startsWithClose } = countBracesOutsideStrings(rawLine);
+      const lineIndent = startsWithClose ? Math.max(0, currentIndent - 1) : currentIndent;
+      const indentPrefix = useTabs ? '\t'.repeat(lineIndent) : ' '.repeat(lineIndent * indentSize);
+      resultLines.push(`${indentPrefix}${trimmedRaw}`);
+      inMultilineString = true;
+      currentIndent = Math.max(0, currentIndent + (opens - closes));
+      continue;
+    }
 
     // 2. Tách Code và Comment
     const { code, comment } = splitCodeAndComment(rawLine);

@@ -48,6 +48,17 @@ scene start {
 }
 `;
 
+export function generateUUID(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 export class IndexedDBProjectRepository implements IProjectRepository {
   private dbPromise: Promise<IDBDatabase> | null = null;
 
@@ -164,7 +175,7 @@ export class IndexedDBProjectRepository implements IProjectRepository {
   }
 
   public async createProject(title: string, ownerId: string = 'local_guest'): Promise<Project> {
-    const newId = 'proj_' + Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
+    const newId = generateUUID();
     const newProject: Project = {
       id: newId,
       title: title.trim() || 'Untitled Project',

@@ -7,6 +7,15 @@ import type { Project } from '@vn-engine/shared-types';
 import type { IProjectRepository } from '../repository/projectRepository';
 import { AuthService } from '../services/authService';
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export class ProjectsPage {
   private container: HTMLElement;
   private repository: IProjectRepository;
@@ -54,7 +63,7 @@ export class ProjectsPage {
           <div class="nav-right">
             <div class="user-session-badge ${isGuest ? 'guest' : 'cloud'}">
               <span class="user-dot">●</span>
-              <span class="user-label">${userLabel}</span>
+              <span class="user-label">${escapeHtml(userLabel)}</span>
             </div>
             <button class="wf-btn btn-sm btn-logout" id="btn-projects-signout" title="Sign out of studio">
               Sign Out
@@ -136,7 +145,7 @@ export class ProjectsPage {
         </div>
 
         <div class="project-card-body">
-          <h3 class="project-card-title">${project.title}</h3>
+          <h3 class="project-card-title">${escapeHtml(project.title)}</h3>
           <div class="project-card-meta">
             <span>📄 ${fileCount} script ${fileCount === 1 ? 'chapter' : 'chapters'}</span>
             <span>🌐 ${project.defaultLanguage.toUpperCase()}</span>

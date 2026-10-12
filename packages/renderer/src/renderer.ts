@@ -67,6 +67,7 @@ export class GameRenderer {
   private activeCharacters: Map<string, ManagedCharacter> = new Map();
   private currentBackgroundId: string | null = null;
   private currentBackgroundSprite: Sprite | null = null;
+  private placeholderTextures: Map<string, Texture> = new Map();
 
   private isInitialized = false;
 
@@ -92,6 +93,7 @@ export class GameRenderer {
       antialias: options?.antialias ?? true,
       autoDensity: true,
       resolution: typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1,
+      preserveDrawingBuffer: true,
     });
 
     // Thêm các tầng theo đúng thứ tự hiển thị: Nền -> Nhân vật
@@ -192,6 +194,12 @@ export class GameRenderer {
     if (this.currentBackgroundId === assetId && this.currentBackgroundSprite) {
       // Cùng ảnh nền: nếu có yêu cầu biến đổi (zoom/pan/rotate), thực hiện chuyển đổi mượt mà
       const sprite = this.currentBackgroundSprite;
+      const texWidth = sprite.texture.width || this.baseWidth;
+      const texHeight = sprite.texture.height || this.baseHeight;
+      const baseCoverScale = Math.max(this.baseWidth / texWidth, this.baseHeight / texHeight);
+      const destScaleX = baseCoverScale * targetScaleX;
+      const destScaleY = baseCoverScale * targetScaleY;
+
       const startX = sprite.x;
       const startY = sprite.y;
       const startScaleX = sprite.scale.x;
@@ -201,8 +209,8 @@ export class GameRenderer {
 
       const deltaX = targetX - startX;
       const deltaY = targetY - startY;
-      const deltaScaleX = targetScaleX - startScaleX;
-      const deltaScaleY = targetScaleY - startScaleY;
+      const deltaScaleX = destScaleX - startScaleX;
+      const deltaScaleY = destScaleY - startScaleY;
       const deltaRot = targetRotation - startRot;
       const deltaAlpha = targetAlpha - startAlpha;
 
@@ -225,8 +233,8 @@ export class GameRenderer {
           } else {
             sprite.x = targetX;
             sprite.y = targetY;
-            sprite.scale.x = targetScaleX;
-            sprite.scale.y = targetScaleY;
+            sprite.scale.x = destScaleX;
+            sprite.scale.y = destScaleY;
             sprite.rotation = targetRotation;
             sprite.alpha = targetAlpha;
           }
@@ -235,8 +243,8 @@ export class GameRenderer {
       } else {
         sprite.x = targetX;
         sprite.y = targetY;
-        sprite.scale.x = targetScaleX;
-        sprite.scale.y = targetScaleY;
+        sprite.scale.x = destScaleX;
+        sprite.scale.y = destScaleY;
         sprite.rotation = targetRotation;
         sprite.alpha = targetAlpha;
       }
@@ -244,14 +252,18 @@ export class GameRenderer {
     }
 
     const texture = await this.resolveOrGenerateBackgroundTexture(assetId, assetResolver);
+    const texWidth = texture.width || this.baseWidth;
+    const texHeight = texture.height || this.baseHeight;
+    const baseCoverScale = Math.max(this.baseWidth / texWidth, this.baseHeight / texHeight);
+    const finalScaleX = baseCoverScale * targetScaleX;
+    const finalScaleY = baseCoverScale * targetScaleY;
+
     const newSprite = new Sprite(texture);
     newSprite.anchor.set(0.5, 0.5);
     newSprite.x = targetX;
     newSprite.y = targetY;
-    newSprite.width = this.baseWidth;
-    newSprite.height = this.baseHeight;
-    newSprite.scale.x *= targetScaleX;
-    newSprite.scale.y *= targetScaleY;
+    newSprite.scale.x = finalScaleX;
+    newSprite.scale.y = finalScaleY;
     newSprite.rotation = targetRotation;
     newSprite.alpha = targetAlpha;
 
@@ -273,8 +285,8 @@ export class GameRenderer {
           newSprite.alpha = targetAlpha * progress;
           oldSprite.alpha = 1 - progress;
           const currentZoom = 1.1 - 0.1 * ease;
-          newSprite.scale.x = targetScaleX * currentZoom;
-          newSprite.scale.y = targetScaleY * currentZoom;
+          newSprite.scale.x = finalScaleX * currentZoom;
+          newSprite.scale.y = finalScaleY * currentZoom;
         } else if (trans === 'slide' || trans === 'slide_left') {
           newSprite.alpha = targetAlpha;
           oldSprite.x = targetX - this.baseWidth * ease;
@@ -311,8 +323,8 @@ export class GameRenderer {
         } else {
           newSprite.x = targetX;
           newSprite.y = targetY;
-          newSprite.scale.x = targetScaleX;
-          newSprite.scale.y = targetScaleY;
+          newSprite.scale.x = finalScaleX;
+          newSprite.scale.y = finalScaleY;
           newSprite.alpha = targetAlpha;
           this.backgroundContainer.removeChild(oldSprite);
           oldSprite.destroy();
@@ -635,6 +647,7 @@ export class GameRenderer {
   public async syncStateCatchUp(
     catchUp: CatchUpVisualState,
     assetResolver?: AssetGraphicResolver,
+    isPropChecker?: (characterId: string) => boolean,
   ): Promise<void> {
     // 1. Đồng bộ Background tức thì
     if (catchUp.background) {
@@ -657,7 +670,8 @@ export class GameRenderer {
 
     // 3. Đặt lại vị trí và texture của những nhân vật cần hiển thị
     for (const [charId, showInstr] of catchUp.sprites.entries()) {
-      const coords = resolveCharacterPlacement(showInstr, this.baseWidth, this.baseHeight);
+      const isProp = isPropChecker?.(charId) ?? false;
+      const coords = resolveCharacterPlacement(showInstr, this.baseWidth, this.baseHeight, isProp);
       const { scaleX: targetScaleX, scaleY: targetScaleY } = computeTargetScale(
         showInstr.scale,
         showInstr.scaleX,
@@ -672,12 +686,14 @@ export class GameRenderer {
         charId,
         showInstr.sprite,
         assetResolver,
+        isProp,
       );
 
       const existing = this.activeCharacters.get(charId);
       if (existing) {
         if (existing.cancelAnimation) existing.cancelAnimation();
         existing.sprite.texture = texture;
+        existing.sprite.anchor.set(0.5, isProp ? 0.5 : 1.0);
         existing.currentSpriteId = showInstr.sprite;
         existing.container.x = coords.x;
         existing.container.y = coords.y;
@@ -703,7 +719,7 @@ export class GameRenderer {
         container.alpha = targetAlpha;
 
         const sprite = new Sprite(texture);
-        sprite.anchor.set(0.5, 1.0);
+        sprite.anchor.set(0.5, isProp ? 0.5 : 1.0);
         container.addChild(sprite);
 
         this.characterContainer.addChild(container);
@@ -759,6 +775,10 @@ export class GameRenderer {
         // Fallback về phác thảo nếu tải ảnh thất bại
       }
     }
+
+    const cacheKey = `bg_${assetId}_${this.baseWidth}_${this.baseHeight}`;
+    const cached = this.placeholderTextures.get(cacheKey);
+    if (cached) return cached;
 
     // Sinh Texture Canvas Wireframe đơn sắc chuẩn Swiss
     if (typeof document === 'undefined') {
@@ -840,7 +860,9 @@ export class GameRenderer {
       badgeY + 52,
     );
 
-    return Texture.from(canvas);
+    const generated = Texture.from(canvas);
+    this.placeholderTextures.set(cacheKey, generated);
+    return generated;
   }
 
   /**
@@ -863,6 +885,10 @@ export class GameRenderer {
         // Fallback về wireframe silhouette
       }
     }
+
+    const cacheKey = `char_${characterId}_${spriteId}_${isProp}`;
+    const cached = this.placeholderTextures.get(cacheKey);
+    if (cached) return cached;
 
     if (typeof document === 'undefined') {
       return Texture.WHITE;
@@ -904,7 +930,9 @@ export class GameRenderer {
       ctx.font = '500 14px monospace';
       ctx.fillText('// ASSET IMAGE', w / 2, h / 2 + 10);
 
-      return Texture.from(canvas);
+      const propTex = Texture.from(canvas);
+      this.placeholderTextures.set(cacheKey, propTex);
+      return propTex;
     }
 
     const w = 320;
@@ -988,7 +1016,9 @@ export class GameRenderer {
     ctx.textAlign = 'center';
     ctx.fillText('CHAR // WIREFRAME MANNEQUIN', w / 2, h - 20);
 
-    return Texture.from(canvas);
+    const charTex = Texture.from(canvas);
+    this.placeholderTextures.set(cacheKey, charTex);
+    return charTex;
   }
 
   /**
@@ -996,6 +1026,14 @@ export class GameRenderer {
    */
   public destroy(): void {
     this.activeCharacters.clear();
+    for (const tex of this.placeholderTextures.values()) {
+      try {
+        tex.destroy(true);
+      } catch {
+        // Bỏ qua lỗi destroy trên texture đã được giải phóng
+      }
+    }
+    this.placeholderTextures.clear();
     try {
       this.app.destroy(true, { children: true, texture: true });
     } catch {

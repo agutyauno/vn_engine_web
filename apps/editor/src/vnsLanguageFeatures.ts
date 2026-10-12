@@ -628,11 +628,12 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): void {
 
       // Tìm kiếm trong toàn bộ các tệp của dự án
       const files = context.getFiles();
+      const escapedTarget = targetWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       for (const [fileName, content] of Object.entries(files)) {
         const lines = content.split('\n');
         for (let i = 0; i < lines.length; i++) {
           const lineStr = lines[i] ?? '';
-          const match = lineStr.match(new RegExp(`^\\s*scene\\s+${targetWord}\\s*:`));
+          const match = lineStr.match(new RegExp(`^\\s*scene\\s+${escapedTarget}\\s*(\\{|$)`));
           if (match) {
             const targetUri = monaco.Uri.parse(`inmemory://project/${fileName}`);
             return {

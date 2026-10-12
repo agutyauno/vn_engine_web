@@ -5,7 +5,7 @@
 
 import type { Project, ScriptFile } from '@vn-engine/shared-types';
 import type { IProjectRepository } from './projectRepository';
-import { DEFAULT_STARTER_SCRIPT, IndexedDBProjectRepository } from './projectRepository';
+import { DEFAULT_STARTER_SCRIPT, IndexedDBProjectRepository, generateUUID } from './projectRepository';
 import { AuthService } from '../services/authService';
 
 export class SupabaseProjectRepository implements IProjectRepository {
@@ -135,7 +135,7 @@ export class SupabaseProjectRepository implements IProjectRepository {
 
     try {
       // Upsert project header (metadata level versioning only - ADR-011)
-      await supabase.from('projects').upsert({
+      const { error: pError } = await supabase.from('projects').upsert({
         id: project.id,
         owner_id: ownerId,
         title: project.title,
@@ -147,8 +147,27 @@ export class SupabaseProjectRepository implements IProjectRepository {
         updated_at: new Date().toISOString(),
       });
 
-      // Upsert script files
+      if (pError) {
+        throw new Error(`Cloud project sync failed: ${pError.message}`);
+      }
+
+      // Upsert script files & sync deleted files
       if (project.files && project.files.length > 0) {
+        const activeFileNames = project.files.map(f => f.name);
+        const { data: existingDbFiles } = await supabase
+          .from('script_files')
+          .select('id, name')
+          .eq('project_id', project.id);
+
+        if (existingDbFiles && existingDbFiles.length > 0) {
+          const staleIds = existingDbFiles
+            .filter(dbFile => !activeFileNames.includes(dbFile.name))
+            .map(dbFile => dbFile.id);
+          if (staleIds.length > 0) {
+            await supabase.from('script_files').delete().in('id', staleIds);
+          }
+        }
+
         for (const file of project.files) {
           await supabase.from('script_files').upsert({
             project_id: project.id,
@@ -194,6 +213,7 @@ export class SupabaseProjectRepository implements IProjectRepository {
       }
     } catch (err) {
       console.error('[SupabaseProjectRepository] Error saving to cloud:', err);
+      throw err;
     }
   }
 
@@ -270,10 +290,12 @@ export class SupabaseProjectRepository implements IProjectRepository {
 
     const supabase = this.authService.getSupabaseClient()!;
     try {
+      const newProjectId = generateUUID();
       // Insert new project record
       const { data: newRow, error } = await supabase
         .from('projects')
         .insert({
+          id: newProjectId,
           title: title.trim() || 'Untitled Project',
           owner_id: finalOwnerId,
           version: 1,

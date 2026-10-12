@@ -115,6 +115,7 @@ export const Plus = createToken({ name: 'Plus', pattern: /\+/ });
 export const Minus = createToken({ name: 'Minus', pattern: /-/ });
 export const Star = createToken({ name: 'Star', pattern: /\*/ });
 export const Slash = createToken({ name: 'Slash', pattern: /\// });
+export const Percent = createToken({ name: 'Percent', pattern: /%/ });
 export const Less = createToken({ name: 'Less', pattern: /</ });
 export const Greater = createToken({ name: 'Greater', pattern: />/ });
 export const Exclamation = createToken({ name: 'Exclamation', pattern: /!/ });
@@ -213,6 +214,7 @@ export const allTokens: TokenType[] = [
   Minus,
   Star,
   Slash,
+  Percent,
   Less,
   Greater,
   Exclamation,

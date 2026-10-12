@@ -10,6 +10,14 @@ export interface ExpressionParseResult {
   error?: string;
 }
 
+const ALLOWED_BINARY_OPS = new Set([
+  '+', '-', '*', '/', '%',
+  '==', '!=', '<', '<=', '>', '>=',
+  '&&', '||',
+]);
+
+const ALLOWED_UNARY_OPS = new Set(['!', '-', '+']);
+
 /**
  * Chuyển đổi cây cú pháp của jsep sang ExpressionAST chuẩn của Engine
  */
@@ -35,6 +43,11 @@ function convertJsepNode(node: jsep.Expression): ExpressionAST {
     case 'LogicalExpression':
     case 'BinaryExpression': {
       const bin = node as jsep.BinaryExpression;
+      if (!ALLOWED_BINARY_OPS.has(bin.operator)) {
+        throw new Error(
+          `Unsupported operator "${bin.operator}" in expression. Only standard arithmetic, comparison, and logical operators are allowed.`,
+        );
+      }
       return {
         type: 'BinaryExpression',
         operator: bin.operator,
@@ -45,6 +58,9 @@ function convertJsepNode(node: jsep.Expression): ExpressionAST {
 
     case 'UnaryExpression': {
       const un = node as jsep.UnaryExpression;
+      if (!ALLOWED_UNARY_OPS.has(un.operator)) {
+        throw new Error(`Unsupported unary operator "${un.operator}" in expression.`);
+      }
       return {
         type: 'UnaryExpression',
         operator: un.operator,

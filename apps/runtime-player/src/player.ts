@@ -51,11 +51,16 @@ export class VNPlayer {
 
   // Dữ liệu dự án được cập nhật từ Studio (Characters & Assets)
   private projectData: {
+    id?: string;
     characters?: Character[];
     assets?: AssetRef[];
   } = {};
 
-  public updateProjectData(data: { characters?: Character[]; assets?: AssetRef[] }): void {
+  public updateProjectData(data: { id?: string; characters?: Character[]; assets?: AssetRef[] }): void {
+    if (data.id) {
+      this.projectData.id = data.id;
+      GameStorage.setProjectId(data.id);
+    }
     if (data.characters) this.projectData.characters = data.characters;
     if (data.assets) this.projectData.assets = data.assets;
   }
@@ -96,6 +101,7 @@ export class VNPlayer {
 
   private activeModalMode: 'save' | 'load' = 'save';
   private currentDialogueInstruction: DialogueInstruction | null = null;
+  private isAdvancing: boolean = false;
 
   // Cinematic Inspect Modal
   private inspectModal: HTMLElement;
@@ -106,9 +112,28 @@ export class VNPlayer {
 
   constructor(program: Instruction[]) {
     this.initialProgram = program;
+
+    if (typeof window !== 'undefined' && window.location?.search) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const pid = urlParams.get('projectId') || urlParams.get('project');
+      if (pid) {
+        this.projectData.id = pid;
+        GameStorage.setProjectId(pid);
+      }
+    }
+
     this.vm = new VisualNovelVM(program, undefined, {
       customFunctions: {
-        has_item: (item: unknown) => item === 'flower',
+        has_item: (item: unknown) => {
+          const state = this.vm.getState();
+          const itemName = String(item).toLowerCase();
+          const inventory = state.variables['inventory'];
+          if (Array.isArray(inventory)) {
+            if (inventory.some(i => String(i).toLowerCase() === itemName)) return true;
+          }
+          if (state.variables[`has_${itemName}`] === true) return true;
+          return itemName === 'flower';
+        },
       },
       emptyCallStackBehavior: 'halt',
     });
@@ -611,108 +636,209 @@ export class VNPlayer {
     void this.advance();
   }
 
+  private getAssetGraphicResolver(): (assetKey: string) => string | undefined {
+    return (assetKey: string) => {
+      const foundAsset = this.projectData.assets?.find(
+        a =>
+          a.name.toLowerCase() === assetKey.toLowerCase() ||
+          a.id.toLowerCase() === assetKey.toLowerCase(),
+      );
+      if (foundAsset?.storageUrl) return foundAsset.storageUrl;
+
+      const underscoreIdx = assetKey.indexOf('_');
+      if (underscoreIdx !== -1) {
+        const charId = assetKey.slice(0, underscoreIdx);
+        const spriteId = assetKey.slice(underscoreIdx + 1);
+        const charDef = this.projectData.characters?.find(
+          c => c.id.toLowerCase() === charId.toLowerCase(),
+        );
+        if (charDef?.sprites) {
+          const spriteImg =
+            charDef.sprites[spriteId] ||
+            charDef.sprites['default'] ||
+            Object.values(charDef.sprites)[0];
+          if (spriteImg) {
+            if (
+              spriteImg.startsWith('data:') ||
+              spriteImg.startsWith('http') ||
+              spriteImg.startsWith('/') ||
+              spriteImg.startsWith('.')
+            ) {
+              return spriteImg;
+            }
+            const refAsset = this.projectData.assets?.find(
+              a => a.name === spriteImg || a.id === spriteImg,
+            );
+            if (refAsset?.storageUrl) return refAsset.storageUrl;
+          }
+        }
+      } else {
+        const charDef = this.projectData.characters?.find(
+          c => c.id.toLowerCase() === assetKey.toLowerCase(),
+        );
+        if (charDef?.sprites) {
+          const spriteImg = charDef.sprites['default'] || Object.values(charDef.sprites)[0];
+          if (spriteImg) {
+            if (
+              spriteImg.startsWith('data:') ||
+              spriteImg.startsWith('http') ||
+              spriteImg.startsWith('/') ||
+              spriteImg.startsWith('.')
+            ) {
+              return spriteImg;
+            }
+            const refAsset = this.projectData.assets?.find(
+              a => a.name === spriteImg || a.id === spriteImg,
+            );
+            if (refAsset?.storageUrl) return refAsset.storageUrl;
+          }
+        }
+      }
+      return undefined;
+    };
+  }
+
+  private getAssetAudioResolver(): (assetKey: string) => string {
+    return (assetKey: string) => {
+      const found = this.projectData.assets?.find(
+        a =>
+          a.name.toLowerCase() === assetKey.toLowerCase() ||
+          a.id.toLowerCase() === assetKey.toLowerCase(),
+      );
+      return found?.storageUrl || assetKey;
+    };
+  }
+
+  private checkIsProp(characterId: string): boolean {
+    const isChar = this.projectData.characters?.some(
+      c => c.id.toLowerCase() === characterId.toLowerCase(),
+    );
+    if (isChar) return false;
+    return Boolean(
+      this.projectData.assets?.some(
+        a =>
+          a.name.toLowerCase() === characterId.toLowerCase() ||
+          a.id.toLowerCase() === characterId.toLowerCase(),
+      ),
+    );
+  }
+
   /**
    * Tiến máy ảo tới điểm tương tác tiếp theo
    */
   public async advance(): Promise<void> {
-    this.clearAutoTimer();
-    this.clearWaitTimer();
+    if (this.isAdvancing) return;
+    this.isAdvancing = true;
 
-    let runResult: RunResult;
     try {
-      runResult = this.vm.runUntilInteractive();
-    } catch (err: unknown) {
-      this.handleRuntimeError(err);
-      return;
-    }
+      this.clearAutoTimer();
+      this.clearWaitTimer();
 
-    // 1. Thực thi các side-effects tích lũy dọc đường (chuyển cảnh, hiện sprite, âm thanh)
-    for (const sideEffect of runResult.sideEffects) {
-      await this.applySideEffect(sideEffect);
-    }
-
-    // 2. Xử lý kết quả dừng
-    const step = runResult.stepResult;
-
-    if (step.type === 'SUSPEND_DIALOGUE') {
-      const instr = step.instruction as DialogueInstruction;
-      this.currentDialogueInstruction = instr;
-
-      // Hỗ trợ Custom UI Theme cấp phân cảnh
-      if (instr.uiScreenId) {
-        this.gameRoot.className = `ui-skin-${instr.uiScreenId}`;
-      } else {
-        this.gameRoot.className = '';
+      let runResult: RunResult;
+      try {
+        runResult = this.vm.runUntilInteractive();
+      } catch (err: unknown) {
+        this.handleRuntimeError(err);
+        return;
       }
 
-      const hasText = Boolean(instr.text && instr.text.trim().length > 0);
-      if (!hasText) {
-        // Tự động ẩn hộp thoại khi không có nội dung thoại
+      // 1. Thực thi các side-effects tích lũy dọc đường (chuyển cảnh, hiện sprite, âm thanh)
+      for (const sideEffect of runResult.sideEffects) {
+        await this.applySideEffect(sideEffect);
+      }
+
+      // 2. Xử lý kết quả dừng
+      const step = runResult.stepResult;
+
+      if (step.type === 'SUSPEND_DIALOGUE') {
+        const instr = step.instruction as DialogueInstruction;
+        this.currentDialogueInstruction = instr;
+
+        // Hỗ trợ Custom UI Theme cấp phân cảnh
+        if (instr.uiScreenId) {
+          this.gameRoot.className = `ui-skin-${instr.uiScreenId}`;
+        } else {
+          this.gameRoot.className = '';
+        }
+
+        const hasText = Boolean(instr.text && instr.text.trim().length > 0);
+        if (!hasText) {
+          // Tự động ẩn hộp thoại khi không có nội dung thoại
+          this.dialogueBox.classList.add('hidden');
+          this.speakerNameplate.classList.add('hidden');
+        } else {
+          this.dialogueBox.classList.remove('hidden');
+
+          // Cập nhật Nameplate
+          let speakerDisplay = instr.character;
+          if (instr.character) {
+            const vmState = this.vm.getState();
+            speakerDisplay =
+              vmState.characterDisplayOverrides[instr.character] ??
+              instr.displayNameOverride ??
+              instr.character;
+          }
+
+          if (speakerDisplay) {
+            const charKey = speakerDisplay.toUpperCase();
+            const declaredChar = this.projectData.characters?.find(
+              c =>
+                (instr.character && c.id.toLowerCase() === instr.character.toLowerCase()) ||
+                c.name.toLowerCase() === speakerDisplay.toLowerCase(),
+            );
+            const charColor = declaredChar?.colorHex || CHAR_COLOR_MAP[charKey] || '#38bdf8';
+            this.speakerNameplate.textContent = charKey;
+            this.speakerNameplate.style.color = charColor;
+            this.speakerNameplate.style.borderColor = charColor;
+            this.speakerNameplate.classList.remove('hidden');
+          } else {
+            this.speakerNameplate.classList.add('hidden');
+          }
+
+          // Lưu vào Backlog
+          this.backlog.push({
+            speaker: speakerDisplay,
+            text: stripControlTags(instr.text),
+          });
+
+          // Bắt đầu gõ chữ (hoặc hiển thị ngay lập tức nếu đang Skip)
+          this.nextIndicator.style.opacity = '0';
+          if (this.isSkip) {
+            this.typewriter.stop();
+            renderTokensToElement(parseTypewriterTokens(instr.text), this.dialogueText);
+            this.nextIndicator.style.opacity = '1';
+            this.onDialogueLineFinished();
+          } else {
+            this.typewriter.start(instr.text, () => {
+              this.nextIndicator.style.opacity = '1';
+              this.onDialogueLineFinished();
+            });
+          }
+        }
+
+        this.updateControlsState();
+      } else if (step.type === 'SUSPEND_CHOICE') {
+        this.clearSkip();
         this.dialogueBox.classList.add('hidden');
         this.speakerNameplate.classList.add('hidden');
-      } else {
-        this.dialogueBox.classList.remove('hidden');
-
-        // Cập nhật Nameplate
-        let speakerDisplay = instr.character;
-        if (instr.character) {
-          const vmState = this.vm.getState();
-          speakerDisplay =
-            vmState.characterDisplayOverrides[instr.character] ??
-            instr.displayNameOverride ??
-            instr.character;
-        }
-
-        if (speakerDisplay) {
-          const charKey = speakerDisplay.toUpperCase();
-          const declaredChar = this.projectData.characters?.find(
-            c =>
-              (instr.character && c.id.toLowerCase() === instr.character.toLowerCase()) ||
-              c.name.toLowerCase() === speakerDisplay.toLowerCase(),
-          );
-          const charColor = declaredChar?.colorHex || CHAR_COLOR_MAP[charKey] || '#38bdf8';
-          this.speakerNameplate.textContent = charKey;
-          this.speakerNameplate.style.color = charColor;
-          this.speakerNameplate.style.borderColor = charColor;
-          this.speakerNameplate.classList.remove('hidden');
-        } else {
-          this.speakerNameplate.classList.add('hidden');
-        }
-
-        // Lưu vào Backlog
-        this.backlog.push({
-          speaker: speakerDisplay,
-          text: stripControlTags(instr.text),
-        });
-
-        // Bắt đầu gõ chữ
+        this.presentChoices();
+      } else if (step.type === 'SUSPEND_WAIT') {
+        const durationMs = this.isSkip ? 20 : Math.max(0, step.duration * 1000);
+        this.waitTimerId = window.setTimeout(() => {
+          this.waitTimerId = null;
+          void this.advance();
+        }, durationMs);
+      } else if (step.type === 'HALTED') {
+        this.clearAutoTimer();
+        this.clearSkip();
+        this.dialogueBox.classList.add('hidden');
+        this.speakerNameplate.classList.add('hidden');
+        this.nextIndicator.textContent = '■ End';
         this.nextIndicator.style.opacity = '0';
-        this.typewriter.start(instr.text, () => {
-          this.nextIndicator.style.opacity = '1';
-          this.onDialogueLineFinished();
-        });
+        this.updateControlsState();
       }
-
-      this.updateControlsState();
-    } else if (step.type === 'SUSPEND_CHOICE') {
-      this.clearSkip();
-      this.dialogueBox.classList.add('hidden');
-      this.speakerNameplate.classList.add('hidden');
-      this.presentChoices();
-    } else if (step.type === 'SUSPEND_WAIT') {
-      const durationMs = this.isSkip ? 20 : Math.max(0, step.duration * 1000);
-      this.waitTimerId = window.setTimeout(() => {
-        this.waitTimerId = null;
-        void this.advance();
-      }, durationMs);
-    } else if (step.type === 'HALTED') {
-      this.clearAutoTimer();
-      this.clearSkip();
-      this.dialogueBox.classList.add('hidden');
-      this.speakerNameplate.classList.add('hidden');
-      this.nextIndicator.textContent = '■ End';
-      this.nextIndicator.style.opacity = '0';
-      this.updateControlsState();
+    } finally {
+      this.isAdvancing = false;
     }
   }
 
@@ -733,59 +859,10 @@ export class VNPlayer {
    */
   private async applySideEffect(instr: Instruction): Promise<void> {
     if (instr.type === 'BACKGROUND') {
-      const bgResolver = (assetKey: string) => {
-        const found = this.projectData.assets?.find(a => a.name === assetKey || a.id === assetKey);
-        return found?.storageUrl;
-      };
-      await this.renderer.setBackground(instr, instr.transition, bgResolver);
+      await this.renderer.setBackground(instr, instr.transition, this.getAssetGraphicResolver());
     } else if (instr.type === 'SHOW') {
-      const isProp =
-        !this.projectData.characters?.some(
-          c => c.id.toLowerCase() === instr.character.toLowerCase(),
-        ) &&
-        Boolean(
-          this.projectData.assets?.some(
-            a =>
-              a.name.toLowerCase() === instr.character.toLowerCase() ||
-              a.id.toLowerCase() === instr.character.toLowerCase(),
-          ),
-        );
-      const assetResolver = (assetKey: string) => {
-        // 1. Khớp trực tiếp trong danh mục tài nguyên
-        const foundAsset = this.projectData.assets?.find(
-          a =>
-            a.name.toLowerCase() === assetKey.toLowerCase() ||
-            a.id.toLowerCase() === assetKey.toLowerCase(),
-        );
-        if (foundAsset?.storageUrl) return foundAsset.storageUrl;
-
-        // 2. Khớp theo biểu cảm sprite của nhân vật
-        const charDef = this.projectData.characters?.find(
-          c => c.id.toLowerCase() === instr.character.toLowerCase(),
-        );
-        if (charDef && charDef.sprites) {
-          const spriteImg =
-            charDef.sprites[instr.sprite] ||
-            charDef.sprites['default'] ||
-            Object.values(charDef.sprites)[0];
-          if (spriteImg && spriteImg.trim().length > 0) {
-            if (
-              spriteImg.startsWith('data:') ||
-              spriteImg.startsWith('http') ||
-              spriteImg.startsWith('/') ||
-              spriteImg.startsWith('.')
-            ) {
-              return spriteImg;
-            }
-            const refAsset = this.projectData.assets?.find(
-              a => a.name === spriteImg || a.id === spriteImg,
-            );
-            if (refAsset?.storageUrl) return refAsset.storageUrl;
-          }
-        }
-        return undefined;
-      };
-      await this.renderer.showCharacter(instr, assetResolver, isProp);
+      const isProp = this.checkIsProp(instr.character);
+      await this.renderer.showCharacter(instr, this.getAssetGraphicResolver(), isProp);
     } else if (instr.type === 'HIDE') {
       this.renderer.hideCharacter(instr.character);
     } else if (instr.type === 'HIDE_DIALOGUE') {
@@ -797,10 +874,7 @@ export class VNPlayer {
     } else if (instr.type === 'INSPECT_END') {
       this.hideInspectModal();
     } else if (instr.type === 'PLAY') {
-      const audioResolver = (assetKey: string) => {
-        const found = this.projectData.assets?.find(a => a.name === assetKey || a.id === assetKey);
-        return found?.storageUrl || assetKey;
-      };
+      const audioResolver = this.getAssetAudioResolver();
       this.audio.play(instr.channel, instr.assetId, audioResolver(instr.assetId), {
         volume: instr.volume,
         loop: instr.loop,
@@ -828,13 +902,19 @@ export class VNPlayer {
     choices.forEach((choice: { text: string; enabled: boolean }, index: number) => {
       const btn = document.createElement('button');
       btn.className = 'choice-btn';
-      const keyHint = `<span class="choice-key-hint">[${index + 1}]</span>`;
+
+      const keySpan = document.createElement('span');
+      keySpan.className = 'choice-key-hint';
+      keySpan.textContent = `[${index + 1}]`;
+      btn.appendChild(keySpan);
+
+      const textSpan = document.createElement('span');
+      textSpan.textContent = choice.enabled ? choice.text : `${choice.text} (Conditions not met)`;
+      btn.appendChild(textSpan);
 
       if (!choice.enabled) {
         btn.disabled = true;
-        btn.innerHTML = `${keyHint}<span>${choice.text} (Conditions not met)</span>`;
       } else {
-        btn.innerHTML = `${keyHint}<span>${choice.text}</span>`;
         btn.addEventListener('click', () => {
           this.choiceOverlay.classList.add('hidden');
           try {
@@ -880,6 +960,28 @@ export class VNPlayer {
    * Tua lại câu thoại trước (Rollback)
    */
   public rollback(): boolean {
+    // Lỗi 126: Nếu đang mở menu lựa chọn (choice), rollback chỉ ẩn menu choice
+    // và hiển thị lại câu thoại dẫn đến choice chứ không pop lùi thêm câu thoại trước đó
+    if (!this.choiceOverlay.classList.contains('hidden')) {
+      this.clearAutoTimer();
+      this.clearSkip();
+      this.clearWaitTimer();
+      this.choiceOverlay.classList.add('hidden');
+      if (
+        this.currentDialogueInstruction &&
+        this.currentDialogueInstruction.text &&
+        this.currentDialogueInstruction.text.trim().length > 0
+      ) {
+        this.dialogueBox.classList.remove('hidden');
+        if (this.currentDialogueInstruction.character) {
+          this.speakerNameplate.classList.remove('hidden');
+        }
+        this.nextIndicator.style.opacity = '1';
+      }
+      this.updateControlsState();
+      return true;
+    }
+
     if (!this.vm.canRollback()) {
       this.showToast('Cannot rollback further!');
       return false;
@@ -899,11 +1001,15 @@ export class VNPlayer {
       this.backlog.pop();
     }
 
-    void this.renderer.syncStateCatchUp({
-      background: catchUp.background,
-      sprites: catchUp.sprites,
-    });
-    this.audio.syncStateCatchUp(catchUp.audio, (id: string) => id);
+    void this.renderer.syncStateCatchUp(
+      {
+        background: catchUp.background,
+        sprites: catchUp.sprites,
+      },
+      this.getAssetGraphicResolver(),
+      (id: string) => this.checkIsProp(id),
+    );
+    this.audio.syncStateCatchUp(catchUp.audio, this.getAssetAudioResolver());
 
     if (
       catchUp.currentDialogue &&
@@ -923,7 +1029,13 @@ export class VNPlayer {
 
       if (speakerDisplay) {
         const charKey = speakerDisplay.toUpperCase();
-        const charColor = CHAR_COLOR_MAP[charKey] || '#38bdf8';
+        const declaredChar = this.projectData.characters?.find(
+          c =>
+            (catchUp.currentDialogue?.character &&
+              c.id.toLowerCase() === catchUp.currentDialogue.character.toLowerCase()) ||
+            c.name.toLowerCase() === speakerDisplay.toLowerCase(),
+        );
+        const charColor = declaredChar?.colorHex || CHAR_COLOR_MAP[charKey] || '#38bdf8';
         this.speakerNameplate.textContent = charKey;
         this.speakerNameplate.style.color = charColor;
         this.speakerNameplate.style.borderColor = charColor;
@@ -1041,18 +1153,24 @@ export class VNPlayer {
         const dateStr = new Date(slot.timestamp).toLocaleString('en-US');
         card.innerHTML = `
           <div class="slot-header-row">
-            <span class="slot-scene">[Slot ${index + 1}] ${slot.sceneName}</span>
+            <span class="slot-scene"></span>
             <span class="slot-badge saved">SAVED</span>
           </div>
-          <img class="slot-thumbnail" src="${slot.thumbnail}" alt="Thumbnail" />
+          <img class="slot-thumbnail" alt="Thumbnail" />
           <div class="slot-meta">
-            <span>${dateStr}</span>
+            <span class="slot-date"></span>
           </div>
           <div class="slot-actions">
             <button class="slot-btn-action slot-btn-delete" data-action="delete" title="Delete this slot">[Delete]</button>
             <button class="slot-btn-action" data-action="confirm">${this.activeModalMode === 'save' ? '[Overwrite]' : '[Load]'}</button>
           </div>
         `;
+        const sceneEl = card.querySelector('.slot-scene');
+        if (sceneEl) sceneEl.textContent = `[Slot ${index + 1}] ${slot.sceneName}`;
+        const imgEl = card.querySelector('.slot-thumbnail') as HTMLImageElement;
+        if (imgEl && slot.thumbnail) imgEl.src = slot.thumbnail;
+        const dateEl = card.querySelector('.slot-date');
+        if (dateEl) dateEl.textContent = dateStr;
       } else {
         card.innerHTML = `
           <div class="slot-header-row">
@@ -1086,9 +1204,11 @@ export class VNPlayer {
           this.renderSaveSlots();
         } else {
           if (slot) {
-            this.loadFromSlot(index);
-            this.showToast(`Successfully loaded Slot ${index + 1}`);
-            this.closeSettingsMenu();
+            const ok = this.loadFromSlot(index);
+            if (ok) {
+              this.showToast(`Successfully loaded Slot ${index + 1}`);
+              this.closeSettingsMenu();
+            }
           } else {
             this.showToast('This slot is empty, no data to load!');
           }
@@ -1106,16 +1226,28 @@ export class VNPlayer {
       timestamp: Date.now(),
       sceneName: vmState.currentScene,
       thumbnail,
-      vmStateJson: this.vm.serialize(),
+      vmStateJson: this.vm.serialize({ projectId: this.projectData.id }),
       dialoguePreview: stripControlTags(this.currentDialogueInstruction?.text || ''),
+      projectId: this.projectData.id,
+      backlogJson: JSON.stringify(this.backlog),
     };
     GameStorage.saveSlot(slotIndex, data);
   }
 
-  private loadFromSlot(slotIndex: number): void {
-    const slot = GameStorage.loadSlot(slotIndex);
-    if (!slot) return;
-    this.restoreFromSlotData(slot);
+  private loadFromSlot(slotIndex: number): boolean {
+    try {
+      const slot = GameStorage.loadSlot(slotIndex);
+      if (!slot) {
+        this.showToast('This slot is empty!');
+        return false;
+      }
+      this.restoreFromSlotData(slot);
+      return true;
+    } catch (err) {
+      console.error(`[SaveLoad] Error loading slot ${slotIndex + 1}:`, err);
+      this.showToast('⚠️ Corrupted save data! Cannot load.');
+      return false;
+    }
   }
 
   public async quickSave(): Promise<void> {
@@ -1125,20 +1257,29 @@ export class VNPlayer {
       timestamp: Date.now(),
       sceneName: vmState.currentScene,
       thumbnail,
-      vmStateJson: this.vm.serialize(),
+      vmStateJson: this.vm.serialize({ projectId: this.projectData.id }),
       dialoguePreview: stripControlTags(this.currentDialogueInstruction?.text || ''),
+      projectId: this.projectData.id,
+      backlogJson: JSON.stringify(this.backlog),
     });
     this.showToast('● QUICK SAVED');
   }
 
-  public quickLoad(): void {
-    const slot = GameStorage.quickLoad();
-    if (!slot) {
-      this.showToast('No quick save data found!');
-      return;
+  public quickLoad(): boolean {
+    try {
+      const slot = GameStorage.quickLoad();
+      if (!slot) {
+        this.showToast('No quick save data found!');
+        return false;
+      }
+      this.restoreFromSlotData(slot);
+      this.showToast('● QUICK LOADED');
+      return true;
+    } catch (err) {
+      console.error('[SaveLoad] Error during quick load:', err);
+      this.showToast('⚠️ Corrupted quick save data! Cannot load.');
+      return false;
     }
-    this.restoreFromSlotData(slot);
-    this.showToast('● QUICK LOADED');
   }
 
   private restoreFromSlotData(slot: SaveSlotData): void {
@@ -1148,13 +1289,29 @@ export class VNPlayer {
 
     this.vm.restore(slot.vmStateJson);
 
+    // Khôi phục Backlog
+    if (slot.backlogJson) {
+      try {
+        const parsed = JSON.parse(slot.backlogJson);
+        if (Array.isArray(parsed)) {
+          this.backlog = parsed;
+        }
+      } catch {
+        // Giữ backlog cũ nếu parse thất bại
+      }
+    }
+
     // Kích hoạt State Catch-up
     const catchUp = this.vm.getStateCatchUp();
-    void this.renderer.syncStateCatchUp({
-      background: catchUp.background,
-      sprites: catchUp.sprites,
-    });
-    this.audio.syncStateCatchUp(catchUp.audio, (id: string) => id);
+    void this.renderer.syncStateCatchUp(
+      {
+        background: catchUp.background,
+        sprites: catchUp.sprites,
+      },
+      this.getAssetGraphicResolver(),
+      (id: string) => this.checkIsProp(id),
+    );
+    this.audio.syncStateCatchUp(catchUp.audio, this.getAssetAudioResolver());
 
     if (
       catchUp.currentDialogue &&
@@ -1163,10 +1320,24 @@ export class VNPlayer {
     ) {
       this.dialogueBox.classList.remove('hidden');
       this.currentDialogueInstruction = catchUp.currentDialogue;
-      const speaker = catchUp.currentDialogue.character;
-      if (speaker) {
-        const charKey = speaker.toUpperCase();
-        const charColor = CHAR_COLOR_MAP[charKey] || '#38bdf8';
+      let speakerDisplay = catchUp.currentDialogue.character;
+      if (catchUp.currentDialogue.character) {
+        const vmState = this.vm.getState();
+        speakerDisplay =
+          vmState.characterDisplayOverrides[catchUp.currentDialogue.character] ??
+          catchUp.currentDialogue.displayNameOverride ??
+          catchUp.currentDialogue.character;
+      }
+
+      if (speakerDisplay) {
+        const charKey = speakerDisplay.toUpperCase();
+        const declaredChar = this.projectData.characters?.find(
+          c =>
+            (catchUp.currentDialogue?.character &&
+              c.id.toLowerCase() === catchUp.currentDialogue.character.toLowerCase()) ||
+            c.name.toLowerCase() === speakerDisplay.toLowerCase(),
+        );
+        const charColor = declaredChar?.colorHex || CHAR_COLOR_MAP[charKey] || '#38bdf8';
         this.speakerNameplate.textContent = charKey;
         this.speakerNameplate.style.color = charColor;
         this.speakerNameplate.style.borderColor = charColor;
@@ -1175,7 +1346,7 @@ export class VNPlayer {
         this.speakerNameplate.classList.add('hidden');
       }
       this.typewriter.stop();
-      this.dialogueText.textContent = catchUp.currentDialogue.text;
+      renderTokensToElement(parseTypewriterTokens(catchUp.currentDialogue.text), this.dialogueText);
       this.nextIndicator.style.opacity = '1';
     } else {
       this.dialogueBox.classList.add('hidden');
@@ -1200,13 +1371,15 @@ export class VNPlayer {
       const item = document.createElement('div');
       item.className = 'backlog-item';
       if (entry.speaker) {
-        item.innerHTML = `
-          <div class="backlog-speaker">${entry.speaker.toUpperCase()}</div>
-          <div class="backlog-text">${entry.text}</div>
-        `;
-      } else {
-        item.innerHTML = `<div class="backlog-text">${entry.text}</div>`;
+        const spk = document.createElement('div');
+        spk.className = 'backlog-speaker';
+        spk.textContent = entry.speaker.toUpperCase();
+        item.appendChild(spk);
       }
+      const txt = document.createElement('div');
+      txt.className = 'backlog-text';
+      txt.textContent = entry.text;
+      item.appendChild(txt);
       this.backlogContainer.appendChild(item);
     });
 
@@ -1236,7 +1409,21 @@ export class VNPlayer {
       varBody.innerHTML = '';
       for (const [name, val] of Object.entries(vmState.variables)) {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${name}</td><td><strong>${val}</strong></td><td>${typeof val}</td>`;
+
+        const tdName = document.createElement('td');
+        tdName.textContent = name;
+
+        const tdVal = document.createElement('td');
+        const strong = document.createElement('strong');
+        strong.textContent = String(val);
+        tdVal.appendChild(strong);
+
+        const tdType = document.createElement('td');
+        tdType.textContent = typeof val;
+
+        tr.appendChild(tdName);
+        tr.appendChild(tdVal);
+        tr.appendChild(tdType);
         varBody.appendChild(tr);
       }
     }
@@ -1247,13 +1434,27 @@ export class VNPlayer {
       audioBody.innerHTML = '';
       for (const ch of this.audio.getChannelsState()) {
         const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${ch.name}</td>
-          <td>${ch.currentAssetId ?? '-'}</td>
-          <td>${Math.round(ch.volume * 100)}%</td>
-          <td>${ch.loop ? 'Yes' : 'No'}</td>
-          <td>${ch.isPlaying ? 'Playing' : 'Stopped'}</td>
-        `;
+
+        const tdName = document.createElement('td');
+        tdName.textContent = ch.name;
+
+        const tdAsset = document.createElement('td');
+        tdAsset.textContent = ch.currentAssetId ?? '-';
+
+        const tdVol = document.createElement('td');
+        tdVol.textContent = `${Math.round(ch.volume * 100)}%`;
+
+        const tdLoop = document.createElement('td');
+        tdLoop.textContent = ch.loop ? 'Yes' : 'No';
+
+        const tdPlay = document.createElement('td');
+        tdPlay.textContent = ch.isPlaying ? 'Playing' : 'Stopped';
+
+        tr.appendChild(tdName);
+        tr.appendChild(tdAsset);
+        tr.appendChild(tdVol);
+        tr.appendChild(tdLoop);
+        tr.appendChild(tdPlay);
         audioBody.appendChild(tr);
       }
     }
@@ -1287,7 +1488,16 @@ export class VNPlayer {
     // 4. Khởi tạo lại máy ảo và xóa lịch sử thoại (backlog)
     this.vm = new VisualNovelVM(program, undefined, {
       customFunctions: {
-        has_item: (item: unknown) => item === 'flower',
+        has_item: (item: unknown) => {
+          const state = this.vm.getState();
+          const itemName = String(item).toLowerCase();
+          const inventory = state.variables['inventory'];
+          if (Array.isArray(inventory)) {
+            if (inventory.some(i => String(i).toLowerCase() === itemName)) return true;
+          }
+          if (state.variables[`has_${itemName}`] === true) return true;
+          return itemName === 'flower';
+        },
       },
       emptyCallStackBehavior: 'halt',
     });
@@ -1323,11 +1533,15 @@ export class VNPlayer {
     // 7. Đồng bộ đồ họa / âm thanh State Catch-up tới điểm nhảy
     if (jumped) {
       const catchUp = this.vm.getStateCatchUp();
-      await this.renderer.syncStateCatchUp({
-        background: catchUp.background,
-        sprites: catchUp.sprites,
-      });
-      this.audio.syncStateCatchUp(catchUp.audio, (id: string) => id);
+      await this.renderer.syncStateCatchUp(
+        {
+          background: catchUp.background,
+          sprites: catchUp.sprites,
+        },
+        this.getAssetGraphicResolver(),
+        (id: string) => this.checkIsProp(id),
+      );
+      this.audio.syncStateCatchUp(catchUp.audio, this.getAssetAudioResolver());
     }
 
     // 8. Cập nhật thanh điều khiển và bước vào kịch bản mới

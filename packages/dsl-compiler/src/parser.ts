@@ -61,6 +61,7 @@ import {
   Minus,
   Star,
   Slash,
+  Percent,
   Less,
   Greater,
   LessEquals,
@@ -86,6 +87,48 @@ export class VNSParser extends CstParser {
     });
     this.performSelfAnalysis();
   }
+
+  // ---------------------------------------------------------------------------
+  // Helper Identifiers & Targets
+  // ---------------------------------------------------------------------------
+  public variableIdentifier = this.RULE('variableIdentifier', () => {
+    this.OR([
+      { ALT: () => this.CONSUME(Identifier) },
+      { ALT: () => this.CONSUME(CoordX) },
+      { ALT: () => this.CONSUME(CoordY) },
+      { ALT: () => this.CONSUME(Scale) },
+      { ALT: () => this.CONSUME(ScaleX) },
+      { ALT: () => this.CONSUME(ScaleY) },
+      { ALT: () => this.CONSUME(Rotate) },
+      { ALT: () => this.CONSUME(Alpha) },
+      { ALT: () => this.CONSUME(Title) },
+      { ALT: () => this.CONSUME(Volume) },
+      { ALT: () => this.CONSUME(Duration) },
+      { ALT: () => this.CONSUME(Loop) },
+      { ALT: () => this.CONSUME(Position) },
+      { ALT: () => this.CONSUME(Transition) },
+      { ALT: () => this.CONSUME(Ui) },
+      { ALT: () => this.CONSUME(End) },
+    ]);
+  });
+
+  public sceneTarget = this.RULE('sceneTarget', () => {
+    this.OR([
+      { ALT: () => this.CONSUME(DotIdentifier) },
+      {
+        ALT: () => {
+          this.OR1([
+            { ALT: () => this.CONSUME(Identifier) },
+            { ALT: () => this.CONSUME(NumberLiteral) },
+            { ALT: () => this.CONSUME(AlphanumericIdentifier) },
+          ]);
+          this.OPTION(() => {
+            this.CONSUME2(DotIdentifier);
+          });
+        },
+      },
+    ]);
+  });
 
   // ---------------------------------------------------------------------------
   // Top-level Program & Scene
@@ -125,7 +168,15 @@ export class VNSParser extends CstParser {
   public statement = this.RULE('statement', () => {
     this.OR([
       { ALT: () => this.SUBRULE(this.subSceneStatement) },
-      { ALT: () => this.SUBRULE(this.dialogueStatement) },
+      {
+        GATE: () => {
+          if (this.LA(1).tokenType === End) {
+            return this.LA(2).tokenType === Colon || this.LA(2).tokenType === As;
+          }
+          return true;
+        },
+        ALT: () => this.SUBRULE(this.dialogueStatement),
+      },
       { ALT: () => this.SUBRULE(this.revealStatement) },
       { ALT: () => this.SUBRULE(this.backgroundStatement) },
       { ALT: () => this.SUBRULE(this.showStatement) },
@@ -137,7 +188,10 @@ export class VNSParser extends CstParser {
       { ALT: () => this.SUBRULE(this.gotoStatement) },
       { ALT: () => this.SUBRULE(this.callStatement) },
       { ALT: () => this.SUBRULE(this.returnStatement) },
-      { ALT: () => this.SUBRULE(this.endStatement) },
+      {
+        GATE: () => this.LA(2).tokenType !== Colon && this.LA(2).tokenType !== As,
+        ALT: () => this.SUBRULE(this.endStatement),
+      },
       { ALT: () => this.SUBRULE(this.waitStatement) },
       { ALT: () => this.SUBRULE(this.whileStatement) },
       { ALT: () => this.SUBRULE(this.ifStatement) },
@@ -165,7 +219,7 @@ export class VNSParser extends CstParser {
     this.OR([
       {
         ALT: () => {
-          this.CONSUME(Identifier);
+          this.SUBRULE(this.variableIdentifier, { LABEL: 'character' });
           this.OPTION(() => {
             this.CONSUME(As);
             this.CONSUME(StringLiteral);
@@ -226,14 +280,14 @@ export class VNSParser extends CstParser {
 
   public showStatement = this.RULE('showStatement', () => {
     this.CONSUME(Show);
-    this.CONSUME(Identifier);
+    this.SUBRULE(this.variableIdentifier, { LABEL: 'character' });
     this.OPTION1(() => {
       this.OR([
         { ALT: () => this.CONSUME(DotIdentifier) },
         {
           ALT: () => {
             this.CONSUME(Dot);
-            this.CONSUME2(Identifier);
+            this.SUBRULE2(this.variableIdentifier, { LABEL: 'sprite' });
           },
         },
       ]);
@@ -371,22 +425,12 @@ export class VNSParser extends CstParser {
 
   public gotoStatement = this.RULE('gotoStatement', () => {
     this.CONSUME(Goto);
-    this.OR([
-      { ALT: () => this.CONSUME(DotIdentifier) },
-      { ALT: () => this.CONSUME(Identifier) },
-      { ALT: () => this.CONSUME(NumberLiteral) },
-      { ALT: () => this.CONSUME(AlphanumericIdentifier) },
-    ]);
+    this.SUBRULE(this.sceneTarget);
   });
 
   public callStatement = this.RULE('callStatement', () => {
     this.CONSUME(Call);
-    this.OR([
-      { ALT: () => this.CONSUME(DotIdentifier) },
-      { ALT: () => this.CONSUME(Identifier) },
-      { ALT: () => this.CONSUME(NumberLiteral) },
-      { ALT: () => this.CONSUME(AlphanumericIdentifier) },
-    ]);
+    this.SUBRULE(this.sceneTarget);
   });
 
   public returnStatement = this.RULE('returnStatement', () => {
@@ -426,7 +470,9 @@ export class VNSParser extends CstParser {
           this.CONSUME(If);
           this.SUBRULE(this.expressionSequence, { LABEL: 'condition' });
           this.CONSUME(LCurly);
-          this.SUBRULE(this.choiceDirectOption);
+          this.AT_LEAST_ONE(() => {
+            this.SUBRULE(this.choiceDirectOption);
+          });
           this.CONSUME(RCurly);
         },
       },
@@ -445,12 +491,7 @@ export class VNSParser extends CstParser {
       { ALT: () => this.CONSUME(Goto) },
       { ALT: () => this.CONSUME(Call) },
     ]);
-    this.OR2([
-      { ALT: () => this.CONSUME(DotIdentifier) },
-      { ALT: () => this.CONSUME(Identifier) },
-      { ALT: () => this.CONSUME(NumberLiteral) },
-      { ALT: () => this.CONSUME(AlphanumericIdentifier) },
-    ]);
+    this.SUBRULE(this.sceneTarget);
   });
 
   public whileStatement = this.RULE('whileStatement', () => {
@@ -494,14 +535,14 @@ export class VNSParser extends CstParser {
 
   public varDefineStatement = this.RULE('varDefineStatement', () => {
     this.CONSUME(Define);
-    this.CONSUME(Identifier);
+    this.SUBRULE(this.variableIdentifier);
     this.CONSUME(Equals);
     this.SUBRULE(this.expressionSequence, { LABEL: 'value' });
   });
 
   public varAssignStatement = this.RULE('varAssignStatement', () => {
     this.CONSUME(Tilde);
-    this.CONSUME(Identifier);
+    this.SUBRULE(this.variableIdentifier);
     this.CONSUME(Equals);
     this.SUBRULE(this.expressionSequence, { LABEL: 'value' });
   });
@@ -510,12 +551,10 @@ export class VNSParser extends CstParser {
     const nextTok = this.LA(1);
     const prevTok = this.LA(0);
 
-    // 1. Dialogue statement với tên nhân vật: `alice:` hoặc `alice as "...":`
-    if (nextTok.tokenType === Identifier) {
-      const nextNextTok = this.LA(2);
-      if (nextNextTok.tokenType === Colon || nextNextTok.tokenType === As) {
-        return false;
-      }
+    // 1. Dialogue statement với tên nhân vật (kể cả contextual keywords như x:, end:): `character:` hoặc `character as "...":`
+    const nextNextTok = this.LA(2);
+    if (nextNextTok && (nextNextTok.tokenType === Colon || nextNextTok.tokenType === As)) {
+      return false;
     }
 
     // 2. Từ khóa bắt đầu statement mới hoặc đóng/mở block
@@ -610,6 +649,14 @@ export class VNSParser extends CstParser {
       { ALT: () => this.CONSUME(OffsetY) },
       { ALT: () => this.CONSUME(Alpha) },
       { ALT: () => this.CONSUME(Easing) },
+      { ALT: () => this.CONSUME(Title) },
+      { ALT: () => this.CONSUME(Volume) },
+      { ALT: () => this.CONSUME(Duration) },
+      { ALT: () => this.CONSUME(Loop) },
+      { ALT: () => this.CONSUME(End) },
+      { ALT: () => this.CONSUME(Position) },
+      { ALT: () => this.CONSUME(Transition) },
+      { ALT: () => this.CONSUME(Ui) },
       { ALT: () => this.CONSUME(LParen) },
       { ALT: () => this.CONSUME(RParen) },
       { ALT: () => this.CONSUME(Comma) },
@@ -618,6 +665,7 @@ export class VNSParser extends CstParser {
       { ALT: () => this.CONSUME(Minus) },
       { ALT: () => this.CONSUME(Star) },
       { ALT: () => this.CONSUME(Slash) },
+      { ALT: () => this.CONSUME(Percent) },
       { ALT: () => this.CONSUME(Less) },
       { ALT: () => this.CONSUME(Greater) },
       { ALT: () => this.CONSUME(LessEquals) },

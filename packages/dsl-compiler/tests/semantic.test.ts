@@ -41,6 +41,8 @@ describe('Semantic Validator & Multi-File Compilation', () => {
   it('should detect missing target scenes inside nested if/else and while bodies', () => {
     const dsl = `
       scene nested_test {
+        define score = 0
+        define counter = 0
         if score > 10 {
           goto missing_in_if
         } else {

@@ -20,7 +20,7 @@ const __dirname = path.dirname(__filename);
 describe('Headless Smoke Test (Golden Scenario P0 End-to-End)', () => {
   it('should compile and simulate a full playthrough of golden_scenario_p0.vns to Good Ending', () => {
     // 1. Đọc kịch bản vàng từ thư mục fixtures dùng chung
-    const fixturePath = path.resolve(__dirname, '../../../tests/fixtures/golden_scenario_p0.vns');
+    const fixturePath = path.resolve(__dirname, '../../dsl-compiler/tests/fixtures/golden_scenario_p0.vns');
     const source = fs.readFileSync(fixturePath, 'utf-8');
 
     // 2. Biên dịch qua DSL Compiler

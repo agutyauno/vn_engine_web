@@ -2,11 +2,19 @@
 // TRẠNG THÁI MÁY ẢO & ROLLBACK (VM STATE & RUNTIME CONTRACTS)
 // ==========================================
 
-import type { Instruction, WaitInstruction } from './instruction';
+import type {
+  Instruction,
+  WaitInstruction,
+  BackgroundInstruction,
+  ShowInstruction,
+  PlayInstruction,
+  DialogueInstruction,
+} from './instruction';
 
 export interface CallFrame {
   scene: string;
   ip: number;
+  targetScene?: string;
   savedLocalVariables?: Record<string, string | number | boolean>;
 }
 
@@ -19,6 +27,10 @@ export interface VMState {
   characterDisplayOverrides: Record<string, string>; // characterId -> revealedName (ADR-020)
   customScriptState: Record<string, string>; // screenId -> validated JSON
   activeInspect?: { assetId: string; title?: string } | null;
+  activeBackground?: BackgroundInstruction;
+  activeSprites?: Record<string, ShowInstruction>;
+  activeAudio?: Record<string, PlayInstruction>;
+  currentDialogue?: DialogueInstruction;
 }
 
 export type StepResult =
@@ -34,10 +46,14 @@ export interface VMSnapshot {
   state: VMState; // Clone sâu (JSON pure)
 }
 
-export const CURRENT_SAVE_VERSION = 1;
+export const CURRENT_SAVE_VERSION = 2;
 
 export interface SaveFileData {
   version: number;
+  projectId?: string;
+  scriptHash?: string;
+  sceneOffset?: number;
+  backlog?: Array<{ speaker?: string | null; text: string }>;
   dslVersion?: string;
   timestamp: number;
   state: VMState;

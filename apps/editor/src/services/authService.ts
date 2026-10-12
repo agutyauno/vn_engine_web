@@ -104,12 +104,12 @@ export class AuthService {
       localStorage.removeItem(GUEST_STORAGE_KEY);
       this.notifyListeners();
       return { success: true };
-    } catch (err: any) {
-      return { success: false, error: err.message || 'Unknown authentication error' };
+    } catch (err: unknown) {
+      return { success: false, error: (err as Error)?.message || 'Unknown authentication error' };
     }
   }
 
-  public async signUp(email: string, password: string): Promise<{ success: boolean; error?: string }> {
+  public async signUp(email: string, password: string): Promise<{ success: boolean; error?: string; message?: string }> {
     if (!this.supabase) {
       return { success: false, error: 'Supabase cloud configuration not detected in .env' };
     }
@@ -119,13 +119,23 @@ export class AuthService {
       if (error) {
         return { success: false, error: error.message };
       }
-      this.currentUser = data.user;
-      this.isGuestActive = false;
-      localStorage.removeItem(GUEST_STORAGE_KEY);
-      this.notifyListeners();
-      return { success: true };
-    } catch (err: any) {
-      return { success: false, error: err.message || 'Unknown registration error' };
+      if (data.session) {
+        this.currentUser = data.user;
+        this.isGuestActive = false;
+        localStorage.removeItem(GUEST_STORAGE_KEY);
+        this.notifyListeners();
+      } else {
+        this.currentUser = null;
+        this.isGuestActive = false;
+      }
+      return {
+        success: true,
+        message: data.session
+          ? 'Account created and signed in successfully.'
+          : 'Registration successful! Please check your email to confirm registration before signing in.',
+      };
+    } catch (err: unknown) {
+      return { success: false, error: (err as Error)?.message || 'Unknown registration error' };
     }
   }
 
