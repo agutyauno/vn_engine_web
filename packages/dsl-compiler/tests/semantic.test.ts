@@ -253,7 +253,7 @@ describe('Semantic Validator & Multi-File Compilation', () => {
     expect(result.errors).toBeDefined();
     expect(result.errors).toHaveLength(1);
     expect(result.errors![0]?.message).toBe(
-      'Local scene ".c2" cannot be nested inside another local scene ".c1". Sub-scenes are strictly limited to 1 level'
+      'Local scene ".c2" cannot be nested inside another local scene ".c1". Sub-scenes are strictly limited to 1 level',
     );
   });
 
@@ -275,10 +275,10 @@ describe('Semantic Validator & Multi-File Compilation', () => {
     expect(result.errors).toBeDefined();
     expect(result.errors).toHaveLength(2);
     expect(result.errors![0]?.message).toBe(
-      'Local scene ".c2" cannot be nested inside another local scene ".c1". Sub-scenes are strictly limited to 1 level'
+      'Local scene ".c2" cannot be nested inside another local scene ".c1". Sub-scenes are strictly limited to 1 level',
     );
     expect(result.errors![1]?.message).toBe(
-      'Local scene ".c3" cannot be nested inside another local scene ".c2". Sub-scenes are strictly limited to 1 level'
+      'Local scene ".c3" cannot be nested inside another local scene ".c2". Sub-scenes are strictly limited to 1 level',
     );
   });
 
@@ -293,7 +293,7 @@ describe('Semantic Validator & Multi-File Compilation', () => {
     expect(result.success).toBe(false);
     expect(result.errors).toBeDefined();
     expect(result.errors![0]?.message).toContain(
-      'Local scene ".orphan" cannot be declared at top-level. Sub-scenes must be nested inside a global scene.'
+      'Local scene ".orphan" cannot be declared at top-level. Sub-scenes must be nested inside a global scene.',
     );
   });
 
@@ -406,9 +406,7 @@ describe('Semantic Validator & Multi-File Compilation', () => {
     expect(result.success).toBe(false);
     expect(result.errors).toBeDefined();
     expect(result.errors![0]?.message).toContain(
-      'Global scene "1.5" cannot contain \'.\' in its name. Dots are reserved for sub-scenes.'
+      'Global scene "1.5" cannot contain \'.\' in its name. Dots are reserved for sub-scenes.',
     );
   });
 });
-
-

@@ -11,9 +11,19 @@ export interface ExpressionParseResult {
 }
 
 const ALLOWED_BINARY_OPS = new Set([
-  '+', '-', '*', '/', '%',
-  '==', '!=', '<', '<=', '>', '>=',
-  '&&', '||',
+  '+',
+  '-',
+  '*',
+  '/',
+  '%',
+  '==',
+  '!=',
+  '<',
+  '<=',
+  '>',
+  '>=',
+  '&&',
+  '||',
 ]);
 
 const ALLOWED_UNARY_OPS = new Set(['!', '-', '+']);

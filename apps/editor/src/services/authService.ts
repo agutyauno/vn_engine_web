@@ -40,7 +40,7 @@ export class AuthService {
     if (supabaseUrl && supabaseAnonKey && supabaseUrl !== '' && supabaseAnonKey !== '') {
       try {
         this.supabase = createClient(supabaseUrl, supabaseAnonKey);
-        
+
         // Listen to Supabase auth state change
         this.supabase.auth.onAuthStateChange((_event, session) => {
           this.currentUser = session?.user || null;
@@ -89,7 +89,10 @@ export class AuthService {
     this.notifyListeners();
   }
 
-  public async signIn(email: string, password: string): Promise<{ success: boolean; error?: string }> {
+  public async signIn(
+    email: string,
+    password: string,
+  ): Promise<{ success: boolean; error?: string }> {
     if (!this.supabase) {
       return { success: false, error: 'Supabase cloud configuration not detected in .env' };
     }
@@ -109,7 +112,10 @@ export class AuthService {
     }
   }
 
-  public async signUp(email: string, password: string): Promise<{ success: boolean; error?: string; message?: string }> {
+  public async signUp(
+    email: string,
+    password: string,
+  ): Promise<{ success: boolean; error?: string; message?: string }> {
     if (!this.supabase) {
       return { success: false, error: 'Supabase cloud configuration not detected in .env' };
     }

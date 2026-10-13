@@ -138,3 +138,6 @@ dist
 docs/
 dist/
 .env
+
+.agents/
+AGENTS.md

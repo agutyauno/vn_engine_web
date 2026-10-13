@@ -27,9 +27,7 @@ import type {
 } from '@vn-engine/shared-types';
 import { registerVnsLanguage } from './vnsLanguage';
 import { registerVnsLanguageFeatures } from './vnsLanguageFeatures';
-import {
-  type IProjectRepository,
-} from './repository/projectRepository';
+import { type IProjectRepository } from './repository/projectRepository';
 import { SupabaseProjectRepository } from './repository/supabaseProjectRepository';
 import { AppRouter } from './router';
 
@@ -169,6 +167,9 @@ export class StudioApp {
 
     // DOM Preview
     this.previewIframe = document.getElementById('preview-iframe') as HTMLIFrameElement;
+    if (this.previewIframe) {
+      this.previewIframe.src = `${this.getPreviewBaseUrl()}/?embedded=true`;
+    }
     this.previewStatusBadge = document.getElementById('preview-hot-reload-status');
 
     // DOM Editor Status Bar
@@ -518,7 +519,9 @@ export class StudioApp {
         }
         this.compileCurrentScript();
       } else {
-        console.warn(`[StudioApp] Project ${projectId} not found, redirecting to projects dashboard.`);
+        console.warn(
+          `[StudioApp] Project ${projectId} not found, redirecting to projects dashboard.`,
+        );
         window.location.hash = '#/projects';
       }
     } catch (err) {
@@ -1132,7 +1135,8 @@ export class StudioApp {
 
       this.drawerTabProblems.classList.remove('has-error');
       this.problemsSummary.textContent = '● Problems (0 errors)';
-      this.problemsList.innerHTML = '<div class="no-problem-message">✓ No problems detected in script.</div>';
+      this.problemsList.innerHTML =
+        '<div class="no-problem-message">✓ No problems detected in script.</div>';
 
       if (currentModel) {
         monaco.editor.setModelMarkers(currentModel, 'vns-compiler', []);
@@ -1165,8 +1169,12 @@ export class StudioApp {
       const problemsTab = document.getElementById('drawer-tab-problems');
       const problemsPane = document.getElementById('drawer-pane-problems');
       if (problemsTab && !problemsTab.classList.contains('active')) {
-        document.querySelectorAll('.drawer-tab-btn').forEach(t => t.classList.toggle('active', t === problemsTab));
-        document.querySelectorAll('.drawer-pane').forEach(p => p.classList.toggle('active', p === problemsPane));
+        document
+          .querySelectorAll('.drawer-tab-btn')
+          .forEach(t => t.classList.toggle('active', t === problemsTab));
+        document
+          .querySelectorAll('.drawer-pane')
+          .forEach(p => p.classList.toggle('active', p === problemsPane));
       }
 
       // Tạo markers gạch chân đỏ trên Monaco
@@ -1175,7 +1183,12 @@ export class StudioApp {
         const activeFileId = activeFileObj?.id;
 
         const markers: monaco.editor.IMarkerData[] = errors
-          .filter(err => !err.loc?.fileId || err.loc.fileId === this.activeFile || err.loc.fileId === activeFileId)
+          .filter(
+            err =>
+              !err.loc?.fileId ||
+              err.loc.fileId === this.activeFile ||
+              err.loc.fileId === activeFileId,
+          )
           .map(err => {
             const line = err.loc?.line ?? 1;
             const col = err.loc?.col ?? 1;
@@ -1198,8 +1211,12 @@ export class StudioApp {
         row.className = 'problem-row';
         const line = err.loc?.line ?? 1;
         const col = err.loc?.col ?? 1;
-        const matchingFile = this.project.files.find(f => f.id === err.loc?.fileId || f.name === err.loc?.fileId);
-        const displayFileName = matchingFile ? matchingFile.name : (err.loc?.fileId || this.activeFile);
+        const matchingFile = this.project.files.find(
+          f => f.id === err.loc?.fileId || f.name === err.loc?.fileId,
+        );
+        const displayFileName = matchingFile
+          ? matchingFile.name
+          : err.loc?.fileId || this.activeFile;
         const file = `[${displayFileName}] `;
         row.textContent = `✕ ${file}Line ${line}, Col ${col}: ${err.message}`;
         row.addEventListener('click', () => {
@@ -1818,10 +1835,10 @@ export class StudioApp {
         asset.type === 'audio'
           ? '🎵'
           : asset.type === 'video'
-          ? '🎥'
-          : asset.type === 'font'
-          ? '🔤'
-          : '🖼';
+            ? '🎥'
+            : asset.type === 'font'
+              ? '🔤'
+              : '🖼';
 
       const info = document.createElement('div');
       info.className = 'asset-card-info';
@@ -1846,8 +1863,8 @@ export class StudioApp {
         asset.type === 'audio'
           ? usedAudio.has(asset.name) || usedAudio.has(asset.id)
           : asset.type === 'video' || asset.type === 'font'
-          ? true
-          : usedBackgrounds.has(asset.name) || usedBackgrounds.has(asset.id);
+            ? true
+            : usedBackgrounds.has(asset.name) || usedBackgrounds.has(asset.id);
 
       if (!isUsed) {
         const unusedBadge = document.createElement('span');
@@ -2283,7 +2300,8 @@ export class StudioApp {
         filterBtns.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         this.activeAssetFilter =
-          (btn.getAttribute('data-filter') as 'all' | 'image' | 'audio' | 'video' | 'font') || 'all';
+          (btn.getAttribute('data-filter') as 'all' | 'image' | 'audio' | 'video' | 'font') ||
+          'all';
         this.renderAssetList();
       });
     });
@@ -2423,10 +2441,24 @@ export class StudioApp {
   // ================================================================
   // 8. TWO-WAY LIVE PREVIEW BRIDGE (SECURE ORIGIN CHECK)
   // ================================================================
-  private getPreviewOrigin(): string {
-    return window.location.hostname === 'localhost'
+  private getPreviewBaseUrl(): string {
+    const envUrl = (import.meta as unknown as { env?: Record<string, string | undefined> }).env
+      ?.VITE_PREVIEW_URL;
+    if (envUrl && typeof envUrl === 'string' && envUrl.trim().length > 0) {
+      return envUrl.trim().replace(/\/+$/, '');
+    }
+    return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
       ? 'http://localhost:3000'
       : window.location.origin;
+  }
+
+  private getPreviewOrigin(): string {
+    try {
+      const url = new URL(this.getPreviewBaseUrl());
+      return url.origin;
+    } catch {
+      return window.location.origin;
+    }
   }
 
   private setupPreviewMessaging(): void {
@@ -2434,11 +2466,13 @@ export class StudioApp {
       const allowedOrigins = [
         'http://localhost:3000',
         'http://127.0.0.1:3000',
+        this.getPreviewOrigin(),
         window.location.origin,
       ];
 
       const userContentRegex = /^https?:\/\/([a-zA-Z0-9-]+\.)*usercontent-platform\.com(:\d+)?$/;
-      const isAllowed = allowedOrigins.includes(event.origin) || userContentRegex.test(event.origin);
+      const isAllowed =
+        allowedOrigins.includes(event.origin) || userContentRegex.test(event.origin);
 
       if (!isAllowed) {
         return;
@@ -2510,7 +2544,7 @@ export class StudioApp {
     });
 
     document.getElementById('btn-popout-preview')?.addEventListener('click', () => {
-      const targetUrl = 'http://localhost:3000/';
+      const targetUrl = `${this.getPreviewBaseUrl()}/`;
       this.popoutWindow = window.open(
         targetUrl,
         'VN_Preview_Popout',
@@ -2644,7 +2678,7 @@ export class StudioApp {
     });
 
     document.getElementById('btn-open-playable')?.addEventListener('click', () => {
-      window.open('http://localhost:3000/', '_blank');
+      window.open(`${this.getPreviewBaseUrl()}/`, '_blank');
       this.showToast('Opening public game web page...');
     });
 

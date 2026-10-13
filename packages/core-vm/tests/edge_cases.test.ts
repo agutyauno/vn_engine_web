@@ -96,12 +96,12 @@ describe('Core VM Integration Edge Cases', () => {
     const program: Instruction[] = [
       { type: 'SCENE', name: 'audio_test' },
       { type: 'PLAY', channel: 'music', assetId: 'bgm.mp3', loop: true },
-      { type: 'PLAY', channel: 'sound', assetId: 'bell.wav', loop: false },
+      { type: 'PLAY', channel: 'sound', assetId: 'bell.wav', loop: true },
       { type: 'DIALOGUE', character: null, text: 'Nghe tiếng chuông reo trên nền nhạc.' },
 
       // Dừng tiếng chuông, phát tiếng bước chân, nhạc nền vẫn giữ nguyên
       { type: 'STOP', channel: 'sound' },
-      { type: 'PLAY', channel: 'sound', assetId: 'footsteps.wav' },
+      { type: 'PLAY', channel: 'sound', assetId: 'footsteps.wav', loop: true },
       { type: 'DIALOGUE', character: null, text: 'Tiếng bước chân.' },
 
       // Dừng nhạc nền

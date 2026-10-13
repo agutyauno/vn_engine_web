@@ -42,12 +42,16 @@ describe('Phase 4: Security, Origin & Editor Logic Verification', () => {
       expect(ALLOWED_ORIGIN_REGEX.test('https://nested.sub.usercontent-platform.com')).toBe(true);
       expect(ALLOWED_ORIGIN_REGEX.test('http://usercontent-platform.com')).toBe(true);
       expect(ALLOWED_ORIGIN_REGEX.test('https://usercontent-platform.com:8080')).toBe(true);
-      expect(ALLOWED_ORIGIN_REGEX.test('https://test-abc.usercontent-platform.com:3000')).toBe(true);
+      expect(ALLOWED_ORIGIN_REGEX.test('https://test-abc.usercontent-platform.com:3000')).toBe(
+        true,
+      );
     });
 
     it('should reject malicious origins attempting to spoof usercontent-platform.com', () => {
       // Attack vector: evil domain with suffix
-      expect(ALLOWED_ORIGIN_REGEX.test('https://usercontent-platform.com.attacker.com')).toBe(false);
+      expect(ALLOWED_ORIGIN_REGEX.test('https://usercontent-platform.com.attacker.com')).toBe(
+        false,
+      );
       // Attack vector: prefix spoofing
       expect(ALLOWED_ORIGIN_REGEX.test('https://evilusercontent-platform.com')).toBe(false);
       expect(ALLOWED_ORIGIN_REGEX.test('https://attacker-usercontent-platform.com')).toBe(false);
@@ -90,7 +94,7 @@ describe('Phase 4: Security, Origin & Editor Logic Verification', () => {
   describe('4. UUIDv4 Generation for Postgres Compatibility', () => {
     function generateUUID(): string {
       // RFC 4122 v4 pattern
-      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
         const r = (Math.random() * 16) | 0;
         const v = c === 'x' ? r : (r & 0x3) | 0x8;
         return v.toString(16);
@@ -120,8 +124,8 @@ describe('Phase 4: Security, Origin & Editor Logic Verification', () => {
         scenes: [
           { name: 'prologue', statements: [] },
           { name: 'chapter1', statements: [] },
-          { name: 'epilogue', statements: [] }
-        ]
+          { name: 'epilogue', statements: [] },
+        ],
       };
 
       const sceneNames: string[] = [];

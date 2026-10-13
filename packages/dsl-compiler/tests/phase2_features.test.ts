@@ -1,7 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { compileString } from '../src/compiler';
 import { formatVns } from '../src/formatter';
-import type { AssignInstruction, ChoiceInstruction, DialogueInstruction, BinaryExpression } from '@vn-engine/shared-types';
+import type {
+  AssignInstruction,
+  ChoiceInstruction,
+  DialogueInstruction,
+  BinaryExpression,
+} from '@vn-engine/shared-types';
 
 describe('Phase 2 Compiler & Language DSL Features', () => {
   it('should support modulo operator (%) in expressions and emit BinaryExpression bytecode', () => {
@@ -136,7 +141,9 @@ describe('Phase 2 Compiler & Language DSL Features', () => {
     `;
     const res1 = compileString(dsl1);
     expect(res1.success).toBe(false);
-    expect(res1.errors![0]?.message).toContain("Variable 'undefined_score' in expression has not been defined");
+    expect(res1.errors![0]?.message).toContain(
+      "Variable 'undefined_score' in expression has not been defined",
+    );
 
     const dsl2 = `
       scene bad_while {
@@ -147,7 +154,9 @@ describe('Phase 2 Compiler & Language DSL Features', () => {
     `;
     const res2 = compileString(dsl2);
     expect(res2.success).toBe(false);
-    expect(res2.errors![0]?.message).toContain("Variable 'undefined_counter' in expression has not been defined");
+    expect(res2.errors![0]?.message).toContain(
+      "Variable 'undefined_counter' in expression has not been defined",
+    );
 
     const dsl3 = `
       scene bad_assign {
@@ -157,7 +166,9 @@ describe('Phase 2 Compiler & Language DSL Features', () => {
     `;
     const res3 = compileString(dsl3);
     expect(res3.success).toBe(false);
-    expect(res3.errors![0]?.message).toContain("Variable 'undefined_rhs' in expression has not been defined");
+    expect(res3.errors![0]?.message).toContain(
+      "Variable 'undefined_rhs' in expression has not been defined",
+    );
 
     const dsl4 = `
       scene bad_choice {
@@ -170,7 +181,9 @@ describe('Phase 2 Compiler & Language DSL Features', () => {
     `;
     const res4 = compileString(dsl4);
     expect(res4.success).toBe(false);
-    expect(res4.errors![0]?.message).toContain("Variable 'undefined_cond' in expression has not been defined");
+    expect(res4.errors![0]?.message).toContain(
+      "Variable 'undefined_cond' in expression has not been defined",
+    );
   });
 
   it('should reject calling unwhitelisted functions in expressions at compile time', () => {
@@ -183,7 +196,9 @@ describe('Phase 2 Compiler & Language DSL Features', () => {
     const result = compileString(dsl);
     expect(result.success).toBe(false);
     expect(result.errors).toBeDefined();
-    expect(result.errors![0]?.message).toContain("Unknown function 'malicious_eval' called in expression");
+    expect(result.errors![0]?.message).toContain(
+      "Unknown function 'malicious_eval' called in expression",
+    );
   });
 
   it('should preserve multiline strings and their internal indentation/comments in formatVns', () => {

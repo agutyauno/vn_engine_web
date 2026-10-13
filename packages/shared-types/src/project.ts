@@ -51,7 +51,8 @@ export interface AssetRef {
 export interface UICustomScreen {
   id: string; // UUIDv4
   name: string;
-  targetSlot: 'dialogueBox' | 'choiceMenu' | 'backlog' | 'mainMenu' | 'settingsMenu' | 'saveLoadScreen';
+  targetSlot:
+    'dialogueBox' | 'choiceMenu' | 'backlog' | 'mainMenu' | 'settingsMenu' | 'saveLoadScreen';
   template: string;
   cssContent?: string;
   version?: number;
@@ -63,4 +64,3 @@ export interface CustomScriptScreen {
   scriptContent: string;
   version?: number;
 }
-

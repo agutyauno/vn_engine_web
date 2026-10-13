@@ -5,16 +5,28 @@
 import { compileString } from '@vn-engine/dsl-compiler';
 import { VNPlayer } from './player';
 import scenarioSource from './scenario.vns?raw';
+import type { Instruction } from '@vn-engine/shared-types';
 
 function isAllowedEditorOrigin(origin: string): boolean {
-  const allowedOrigins = [
-    'http://localhost:3001',
-    'http://127.0.0.1:3001',
-    window.location.origin,
-  ];
+  const envOrigin = (import.meta as unknown as { env?: Record<string, string | undefined> }).env
+    ?.VITE_EDITOR_ORIGIN;
+  const allowedOrigins = ['http://localhost:3001', 'http://127.0.0.1:3001', window.location.origin];
+  if (envOrigin && typeof envOrigin === 'string' && envOrigin.trim().length > 0) {
+    allowedOrigins.push(envOrigin.trim().replace(/\/+$/, ''));
+  }
   if (allowedOrigins.includes(origin)) return true;
   const userContentRegex = /^https?:\/\/([a-zA-Z0-9-]+\.)*usercontent-platform\.com(:\d+)?$/;
   return userContentRegex.test(origin);
+}
+
+function isValidProgram(program: unknown): program is Instruction[] {
+  if (!Array.isArray(program)) return false;
+  return program.every(
+    item =>
+      item &&
+      typeof item === 'object' &&
+      typeof (item as { type?: unknown }).type === 'string',
+  );
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
@@ -72,7 +84,8 @@ window.addEventListener('DOMContentLoaded', async () => {
   });
 
   // Báo cho parent (Editor / Live Preview Container) biết Player đã sẵn sàng
-  let targetOrigin = window.location.hostname === 'localhost' ? 'http://localhost:3001' : window.location.origin;
+  let targetOrigin =
+    window.location.hostname === 'localhost' ? 'http://localhost:3001' : window.location.origin;
   if (document.referrer) {
     try {
       const refUrl = new URL(document.referrer);
@@ -97,7 +110,12 @@ window.addEventListener('message', async (event: MessageEvent) => {
     return;
   }
 
-  if (event.data?.type === 'HOT_RELOAD_PROGRAM' && Array.isArray(event.data.program)) {
+  if (event.data?.type === 'HOT_RELOAD_PROGRAM') {
+    if (!isValidProgram(event.data.program)) {
+      console.warn('[RuntimePlayer] Invalid program structure received in HOT_RELOAD_PROGRAM');
+      return;
+    }
+
     console.log(
       `[RuntimePlayer] Received HOT_RELOAD_PROGRAM from ${event.origin} with ${event.data.program.length} instructions`,
     );

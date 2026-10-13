@@ -487,10 +487,7 @@ export class VNSParser extends CstParser {
   public choiceDirectOption = this.RULE('choiceDirectOption', () => {
     this.CONSUME(StringLiteral);
     this.CONSUME(Colon);
-    this.OR([
-      { ALT: () => this.CONSUME(Goto) },
-      { ALT: () => this.CONSUME(Call) },
-    ]);
+    this.OR([{ ALT: () => this.CONSUME(Goto) }, { ALT: () => this.CONSUME(Call) }]);
     this.SUBRULE(this.sceneTarget);
   });
 

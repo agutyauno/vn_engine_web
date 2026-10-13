@@ -5,7 +5,11 @@
 
 import type { Project, ScriptFile } from '@vn-engine/shared-types';
 import type { IProjectRepository } from './projectRepository';
-import { DEFAULT_STARTER_SCRIPT, IndexedDBProjectRepository, generateUUID } from './projectRepository';
+import {
+  DEFAULT_STARTER_SCRIPT,
+  IndexedDBProjectRepository,
+  generateUUID,
+} from './projectRepository';
 import { AuthService } from '../services/authService';
 
 export class SupabaseProjectRepository implements IProjectRepository {
@@ -50,10 +54,7 @@ export class SupabaseProjectRepository implements IProjectRepository {
         .order('order_index', { ascending: true });
 
       // 3. Fetch assets
-      const { data: assetRows } = await supabase
-        .from('assets')
-        .select('*')
-        .eq('project_id', id);
+      const { data: assetRows } = await supabase.from('assets').select('*').eq('project_id', id);
 
       // 4. Fetch UI custom screens
       const { data: uiRows } = await supabase
@@ -83,15 +84,18 @@ export class SupabaseProjectRepository implements IProjectRepository {
         ownerId: projectRow.owner_id,
         defaultLanguage: projectRow.default_language || 'en',
         publishedGameId: projectRow.published_game_id || undefined,
-        files: files.length > 0 ? files : [
-          {
-            id: 'main.vns',
-            name: 'main.vns',
-            content: DEFAULT_STARTER_SCRIPT,
-            order: 0,
-            version: 1,
-          }
-        ],
+        files:
+          files.length > 0
+            ? files
+            : [
+                {
+                  id: 'main.vns',
+                  name: 'main.vns',
+                  content: DEFAULT_STARTER_SCRIPT,
+                  order: 0,
+                  version: 1,
+                },
+              ],
         characters: projectRow.characters || [],
         variables: projectRow.variables || [],
         assets: (assetRows || []).map(a => ({
@@ -119,7 +123,10 @@ export class SupabaseProjectRepository implements IProjectRepository {
 
       return project;
     } catch (err) {
-      console.warn('[SupabaseProjectRepository] Error loading from cloud, falling back to local:', err);
+      console.warn(
+        '[SupabaseProjectRepository] Error loading from cloud, falling back to local:',
+        err,
+      );
       return this.localFallback.getProject(id);
     }
   }
@@ -169,15 +176,18 @@ export class SupabaseProjectRepository implements IProjectRepository {
         }
 
         for (const file of project.files) {
-          await supabase.from('script_files').upsert({
-            project_id: project.id,
-            name: file.name,
-            content: file.content,
-            order_index: file.order,
-            version: file.version,
-            updated_by: ownerId,
-            updated_at: new Date().toISOString(),
-          }, { onConflict: 'project_id,name' });
+          await supabase.from('script_files').upsert(
+            {
+              project_id: project.id,
+              name: file.name,
+              content: file.content,
+              order_index: file.order,
+              version: file.version,
+              updated_by: ownerId,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: 'project_id,name' },
+          );
         }
       }
 
@@ -225,15 +235,18 @@ export class SupabaseProjectRepository implements IProjectRepository {
     const supabase = this.authService.getSupabaseClient()!;
     const ownerId = this.authService.getUserId();
     try {
-      await supabase.from('script_files').upsert({
-        project_id: projectId,
-        name: file.name,
-        content: file.content,
-        order_index: file.order,
-        version: file.version,
-        updated_by: ownerId,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'project_id,name' });
+      await supabase.from('script_files').upsert(
+        {
+          project_id: projectId,
+          name: file.name,
+          content: file.content,
+          order_index: file.order,
+          version: file.version,
+          updated_by: ownerId,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'project_id,name' },
+      );
     } catch (err) {
       console.error('[SupabaseProjectRepository] Error saving script to cloud:', err);
     }
@@ -305,7 +318,9 @@ export class SupabaseProjectRepository implements IProjectRepository {
         .single();
 
       if (error || !newRow) {
-        console.warn('[SupabaseProjectRepository] Failed to insert cloud project, falling back to local');
+        console.warn(
+          '[SupabaseProjectRepository] Failed to insert cloud project, falling back to local',
+        );
         return this.localFallback.createProject(title, finalOwnerId);
       }
 
@@ -331,7 +346,7 @@ export class SupabaseProjectRepository implements IProjectRepository {
             content: DEFAULT_STARTER_SCRIPT,
             order: 0,
             version: 1,
-          }
+          },
         ],
         characters: [],
         variables: [],

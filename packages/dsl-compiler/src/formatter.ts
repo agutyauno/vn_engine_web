@@ -404,9 +404,7 @@ function formatStatement(trimmedCode: string): string {
   }
 
   // Play: play <channel> "<asset>" [params]
-  const playMatch = trimmedCode.match(
-    /^play\s+([a-zA-Z0-9_]+)\s+("([^"\\]|\\.)*")(?:\s+(.+))?$/,
-  );
+  const playMatch = trimmedCode.match(/^play\s+([a-zA-Z0-9_]+)\s+("([^"\\]|\\.)*")(?:\s+(.+))?$/);
   if (playMatch && playMatch[1] && playMatch[2]) {
     const channel = playMatch[1];
     const asset = playMatch[2];

@@ -42,8 +42,9 @@ export type StepResult =
 
 export interface VMSnapshot {
   timestamp: number;
-  dialogueIndex: number; // Chỉ mục câu thoại (chỉ chụp snapshot khi gặp SUSPEND_DIALOGUE)
+  dialogueIndex: number; // Chỉ mục câu thoại
   state: VMState; // Clone sâu (JSON pure)
+  interactionType?: 'DIALOGUE' | 'CHOICE';
 }
 
 export const CURRENT_SAVE_VERSION = 2;

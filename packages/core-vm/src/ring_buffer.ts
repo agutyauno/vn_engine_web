@@ -87,6 +87,13 @@ export class SnapshotRingBuffer {
   }
 
   /**
+   * Xem snapshot ở đỉnh stack hiện tại mà không pop.
+   */
+  public peek(): VMSnapshot | undefined {
+    return this.history[this.history.length - 1];
+  }
+
+  /**
    * Số lượng snapshot đang lưu trong history.
    */
   public size(): number {

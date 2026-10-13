@@ -365,7 +365,14 @@ export function validateSemantics(ast: ProgramAST): CompileError[] {
         }
       } else if (stmt.type === 'IfStatement') {
         const ifStmt = stmt as IfStatement;
-        validateExpressionAST(ifStmt.condition, globals, sceneLocals, sceneName, ifStmt.loc, errors);
+        validateExpressionAST(
+          ifStmt.condition,
+          globals,
+          sceneLocals,
+          sceneName,
+          ifStmt.loc,
+          errors,
+        );
         checkStatements(sceneName, ifStmt.consequent, sceneLocals);
         if (Array.isArray(ifStmt.alternate)) {
           checkStatements(sceneName, ifStmt.alternate, sceneLocals);

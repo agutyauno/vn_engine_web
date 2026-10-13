@@ -132,7 +132,8 @@ export class ProjectsPage {
   }
 
   private renderProjectCard(project: Project): string {
-    const isCloud = project.ownerId && project.ownerId !== 'local_guest' && project.ownerId !== 'local_user';
+    const isCloud =
+      project.ownerId && project.ownerId !== 'local_guest' && project.ownerId !== 'local_user';
     const fileCount = project.files?.length || 1;
 
     return `
@@ -207,7 +208,7 @@ export class ProjectsPage {
       window.location.hash = `#/editor?id=${newProj.id}`;
     });
 
-    inputTitle?.addEventListener('keydown', (e) => {
+    inputTitle?.addEventListener('keydown', e => {
       if (e.key === 'Enter') {
         btnConfirmCreate?.dispatchEvent(new Event('click'));
       } else if (e.key === 'Escape') {
@@ -241,7 +242,7 @@ export class ProjectsPage {
 
     // Card buttons delegation (Open & Delete)
     const grid = this.container.querySelector('#projects-grid');
-    grid?.addEventListener('click', (e) => {
+    grid?.addEventListener('click', e => {
       const target = e.target as HTMLElement;
       const btn = target.closest('button');
       if (!btn) return;

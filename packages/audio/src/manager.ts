@@ -101,7 +101,8 @@ export class AudioManager {
     };
 
     const targetLoop = options?.loop ?? preset.defaultLoop;
-    const scriptVolume = options?.volume !== undefined ? Math.max(0, Math.min(1, options.volume)) : 1.0;
+    const scriptVolume =
+      options?.volume !== undefined ? Math.max(0, Math.min(1, options.volume)) : 1.0;
     channel.scriptVolume = scriptVolume;
     const targetVolume = Math.max(0, Math.min(1, channel.volume * channel.scriptVolume));
 
@@ -333,6 +334,12 @@ export class AudioManager {
 
     // 2. Đồng bộ các kênh có trong audioMap
     for (const [channelName, playInstr] of audioMap.entries()) {
+      const isPersistent =
+        playInstr.loop === true || channelName === 'music' || channelName === 'ambience';
+      if (!isPersistent) {
+        continue;
+      }
+
       const channel = this.channels.get(channelName);
       // Nếu kênh đang phát đúng bài này thì giữ nguyên
       if (channel?.isPlaying && channel.currentAssetId === playInstr.assetId) {

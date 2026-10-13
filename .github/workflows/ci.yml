@@ -20,14 +20,14 @@ jobs:
         with:
           version: 12.4.2
 
-      - name: Setup Node.js 25
+      - name: Setup Node.js 22 (LTS)
         uses: actions/setup-node@v4
         with:
-          node-version: 25
+          node-version: 22
           cache: 'pnpm'
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile=false
+        run: pnpm install --frozen-lockfile
 
       - name: Build packages
         run: pnpm build

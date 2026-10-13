@@ -68,7 +68,8 @@ export class Compiler {
               loc: {
                 fileId: file.id,
                 line: typeof startLine === 'number' && Number.isFinite(startLine) ? startLine : 1,
-                col: typeof startColumn === 'number' && Number.isFinite(startColumn) ? startColumn : 1,
+                col:
+                  typeof startColumn === 'number' && Number.isFinite(startColumn) ? startColumn : 1,
               },
             });
           }

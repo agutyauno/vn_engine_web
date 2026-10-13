@@ -638,11 +638,26 @@ describe('VisualNovelVM Core', () => {
   it('should jump to target line and update currentScene accurately', () => {
     const program: Instruction[] = [
       { type: 'SCENE', name: 'start', loc: { fileId: 'main.vns', line: 1, col: 1 } },
-      { type: 'DIALOGUE', character: 'sys', text: 'Line 2', loc: { fileId: 'main.vns', line: 2, col: 1 } },
+      {
+        type: 'DIALOGUE',
+        character: 'sys',
+        text: 'Line 2',
+        loc: { fileId: 'main.vns', line: 2, col: 1 },
+      },
       { type: 'SCENE_END', sceneName: 'start', loc: { fileId: 'main.vns', line: 5, col: 1 } },
       { type: 'SCENE', name: 'scene2', loc: { fileId: 'main.vns', line: 10, col: 1 } },
-      { type: 'DIALOGUE', character: 'sys', text: 'Line 11', loc: { fileId: 'main.vns', line: 11, col: 1 } },
-      { type: 'DIALOGUE', character: 'sys', text: 'Line 12', loc: { fileId: 'main.vns', line: 12, col: 1 } },
+      {
+        type: 'DIALOGUE',
+        character: 'sys',
+        text: 'Line 11',
+        loc: { fileId: 'main.vns', line: 11, col: 1 },
+      },
+      {
+        type: 'DIALOGUE',
+        character: 'sys',
+        text: 'Line 12',
+        loc: { fileId: 'main.vns', line: 12, col: 1 },
+      },
       { type: 'SCENE_END', sceneName: 'scene2', loc: { fileId: 'main.vns', line: 15, col: 1 } },
     ];
 
@@ -754,4 +769,3 @@ describe('VisualNovelVM Core', () => {
     expect(vm.getState().localVariables['res']).toBe(4);
   });
 });
-

@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import {
-  VisualNovelVM,
-  migrateSaveData,
-  clearSaveMigrations,
-  registerSaveMigration,
-} from '../src';
-import type { Instruction, SaveFileData, StepResult, DialogueInstruction } from '@vn-engine/shared-types';
+import { VisualNovelVM, migrateSaveData, clearSaveMigrations, registerSaveMigration } from '../src';
+import type {
+  Instruction,
+  SaveFileData,
+  StepResult,
+  DialogueInstruction,
+} from '@vn-engine/shared-types';
 import { CURRENT_SAVE_VERSION } from '@vn-engine/shared-types';
 
 describe('Phase 3: Save/Load System, Migration v2 & Re-anchoring', () => {
@@ -121,7 +121,8 @@ describe('Phase 3: Save/Load System, Migration v2 & Re-anchoring', () => {
       // Verify execution continues at Line 2 seamlessly
       const stepRes = vm2.step();
       expect(stepRes.type).toBe('SUSPEND_DIALOGUE');
-      const dialogueInst = (stepRes as Extract<StepResult, { type: 'SUSPEND_DIALOGUE' }>).instruction as DialogueInstruction;
+      const dialogueInst = (stepRes as Extract<StepResult, { type: 'SUSPEND_DIALOGUE' }>)
+        .instruction as DialogueInstruction;
       expect(dialogueInst?.text).toBe('Line 2');
     });
   });

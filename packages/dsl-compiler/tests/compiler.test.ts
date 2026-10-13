@@ -499,4 +499,3 @@ Dẫn chuyện dòng 2"
     expect(dialogues[4]!.text).toBe('Dẫn chuyện dòng 1\nDẫn chuyện dòng 2');
   });
 });
-

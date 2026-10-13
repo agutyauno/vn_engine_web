@@ -28,12 +28,16 @@ export class LoginPage {
             <p class="auth-subtitle">Web Visual Novel IDE & Creation Platform</p>
           </div>
 
-          ${!isCloudConfigured ? `
+          ${
+            !isCloudConfigured
+              ? `
             <div class="auth-env-hint">
               <span class="hint-icon">ℹ</span>
               <span>Cloud configuration (.env) not detected. You can proceed with Guest Mode or configure Supabase keys.</span>
             </div>
-          ` : ''}
+          `
+              : ''
+          }
 
           <!-- AUTH TABS -->
           <div class="auth-tabs" id="auth-tabs-bar">
@@ -119,7 +123,7 @@ export class LoginPage {
       successMsg.style.display = 'none';
     });
 
-    form?.addEventListener('submit', async (e) => {
+    form?.addEventListener('submit', async e => {
       e.preventDefault();
       errorMsg.style.display = 'none';
       successMsg.style.display = 'none';
@@ -135,13 +139,16 @@ export class LoginPage {
           if (res.success) {
             window.location.hash = '#/projects';
           } else {
-            errorMsg.textContent = res.error || 'Failed to sign in. Please verify your credentials.';
+            errorMsg.textContent =
+              res.error || 'Failed to sign in. Please verify your credentials.';
             errorMsg.style.display = 'block';
           }
         } else {
           const res = await this.authService.signUp(email, password);
           if (res.success) {
-            successMsg.textContent = res.message || 'Account created successfully! Check your email to confirm registration.';
+            successMsg.textContent =
+              res.message ||
+              'Account created successfully! Check your email to confirm registration.';
             successMsg.style.display = 'block';
             this.activeTab = 'signin';
             tabSignin?.classList.add('active');

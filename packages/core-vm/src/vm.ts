@@ -41,6 +41,29 @@ export interface RunResult {
   sideEffects: Instruction[];
 }
 
+/**
+ * Kết quả khôi phục trạng thái Save Game (TAD 4.4 / Bug 3.3)
+ */
+export interface RestoreResult {
+  desyncWarning: boolean;
+  savedHash?: string;
+  currentHash?: string;
+}
+
+/**
+ * Tính mã băm FNV-1a 32-bit cho mảng chỉ lệnh bytecode program.
+ * Đảm bảo tính tất định (deterministic), không phụ thuộc môi trường.
+ */
+export function computeScriptHash(program: readonly unknown[]): string {
+  const str = JSON.stringify(program);
+  let hash = 2166136261;
+  for (let i = 0; i < str.length; i++) {
+    hash ^= str.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(16).padStart(8, '0');
+}
+
 export class VisualNovelVM {
   private program: Instruction[];
   private state: VMState;
@@ -50,6 +73,8 @@ export class VisualNovelVM {
   private sceneIndexMap: Map<string, number> = new Map();
   private maxInstructionBudget: number;
   private emptyCallStackBehavior: 'throw' | 'halt';
+  private preambleExecuted = false;
+  private cachedScriptHash: string | null = null;
 
   constructor(program: Instruction[], initialState?: Partial<VMState>, options?: VMOptions) {
     this.program = program;
@@ -134,6 +159,9 @@ export class VisualNovelVM {
    * Thực thi các lệnh ASSIGN toàn cục ở phần đầu chương trình (Preamble)
    */
   public executePreamble(): void {
+    if (this.preambleExecuted) return;
+    this.preambleExecuted = true;
+
     let i = 0;
     while (i < this.program.length) {
       const instr = this.program[i]!;
@@ -167,8 +195,14 @@ export class VisualNovelVM {
           delete this.state.activeSprites[instr.character];
         }
       } else if (instr.type === 'PLAY') {
-        if (!this.state.activeAudio) this.state.activeAudio = {};
-        this.state.activeAudio[instr.channel] = instr;
+        const isPersistent =
+          instr.loop === true || instr.channel === 'music' || instr.channel === 'ambience';
+        if (isPersistent) {
+          if (!this.state.activeAudio) this.state.activeAudio = {};
+          this.state.activeAudio[instr.channel] = instr;
+        } else if (this.state.activeAudio && this.state.activeAudio[instr.channel]) {
+          delete this.state.activeAudio[instr.channel];
+        }
       } else if (instr.type === 'STOP') {
         if (this.state.activeAudio) {
           delete this.state.activeAudio[instr.channel];
@@ -186,17 +220,68 @@ export class VisualNovelVM {
   }
 
   /**
-   * Nhảy con trỏ lệnh tới scene mục tiêu
+   * Nhảy con trỏ lệnh nội bộ (không kích hoạt lại Preamble hay ghi đè state catch-up)
    */
-  public jumpToScene(targetScene: string): void {
+  private jumpTo(targetIndex: number, sceneName?: string): void {
+    this.state.instructionPointer = targetIndex;
+    if (sceneName) {
+      this.state.currentScene = sceneName;
+    } else if (targetIndex < this.program.length) {
+      const instr = this.program[targetIndex]!;
+      if (instr.type === 'SCENE') {
+        this.state.currentScene = instr.name;
+      }
+    }
+  }
+
+  /**
+   * Lưu snapshot tại điểm dừng CHOICE để khi người chơi bấm Rollback sẽ đóng menu choice
+   * và quay về câu thoại trước đó thay vì bị lùi 2 câu.
+   */
+  private captureChoiceSnapshot(): void {
+    const lastSnapshot = this.ringBuffer.peek();
+    if (
+      !lastSnapshot ||
+      lastSnapshot.interactionType !== 'CHOICE' ||
+      lastSnapshot.state.instructionPointer !== this.state.instructionPointer
+    ) {
+      const snapshot: VMSnapshot = {
+        timestamp: Date.now(),
+        dialogueIndex: this.dialogueCounter,
+        state: JSON.parse(JSON.stringify(this.state)),
+        interactionType: 'CHOICE',
+      };
+      this.ringBuffer.push(snapshot);
+    }
+  }
+
+  /**
+   * Khởi động máy ảo tại một vị trí xác định (dùng cho Player hoặc Editor "Run this scene / line")
+   */
+  public startAt(target: { scene?: string; line?: number; fileId?: string }): boolean {
+    this.executePreamble();
+    if (target.scene) {
+      this.jumpToScene(target.scene, { seedCatchUp: true });
+      return true;
+    }
+    if (target.line !== undefined) {
+      return this.jumpToLine(target.line, target.fileId, { seedCatchUp: true });
+    }
+    return false;
+  }
+
+  /**
+   * Nhảy con trỏ lệnh tới scene mục tiêu (Public API)
+   */
+  public jumpToScene(targetScene: string, options?: { seedCatchUp?: boolean }): void {
+    this.executePreamble();
     const targetIndex = this.resolveSceneIndex(targetScene);
-    if (this.dialogueCounter === 0) {
-      this.executePreamble();
+    if (options?.seedCatchUp) {
       this.seedCatchUpStateUpTo(targetIndex);
     }
-    this.state.instructionPointer = targetIndex;
+    this.jumpTo(targetIndex);
     const sceneInstr = this.program[targetIndex]!;
-    if (sceneInstr.type === 'SCENE') {
+    if (sceneInstr && sceneInstr.type === 'SCENE') {
       this.state.currentScene = sceneInstr.name;
     }
   }
@@ -204,7 +289,7 @@ export class VisualNovelVM {
   /**
    * Nhảy con trỏ lệnh tới câu lệnh gần nhất tương ứng với dòng kịch bản trong file
    */
-  public jumpToLine(line: number, fileId?: string): boolean {
+  public jumpToLine(line: number, fileId?: string, options?: { seedCatchUp?: boolean }): boolean {
     let targetIndex = -1;
     let minDiff = Infinity;
 
@@ -224,11 +309,11 @@ export class VisualNovelVM {
     }
 
     if (targetIndex !== -1) {
-      if (this.dialogueCounter === 0) {
-        this.executePreamble();
+      this.executePreamble();
+      if (options?.seedCatchUp) {
         this.seedCatchUpStateUpTo(targetIndex);
       }
-      this.state.instructionPointer = targetIndex;
+      this.jumpTo(targetIndex);
       // Cập nhật currentScene tương ứng
       for (let i = targetIndex; i >= 0; i--) {
         const instr = this.program[i]!;
@@ -246,6 +331,10 @@ export class VisualNovelVM {
    * Thực thi duy nhất 1 instruction tại instructionPointer
    */
   public step(): StepResult {
+    if (!this.preambleExecuted) {
+      this.executePreamble();
+    }
+
     if (this.state.instructionPointer >= this.program.length) {
       return { type: 'HALTED' };
     }
@@ -277,6 +366,7 @@ export class VisualNovelVM {
           timestamp: Date.now(),
           dialogueIndex: this.dialogueCounter,
           state: JSON.parse(JSON.stringify(this.state)),
+          interactionType: 'DIALOGUE',
         };
         this.ringBuffer.push(snapshot);
 
@@ -344,8 +434,14 @@ export class VisualNovelVM {
       }
 
       case 'PLAY': {
-        if (!this.state.activeAudio) this.state.activeAudio = {};
-        this.state.activeAudio[instr.channel] = instr;
+        const isPersistent =
+          instr.loop === true || instr.channel === 'music' || instr.channel === 'ambience';
+        if (isPersistent) {
+          if (!this.state.activeAudio) this.state.activeAudio = {};
+          this.state.activeAudio[instr.channel] = instr;
+        } else if (this.state.activeAudio && this.state.activeAudio[instr.channel]) {
+          delete this.state.activeAudio[instr.channel];
+        }
         this.state.instructionPointer++;
         return { type: 'SIDE_EFFECT', instruction: instr };
       }
@@ -403,14 +499,16 @@ export class VisualNovelVM {
       }
 
       case 'GOTO': {
-        this.jumpToScene(instr.targetScene);
+        const targetIndex = this.resolveSceneIndex(instr.targetScene);
+        this.jumpTo(targetIndex);
         return { type: 'SIDE_EFFECT', instruction: instr };
       }
 
       case 'CONDITIONAL_GOTO': {
         const conditionResult = this.evaluator.evaluate(instr.condition, this.getEvalContext());
         if (conditionResult) {
-          this.jumpToScene(instr.targetScene);
+          const targetIndex = this.resolveSceneIndex(instr.targetScene);
+          this.jumpTo(targetIndex);
         } else {
           this.state.instructionPointer++;
         }
@@ -421,7 +519,8 @@ export class VisualNovelVM {
         const conditionResult = this.evaluator.evaluate(instr.condition, this.getEvalContext());
         if (!conditionResult) {
           // Thoát khỏi vòng lặp: nhảy tới loopEndTargetScene
-          this.jumpToScene(instr.loopEndTargetScene);
+          const targetIndex = this.resolveSceneIndex(instr.loopEndTargetScene);
+          this.jumpTo(targetIndex);
         } else {
           // Tiếp tục vào thân vòng lặp
           this.state.instructionPointer++;
@@ -431,7 +530,8 @@ export class VisualNovelVM {
 
       case 'LOOP_END': {
         // Quay ngược lại điểm kiểm tra điều kiện của vòng lặp
-        this.jumpToScene(instr.loopStartTargetScene);
+        const targetIndex = this.resolveSceneIndex(instr.loopStartTargetScene);
+        this.jumpTo(targetIndex);
         return { type: 'SIDE_EFFECT', instruction: instr };
       }
 
@@ -443,7 +543,8 @@ export class VisualNovelVM {
           ip: this.state.instructionPointer + 1,
           savedLocalVariables: { ...this.state.localVariables },
         });
-        this.jumpToScene(instr.targetScene);
+        const targetIndex = this.resolveSceneIndex(instr.targetScene);
+        this.jumpTo(targetIndex);
         return { type: 'SIDE_EFFECT', instruction: instr };
       }
 
@@ -492,6 +593,7 @@ export class VisualNovelVM {
       }
 
       case 'CHOICE': {
+        this.captureChoiceSnapshot();
         const evalContext = this.getEvalContext();
         const interpolatedChoices = instr.choices.map(c => ({
           ...c,
@@ -533,6 +635,7 @@ export class VisualNovelVM {
 
       // Nếu đang đứng ngay tại CHOICE (đã suspend trước đó mà chưa choose)
       if (currentInstr.type === 'CHOICE') {
+        this.captureChoiceSnapshot();
         const evalContext = this.getEvalContext();
         const interpolatedChoices = currentInstr.choices.map(c => ({
           ...c,
@@ -621,7 +724,8 @@ export class VisualNovelVM {
     }
 
     // Chuyển hướng con trỏ sang targetScene của lựa chọn
-    this.jumpToScene(choice.targetScene);
+    const targetIndex = this.resolveSceneIndex(choice.targetScene);
+    this.jumpTo(targetIndex);
   }
 
   /**
@@ -705,9 +809,7 @@ export class VisualNovelVM {
     const sprites = new Map<string, ShowInstruction>(
       Object.entries(this.state.activeSprites || {}),
     );
-    const audio = new Map<string, PlayInstruction>(
-      Object.entries(this.state.activeAudio || {}),
-    );
+    const audio = new Map<string, PlayInstruction>(Object.entries(this.state.activeAudio || {}));
     let currentDialogue = this.state.currentDialogue;
     let activeInspect = this.state.activeInspect ?? null;
 
@@ -734,6 +836,16 @@ export class VisualNovelVM {
   }
 
   /**
+   * Lấy mã băm bytecode của kịch bản hiện tại (TAD 4.4 / Bug 3.3)
+   */
+  public getScriptHash(): string {
+    if (!this.cachedScriptHash) {
+      this.cachedScriptHash = computeScriptHash(this.program);
+    }
+    return this.cachedScriptHash;
+  }
+
+  /**
    * Serialize trạng thái máy ảo thành chuỗi JSON thuần túy theo cấu trúc SaveFileData (Save Game - TAD 4.4)
    */
   public serialize(
@@ -749,10 +861,12 @@ export class VisualNovelVM {
       sceneOffset = this.state.instructionPointer - sceneIdx;
     }
 
+    const scriptHash = meta.scriptHash ?? this.getScriptHash();
+
     const saveData: SaveFileData = {
       version: CURRENT_SAVE_VERSION,
       projectId: meta.projectId,
-      scriptHash: meta.scriptHash,
+      scriptHash,
       sceneOffset,
       dslVersion: meta.dslVersion ?? '1.0.0',
       timestamp: Date.now(),
@@ -764,9 +878,9 @@ export class VisualNovelVM {
 
   /**
    * Khôi phục trạng thái máy ảo từ chuỗi JSON (Load Game - TAD 4.4)
-   * Tự động kiểm tra schema VMState, migrate save file và neo lại an toàn theo sceneOffset
+   * Tự động kiểm tra schema VMState, migrate save file, cảnh báo desync và neo lại an toàn theo sceneOffset
    */
-  public restore(json: string): void {
+  public restore(json: string): RestoreResult {
     try {
       let data: unknown;
       try {
@@ -783,6 +897,15 @@ export class VisualNovelVM {
 
       const saveData = migrateSaveData(data, CURRENT_SAVE_VERSION);
       validateVMState(saveData.state);
+
+      let desyncWarning = false;
+      const currentHash = this.getScriptHash();
+      if (saveData.scriptHash && saveData.scriptHash !== currentHash) {
+        desyncWarning = true;
+        console.warn(
+          `[VN Engine Warning] Script hash mismatch during restore (saved: ${saveData.scriptHash}, current: ${currentHash}). Save state may desync.`,
+        );
+      }
 
       this.state = {
         ...saveData.state,
@@ -811,6 +934,13 @@ export class VisualNovelVM {
 
       this.dialogueCounter = saveData.dialogueCounter ?? 0;
       this.ringBuffer.clear();
+      this.preambleExecuted = true;
+
+      return {
+        desyncWarning,
+        savedHash: saveData.scriptHash,
+        currentHash,
+      };
     } catch (err: unknown) {
       if (err instanceof VMRuntimeError) {
         throw err;

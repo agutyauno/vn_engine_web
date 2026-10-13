@@ -44,7 +44,7 @@ export class AppRouter {
     window.addEventListener('hashchange', () => this.handleRoute());
 
     // Listen to auth state changes for auto-redirection
-    this.authService.onAuthStateChange((state) => {
+    this.authService.onAuthStateChange(state => {
       const currentPath = this.parseHash().path;
       if (!state.isAuthenticated && currentPath !== '/login') {
         window.location.hash = '#/login';

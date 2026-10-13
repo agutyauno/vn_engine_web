@@ -424,7 +424,9 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): void {
         suggestions.push({
           label: charId,
           kind: monaco.languages.CompletionItemKind.User,
-          detail: info.displayName ? `Character: ${charId} (${info.displayName})` : `Character: ${charId}`,
+          detail: info.displayName
+            ? `Character: ${charId} (${info.displayName})`
+            : `Character: ${charId}`,
           documentation: `Character ID "${charId}"`,
           insertText: charId,
           sortText: `01_${charId}_4`,

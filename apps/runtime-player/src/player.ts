@@ -56,7 +56,11 @@ export class VNPlayer {
     assets?: AssetRef[];
   } = {};
 
-  public updateProjectData(data: { id?: string; characters?: Character[]; assets?: AssetRef[] }): void {
+  public updateProjectData(data: {
+    id?: string;
+    characters?: Character[];
+    assets?: AssetRef[];
+  }): void {
     if (data.id) {
       this.projectData.id = data.id;
       GameStorage.setProjectId(data.id);
@@ -102,6 +106,7 @@ export class VNPlayer {
   private activeModalMode: 'save' | 'load' = 'save';
   private currentDialogueInstruction: DialogueInstruction | null = null;
   private isAdvancing: boolean = false;
+  private advanceQueued: boolean = false;
 
   // Cinematic Inspect Modal
   private inspectModal: HTMLElement;
@@ -727,7 +732,12 @@ export class VNPlayer {
    * Tiến máy ảo tới điểm tương tác tiếp theo
    */
   public async advance(): Promise<void> {
-    if (this.isAdvancing) return;
+    if (this.isAdvancing) {
+      if (this.isSkip || this.isAuto) {
+        this.advanceQueued = true;
+      }
+      return;
+    }
     this.isAdvancing = true;
 
     try {
@@ -839,6 +849,10 @@ export class VNPlayer {
       }
     } finally {
       this.isAdvancing = false;
+      if (this.advanceQueued && (this.isSkip || this.isAuto)) {
+        this.advanceQueued = false;
+        void this.advance();
+      }
     }
   }
 
@@ -1106,6 +1120,9 @@ export class VNPlayer {
       clearTimeout(this.autoTimerId);
       this.autoTimerId = null;
     }
+    if (!this.isSkip) {
+      this.advanceQueued = false;
+    }
   }
 
   private clearWaitTimer(): void {
@@ -1117,6 +1134,7 @@ export class VNPlayer {
 
   private clearSkip(): void {
     this.isSkip = false;
+    this.advanceQueued = false;
     this.btnSkip.classList.remove('active');
     if (this.skipTimerId !== null) {
       clearTimeout(this.skipTimerId);
@@ -1222,13 +1240,15 @@ export class VNPlayer {
   private async saveToSlot(slotIndex: number): Promise<void> {
     const thumbnail = await this.renderer.captureThumbnail(320, 180);
     const vmState = this.vm.getState();
+    const scriptHash = this.vm.getScriptHash();
     const data: Omit<SaveSlotData, 'slotIndex'> = {
       timestamp: Date.now(),
       sceneName: vmState.currentScene,
       thumbnail,
-      vmStateJson: this.vm.serialize({ projectId: this.projectData.id }),
+      vmStateJson: this.vm.serialize({ projectId: this.projectData.id, scriptHash }),
       dialoguePreview: stripControlTags(this.currentDialogueInstruction?.text || ''),
       projectId: this.projectData.id,
+      scriptHash,
       backlogJson: JSON.stringify(this.backlog),
     };
     GameStorage.saveSlot(slotIndex, data);
@@ -1253,13 +1273,15 @@ export class VNPlayer {
   public async quickSave(): Promise<void> {
     const thumbnail = await this.renderer.captureThumbnail(320, 180);
     const vmState = this.vm.getState();
+    const scriptHash = this.vm.getScriptHash();
     GameStorage.quickSave({
       timestamp: Date.now(),
       sceneName: vmState.currentScene,
       thumbnail,
-      vmStateJson: this.vm.serialize({ projectId: this.projectData.id }),
+      vmStateJson: this.vm.serialize({ projectId: this.projectData.id, scriptHash }),
       dialoguePreview: stripControlTags(this.currentDialogueInstruction?.text || ''),
       projectId: this.projectData.id,
+      scriptHash,
       backlogJson: JSON.stringify(this.backlog),
     });
     this.showToast('● QUICK SAVED');
@@ -1287,7 +1309,13 @@ export class VNPlayer {
     this.clearSkip();
     this.choiceOverlay.classList.add('hidden');
 
-    this.vm.restore(slot.vmStateJson);
+    const restoreResult = this.vm.restore(slot.vmStateJson);
+    if (restoreResult.desyncWarning) {
+      console.warn(
+        `[SaveLoad] Script version mismatch! Saved: ${restoreResult.savedHash}, Current: ${restoreResult.currentHash}`,
+      );
+      this.showToast('⚠️ Lưu ý: Kịch bản đã được cập nhật, dữ liệu chơi có thể bị lệch nhịp.');
+    }
 
     // Khôi phục Backlog
     if (slot.backlogJson) {
