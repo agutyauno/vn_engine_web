@@ -1,0 +1,724 @@
+# =====================================================================
+# VNS TEST LAB — kịch bản kiểm thử tổng hợp cho VN Engine (Chặng 4)
+# =====================================================================
+# CÁCH DÙNG
+#   - Editor: dán toàn bộ file vào main.vns, bấm "Run from Start".
+#   - Player standalone: ghi đè apps/runtime-player/src/scenario.vns.
+#   - File này được viết để BIÊN DỊCH ĐƯỢC với compiler hiện tại. Mỗi
+#     phòng thí nghiệm (lab_*) là một cảnh riêng, chọn từ menu hub. Mọi
+#     câu thoại đều ghi rõ "KỲ VỌNG" để so với kết quả thực tế.
+#   - KHO LỖI ở cuối file: các lỗi cố ý, đang bị comment. Bỏ comment
+#     MỘT khối mỗi lần để thử.
+#
+# NHÃN LOẠI KIỂM THỬ
+#   [C] biên dịch   [R] thực thi (VM)   [D] hiển thị   [S] save/rollback
+#   [E] editor      [BUG x.y] tham chiếu mục trong bản đánh giá trước
+#
+# CHUẨN BỊ
+#   - Tab Characters: tạo doctor với colorHex #e91e63 (để thấy lỗi màu
+#     nameplate sau rollback/load). bob, zed cố ý KHÔNG khai báo.
+#   - Asset (bg_*, bgm_*, sfx_*) cố ý chưa khai báo: engine phải dùng
+#     placeholder wireframe, Editor phải báo "[Chưa tạo]".
+#   - Mở DevTools Console để xem cảnh báo của VM/Audio.
+# =====================================================================
+
+# ---------------------------------------------------------------------
+# BIẾN TOÀN CỤC
+# ---------------------------------------------------------------------
+define gold = 1500000
+define hero_name = "Arthur"
+define nickname = ""
+define ratio = 87.654
+define trust = 0
+define clues = 0
+define energy = 100
+define counter = 0
+define flag_lamp = false
+define visits = 0
+
+# ---------------------------------------------------------------------
+# HUB TRANG 1
+# ---------------------------------------------------------------------
+scene hub {
+    background bg_hub transition: "fade"
+    play music "bgm_lab" volume: 0.5 loop: true fade_in: 1s
+    ~ visits = visits + 1
+    narrator: "VNS TEST LAB — hub trang 1, lần ghé thứ {visits}. Vàng: {gold:comma}. Phím 1-9 chọn nhanh."
+    choice {
+        "[1] Chữ, nội suy, tên nhân vật, XSS": goto lab_text
+        "[2] Hình ảnh: show/background/transition": goto lab_visual
+        "[3] Luồng: while/if/call/return/sub-scene": goto lab_flow
+        "[4] Rollback + Quick Save/Load (catch-up)": goto lab_catchup
+        "[5] wait + inspect": goto lab_inspect
+        "[6] Âm thanh: kênh, volume, fade": goto lab_audio
+        "[7] Nhấn phím nhanh, Skip, Auto": goto lab_input
+        "[8] Trang 2 →": goto hub2
+    }
+}
+
+# ---------------------------------------------------------------------
+# HUB TRANG 2
+# ---------------------------------------------------------------------
+scene hub2 {
+    narrator: "TRANG 2 — lần ghé hub: {visits}. (Mục 10 trở đi không có phím số: kiểm tra hiển thị.)"
+    choice {
+        "[9] Skin giao diện (ui:)": goto lab_skins
+        "[10] Call stack + local + Save/Load": goto lab_callstack
+        "[11] Run-this-line / preamble": goto lab_preamble
+        "[12] Lựa chọn bị khóa": goto lab_disabled
+        "[13] Auto-format (Shift+Alt+F)": goto lab_format
+        "[14] end khi còn call stack": goto lab_endcall
+        # ---- LỖI RUNTIME: bỏ comment dòng menu VÀ khối scene tương ứng ở KHO LỖI ----
+        # "[R01] biến chưa khai báo trong biểu thức": goto err_r01
+        # "[R02] gọi hàm ngoài whitelist": goto err_r02
+        # "[R03] chia cho 0": goto err_r03
+        # "[R04] sai kiểu dữ liệu (chuỗi - số)": goto err_r04
+        # "[R05] vòng lặp vô hạn": goto err_r05
+        # "[R06] return khi call stack rỗng": goto err_r06
+        # "[R07] mọi lựa chọn đều bị khóa": goto err_r07
+        "← Trang 1": goto hub
+    }
+}
+
+# =====================================================================
+# LAB 1 — CHỮ, NỘI SUY, TÊN NHÂN VẬT, XSS            [D] [C]
+# =====================================================================
+scene lab_text {
+    background bg_text
+    show doctor.happy(position: "left")
+    show bob.serious(position: "right")
+
+    narrator: "[D1] Câu thường. Dấu tiếng Việt: ắ ằ ẳ ẵ ặ, ơ ờ ở ỡ ợ, ư ừ ử ữ ự, đ Đ."
+    doctor: "[D2] Typewriter: {speed:slow}chậm chậm...{pause:0.8s} {speed:fast}rồi thật nhanh!{speed:normal} {color:#ef4444}chữ đỏ{/color} và {color:#38bdf8}{hero_name}{/color}."
+    doctor: "[D3] Nội suy: Chào {hero_name}! Có {gold:comma} vàng, trừ 500000 còn {gold - 500000 : comma}. Tỉ lệ {ratio:round}%. Tên: {hero_name:upper} / {hero_name:lower}."
+    doctor: "[D4] Fallback: [{nickname ?? 'người lạ'}] [{nickname ?? \"khách\"}]. KỲ VỌNG cả hai ra chữ dự phòng (nickname rỗng)."
+    doctor: "[D5] Escape: tập hợp \{1, 2, 3\} KHÔNG phải biến. Ký tự lạ: < > & \" ' và emoji 🎉."
+    doctor: "[D6] XSS trong thoại: <b>đậm?</b> <img src=x onerror=document.title='XSS_DIALOGUE'> — KỲ VỌNG hiện nguyên văn, KHÔNG có ảnh vỡ."
+
+    narrator: """
+[D7] Chuỗi nhiều dòng (triple quote).
+Dòng 2 có dấu # thăng và dấu } đóng lẻ.
+Dòng 3 kết thúc.
+"""
+
+    doctor as "???": "[D8] Tên tạm. KỲ VỌNG nameplate là ???."
+    doctor as "{hero_name}?": "[D8b] Alias có nội suy. KỲ VỌNG nameplate: ARTHUR?"
+    reveal doctor as "doctor – Hội phó"
+    doctor: "[D9] Sau reveal. KỲ VỌNG nameplate: doctor – HỘI PHÓ (màu theo colorHex nếu đã khai báo)."
+    reveal bob as "Nhân vật có cái tên dài đến mức có thể tràn khỏi nameplate"
+    bob: "[D9b] Nameplate dài: kiểm tra có tràn/vỡ layout không."
+    zed: "[D10] Nhân vật 'zed' chưa khai báo: nameplate dùng màu mặc định, không crash."
+
+    doctor: "[D11] Dòng rất dài để thử tự xuống dòng: Ngày xửa ngày xưa, ở một ngôi trường nhỏ nằm cuối con đường rợp bóng cây phượng, có một câu lạc bộ bí ẩn chuyên giải quyết những chuyện kỳ lạ mà không ai muốn nhắc đến; mỗi chiều hoàng hôn, những thành viên cuối cùng lại tụ họp để bàn về vụ án tiếp theo."
+    doctor: "[D12] Từ dài không khoảng trắng: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA — KỲ VỌNG không tràn khỏi hộp thoại."
+    doctor: ""
+    narrator: "[D12b] Dòng trước là thoại RỖNG: hộp thoại bị ẩn. KỲ VỌNG vẫn tiến được bằng Space/Enter (click vào hộp ẩn thì không được)."
+    narrator: "[D13] Mở LOG (phím L): thoại phải hiện nguyên văn, KHÔNG có ảnh vỡ, tiêu đề tab KHÔNG đổi thành XSS_*. [BUG 3.8]"
+    hide doctor
+    hide bob
+    hide zed
+    choice {
+        "[D14] <i>chữ nghiêng?</i> <img src=x onerror=document.title='XSS_CHOICE'> (phải hiện nguyên văn)": goto hub
+        "Quay lại hub": goto hub
+    }
+}
+
+# =====================================================================
+# LAB 2 — HÌNH ẢNH                                    [D] [R]
+# =====================================================================
+scene lab_visual {
+    background bg_one transition: "fade"
+    narrator: "[V1] Chạy lần lượt từng transition của nhân vật. Mỗi hiệu ứng cách nhau bằng wait."
+
+    show doctor.happy(position: "left", transition: "dissolve", duration: 0.5s)
+    wait 0.6s
+    show doctor.happy(position: "center", transition: "slide", duration: 0.6s)
+    wait 0.7s
+    show bob.serious(x: 0.8, y: 1, transition: "shake", duration: 0.5s)
+    wait 0.6s
+    show bob.serious(x: 0.8, y: 1, transition: "hop", duration: 0.5s)
+    wait 0.6s
+    show bob.serious(position: "right", transition: "bounce", easing: "elastic", duration: 0.8s)
+    wait 0.9s
+    show bob.serious(position: "right", transition: "wobble", duration: 0.8s)
+    wait 0.9s
+    show bob.serious(position: "right", transition: "pop", duration: 0.5s)
+    wait 0.6s
+    show bob.serious(position: "right", transition: "zoom", duration: 0.5s)
+    wait 0.6s
+
+    narrator: "[V2] Biến đổi hình học đầy đủ: scale, rotate, flip, offset, alpha. KỲ VỌNG doctor nghiêng, lật, hơi mờ."
+    show doctor.happy(scale: 1.5, rotate: -25, flipX: true, flipY: false, x: 0.35, y: 0.85, offsetX: 10, offsetY: -20, alpha: 0.85, transition: "pop", easing: "ease_out", duration: 0.5s)
+    wait 0.6s
+    narrator: "[V3] Đổi sprite và đặt lại trạng thái chuẩn."
+    show doctor.sad(position: "left", scale: 1, rotate: 0, flipX: false, alpha: 1, duration: 0.4s)
+    wait 0.5s
+
+    narrator: "[V4] Gọi show 3 lần liên tiếp KHÔNG wait (hủy animation đang chạy). KỲ VỌNG doctor kết thúc tại x = 0.4."
+    show doctor.happy(x: 0.2, y: 1, transition: "shake", duration: 1s)
+    show doctor.happy(x: 0.6, y: 1, transition: "hop", duration: 1s)
+    show doctor.happy(x: 0.4, y: 1, duration: 1s)
+    wait 1.2s
+
+    narrator: "[V5] Đổi background lần lượt: zoom, slide_right, slide_up."
+    background bg_two(transition: "zoom", duration: 1s)
+    wait 1.2s
+    background bg_three(transition: "slide_right", duration: 1s)
+    wait 1.2s
+    background bg_four(transition: "slide_up", duration: 1s)
+    wait 1.2s
+
+    narrator: "[V6] Cùng một background nhưng đổi thông số. KỲ VỌNG phóng to mượt rồi trả về, KHÔNG giật kích thước."
+    background bg_four(scale: 1.3, x: 0.4, y: 0.5, rotate: 3, duration: 1s)
+    wait 1.2s
+    background bg_four(scale: 1, x: 0.5, y: 0.5, rotate: 0, duration: 1s)
+    wait 1.2s
+
+    hide dialogue
+    show doctor.sad(position: "left", transition: "wobble", duration: 0.8s)
+    wait 1s
+    narrator: "[V7] Vừa rồi hộp thoại bị ẩn (hide dialogue). KỲ VỌNG nó tự hiện lại ở câu này."
+
+    narrator: "[V8] Đạo cụ: show key_gold (chưa khai báo asset nên là mannequin, không crash)."
+    show key_gold(x: 0.5, y: 0.5, scale: 0.8)
+    wait 0.8s
+    hide key_gold
+    hide doctor
+    hide bob
+    hide bob
+    narrator: "[V9] hide hai lần liên tiếp cho bob không được gây lỗi. Xong."
+    goto hub
+}
+
+# =====================================================================
+# LAB 3 — LUỒNG ĐIỀU KHIỂN                            [R]
+# =====================================================================
+scene lab_flow {
+    define mine = 7
+    define greet = "Chào " + hero_name
+    ~ counter = 0
+    narrator: "[F0] {greet}. Local mine = {mine}."
+    narrator: "[F1] Vòng while 3 lần; mỗi lần call .turn (có choice). counter là biến global."
+    while counter < 3 {
+        ~ counter = counter + 1
+        call .turn
+    }
+    narrator: "[F2] counter = {counter} (KỲ VỌNG 3). Local mine = {mine} (KỲ VỌNG 7, còn nguyên sau nhiều call)."
+
+    ~ trust = 60
+    if trust > 100 {
+        narrator: "[F3] SAI: nhánh > 100."
+    } else if trust == 60 {
+        narrator: "[F3] ĐÚNG: nhánh else-if (trust == 60)."
+    } else {
+        narrator: "[F3] SAI: nhánh else."
+    }
+
+    ~ trust = 2 + 3 * 4
+    narrator: "[F4] 2 + 3 * 4 = {trust} (KỲ VỌNG 14); (2 + 3) * 4 = {(2 + 3) * 4} (KỲ VỌNG 20)."
+    ~ trust = -trust + 20
+    narrator: "[F4b] -14 + 20 = {trust} (KỲ VỌNG 6)."
+    if !flag_lamp && energy > 50 {
+        narrator: "[F5] ĐÚNG: !flag_lamp && energy > 50."
+    }
+    if flag_lamp || energy == 100 {
+        narrator: "[F5b] ĐÚNG: flag_lamp || energy == 100."
+    }
+
+    narrator: "[F6] call .no_return (thiếu return): Console có cảnh báo, tự quay lại."
+    call .no_return
+    narrator: "[F7] Đã quay lại từ scene thiếu return."
+    call .early
+    narrator: "[F8] Đã quay lại từ return sớm (KHÔNG được thấy dòng 'KHÔNG ĐƯỢC HIỆN')."
+    call .depth1
+    narrator: "[F9] Đã về từ call 2 tầng. Xong."
+    goto hub
+
+    scene .turn {
+        narrator: "[T1] Lượt {counter}: chọn một mục."
+        choice {
+            "A (goto .pick_a)": goto .pick_a
+            "B (call .pick_b, quay lại ngay sau choice)": call .pick_b
+            if counter >= 2 {
+                "C (chỉ hiện từ lượt 2)": goto .pick_c
+            }
+        }
+        narrator: "[T4] Quay lại sau choice-call (chỉ thấy khi chọn B)."
+        return
+    }
+
+    scene .pick_a {
+        narrator: "[T2] Đã chọn A."
+        return
+    }
+
+    scene .pick_b {
+        narrator: "[T3] Đang trong .pick_b (được gọi bằng choice-call)."
+        return
+    }
+
+    scene .pick_c {
+        narrator: "[T5] Đã chọn C."
+        return
+    }
+
+    scene .no_return {
+        narrator: "[N1] Trong .no_return, cố ý không có return."
+    }
+
+    scene .early {
+        if counter > 0 {
+            narrator: "[E1] return sớm trong if."
+            return
+        }
+        narrator: "KHÔNG ĐƯỢC HIỆN"
+        return
+    }
+
+    scene .depth1 {
+        narrator: "[D1] tầng 1."
+        call .depth2
+        narrator: "[D1b] về tầng 1."
+        return
+    }
+
+    scene .depth2 {
+        narrator: "[D2] tầng 2."
+        return
+    }
+}
+
+# =====================================================================
+# LAB 4 — ROLLBACK + QUICK SAVE/LOAD (CATCH-UP)       [S] [BUG 3.1, 3.5]
+# Thứ tự khai báo nhánh trong file cố ý khác thứ tự thực thi.
+# =====================================================================
+scene lab_catchup {
+    background bg_catch_a transition: "fade"
+    play music "bgm_catch_a" volume: 0.6 loop: true
+    show doctor.happy(position: "left")
+    narrator: "[S1] Cảnh gốc: bg_catch_a, doctor bên trái, nhạc bgm_catch_a."
+    narrator: "Hãy chọn NHÁNH A. Tới [S3] bấm Q.SAVE, đi tiếp, bấm Q.LOAD rồi BACK nhiều lần."
+    choice {
+        "Nhánh A": goto .branch_a
+        "Nhánh B": goto .branch_b
+    }
+
+    scene .branch_a {
+        background bg_catch_a2 transition: "fade"
+        show bob.serious(position: "right")
+        play music "bgm_catch_a2" volume: 0.6 loop: true
+        play sound "sfx_bell" volume: 0.7
+        narrator: "[S2-A] KỲ VỌNG: bg_catch_a2, doctor trái, bob phải, KHÔNG có zed, nhạc bgm_catch_a2."
+        goto .join
+    }
+
+    scene .branch_b {
+        background bg_catch_b transition: "fade"
+        show zed.happy(position: "center")
+        play music "bgm_catch_b" volume: 0.6 loop: true
+        narrator: "[S2-B] KỲ VỌNG: bg_catch_b, doctor trái, zed giữa, KHÔNG có bob, nhạc bgm_catch_b."
+        goto .join
+    }
+
+    scene .join {
+        narrator: "[S3] Bấm Q.SAVE ngay bây giờ, rồi bấm tiếp."
+        narrator: "[S4] Bây giờ bấm Q.LOAD. KỲ VỌNG hình/nhạc đúng như [S2] của nhánh đã chọn. Lỗi hiện tại: lẫn trạng thái nhánh còn lại, chuông sfx_bell phát lại, ảnh thành placeholder."
+        narrator: "[S5] Bấm BACK: KỲ VỌNG lùi đúng 1 câu và hình/nhạc đúng theo câu đó."
+        choice {
+            "Về hub": goto hub
+            "Lựa chọn giả: ở đây bấm BACK, KỲ VỌNG lùi 1 câu (lỗi: lùi 2)": goto hub
+        }
+    }
+}
+
+# =====================================================================
+# LAB 5 — WAIT + INSPECT                              [D] [S]
+# =====================================================================
+scene lab_inspect {
+    background bg_inspect
+    show doctor.happy(position: "left")
+    narrator: "[I1] Sắp có wait 2s. Click/Space để bỏ qua phần còn lại của wait."
+    wait 2s
+    narrator: "[I2] Mở khảo sát vật phẩm. Thử: Esc, nút ✕, Q.SAVE rồi Q.LOAD khi đang mở, BACK."
+    inspect key_gold title: "Chìa khóa của {hero_name}" {
+        "Một chiếc chìa khóa đồng. {pause:0.5s}Gỉ sét theo năm tháng."
+        doctor: "Trong inspect: thử BACK ở câu này."
+        doctor: "Câu cuối trong inspect."
+    }
+    narrator: "[I3] Inspect đã đóng tự động. KỲ VỌNG modal không còn."
+    wait 1
+    narrator: "[I4] wait số thuần (1 giây) đã chạy xong."
+    hide doctor
+    goto hub
+}
+
+# =====================================================================
+# LAB 6 — ÂM THANH                                    [D] [R]
+# =====================================================================
+scene lab_audio {
+    narrator: "[A1] Mở MENU → AUDIO, kéo BGM xuống 20% rồi tiếp tục."
+    play music "bgm_audio_1" volume: 0.8 loop: true
+    narrator: "[A2] KỲ VỌNG nhạc nhỏ theo slider (lỗi: volume trong script ghi đè mức người chơi đã chỉnh). [BUG mục 4]"
+    play music "bgm_audio_2" volume: 0.8 loop: true fade_in: 2s
+    narrator: "[A3] Đổi bài (bgm_audio_2 vào dần 2 giây)."
+    play sound "sfx_one" volume: 0.7
+    play ambience "amb_rain" volume: 0.4 loop: true
+    play voice "voice_001"
+    narrator: "[A4] Kênh tuỳ ý ambience và voice. Mở MENU → DEBUG VM để xem kênh đang hoạt động. Asset chưa có: chỉ được cảnh báo Console, không crash."
+    stop music fade_out: 2s
+    stop ambience
+    narrator: "[A5] music dừng dần, ambience dừng ngay. Kiểm tra lại DEBUG VM."
+    stop voice
+    stop sound
+    narrator: "[A6] stop trên kênh đã dừng không được gây lỗi. Xong."
+    goto hub
+}
+
+# =====================================================================
+# LAB 7 — NHẤN PHÍM NHANH, SKIP, AUTO                 [D] [R]
+# =====================================================================
+scene lab_input {
+    narrator: "[K1] Nhấn Space/Enter THẬT NHANH qua 6 cặp show+thoại dưới. KỲ VỌNG không nuốt dòng nào. [BUG 3.10]"
+    show doctor.happy(x: 0.2, y: 1, duration: 0.3s)
+    narrator: "Dòng 1/6"
+    show doctor.happy(x: 0.4, y: 1, duration: 0.3s)
+    narrator: "Dòng 2/6"
+    show doctor.happy(x: 0.6, y: 1, duration: 0.3s)
+    narrator: "Dòng 3/6"
+    show doctor.happy(x: 0.8, y: 1, duration: 0.3s)
+    narrator: "Dòng 4/6"
+    show doctor.happy(x: 0.6, y: 1, duration: 0.3s)
+    narrator: "Dòng 5/6"
+    show doctor.happy(x: 0.4, y: 1, duration: 0.3s)
+    narrator: "Dòng 6/6 — nếu thiếu dòng nào, re-entrancy đã xảy ra."
+    narrator: "[K2] Bật SKIP (S) ở câu này: {pause:3s}pause dài {pause:3s}thứ hai. KỲ VỌNG lướt gần như tức thì."
+    narrator: "[K2b] Thoại sau pause."
+    narrator: "[K2c] Thoại cuối. Tắt SKIP."
+    narrator: "[K3] Bật AUTO (A): tự sang câu sau sau khoảng 1,6 giây."
+    narrator: "[K3b] Câu tự động 2."
+    narrator: "[K3c] Câu tự động 3. Tắt AUTO."
+    narrator: "[K4] Bật SKIP khi gặp wait 3s phía dưới: KỲ VỌNG wait rút còn ~20ms."
+    wait 3s
+    narrator: "[K5] Xong."
+    hide doctor
+    goto hub
+}
+
+# =====================================================================
+# LAB 8 — SKIN GIAO DIỆN THEO SCENE (ui:)             [D]
+# =====================================================================
+scene lab_skins ui: "phone_chat_ui" {
+    show doctor.happy(position: "left")
+    doctor: "[U1] Skin phone_chat_ui: nameplate xanh dương, hộp thoại bo góc."
+    doctor: "[U2] Câu thứ hai vẫn cùng skin."
+    choice {
+        "Sub-scene kế thừa skin": goto .inherit
+        "Sub-scene ghi đè retro_rpg": goto .retro
+    }
+
+    scene .inherit {
+        doctor: "[U3] KỲ VỌNG vẫn là phone_chat_ui (kế thừa từ scene cha)."
+        hide doctor
+        goto hub
+    }
+
+    scene .retro ui: "retro_rpg" {
+        doctor: "[U4] KỲ VỌNG skin retro_rpg: viền trắng dày, bóng đổ cứng."
+        hide doctor
+        goto hub
+    }
+}
+
+# =====================================================================
+# LAB 9 — CALL STACK + LOCAL + SAVE/LOAD              [S] [R]
+# =====================================================================
+scene lab_callstack {
+    define marker = 42
+    define note = "outer"
+    narrator: "[C1] Sẽ call 2 tầng. Ở tầng sâu nhất: Q.SAVE, đi tiếp, Q.LOAD, kiểm tra biến và call stack."
+    call .level1
+    narrator: "[C5] Về outer: marker = {marker} (KỲ VỌNG 42), note = {note} (KỲ VỌNG outer)."
+    goto hub
+
+    scene .level1 {
+        define marker2 = 100
+        narrator: "[C2] level1: marker2 = {marker2}."
+        call .level2
+        narrator: "[C4] Về level1: marker2 = {marker2} (KỲ VỌNG 100). Mở MENU → DEBUG: Call Stack Depth = 1."
+        return
+    }
+
+    scene .level2 {
+        define marker3 = 7
+        narrator: "[C3a] level2: sắp có wait 3s. Thử Q.SAVE trong lúc đang chờ."
+        wait 3s
+        narrator: "[C3] level2: Q.SAVE ngay. DEBUG: Call Stack Depth = 2. Sau Q.LOAD: marker3 = {marker3} (KỲ VỌNG 7), tag {color:#ef4444}màu đỏ{/color} phải được render (lỗi: hiện nguyên văn thẻ). [BUG mục 4]"
+        return
+    }
+}
+
+# =====================================================================
+# LAB 10 — PREAMBLE / RUN THIS LINE                   [R] [BUG 3.2]
+# =====================================================================
+# CÁCH THỬ: đặt con trỏ trong scene này, bấm "Run this line" (Ctrl+Enter).
+scene lab_preamble {
+    narrator: "[P1] Cảnh này đọc biến global. Chạy từ đầu thì bình thường."
+    if trust >= 0 {
+        narrator: "[P2] Biến global: trust = {trust}, gold = {gold:comma}."
+    }
+    ~ trust = trust + 5
+    narrator: "[P3] KỲ VỌNG khi dùng Run this line: vẫn chạy được. Lỗi hiện tại: báo biến chưa khai báo vì preamble bị bỏ qua."
+    goto hub
+}
+
+# =====================================================================
+# LAB 11 — LỰA CHỌN BỊ KHÓA                           [D]
+# =====================================================================
+scene lab_disabled {
+    narrator: "[B1] Bốn mục mở, hai mục khóa. Phím 1-9 và mũi tên ↑↓ phải bỏ qua mục khóa."
+    choice {
+        if false {
+            "Khóa A (điều kiện false)": goto hub
+        }
+        "Mở 1": goto hub
+        if has_item("flower") {
+            "Cần hoa — MỞ (has_item trả true)": goto hub
+        }
+        if trust > 9999 {
+            "Khóa B (trust > 9999)": goto hub
+        }
+        "Mở 2": goto hub
+    }
+}
+
+# =====================================================================
+# LAB 12 — AUTO-FORMAT                                [E]
+# Cố ý viết lộn xộn. Lưu bản sao, bấm Shift+Alt+F, so sánh trước/sau:
+# nội dung trong """...""" phải GIỮ NGUYÊN (lỗi hiện tại: bị cắt khoảng
+# trắng, dòng bắt đầu bằng # bị coi là comment, dấu } làm lệch thụt lề).
+# =====================================================================
+scene lab_format    {
+background   bg_fmt transition:"fade"
+show doctor.happy( position:"left" ,flipX:true ,duration:0.4s )
+   doctor as "???" :   "Thoại thường  giữ   nguyên   khoảng   trắng."
+   if   trust>=0&&energy<=100   {
+~ trust=trust+1
+   }
+narrator: """
+  Dòng thụt 2 space
+# dòng bắt đầu bằng dấu thăng (không phải comment)
+dòng có dấu } đóng lẻ
+dòng có dấu { mở lẻ
+
+
+dòng sau hai dòng trống
+"""
+  narrator: "Sau khối nhiều dòng."
+hide doctor
+goto hub
+}
+
+# =====================================================================
+# LAB 13 — end KHI CÒN CALL STACK                     [R]
+# =====================================================================
+scene lab_endcall {
+    narrator: "[E1] call vào cảnh kết thúc; end khi call stack còn 1 frame → HALTED + cảnh báo Console."
+    call .the_end
+    narrator: "KHÔNG ĐƯỢC HIỆN."
+
+    scene .the_end {
+        narrator: "[E2] Kết thúc đột ngột. Dùng MENU → System → Restart để chơi lại."
+        end
+    }
+}
+
+# =====================================================================
+# =====================================================================
+#                          K H O   L Ỗ I
+# Mỗi khối bên dưới đang bị comment. Bỏ comment MỘT khối rồi xem kết quả.
+# =====================================================================
+# =====================================================================
+
+# ---------------------------------------------------------------------
+# LỖI BIÊN DỊCH (dự kiến hiện ở Problems + gạch đỏ). Không cần menu.
+# ---------------------------------------------------------------------
+
+# [C01] Gán biến chưa khai báo. KỲ VỌNG: "must be declared before assignment".
+# scene err_c01 {
+#     ~ ghost = 1
+# }
+
+# [C02] Nội suy biến chưa khai báo. KỲ VỌNG: lỗi "in string interpolation".
+# scene err_c02 {
+#     narrator: "Xin chào {nobody}!"
+# }
+
+# [C03] Khai báo global trùng. KỲ VỌNG: "defined multiple times at top-level".
+# define gold = 1
+
+# [C04] Local trùng tên global. KỲ VỌNG: "already declared as global".
+# scene err_c04 {
+#     define gold = 5
+# }
+
+# [C05] goto tới scene không tồn tại. KỲ VỌNG: "does not exist".
+# scene err_c05 {
+#     goto khong_ton_tai
+# }
+
+# [C06] Trùng tên scene. KỲ VỌNG: "is defined multiple times".
+# scene hub {
+# }
+
+# [C07] Sub-scene lồng sub-scene. KỲ VỌNG: "Sub-scenes are strictly limited to 1 level".
+# scene err_c07 {
+#     scene .a {
+#         scene .b {
+#             narrator: "x"
+#         }
+#     }
+# }
+
+# [C08] position cùng x/y. KỲ VỌNG: "cannot use both 'position' and 'x'/'y'".
+# scene err_c08 {
+#     show doctor.happy(position: "left", x: 0.2)
+# }
+
+# [C09] transition không hợp lệ. KỲ VỌNG: 'unknown transition "teleport"'.
+# scene err_c09 {
+#     background bg_x transition: "teleport"
+# }
+
+# [C10] easing không hợp lệ. KỲ VỌNG: 'unknown easing'.
+# scene err_c10 {
+#     show doctor.happy(easing: "hyper")
+# }
+
+# [C12] Biểu thức sai cú pháp. KỲ VỌNG: gạch đỏ tại dòng if.
+#       LỖI HIỆN TẠI [BUG 3.3]: compiler ném exception, Editor không hiện lỗi đẹp.
+# scene err_c12 {
+#     if trust > {
+#         narrator: "x"
+#     }
+# }
+
+# [C13] Toán tử %. KỲ VỌNG (sau khi thêm token %): compile OK.
+#       HIỆN TẠI: "Lexer error" vì thiếu token %.
+# scene err_c13 {
+#     ~ trust = trust % 2
+# }
+
+# [C14] Dùng từ khóa cứng làm tên biến. HIỆN TẠI: Syntax error. Spec không cấm x/y/title/loop...
+# define x = 1
+
+# [C15] goto dạng global.local (spec mục 5.8). HIỆN TẠI: Syntax error.
+# scene err_c15 {
+#     goto lab_flow.turn
+# }
+
+# [C16] choice if có 2 option (spec cho phép). HIỆN TẠI: Syntax error.
+# scene err_c16 {
+#     choice {
+#         if true {
+#             "Một": goto hub
+#             "Hai": goto hub
+#         }
+#     }
+# }
+
+# [C17] Sub-scene khai báo ở top-level. KỲ VỌNG: "cannot be declared at top-level".
+# scene .orphan {
+#     narrator: "x"
+# }
+
+# [C18] Scene global có dấu chấm. KỲ VỌNG: "cannot contain '.'".
+# scene 1.5 {
+#     narrator: "x"
+# }
+
+# [C19] Ký tự lạ. KỲ VỌNG: "Lexer error".
+# scene err_c19 {
+#     narrator: "x" $
+# }
+
+# [C20] define local trùng trong cùng scene. KỲ VỌNG: "defined multiple times in scene".
+# scene err_c20 {
+#     define t = 1
+#     define t = 2
+# }
+
+# [C21] Tọa độ ngoài 0..1 (spec mục 8.11 nói là lỗi). HIỆN TẠI: KHÔNG báo lỗi.
+# scene err_c21 {
+#     show doctor.happy(x: 1.5, y: 1)
+# }
+
+# [C22] Nhân vật/asset chưa khai báo (spec mục 8.1). HIỆN TẠI: KHÔNG báo lỗi compile.
+# scene err_c22 {
+#     show nhan_vat_la.happy(position: "left")
+#     background asset_khong_ton_tai
+# }
+
+# [C11] Thiếu dấu } ở cuối. KỲ VỌNG: "Syntax error". (Giữ khối này ở CUỐI file.)
+# scene err_c11 {
+#     narrator: "thiếu ngoặc đóng"
+
+# ---------------------------------------------------------------------
+# LỖI RUNTIME. Cần bỏ comment CẢ HAI: (1) khối scene dưới đây,
+# (2) dòng menu tương ứng trong scene hub2. Compile phải OK, lỗi hiện
+# khi chạy (toast "[Lỗi kịch bản]"). Một số mục sẽ chuyển thành lỗi
+# compile sau khi sửa phần validate biểu thức [BUG 3.4].
+# ---------------------------------------------------------------------
+
+# [R01] Biến chưa khai báo trong biểu thức. HIỆN TẠI: compile OK, crash runtime.
+# scene err_r01 {
+#     narrator: "[R01] Trước khi lỗi."
+#     if scor > 5 {
+#         narrator: "Không tới được."
+#     }
+#     goto hub2
+# }
+
+# [R02] Hàm ngoài whitelist. HIỆN TẠI: compile OK, crash runtime.
+# scene err_r02 {
+#     narrator: "[R02] Trước khi lỗi."
+#     ~ trust = foo(1)
+#     goto hub2
+# }
+
+# [R03] Chia cho 0. KỲ VỌNG: toast "Division by zero".
+# scene err_r03 {
+#     narrator: "[R03] Trước khi lỗi."
+#     ~ trust = 10 / 0
+#     goto hub2
+# }
+
+# [R04] Sai kiểu: chuỗi trừ số. KỲ VỌNG: toast "requires both operands to be numeric".
+# scene err_r04 {
+#     narrator: "[R04] Trước khi lỗi."
+#     ~ trust = "abc" - 1
+#     goto hub2
+# }
+
+# [R05] Vòng lặp vô hạn. KỲ VỌNG: toast "Execution budget exceeded", tab KHÔNG treo.
+# scene err_r05 {
+#     narrator: "[R05] Sắp lặp vô hạn."
+#     while true {
+#         ~ counter = counter + 1
+#     }
+# }
+
+# [R06] return khi call stack rỗng. KỲ VỌNG: cảnh báo Console + game dừng an toàn.
+# scene err_r06 {
+#     narrator: "[R06] Sắp return không có caller."
+#     return
+# }
+
+# [R07] Mọi lựa chọn bị khóa. KỲ VỌNG: nhìn thấy các nút xám; người chơi bị kẹt (đây là vấn đề thiết kế cần quyết định).
+# scene err_r07 {
+#     narrator: "[R07] Mọi lựa chọn đều khóa."
+#     choice {
+#         if false {
+#             "Không bấm được": goto hub
+#         }
+#     }
+# }

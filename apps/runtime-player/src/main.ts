@@ -3,13 +3,12 @@
 // ==========================================
 
 import { compileString } from '@vn-engine/dsl-compiler';
+import { isValidProgram, validateProgram } from '@vn-engine/core-vm';
 import { VNPlayer } from './player';
 import scenarioSource from './scenario.vns?raw';
-import type { Instruction } from '@vn-engine/shared-types';
 
 function isAllowedEditorOrigin(origin: string): boolean {
-  const envOrigin = (import.meta as unknown as { env?: Record<string, string | undefined> }).env
-    ?.VITE_EDITOR_ORIGIN;
+  const envOrigin = import.meta.env.VITE_EDITOR_ORIGIN;
   const allowedOrigins = ['http://localhost:3001', 'http://127.0.0.1:3001', window.location.origin];
   if (envOrigin && typeof envOrigin === 'string' && envOrigin.trim().length > 0) {
     allowedOrigins.push(envOrigin.trim().replace(/\/+$/, ''));
@@ -19,22 +18,12 @@ function isAllowedEditorOrigin(origin: string): boolean {
   return userContentRegex.test(origin);
 }
 
-function isValidProgram(program: unknown): program is Instruction[] {
-  if (!Array.isArray(program)) return false;
-  return program.every(
-    item =>
-      item &&
-      typeof item === 'object' &&
-      typeof (item as { type?: unknown }).type === 'string',
-  );
-}
-
 window.addEventListener('DOMContentLoaded', async () => {
   console.log('[RuntimePlayer] Loading and compiling sample VNS scenario...');
 
   const compileResult = compileString(scenarioSource, 'scenario.vns');
-  if (!compileResult.success || !compileResult.program) {
-    console.error('[RuntimePlayer] Script compilation error:', compileResult.errors);
+  if (!compileResult.success || !compileResult.program || !isValidProgram(compileResult.program)) {
+    console.error('[RuntimePlayer] Script compilation or validation error:', compileResult.errors);
     alert('Script compilation error! Please check Console.');
     return;
   }
@@ -112,7 +101,11 @@ window.addEventListener('message', async (event: MessageEvent) => {
 
   if (event.data?.type === 'HOT_RELOAD_PROGRAM') {
     if (!isValidProgram(event.data.program)) {
-      console.warn('[RuntimePlayer] Invalid program structure received in HOT_RELOAD_PROGRAM');
+      const validation = validateProgram(event.data.program);
+      console.warn(
+        '[RuntimePlayer] Invalid program structure received in HOT_RELOAD_PROGRAM:',
+        validation.errors,
+      );
       return;
     }
 

@@ -2442,8 +2442,7 @@ export class StudioApp {
   // 8. TWO-WAY LIVE PREVIEW BRIDGE (SECURE ORIGIN CHECK)
   // ================================================================
   private getPreviewBaseUrl(): string {
-    const envUrl = (import.meta as unknown as { env?: Record<string, string | undefined> }).env
-      ?.VITE_PREVIEW_URL;
+    const envUrl = import.meta.env.VITE_PREVIEW_URL;
     if (envUrl && typeof envUrl === 'string' && envUrl.trim().length > 0) {
       return envUrl.trim().replace(/\/+$/, '');
     }

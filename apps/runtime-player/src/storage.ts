@@ -134,4 +134,49 @@ export class GameStorage {
       return null;
     }
   }
+
+  private static getSeenKey(projectId?: string): string {
+    const pid = projectId ?? this.activeProjectId;
+    return pid ? `vn_engine_${pid}_seen_dialogues` : 'vn_engine_seen_dialogues';
+  }
+
+  /**
+   * Lấy tập hợp các câu thoại đã đọc của dự án (Read Text Tracking)
+   */
+  public static getSeenDialogues(projectId?: string): Set<string> {
+    try {
+      const key = this.getSeenKey(projectId);
+      const raw = localStorage.getItem(key);
+      if (!raw) return new Set();
+      const arr = JSON.parse(raw);
+      return Array.isArray(arr) ? new Set(arr) : new Set();
+    } catch {
+      return new Set();
+    }
+  }
+
+  /**
+   * Lưu danh sách các câu thoại đã đọc vào LocalStorage
+   */
+  public static saveSeenDialogues(seenSet: Set<string>, projectId?: string): void {
+    try {
+      const key = this.getSeenKey(projectId);
+      const arr = Array.from(seenSet);
+      localStorage.setItem(key, JSON.stringify(arr));
+    } catch (e) {
+      console.warn('[GameStorage] Unable to save seen dialogues:', e);
+    }
+  }
+
+  /**
+   * Xóa lịch sử đọc kịch bản
+   */
+  public static clearSeenDialogues(projectId?: string): void {
+    try {
+      const key = this.getSeenKey(projectId);
+      localStorage.removeItem(key);
+    } catch (e) {
+      console.warn('[GameStorage] Unable to clear seen dialogues:', e);
+    }
+  }
 }

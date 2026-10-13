@@ -10,7 +10,6 @@ function asDialogue(stepResult: StepResult): DialogueInstruction {
   return stepResult.instruction as DialogueInstruction;
 }
 
-
 describe('Bug 3.2 & 3.4: SFX Persistence and Choice Rollback Behavior', () => {
   describe('Bug 3.2: One-shot SFX should not persist in activeAudio or replay on rollback', () => {
     it('does not retain one-shot sound in activeAudio while retaining looping music', () => {

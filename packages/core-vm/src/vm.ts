@@ -71,6 +71,7 @@ export class VisualNovelVM {
   private ringBuffer: SnapshotRingBuffer;
   private dialogueCounter = 0;
   private sceneIndexMap: Map<string, number> = new Map();
+  private dialogueKeyMap: Map<number, string> = new Map();
   private maxInstructionBudget: number;
   private emptyCallStackBehavior: 'throw' | 'halt';
   private preambleExecuted = false;
@@ -102,7 +103,7 @@ export class VisualNovelVM {
       currentDialogue: initialState?.currentDialogue,
     };
 
-    // Lập bản đồ chỉ mục Scene để nhảy O(1)
+    // Lập bản đồ chỉ mục Scene để nhảy O(1) và sinh khóa định danh câu thoại
     this.buildSceneIndexMap();
 
     // Nếu chưa có currentScene, lấy scene đầu tiên nếu có
@@ -115,14 +116,26 @@ export class VisualNovelVM {
   }
 
   /**
-   * Lập chỉ mục vị trí các lệnh SCENE trong Bytecode
+   * Lập chỉ mục vị trí các lệnh SCENE trong Bytecode và ánh xạ khóa câu thoại (Read Text Tracking)
    */
   private buildSceneIndexMap(): void {
     this.sceneIndexMap.clear();
+    this.dialogueKeyMap.clear();
+    let currentScene = '';
+    let sceneDialogueCount = 0;
+
     for (let i = 0; i < this.program.length; i++) {
       const instr = this.program[i]!;
-      if (instr.type === 'SCENE' || instr.type === 'LABEL') {
+      if (instr.type === 'SCENE') {
+        currentScene = instr.name;
+        sceneDialogueCount = 0;
         this.sceneIndexMap.set(instr.name, i);
+      } else if (instr.type === 'LABEL') {
+        this.sceneIndexMap.set(instr.name, i);
+      } else if (instr.type === 'DIALOGUE') {
+        const key = `${currentScene || 'global'}#${sceneDialogueCount}:${instr.character ?? ''}:${instr.text}`;
+        this.dialogueKeyMap.set(i, key);
+        sceneDialogueCount++;
       }
     }
   }
@@ -843,6 +856,28 @@ export class VisualNovelVM {
       this.cachedScriptHash = computeScriptHash(this.program);
     }
     return this.cachedScriptHash;
+  }
+
+  /**
+   * Lấy mã định danh độc nhất của câu thoại hiện tại phục vụ theo dõi câu đã đọc (Read Text Tracking)
+   */
+  public getCurrentDialogueKey(): string | null {
+    if (this.state.instructionPointer <= 0 || this.state.instructionPointer > this.program.length) {
+      return null;
+    }
+    const idx = this.state.instructionPointer - 1;
+    const instr = this.program[idx];
+    if (!instr || instr.type !== 'DIALOGUE') {
+      return null;
+    }
+    return this.dialogueKeyMap.get(idx) ?? null;
+  }
+
+  /**
+   * Lấy mã định danh độc nhất của một câu thoại theo chỉ số instruction trong chương trình
+   */
+  public getDialogueKey(instructionIndex: number): string | null {
+    return this.dialogueKeyMap.get(instructionIndex) ?? null;
   }
 
   /**

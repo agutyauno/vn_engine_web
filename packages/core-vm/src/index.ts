@@ -8,3 +8,4 @@ export * from './ring_buffer';
 export * from './errors';
 export * from './migration';
 export * from './interpolation';
+export * from './validator';

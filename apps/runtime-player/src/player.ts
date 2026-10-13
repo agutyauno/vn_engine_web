@@ -3,7 +3,7 @@
 // Tuân thủ tài liệu đặc tả UI/UX Specification v1.0 & Architecture
 // ================================================================
 
-import { VisualNovelVM, type RunResult } from '@vn-engine/core-vm';
+import { VisualNovelVM, isValidProgram, type RunResult } from '@vn-engine/core-vm';
 import { GameRenderer } from '@vn-engine/renderer';
 import { AudioManager } from '@vn-engine/audio';
 import type {
@@ -48,6 +48,7 @@ export class VNPlayer {
   private toastTimerId: number | null = null;
   private waitTimerId: number | null = null;
   private currentSavePage: number = 0;
+  private seenDialogues: Set<string> = new Set();
 
   // Dữ liệu dự án được cập nhật từ Studio (Characters & Assets)
   private projectData: {
@@ -64,6 +65,7 @@ export class VNPlayer {
     if (data.id) {
       this.projectData.id = data.id;
       GameStorage.setProjectId(data.id);
+      this.seenDialogues = GameStorage.getSeenDialogues(data.id);
     }
     if (data.characters) this.projectData.characters = data.characters;
     if (data.assets) this.projectData.assets = data.assets;
@@ -126,6 +128,8 @@ export class VNPlayer {
         GameStorage.setProjectId(pid);
       }
     }
+
+    this.seenDialogues = GameStorage.getSeenDialogues(this.projectData.id);
 
     this.vm = new VisualNovelVM(program, undefined, {
       customFunctions: {
@@ -436,6 +440,7 @@ export class VNPlayer {
       }
 
       // 7. Phím tắt điều khiển tiến lùi kịch bản
+      // Lưu ý thiết kế: Không dùng phím A/D để điều khiển thoại (phím A đã dùng làm phím tắt bật Auto)
       if (e.key === ' ' || e.key === 'Enter' || e.key === 'ArrowRight') {
         e.preventDefault();
         this.handleAdvanceAction();
@@ -776,6 +781,9 @@ export class VNPlayer {
           // Tự động ẩn hộp thoại khi không có nội dung thoại
           this.dialogueBox.classList.add('hidden');
           this.speakerNameplate.classList.add('hidden');
+          if (this.isSkip) {
+            this.onDialogueLineFinished();
+          }
         } else {
           this.dialogueBox.classList.remove('hidden');
 
@@ -811,7 +819,22 @@ export class VNPlayer {
             text: stripControlTags(instr.text),
           });
 
-          // Bắt đầu gõ chữ (hoặc hiển thị ngay lập tức nếu đang Skip)
+          // Kiểm tra trạng thái đã đọc câu thoại (Read Text Tracking)
+          const dialogueKey = this.vm.getCurrentDialogueKey();
+          const isPreviouslySeen = dialogueKey ? this.seenDialogues.has(dialogueKey) : false;
+
+          // Nếu đang bật Skip mà gặp câu thoại CHƯA ĐỌC -> Dừng Skip tự nhiên (không popup toast gây phiền)
+          if (this.isSkip && !isPreviouslySeen) {
+            this.clearSkip();
+          }
+
+          // Đánh dấu câu thoại này là đã đọc và lưu vào storage
+          if (dialogueKey && !this.seenDialogues.has(dialogueKey)) {
+            this.seenDialogues.add(dialogueKey);
+            GameStorage.saveSeenDialogues(this.seenDialogues, this.projectData.id);
+          }
+
+          // Bắt đầu gõ chữ (hoặc hiển thị ngay lập tức nếu đang tiếp tục Skip vì câu thoại đã đọc)
           this.nextIndicator.style.opacity = '0';
           if (this.isSkip) {
             this.typewriter.stop();
@@ -1103,7 +1126,7 @@ export class VNPlayer {
     if (this.isSkip) {
       this.clearAutoTimer();
       this.btnSkip.classList.add('active');
-      this.showToast('Skip: ON');
+      this.showToast('Skip: ON (Tua nhanh câu đã đọc)');
       if (this.typewriter.isTyping()) {
         this.typewriter.finishImmediately();
       } else {
@@ -1499,7 +1522,15 @@ export class VNPlayer {
       fileId?: string | null;
     },
   ): Promise<void> {
+    if (!isValidProgram(program)) {
+      console.error('[VNPlayer] reloadProgram rejected invalid bytecode program structure.');
+      return;
+    }
+
     this.initialProgram = program;
+    if (this.projectData.id) {
+      this.seenDialogues = GameStorage.getSeenDialogues(this.projectData.id);
+    }
 
     // 1. Dừng các tiến trình tự động hoặc tua nhanh
     this.clearAutoTimer();
