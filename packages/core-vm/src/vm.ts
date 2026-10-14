@@ -76,6 +76,7 @@ export class VisualNovelVM {
   private emptyCallStackBehavior: 'throw' | 'halt';
   private preambleExecuted = false;
   private cachedScriptHash: string | null = null;
+  private initialVariables: Record<string, string | number | boolean>;
 
   constructor(program: Instruction[], initialState?: Partial<VMState>, options?: VMOptions) {
     this.program = program;
@@ -83,6 +84,7 @@ export class VisualNovelVM {
     this.ringBuffer = new SnapshotRingBuffer(options?.ringBufferCapacity ?? 50);
     this.evaluator = new SandboxEvaluator(options?.customFunctions);
     this.emptyCallStackBehavior = options?.emptyCallStackBehavior ?? 'throw';
+    this.initialVariables = { ...(options?.initialVariables ?? {}) };
 
     // Khởi tạo trạng thái mặc định
     this.state = {
@@ -90,7 +92,7 @@ export class VisualNovelVM {
       instructionPointer: initialState?.instructionPointer ?? 0,
       callStack: initialState?.callStack ? [...initialState.callStack] : [],
       variables: {
-        ...(options?.initialVariables ?? {}),
+        ...this.initialVariables,
         ...(initialState?.variables ?? {}),
       },
       localVariables: { ...(initialState?.localVariables ?? {}) },
@@ -944,6 +946,10 @@ export class VisualNovelVM {
 
       this.state = {
         ...saveData.state,
+        variables: {
+          ...this.initialVariables,
+          ...saveData.state.variables,
+        },
         activeSprites: saveData.state.activeSprites ? { ...saveData.state.activeSprites } : {},
         activeAudio: saveData.state.activeAudio ? { ...saveData.state.activeAudio } : {},
       };

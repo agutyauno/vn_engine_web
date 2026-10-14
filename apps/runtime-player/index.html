@@ -1,30 +1,45 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Visual Novel Engine - Wireframe Player</title>
-    <link rel="stylesheet" href="/src/wireframe.css" />
-    <script>
-      (function() {
-        const isEmbedded = (window.self !== window.top) || 
-                           window.location.search.includes('embedded=true') || 
-                           window.location.search.includes('popout=true') || 
-                           window.name === 'VN_Preview_Popout';
-        if (isEmbedded) {
-          document.documentElement.classList.add('is-embedded');
-        }
-      })();
-    </script>
-  </head>
-  <body>
-    <main id="game-stage">
-      <div id="game-root">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Visual Novel Engine - Wireframe Player</title>
+  <link rel="stylesheet" href="/src/wireframe.css" />
+  <script>
+    (function () {
+      const isEmbedded = (window.self !== window.top) ||
+        window.location.search.includes('embedded=true') ||
+        window.location.search.includes('popout=true') ||
+        window.name === 'VN_Preview_Popout';
+      if (isEmbedded) {
+        document.documentElement.classList.add('is-embedded');
+      }
+    })();
+  </script>
+</head>
+
+<body>
+  <main id="game-stage">
+    <div id="game-root">
       <!-- CANVAS RENDERER LAYER (PIXIJS) -->
       <div id="canvas-container"></div>
 
       <!-- HTML5 OVERLAY UI LAYER (VIRTUAL 1280x720 CONTAINER WITH UNIFORM UI SCALING) -->
       <div id="ui-layer">
+        <!-- TITLE SCREEN / MAIN MENU (SHOWN ON PLAYER LAUNCH) -->
+        <div id="title-screen" class="title-screen-container hidden">
+          <div class="title-screen-box">
+            <h1 class="title-screen-heading">Visual Novel</h1>
+            <div class="title-screen-subheading">Web Engine Interactive Story</div>
+            <div class="title-screen-menu">
+              <button class="title-screen-btn" id="btn-title-new">[ NEW GAME ]</button>
+              <button class="title-screen-btn" id="btn-title-load">[ LOAD GAME ]</button>
+              <button class="title-screen-btn" id="btn-title-settings">[ SETTINGS ]</button>
+            </div>
+          </div>
+        </div>
+
         <div class="dialogue-wrapper">
           <!-- SPEAKER NAMEPLATE -->
           <div class="speaker-nameplate hidden" id="speaker-nameplate">ALICE</div>
@@ -40,6 +55,7 @@
             <button class="wf-btn" id="btn-back" title="Rollback to previous dialogue (Key ← or PageUp)">[BACK ←]</button>
             <button class="wf-btn" id="btn-auto" title="Auto-advance dialogue (Key A)">[AUTO]</button>
             <button class="wf-btn" id="btn-skip" title="Skip already read dialogue until unread text or choice (Key S)">[SKIP]</button>
+            <button class="wf-btn" id="btn-log" title="View dialogue history log (Key L)">[LOG]</button>
             <button class="wf-btn" id="btn-qsave" title="Quick Save state">[Q.SAVE]</button>
             <button class="wf-btn" id="btn-qload" title="Quick Load state">[Q.LOAD]</button>
             <button class="wf-btn" id="btn-hide-ui" title="Hide UI (Key H or Middle Click)">[HIDE H]</button>
@@ -53,7 +69,8 @@
           <div class="inspect-content">
             <div id="inspect-title" class="inspect-title hidden"></div>
             <div class="inspect-image-wrapper">
-              <button id="btn-close-inspect" class="inspect-close-btn" aria-label="Close inspect view" title="Close [✕]">[ ✕ ]</button>
+              <button id="btn-close-inspect" class="inspect-close-btn" aria-label="Close inspect view"
+                title="Close [✕]">[ ✕ ]</button>
               <img id="inspect-image" src="" alt="Inspect Item" />
             </div>
           </div>
@@ -125,21 +142,47 @@
               <div class="settings-pane" id="pane-debug">
                 <div class="debug-section-title">1. VM Execution Position Info</div>
                 <table class="debug-table">
-                  <tr><th>Field</th><th>Value</th></tr>
-                  <tr><td>Current Scene</td><td id="debug-scene">-</td></tr>
-                  <tr><td>Instruction Pointer (IP)</td><td id="debug-ip">-</td></tr>
-                  <tr><td>Call Stack Depth</td><td id="debug-callstack">-</td></tr>
+                  <tr>
+                    <th>Field</th>
+                    <th>Value</th>
+                  </tr>
+                  <tr>
+                    <td>Current Scene</td>
+                    <td id="debug-scene">-</td>
+                  </tr>
+                  <tr>
+                    <td>Instruction Pointer (IP)</td>
+                    <td id="debug-ip">-</td>
+                  </tr>
+                  <tr>
+                    <td>Call Stack Depth</td>
+                    <td id="debug-callstack">-</td>
+                  </tr>
                 </table>
 
                 <div class="debug-section-title">2. Variables Table</div>
                 <table class="debug-table">
-                  <thead><tr><th>Variable Name</th><th>Current Value</th><th>Type</th></tr></thead>
+                  <thead>
+                    <tr>
+                      <th>Variable Name</th>
+                      <th>Current Value</th>
+                      <th>Type</th>
+                    </tr>
+                  </thead>
                   <tbody id="debug-variables-body"></tbody>
                 </table>
 
                 <div class="debug-section-title">3. Active Audio Channels</div>
                 <table class="debug-table">
-                  <thead><tr><th>Channel</th><th>Asset ID</th><th>Volume</th><th>Loop</th><th>Playing</th></tr></thead>
+                  <thead>
+                    <tr>
+                      <th>Channel</th>
+                      <th>Asset ID</th>
+                      <th>Volume</th>
+                      <th>Loop</th>
+                      <th>Playing</th>
+                    </tr>
+                  </thead>
                   <tbody id="debug-audio-body"></tbody>
                 </table>
               </div>
@@ -158,30 +201,70 @@
                     <div><kbd>Esc</kbd> : Open / Close Settings Menu</div>
                   </div>
                   <div style="margin-top: 20px; display: flex; gap: 12px;">
+                    <button class="wf-btn" id="btn-system-title" style="flex: 1;">[ ⌂ Title Menu ]</button>
                     <button class="wf-btn" id="btn-system-fullscreen" style="flex: 1;">[ ⛶ Fullscreen ]</button>
-                    <button class="wf-btn" id="btn-system-restart" style="flex: 1;">[ ⟲ Restart from Beginning ]</button>
+                    <button class="wf-btn" id="btn-system-restart" style="flex: 1;">[ ⟲ Restart ]</button>
                   </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
-    </main>
 
-    <!-- PUBLIC PLAYER FOOTER -->
-    <footer id="public-player-footer" class="public-footer">
-      <div class="footer-left">
-        <span class="footer-author">Author: <strong>VN Studio Creator</strong></span>
-        <span class="footer-sep">•</span>
-        <span class="footer-engine">Powered by <strong>VN Engine</strong></span>
+        <!-- SCRIPT HASH DESYNC WARNING MODAL -->
+        <div id="modal-desync-warning" class="wf-modal-backdrop hidden">
+          <div class="wf-modal desync-warning-modal" style="max-width: 520px;">
+            <div class="wf-modal-header">
+              <div class="wf-modal-title" style="color: #f59e0b; font-weight: bold;">⚠ CẢNH BÁO: KỊCH BẢN ĐÃ THAY ĐỔI
+              </div>
+              <button class="wf-btn" id="btn-desync-close">[✕]</button>
+            </div>
+            <div class="wf-modal-body">
+              <p style="margin-bottom: 12px; line-height: 1.5; color: #cbd5e1; font-size: 14px;">
+                Dữ liệu lưu được tạo từ một phiên bản khác. Việc tiếp tục có thể sẽ khiến nội dung bị lỗi.
+              </p>
+              <div id="desync-meta-info" class="desync-info-box"
+                style="background: rgba(0,0,0,0.4); padding: 10px 14px; border-radius: 6px; font-family: monospace; font-size: 13px; margin-bottom: 16px; border: 1px solid rgba(255,255,255,0.1);">
+                <div style="margin-bottom: 4px;">Vị trí lưu: <span id="desync-slot-name"
+                    style="color: #38bdf8;">-</span></div>
+                <div style="margin-bottom: 4px;">Mã bản lưu: <span id="desync-saved-hash"
+                    style="color: #f59e0b;">-</span></div>
+                <div>Mã hiện tại: <span id="desync-current-hash" style="color: #10b981;">-</span></div>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 10px;">
+                <button class="wf-btn" id="btn-desync-continue"
+                  style="width: 100%; text-align: left; padding: 10px 14px;">
+                  <strong> Tiếp tục nạp</strong> Giữ nguyên vị trí lệnh đã lưu
+                </button>
+                <button class="wf-btn" id="btn-desync-restart-scene"
+                  style="width: 100%; text-align: left; padding: 10px 14px;">
+                  <strong> Về đầu cảnh</strong> Giữ biến số đã lưu, nạp lại từ đầu cảnh này
+                </button>
+                <button class="wf-btn" id="btn-desync-cancel"
+                  style="width: 100%; text-align: left; padding: 10px 14px; border-color: rgba(255,255,255,0.2);">
+                  <strong> Hủy bỏ</strong> Giữ nguyên phiên chơi hiện tại
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="footer-actions">
-        <button class="wf-btn" id="btn-public-report" title="Report bug to author">[⚠ Report Bug]</button>
-        <button class="wf-btn" id="btn-public-fullscreen" title="Toggle Fullscreen">[⛶ Fullscreen]</button>
-      </div>
-    </footer>
+  </main>
 
-    <script type="module" src="/src/main.ts"></script>
-  </body>
+  <!-- PUBLIC PLAYER FOOTER -->
+  <footer id="public-player-footer" class="public-footer">
+    <div class="footer-left">
+      <span class="footer-author">Author: <strong>VN Studio Creator</strong></span>
+      <span class="footer-sep">•</span>
+      <span class="footer-engine">Powered by <strong>VN Engine</strong></span>
+    </div>
+    <div class="footer-actions">
+      <button class="wf-btn" id="btn-public-report" title="Report bug to author">[⚠ Report Bug]</button>
+      <button class="wf-btn" id="btn-public-fullscreen" title="Toggle Fullscreen">[⛶ Fullscreen]</button>
+    </div>
+  </footer>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+
 </html>

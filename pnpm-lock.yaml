@@ -215,6 +215,9 @@ importers:
       vite:
         specifier: ^6.2.0
         version: 6.4.3(@types/node@26.6.1)(tsx@4.23.13)
+      vitest:
+        specifier: ^3.0.7
+        version: 3.2.7(@types/node@26.6.1)(supports-color@7.2.0)(tsx@4.23.13)
 
   apps/runtime-player:
     dependencies:
@@ -243,6 +246,9 @@ importers:
       vite:
         specifier: ^6.2.0
         version: 6.4.3(@types/node@26.6.1)(tsx@4.23.13)
+      vitest:
+        specifier: ^3.0.7
+        version: 3.2.7(@types/node@26.6.1)(supports-color@7.2.0)(tsx@4.23.13)
 
   packages/audio:
     dependencies:

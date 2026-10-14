@@ -12,110 +12,50 @@ import type {
   Character,
   AssetRef,
 } from '@vn-engine/shared-types';
-import {
-  Typewriter,
-  stripControlTags,
-  renderTokensToElement,
-  parseTypewriterTokens,
-} from './ui/typewriter';
-import { GameStorage, type SaveSlotData, SLOTS_PER_PAGE, TOTAL_SLOTS } from './storage';
+import { stripControlTags } from './ui/typewriter';
+import { GameStorage, type SaveSlotData } from './storage';
 
-export interface BacklogEntry {
-  speaker: string | null;
-  text: string;
-}
+import type { PlayerContext, BacklogEntry, ProjectData } from './playerContext';
+import { AssetResolver } from './controllers/assetResolver';
+import { PlaybackController } from './controllers/playbackController';
+import { SaveLoadController } from './controllers/saveLoadController';
+import { DialogueView, CHAR_COLOR_MAP } from './ui/dialogueView';
+import { ChoiceOverlay } from './ui/choiceOverlay';
+import { InspectModal } from './ui/inspectModal';
+import { DesyncModal } from './ui/desyncModal';
+import { SettingsModal } from './ui/settingsModal';
+import { TitleScreen } from './ui/titleScreen';
 
-const CHAR_COLOR_MAP: Record<string, string> = {
-  ALICE: '#38bdf8', // Xanh dương
-  BOB: '#f43f5e', // Đỏ hồng
-  '???': '#eab308', // Vàng ẩn danh
-};
+export { type BacklogEntry };
 
-export class VNPlayer {
+export class VNPlayer implements PlayerContext {
   public vm: VisualNovelVM;
   public renderer: GameRenderer;
   public audio: AudioManager;
 
-  private typewriter: Typewriter;
   private backlog: BacklogEntry[] = [];
   private initialProgram: Instruction[];
-
-  private isAuto: boolean = false;
-  private isSkip: boolean = false;
-  private isHudHidden: boolean = false;
-  private autoTimerId: number | null = null;
-  private skipTimerId: number | null = null;
-  private toastTimerId: number | null = null;
-  private waitTimerId: number | null = null;
-  private currentSavePage: number = 0;
   private seenDialogues: Set<string> = new Set();
+  private toastTimerId: number | null = null;
 
   // Dữ liệu dự án được cập nhật từ Studio (Characters & Assets)
-  private projectData: {
-    id?: string;
-    characters?: Character[];
-    assets?: AssetRef[];
-  } = {};
+  private projectData: ProjectData = {};
 
-  public updateProjectData(data: {
-    id?: string;
-    characters?: Character[];
-    assets?: AssetRef[];
-  }): void {
-    if (data.id) {
-      this.projectData.id = data.id;
-      GameStorage.setProjectId(data.id);
-      this.seenDialogues = GameStorage.getSeenDialogues(data.id);
-    }
-    if (data.characters) this.projectData.characters = data.characters;
-    if (data.assets) this.projectData.assets = data.assets;
-  }
+  // Submodules
+  public assetResolver: AssetResolver;
+  public dialogueView: DialogueView;
+  public choiceOverlay: ChoiceOverlay;
+  public inspectModal: InspectModal;
+  public desyncModal: DesyncModal;
+  public settingsModal: SettingsModal;
+  public titleScreen: TitleScreen;
+  public saveLoadController: SaveLoadController;
+  public playbackController: PlaybackController;
 
   // DOM Elements
   private gameRoot: HTMLElement;
   private canvasContainer: HTMLElement;
-  private uiLayer: HTMLElement;
-  private dialogueBox: HTMLElement;
-  private dialogueText: HTMLElement;
-  private speakerNameplate: HTMLElement;
-  private nextIndicator: HTMLElement;
-  private choiceOverlay: HTMLElement;
-  private choiceList: HTMLElement;
-  private selectedChoiceIndex: number = 0;
-  private choiceButtons: HTMLButtonElement[] = [];
   private toastNotification: HTMLElement;
-
-  // Streamlined Control Buttons
-  private btnBack: HTMLButtonElement;
-  private btnAuto: HTMLButtonElement;
-  private btnSkip: HTMLButtonElement;
-  private btnQSave: HTMLButtonElement;
-  private btnQLoad: HTMLButtonElement;
-  private btnHideUI: HTMLButtonElement;
-  private btnMenu: HTMLButtonElement;
-
-  // Unified Settings Menu Modal
-  private modalSettingsMenu: HTMLElement;
-  private settingsTabButtons: HTMLButtonElement[] = [];
-  private settingsPanes: HTMLElement[] = [];
-  private btnCloseSettingsMenu: HTMLButtonElement | null = null;
-  private saveSlotsContainer: HTMLElement;
-  private savePageButtons: HTMLButtonElement[] = [];
-  private btnModeSave: HTMLButtonElement | null = null;
-  private btnModeLoad: HTMLButtonElement | null = null;
-  private backlogContainer: HTMLElement;
-
-  private activeModalMode: 'save' | 'load' = 'save';
-  private currentDialogueInstruction: DialogueInstruction | null = null;
-  private isAdvancing: boolean = false;
-  private advanceQueued: boolean = false;
-
-  // Cinematic Inspect Modal
-  private inspectModal: HTMLElement;
-  private inspectBackdrop: HTMLElement;
-  private inspectTitle: HTMLElement;
-  private inspectImage: HTMLImageElement;
-  private btnCloseInspect: HTMLButtonElement | null;
 
   constructor(program: Instruction[]) {
     this.initialProgram = program;
@@ -146,173 +86,469 @@ export class VNPlayer {
       },
       emptyCallStackBehavior: 'halt',
     });
+
     this.renderer = new GameRenderer({ width: 1920, height: 1080 });
     this.audio = new AudioManager();
 
-    // DOM Lớp nền
     this.gameRoot = document.getElementById('game-root')!;
     this.canvasContainer = document.getElementById('canvas-container')!;
-    this.uiLayer = document.getElementById('ui-layer')!;
-    this.dialogueBox = document.getElementById('dialogue-box')!;
-    this.dialogueText = document.getElementById('dialogue-text')!;
-    this.speakerNameplate = document.getElementById('speaker-nameplate')!;
-    this.nextIndicator = document.getElementById('dialogue-next-indicator')!;
-    this.choiceOverlay = document.getElementById('choice-overlay')!;
-    this.choiceList = document.getElementById('choice-buttons-list')!;
     this.toastNotification = document.getElementById('toast-notification')!;
 
-    // Streamlined Control Buttons
-    this.btnBack = document.getElementById('btn-back') as HTMLButtonElement;
-    this.btnAuto = document.getElementById('btn-auto') as HTMLButtonElement;
-    this.btnSkip = document.getElementById('btn-skip') as HTMLButtonElement;
-    this.btnQSave = document.getElementById('btn-qsave') as HTMLButtonElement;
-    this.btnQLoad = document.getElementById('btn-qload') as HTMLButtonElement;
-    this.btnHideUI = document.getElementById('btn-hide-ui') as HTMLButtonElement;
-    this.btnMenu = document.getElementById('btn-menu') as HTMLButtonElement;
+    // Khởi tạo các module con
+    this.assetResolver = new AssetResolver(() => this.projectData);
+    this.dialogueView = new DialogueView();
+    this.choiceOverlay = new ChoiceOverlay();
+    this.inspectModal = new InspectModal();
+    this.desyncModal = new DesyncModal();
 
-    // Settings Menu Modal Elements
-    this.modalSettingsMenu = document.getElementById('modal-settings-menu')!;
-    this.settingsTabButtons = Array.from(document.querySelectorAll('.settings-tab-btn'));
-    this.settingsPanes = Array.from(document.querySelectorAll('.settings-pane'));
-    this.btnCloseSettingsMenu = document.getElementById(
-      'btn-close-settings-menu',
-    ) as HTMLButtonElement | null;
-    this.saveSlotsContainer = document.getElementById('save-slots-container')!;
-    this.savePageButtons = Array.from(document.querySelectorAll('.save-page-btn'));
-    this.btnModeSave = document.getElementById('btn-mode-save') as HTMLButtonElement | null;
-    this.btnModeLoad = document.getElementById('btn-mode-load') as HTMLButtonElement | null;
-    this.backlogContainer = document.getElementById('backlog-container')!;
+    this.titleScreen = new TitleScreen({
+      onNewGame: () => {
+        void this.startNewGame();
+      },
+      onLoadGame: () => {
+        this.saveLoadController.setMode('load');
+        this.settingsModal.open('saveload');
+      },
+      onSettings: () => {
+        this.settingsModal.open('audio');
+      },
+    });
 
-    // Inspect Modal Elements
-    this.inspectModal = document.getElementById('inspect-modal')!;
-    this.inspectBackdrop = document.getElementById('inspect-backdrop')!;
-    this.inspectTitle = document.getElementById('inspect-title')!;
-    this.inspectImage = document.getElementById('inspect-image') as HTMLImageElement;
-    this.btnCloseInspect = document.getElementById('btn-close-inspect') as HTMLButtonElement | null;
+    this.playbackController = new PlaybackController(this, {
+      dialogueView: this.dialogueView,
+      choiceOverlay: this.choiceOverlay,
+      inspectModal: this.inspectModal,
+    });
 
-    this.typewriter = new Typewriter(this.dialogueText, 22);
+    this.settingsModal = new SettingsModal({
+      onTabSwitched: tabName => {
+        if (tabName === 'saveload') {
+          this.saveLoadController.renderSaveSlots();
+        } else if (tabName === 'backlog') {
+          this.settingsModal.renderBacklog(this.backlog);
+        } else if (tabName === 'debug') {
+          this.settingsModal.renderDebugInfo(this.vm, this.audio);
+        }
+      },
+    });
+
+    this.saveLoadController = new SaveLoadController(
+      this,
+      {
+        desyncModal: this.desyncModal,
+        dialogueView: this.dialogueView,
+        inspectModal: this.inspectModal,
+      },
+      {
+        onSaveLoaded: () => {
+          this.titleScreen.hide();
+          this.settingsModal.close();
+        },
+        onBeforeRestore: () => {
+          this.playbackController.clearAutoTimer();
+          this.playbackController.clearSkip();
+          this.choiceOverlay.hide();
+        },
+      },
+    );
   }
 
-  /**
-   * Khởi động Player, thiết lập Canvas và gán sự kiện
-   */
+  // ================================================================
+  // PLAYER CONTEXT IMPLEMENTATION
+  // ================================================================
+  public getVM(): VisualNovelVM {
+    return this.vm;
+  }
+
+  public getRenderer(): GameRenderer {
+    return this.renderer;
+  }
+
+  public getAudio(): AudioManager {
+    return this.audio;
+  }
+
+  public getProjectData(): ProjectData {
+    return this.projectData;
+  }
+
+  public getBacklog(): BacklogEntry[] {
+    return this.backlog;
+  }
+
+  public addToBacklog(entry: BacklogEntry): void {
+    this.backlog.push(entry);
+  }
+
+  public clearBacklog(): void {
+    this.backlog = [];
+  }
+
+  public updateControlsState(): void {
+    this.playbackController.updateControlsState();
+  }
+
+  public closeAllModals(): void {
+    this.settingsModal.close();
+    this.inspectModal.hide();
+    this.desyncModal.close();
+  }
+
+  public isAnyModalOpen(): boolean {
+    return (
+      this.settingsModal.isOpen() ||
+      this.inspectModal.isOpen() ||
+      this.desyncModal.isOpen()
+    );
+  }
+
+  public getAssetGraphicResolver(): (assetKey: string) => string | undefined {
+    return this.assetResolver.getAssetGraphicResolver();
+  }
+
+  public getAssetAudioResolver(): (assetKey: string) => string {
+    return this.assetResolver.getAssetAudioResolver();
+  }
+
+  public checkIsProp(characterId: string): boolean {
+    return this.assetResolver.checkIsProp(characterId);
+  }
+
+  public updateProjectData(data: {
+    id?: string;
+    characters?: Character[];
+    assets?: AssetRef[];
+  }): void {
+    if (data.id) {
+      this.projectData.id = data.id;
+      GameStorage.setProjectId(data.id);
+      this.seenDialogues = GameStorage.getSeenDialogues(data.id);
+    }
+    if (data.characters) this.projectData.characters = data.characters;
+    if (data.assets) this.projectData.assets = data.assets;
+  }
+
+  // ================================================================
+  // START & MAIN GAME LOOP
+  // ================================================================
   public async start(): Promise<void> {
     await this.renderer.init(this.canvasContainer);
-    this.updateUiScale();
+    this.playbackController.updateUiScale();
 
     window.addEventListener('resize', () => {
       this.renderer.resizeToContainer(this.canvasContainer);
-      this.updateUiScale();
+      this.playbackController.updateUiScale();
     });
 
     if (window.ResizeObserver) {
       const resizeObserver = new ResizeObserver(() => {
         this.renderer.resizeToContainer(this.canvasContainer);
-        this.updateUiScale();
+        this.playbackController.updateUiScale();
       });
       resizeObserver.observe(this.gameRoot);
     }
 
     this.setupEventListeners();
-    this.updateControlsState();
+    this.playbackController.updateControlsState();
 
-    // Bước vào câu đầu tiên
+    const urlParams =
+      typeof window !== 'undefined' && window.location
+        ? new URLSearchParams(window.location.search)
+        : null;
+    const isPopout =
+      (typeof window !== 'undefined' && window.name === 'VN_Preview_Popout') ||
+      urlParams?.get('popout') === 'true';
+    const isEmbedded =
+      (typeof window !== 'undefined' && window.parent && window.parent !== window) ||
+      isPopout ||
+      urlParams?.get('embedded') === 'true';
+
+    if (!isEmbedded) {
+      this.titleScreen.show();
+    } else {
+      await this.startNewGame();
+    }
+  }
+
+  public async startNewGame(): Promise<void> {
+    this.titleScreen.hide();
+    const firstScene = this.initialProgram.find(i => i.type === 'SCENE');
+    const initialSceneName = firstScene && 'name' in firstScene ? firstScene.name : 'start';
+    this.vm.startAt({ scene: initialSceneName });
     await this.advance();
   }
 
-  /**
-   * Tự động điều chỉnh UI scale đồng nhất theo tỷ lệ màn hình/container
-   * Căn cứ trên độ phân giải ảo chuẩn 1280x720
-   */
-  private updateUiScale(): void {
-    const rect = this.gameRoot.getBoundingClientRect();
-    const scale = Math.max(0.1, (rect.width || 1280) / 1280);
-    this.gameRoot.style.setProperty('--ui-scale', scale.toString());
+  public async advance(): Promise<void> {
+    if (this.playbackController.getIsAdvancing()) {
+      if (this.playbackController.getIsSkip() || this.playbackController.getIsAuto()) {
+        this.playbackController.setAdvanceQueued(true);
+      }
+      return;
+    }
+    this.playbackController.setIsAdvancing(true);
+
+    try {
+      this.playbackController.clearAutoTimer();
+      this.playbackController.clearWaitTimer();
+
+      let runResult: RunResult;
+      try {
+        runResult = this.vm.runUntilInteractive();
+      } catch (err: unknown) {
+        this.handleRuntimeError(err);
+        return;
+      }
+
+      // 1. Thực thi các side-effects tích lũy dọc đường
+      for (const sideEffect of runResult.sideEffects) {
+        await this.applySideEffect(sideEffect);
+      }
+
+      // 2. Xử lý kết quả dừng
+      const step = runResult.stepResult;
+
+      if (step.type === 'SUSPEND_DIALOGUE') {
+        const instr = step.instruction as DialogueInstruction;
+
+        let speakerDisplay = instr.character;
+        if (instr.character) {
+          const vmState = this.vm.getState();
+          speakerDisplay =
+            vmState.characterDisplayOverrides[instr.character] ??
+            instr.displayNameOverride ??
+            instr.character;
+        }
+
+        let charColor = '#38bdf8';
+        if (speakerDisplay) {
+          const charKey = speakerDisplay.toUpperCase();
+          const declaredChar = this.projectData.characters?.find(
+            c =>
+              (instr.character && c.id.toLowerCase() === instr.character.toLowerCase()) ||
+              c.name.toLowerCase() === speakerDisplay.toLowerCase(),
+          );
+          charColor = declaredChar?.colorHex || CHAR_COLOR_MAP[charKey] || '#38bdf8';
+        }
+
+        if (instr.text && instr.text.trim().length > 0) {
+          this.backlog.push({
+            speaker: speakerDisplay,
+            text: stripControlTags(instr.text),
+          });
+
+          // Read Text Tracking
+          const dialogueKey = this.vm.getCurrentDialogueKey();
+          const isPreviouslySeen = dialogueKey ? this.seenDialogues.has(dialogueKey) : false;
+
+          if (this.playbackController.getIsSkip() && !isPreviouslySeen) {
+            this.playbackController.clearSkip();
+          }
+
+          if (dialogueKey && !this.seenDialogues.has(dialogueKey)) {
+            this.seenDialogues.add(dialogueKey);
+            GameStorage.saveSeenDialogues(this.seenDialogues, this.projectData.id);
+          }
+        }
+
+        this.dialogueView.presentDialogue(
+          instr,
+          speakerDisplay,
+          charColor,
+          this.playbackController.getIsSkip(),
+          () => this.onDialogueLineFinished(),
+        );
+
+        this.playbackController.updateControlsState();
+      } else if (step.type === 'SUSPEND_CHOICE') {
+        this.playbackController.clearSkip();
+        this.dialogueView.hide();
+        const availableChoices = this.vm.getAvailableChoices();
+        this.choiceOverlay.presentChoices(availableChoices, choiceIndex => {
+          const chosen = availableChoices[choiceIndex];
+          if (chosen) {
+            this.addToBacklog({
+              speaker: 'Choice',
+              text: `▸ ${chosen.text}`,
+            });
+          }
+          try {
+            this.vm.choose(choiceIndex);
+          } catch (err: unknown) {
+            this.handleRuntimeError(err);
+            return;
+          }
+          void this.advance();
+        });
+      } else if (step.type === 'SUSPEND_WAIT') {
+        this.playbackController.scheduleWait(step.duration, () => {
+          void this.advance();
+        });
+      } else if (step.type === 'HALTED') {
+        this.playbackController.clearAutoTimer();
+        this.playbackController.clearSkip();
+        this.dialogueView.hide();
+        this.dialogueView.setNextIndicatorHalted();
+        this.playbackController.updateControlsState();
+      }
+    } finally {
+      this.playbackController.setIsAdvancing(false);
+      if (
+        this.playbackController.getAdvanceQueued() &&
+        (this.playbackController.getIsSkip() || this.playbackController.getIsAuto())
+      ) {
+        this.playbackController.setAdvanceQueued(false);
+        void this.advance();
+      }
+    }
   }
 
-  /**
-   * Gán toàn bộ sự kiện click, phím tắt và thao tác chuột
-   */
+  public async applySideEffect(instr: Instruction): Promise<void> {
+    if (instr.type === 'BACKGROUND') {
+      await this.renderer.setBackground(instr, instr.transition, this.getAssetGraphicResolver());
+    } else if (instr.type === 'SHOW') {
+      const isProp = this.checkIsProp(instr.character);
+      await this.renderer.showCharacter(instr, this.getAssetGraphicResolver(), isProp);
+    } else if (instr.type === 'HIDE') {
+      this.renderer.hideCharacter(instr.character);
+    } else if (instr.type === 'HIDE_DIALOGUE') {
+      this.dialogueView.hide();
+    } else if (instr.type === 'INSPECT_BEGIN') {
+      const assetUrl = this.getAssetGraphicResolver()(instr.assetId);
+      this.inspectModal.show(instr.assetId, instr.title, assetUrl);
+    } else if (instr.type === 'INSPECT_END') {
+      this.inspectModal.hide();
+    } else if (instr.type === 'PLAY') {
+      const audioResolver = this.getAssetAudioResolver();
+      this.audio.play(instr.channel, instr.assetId, audioResolver(instr.assetId), {
+        volume: instr.volume,
+        loop: instr.loop,
+        fadeIn: instr.fadeIn,
+      });
+    } else if (instr.type === 'STOP') {
+      this.audio.stop(instr.channel, { fadeOut: instr.fadeOut });
+    }
+  }
+
+  private onDialogueLineFinished(): void {
+    if (this.playbackController.getIsSkip()) {
+      this.playbackController.scheduleSkipAdvance(60, () => {
+        void this.advance();
+      });
+      return;
+    }
+
+    if (this.playbackController.getIsAuto()) {
+      const fullText = this.dialogueView.getCurrentDialogue()?.text || '';
+      const autoDelayMs = Math.max(1200, Math.min(6000, 800 + fullText.length * 55));
+      this.playbackController.scheduleAutoAdvance(autoDelayMs, () => {
+        void this.advance();
+      });
+    }
+  }
+
+  private handleAdvanceAction(): void {
+    if (this.playbackController.getIsHudHidden()) {
+      this.playbackController.toggleHideUI();
+      return;
+    }
+
+    if (this.titleScreen?.isOpen()) {
+      return;
+    }
+
+    if (this.isAnyModalOpen()) {
+      return;
+    }
+
+    if (this.playbackController.getIsAuto()) {
+      this.playbackController.toggleAuto();
+    }
+
+    if (this.playbackController.getIsSkip()) {
+      this.playbackController.clearSkip();
+      return;
+    }
+
+    if (this.dialogueView.isTyping()) {
+      this.dialogueView.finishImmediately();
+      return;
+    }
+
+    if (this.choiceOverlay.isOpen()) {
+      return;
+    }
+
+    void this.advance();
+  }
+
+  // ================================================================
+  // EVENT LISTENERS & HOTKEYS
+  // ================================================================
   private setupEventListeners(): void {
-    // Click vào hộp thoại để tiến hoặc hoàn thành chữ gõ ngay
-    this.dialogueBox.addEventListener('click', () => {
+    // Full screen tap / click to advance (supports mobile & hidden dialogue)
+    this.gameRoot.addEventListener('click', (e: MouseEvent) => {
+      if (this.titleScreen?.isOpen()) return;
+      if (this.isAnyModalOpen()) return;
+      if (this.choiceOverlay.isOpen()) return;
+
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+
+      // Ignore interactive controls, buttons, inputs
+      if (
+        target.closest('.control-bar') ||
+        target.closest('button') ||
+        target.closest('input') ||
+        target.closest('select') ||
+        target.closest('a')
+      ) {
+        return;
+      }
+
       this.handleAdvanceAction();
     });
 
-    this.btnBack.addEventListener('click', () => {
+    document.getElementById('btn-back')?.addEventListener('click', () => {
       this.rollback();
     });
 
-    this.btnAuto.addEventListener('click', () => {
-      this.toggleAuto();
+    document.getElementById('btn-auto')?.addEventListener('click', () => {
+      this.playbackController.toggleAuto(() => this.onDialogueLineFinished());
     });
 
-    this.btnSkip.addEventListener('click', () => {
-      this.toggleSkip();
+    document.getElementById('btn-skip')?.addEventListener('click', () => {
+      this.playbackController.toggleSkip();
     });
 
-    this.btnQSave.addEventListener('click', () => {
+    document.getElementById('btn-log')?.addEventListener('click', () => {
+      this.settingsModal.open('backlog');
+    });
+
+    document.getElementById('btn-qsave')?.addEventListener('click', () => {
       void this.quickSave();
     });
 
-    this.btnQLoad.addEventListener('click', () => {
+    document.getElementById('btn-qload')?.addEventListener('click', () => {
       this.quickLoad();
     });
 
-    this.btnHideUI?.addEventListener('click', () => {
-      this.toggleHideUI();
+    document.getElementById('btn-hide-ui')?.addEventListener('click', () => {
+      this.playbackController.toggleHideUI();
     });
 
-    this.btnMenu?.addEventListener('click', () => {
-      this.openSettingsMenu();
+    document.getElementById('btn-menu')?.addEventListener('click', () => {
+      this.settingsModal.open();
     });
 
-    // Chuột giữa (Middle Click) để ẩn/hiện HUD thoại
+    // Middle click
     this.gameRoot.addEventListener('auxclick', e => {
       if (e.button === 1) {
         e.preventDefault();
-        this.toggleHideUI();
+        this.playbackController.toggleHideUI();
       }
     });
 
-    // Các Tab trong Settings Menu Modal
-    this.settingsTabButtons.forEach(btn => {
-      btn.addEventListener('click', () => {
-        const tab = btn.dataset.tab as 'audio' | 'saveload' | 'backlog' | 'debug' | 'system';
-        if (tab) this.switchSettingsTab(tab);
-      });
-    });
-
-    // Đóng Settings Menu Modal
-    this.btnCloseSettingsMenu?.addEventListener('click', () => {
-      this.closeSettingsMenu();
-    });
-
-    // Đóng Cinematic Inspect Modal
-    this.btnCloseInspect?.addEventListener('click', () => {
-      this.hideInspectModal();
-    });
-    this.inspectBackdrop?.addEventListener('click', () => {
-      this.hideInspectModal();
-    });
-
-    // Nút chuyển chế độ Lưu / Tải trong Tab SaveLoad
-    this.btnModeSave?.addEventListener('click', () => {
-      this.setSaveLoadMode('save');
-    });
-    this.btnModeLoad?.addEventListener('click', () => {
-      this.setSaveLoadMode('load');
-    });
-
-    // Các nút chuyển trang Save/Load
-    this.savePageButtons.forEach(btn => {
-      btn.addEventListener('click', () => {
-        this.currentSavePage = parseInt(btn.dataset.page || '0', 10);
-        this.renderSaveSlots();
-      });
-    });
-
-    // Audio Sliders & Hiển thị % âm lượng
+    // Audio Sliders
     const sliderMaster = document.getElementById('slider-master') as HTMLInputElement;
     const valMaster = document.getElementById('val-master');
     sliderMaster?.addEventListener('input', () => {
@@ -337,12 +573,15 @@ export class VNPlayer {
       if (valSfx) valSfx.textContent = `${Math.round(val * 100)}%`;
     });
 
-    const btnMute = document.getElementById('btn-mute-toggle') as HTMLButtonElement;
-    btnMute?.addEventListener('click', () => {
+    document.getElementById('btn-mute-toggle')?.addEventListener('click', () => {
       this.toggleMute();
     });
 
-    // Nút Toàn màn hình & Khởi động lại trong Tab Cài đặt khác
+    document.getElementById('btn-system-title')?.addEventListener('click', () => {
+      this.settingsModal.close();
+      this.titleScreen.show();
+    });
+
     document.getElementById('btn-system-fullscreen')?.addEventListener('click', () => {
       if (!document.fullscreenElement) {
         document.documentElement.requestFullscreen().catch(() => {});
@@ -352,95 +591,78 @@ export class VNPlayer {
     });
 
     document.getElementById('btn-system-restart')?.addEventListener('click', () => {
-      this.closeSettingsMenu();
+      this.settingsModal.close();
       void this.reloadProgram(this.initialProgram);
       this.showToast('Game restarted!');
     });
 
-    // Phím tắt toàn cầu (Keyboard Shortcuts)
+    // Global Keydown
     window.addEventListener('keydown', e => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
         return;
       }
 
-      // 1. Phím Escape: đóng modal nếu đang mở, hiện HUD nếu đang ẩn, hoặc mở Settings Menu
       if (e.key === 'Escape') {
         e.preventDefault();
         if (this.isAnyModalOpen()) {
           this.closeAllModals();
           return;
         }
-        if (this.isHudHidden) {
-          this.toggleHideUI();
+        if (this.playbackController.getIsHudHidden()) {
+          this.playbackController.toggleHideUI();
           return;
         }
-        this.openSettingsMenu();
+        this.settingsModal.open();
         return;
       }
 
-      // 2. Phím H để Ẩn/Hiện giao diện (Hide UI Mode)
       if (e.code === 'KeyH' && !this.isAnyModalOpen()) {
         e.preventDefault();
-        this.toggleHideUI();
+        this.playbackController.toggleHideUI();
         return;
       }
 
-      // 3. Phím Mute âm thanh (Phím M)
       if (e.code === 'KeyM' && !this.isAnyModalOpen()) {
         e.preventDefault();
         this.toggleMute();
         return;
       }
 
-      // 4. Nếu HUD đang ẩn, bấm bất kỳ phím nào (Space, Enter, Mũi tên) sẽ hiện lại HUD
-      if (this.isHudHidden) {
+      if (this.playbackController.getIsHudHidden()) {
         if (['Space', 'Enter', 'ArrowRight', 'ArrowLeft'].includes(e.code)) {
           e.preventDefault();
-          this.toggleHideUI();
+          this.playbackController.toggleHideUI();
           return;
         }
       }
 
-      // 5. Nếu đang mở modal thì không nhận phím tắt chơi game
       if (this.isAnyModalOpen()) return;
 
-      // 6. Phím tắt chọn rẽ nhánh khi đang mở menu lựa chọn
-      if (!this.choiceOverlay.classList.contains('hidden')) {
-        // Phím số 1-9
+      if (this.choiceOverlay.isOpen()) {
         if (e.key >= '1' && e.key <= '9') {
+          e.preventDefault();
           const index = parseInt(e.key, 10) - 1;
-          const targetBtn = this.choiceButtons[index];
-          if (targetBtn && !targetBtn.disabled) {
-            e.preventDefault();
-            targetBtn.click();
-            return;
-          }
+          this.choiceOverlay.selectChoiceByIndex(index);
+          return;
         }
-
-        // Điều hướng mũi tên lên/xuống
         if (e.key === 'ArrowDown') {
           e.preventDefault();
-          this.navigateChoice(1);
+          this.choiceOverlay.navigateChoice(1);
           return;
         }
         if (e.key === 'ArrowUp') {
           e.preventDefault();
-          this.navigateChoice(-1);
+          this.choiceOverlay.navigateChoice(-1);
           return;
         }
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          const curBtn = this.choiceButtons[this.selectedChoiceIndex];
-          if (curBtn && !curBtn.disabled) {
-            curBtn.click();
-          }
+          this.choiceOverlay.submitCurrentChoice();
           return;
         }
         return;
       }
 
-      // 7. Phím tắt điều khiển tiến lùi kịch bản
-      // Lưu ý thiết kế: Không dùng phím A/D để điều khiển thoại (phím A đã dùng làm phím tắt bật Auto)
       if (e.key === ' ' || e.key === 'Enter' || e.key === 'ArrowRight') {
         e.preventDefault();
         this.handleAdvanceAction();
@@ -449,159 +671,71 @@ export class VNPlayer {
         this.rollback();
       } else if (e.key === 'a' || e.key === 'A') {
         e.preventDefault();
-        this.toggleAuto();
+        this.playbackController.toggleAuto(() => this.onDialogueLineFinished());
       } else if (e.key === 's' || e.key === 'S') {
         e.preventDefault();
-        this.toggleSkip();
+        this.playbackController.toggleSkip();
       } else if (e.key === 'l' || e.key === 'L') {
         e.preventDefault();
-        this.openSettingsMenu('backlog');
+        this.settingsModal.open('backlog');
       }
     });
   }
 
-  /**
-   * Ẩn / hiện toàn bộ giao diện hộp thoại (Hide UI Mode)
-   */
+  // ================================================================
+  // PUBLIC HELPER METHODS (BACKWARDS COMPATIBILITY)
+  // ================================================================
+  public rollback(): boolean {
+    return this.playbackController.rollback();
+  }
+
+  public toggleAuto(): void {
+    this.playbackController.toggleAuto(() => this.onDialogueLineFinished());
+  }
+
+  public toggleSkip(): void {
+    this.playbackController.toggleSkip();
+  }
+
   public toggleHideUI(): void {
-    this.isHudHidden = !this.isHudHidden;
-    if (this.isHudHidden) {
-      this.uiLayer.classList.add('hud-hidden');
-      if (this.btnHideUI) this.btnHideUI.textContent = '[SHOW H]';
-    } else {
-      this.uiLayer.classList.remove('hud-hidden');
-      if (this.btnHideUI) this.btnHideUI.textContent = '[HIDE H]';
-    }
+    this.playbackController.toggleHideUI();
   }
 
-  /**
-   * Hiển thị thông báo Toast ngắn
-   */
-  public showToast(message: string): void {
-    if (!this.toastNotification) return;
-    this.toastNotification.textContent = message;
-    this.toastNotification.classList.remove('hidden');
-    if (this.toastTimerId !== null) {
-      clearTimeout(this.toastTimerId);
-    }
-    this.toastTimerId = window.setTimeout(() => {
-      this.toastNotification.classList.add('hidden');
-      this.toastTimerId = null;
-    }, 2000);
+  public async quickSave(): Promise<void> {
+    await this.saveLoadController.quickSave();
   }
 
-  /**
-   * Xử lý lỗi ngoại lệ Runtime của máy ảo một cách an toàn, tránh treo giao diện
-   */
-  private handleRuntimeError(err: unknown): void {
-    console.error('[VN Player Runtime Error]', err);
-    this.clearAutoTimer();
-    this.clearWaitTimer();
-    this.clearSkip();
-
-    const msg = err instanceof Error ? err.message : String(err);
-    this.showToast(`⚠️ [Lỗi kịch bản] ${msg}`);
-    this.nextIndicator.textContent = '■ Error';
-    this.nextIndicator.style.opacity = '1';
-    this.updateControlsState();
-  }
-
-  /**
-   * Bật/tắt Mute âm thanh
-   */
-  public toggleMute(): void {
-    const btnMute = document.getElementById('btn-mute-toggle') as HTMLButtonElement;
-    if (this.audio.isMuted()) {
-      this.audio.unmute();
-      if (btnMute) btnMute.textContent = '[ Mute: OFF (Key M) ]';
-      this.showToast('Audio: ON');
-    } else {
-      this.audio.mute();
-      if (btnMute) btnMute.textContent = '[ Mute: ON (Key M) ]';
-      this.showToast('Audio: MUTED');
-    }
-  }
-
-  public isAnyModalOpen(): boolean {
-    return (
-      !this.modalSettingsMenu.classList.contains('hidden') ||
-      (this.inspectModal && !this.inspectModal.classList.contains('hidden'))
-    );
-  }
-
-  public closeAllModals(): void {
-    this.modalSettingsMenu.classList.add('hidden');
-    this.hideInspectModal();
+  public quickLoad(): boolean {
+    return this.saveLoadController.quickLoad();
   }
 
   public showInspectModal(assetId: string, title?: string): void {
-    if (!this.inspectModal) return;
-
-    if (title && title.trim().length > 0) {
-      this.inspectTitle.textContent = title;
-      this.inspectTitle.classList.remove('hidden');
-    } else {
-      this.inspectTitle.textContent = '';
-      this.inspectTitle.classList.add('hidden');
-    }
-
-    const foundAsset = this.projectData.assets?.find(
-      a =>
-        a.name.toLowerCase() === assetId.toLowerCase() ||
-        a.id.toLowerCase() === assetId.toLowerCase(),
-    );
-    if (foundAsset?.storageUrl) {
-      this.inspectImage.src = foundAsset.storageUrl;
-    } else {
-      const label = assetId.toUpperCase();
-      this.inspectImage.src = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"><rect width="400" height="300" fill="%23111111" stroke="%23ffffff" stroke-width="2"/><text x="200" y="140" fill="%23ffffff" font-family="monospace" font-size="16" font-weight="bold" text-anchor="middle">[ ITEM // ${encodeURIComponent(label)} ]</text><text x="200" y="175" fill="%23888888" font-family="monospace" font-size="12" text-anchor="middle">// WIREFRAME INSPECT VIEW</text></svg>`;
-    }
-
-    this.inspectModal.classList.remove('hidden');
+    const assetUrl = this.getAssetGraphicResolver()(assetId);
+    this.inspectModal.show(assetId, title, assetUrl);
   }
 
   public hideInspectModal(): void {
-    if (!this.inspectModal) return;
-    this.inspectModal.classList.add('hidden');
+    this.inspectModal.hide();
   }
 
   public openSettingsMenu(
     initialTab: 'audio' | 'saveload' | 'backlog' | 'debug' | 'system' = 'audio',
   ): void {
-    this.switchSettingsTab(initialTab);
-    this.modalSettingsMenu.classList.remove('hidden');
+    this.settingsModal.open(initialTab);
   }
 
   public closeSettingsMenu(): void {
-    this.modalSettingsMenu.classList.add('hidden');
+    this.settingsModal.close();
   }
 
   public switchSettingsTab(tabName: 'audio' | 'saveload' | 'backlog' | 'debug' | 'system'): void {
-    this.settingsTabButtons.forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.tab === tabName);
-    });
-
-    this.settingsPanes.forEach(pane => {
-      pane.classList.toggle('active', pane.id === `pane-${tabName}`);
-    });
-
-    if (tabName === 'saveload') {
-      this.renderSaveSlots();
-    } else if (tabName === 'backlog') {
-      this.renderBacklog();
-    } else if (tabName === 'debug') {
-      this.renderDebugInfo();
-    }
+    this.settingsModal.switchSettingsTab(tabName);
   }
 
   public setSaveLoadMode(mode: 'save' | 'load'): void {
-    this.activeModalMode = mode;
-    this.btnModeSave?.classList.toggle('active', mode === 'save');
-    this.btnModeLoad?.classList.toggle('active', mode === 'load');
-    this.renderSaveSlots();
+    this.saveLoadController.setMode(mode);
   }
 
-  // Tương thích ngược với các lệnh gọi modal cũ
   public openSaveLoadModal(mode: 'save' | 'load'): void {
     this.setSaveLoadMode(mode);
     this.openSettingsMenu('saveload');
@@ -619,901 +753,58 @@ export class VNPlayer {
     this.openSettingsMenu('debug');
   }
 
-  /**
-   * Xử lý tương tác tiến câu thoại
-   */
-  private handleAdvanceAction(): void {
-    if (this.isHudHidden) {
-      this.toggleHideUI();
-      return;
-    }
-
-    if (this.waitTimerId !== null) {
-      this.clearWaitTimer();
-      void this.advance();
-      return;
-    }
-
-    if (this.typewriter.isTyping()) {
-      this.typewriter.finishImmediately();
-      return;
-    }
-
-    if (!this.choiceOverlay.classList.contains('hidden')) {
-      return;
-    }
-
-    void this.advance();
-  }
-
-  private getAssetGraphicResolver(): (assetKey: string) => string | undefined {
-    return (assetKey: string) => {
-      const foundAsset = this.projectData.assets?.find(
-        a =>
-          a.name.toLowerCase() === assetKey.toLowerCase() ||
-          a.id.toLowerCase() === assetKey.toLowerCase(),
-      );
-      if (foundAsset?.storageUrl) return foundAsset.storageUrl;
-
-      const underscoreIdx = assetKey.indexOf('_');
-      if (underscoreIdx !== -1) {
-        const charId = assetKey.slice(0, underscoreIdx);
-        const spriteId = assetKey.slice(underscoreIdx + 1);
-        const charDef = this.projectData.characters?.find(
-          c => c.id.toLowerCase() === charId.toLowerCase(),
-        );
-        if (charDef?.sprites) {
-          const spriteImg =
-            charDef.sprites[spriteId] ||
-            charDef.sprites['default'] ||
-            Object.values(charDef.sprites)[0];
-          if (spriteImg) {
-            if (
-              spriteImg.startsWith('data:') ||
-              spriteImg.startsWith('http') ||
-              spriteImg.startsWith('/') ||
-              spriteImg.startsWith('.')
-            ) {
-              return spriteImg;
-            }
-            const refAsset = this.projectData.assets?.find(
-              a => a.name === spriteImg || a.id === spriteImg,
-            );
-            if (refAsset?.storageUrl) return refAsset.storageUrl;
-          }
-        }
-      } else {
-        const charDef = this.projectData.characters?.find(
-          c => c.id.toLowerCase() === assetKey.toLowerCase(),
-        );
-        if (charDef?.sprites) {
-          const spriteImg = charDef.sprites['default'] || Object.values(charDef.sprites)[0];
-          if (spriteImg) {
-            if (
-              spriteImg.startsWith('data:') ||
-              spriteImg.startsWith('http') ||
-              spriteImg.startsWith('/') ||
-              spriteImg.startsWith('.')
-            ) {
-              return spriteImg;
-            }
-            const refAsset = this.projectData.assets?.find(
-              a => a.name === spriteImg || a.id === spriteImg,
-            );
-            if (refAsset?.storageUrl) return refAsset.storageUrl;
-          }
-        }
-      }
-      return undefined;
-    };
-  }
-
-  private getAssetAudioResolver(): (assetKey: string) => string {
-    return (assetKey: string) => {
-      const found = this.projectData.assets?.find(
-        a =>
-          a.name.toLowerCase() === assetKey.toLowerCase() ||
-          a.id.toLowerCase() === assetKey.toLowerCase(),
-      );
-      return found?.storageUrl || assetKey;
-    };
-  }
-
-  private checkIsProp(characterId: string): boolean {
-    const isChar = this.projectData.characters?.some(
-      c => c.id.toLowerCase() === characterId.toLowerCase(),
-    );
-    if (isChar) return false;
-    return Boolean(
-      this.projectData.assets?.some(
-        a =>
-          a.name.toLowerCase() === characterId.toLowerCase() ||
-          a.id.toLowerCase() === characterId.toLowerCase(),
-      ),
-    );
-  }
-
-  /**
-   * Tiến máy ảo tới điểm tương tác tiếp theo
-   */
-  public async advance(): Promise<void> {
-    if (this.isAdvancing) {
-      if (this.isSkip || this.isAuto) {
-        this.advanceQueued = true;
-      }
-      return;
-    }
-    this.isAdvancing = true;
-
-    try {
-      this.clearAutoTimer();
-      this.clearWaitTimer();
-
-      let runResult: RunResult;
-      try {
-        runResult = this.vm.runUntilInteractive();
-      } catch (err: unknown) {
-        this.handleRuntimeError(err);
-        return;
-      }
-
-      // 1. Thực thi các side-effects tích lũy dọc đường (chuyển cảnh, hiện sprite, âm thanh)
-      for (const sideEffect of runResult.sideEffects) {
-        await this.applySideEffect(sideEffect);
-      }
-
-      // 2. Xử lý kết quả dừng
-      const step = runResult.stepResult;
-
-      if (step.type === 'SUSPEND_DIALOGUE') {
-        const instr = step.instruction as DialogueInstruction;
-        this.currentDialogueInstruction = instr;
-
-        // Hỗ trợ Custom UI Theme cấp phân cảnh
-        if (instr.uiScreenId) {
-          this.gameRoot.className = `ui-skin-${instr.uiScreenId}`;
-        } else {
-          this.gameRoot.className = '';
-        }
-
-        const hasText = Boolean(instr.text && instr.text.trim().length > 0);
-        if (!hasText) {
-          // Tự động ẩn hộp thoại khi không có nội dung thoại
-          this.dialogueBox.classList.add('hidden');
-          this.speakerNameplate.classList.add('hidden');
-          if (this.isSkip) {
-            this.onDialogueLineFinished();
-          }
-        } else {
-          this.dialogueBox.classList.remove('hidden');
-
-          // Cập nhật Nameplate
-          let speakerDisplay = instr.character;
-          if (instr.character) {
-            const vmState = this.vm.getState();
-            speakerDisplay =
-              vmState.characterDisplayOverrides[instr.character] ??
-              instr.displayNameOverride ??
-              instr.character;
-          }
-
-          if (speakerDisplay) {
-            const charKey = speakerDisplay.toUpperCase();
-            const declaredChar = this.projectData.characters?.find(
-              c =>
-                (instr.character && c.id.toLowerCase() === instr.character.toLowerCase()) ||
-                c.name.toLowerCase() === speakerDisplay.toLowerCase(),
-            );
-            const charColor = declaredChar?.colorHex || CHAR_COLOR_MAP[charKey] || '#38bdf8';
-            this.speakerNameplate.textContent = charKey;
-            this.speakerNameplate.style.color = charColor;
-            this.speakerNameplate.style.borderColor = charColor;
-            this.speakerNameplate.classList.remove('hidden');
-          } else {
-            this.speakerNameplate.classList.add('hidden');
-          }
-
-          // Lưu vào Backlog
-          this.backlog.push({
-            speaker: speakerDisplay,
-            text: stripControlTags(instr.text),
-          });
-
-          // Kiểm tra trạng thái đã đọc câu thoại (Read Text Tracking)
-          const dialogueKey = this.vm.getCurrentDialogueKey();
-          const isPreviouslySeen = dialogueKey ? this.seenDialogues.has(dialogueKey) : false;
-
-          // Nếu đang bật Skip mà gặp câu thoại CHƯA ĐỌC -> Dừng Skip tự nhiên (không popup toast gây phiền)
-          if (this.isSkip && !isPreviouslySeen) {
-            this.clearSkip();
-          }
-
-          // Đánh dấu câu thoại này là đã đọc và lưu vào storage
-          if (dialogueKey && !this.seenDialogues.has(dialogueKey)) {
-            this.seenDialogues.add(dialogueKey);
-            GameStorage.saveSeenDialogues(this.seenDialogues, this.projectData.id);
-          }
-
-          // Bắt đầu gõ chữ (hoặc hiển thị ngay lập tức nếu đang tiếp tục Skip vì câu thoại đã đọc)
-          this.nextIndicator.style.opacity = '0';
-          if (this.isSkip) {
-            this.typewriter.stop();
-            renderTokensToElement(parseTypewriterTokens(instr.text), this.dialogueText);
-            this.nextIndicator.style.opacity = '1';
-            this.onDialogueLineFinished();
-          } else {
-            this.typewriter.start(instr.text, () => {
-              this.nextIndicator.style.opacity = '1';
-              this.onDialogueLineFinished();
-            });
-          }
-        }
-
-        this.updateControlsState();
-      } else if (step.type === 'SUSPEND_CHOICE') {
-        this.clearSkip();
-        this.dialogueBox.classList.add('hidden');
-        this.speakerNameplate.classList.add('hidden');
-        this.presentChoices();
-      } else if (step.type === 'SUSPEND_WAIT') {
-        const durationMs = this.isSkip ? 20 : Math.max(0, step.duration * 1000);
-        this.waitTimerId = window.setTimeout(() => {
-          this.waitTimerId = null;
-          void this.advance();
-        }, durationMs);
-      } else if (step.type === 'HALTED') {
-        this.clearAutoTimer();
-        this.clearSkip();
-        this.dialogueBox.classList.add('hidden');
-        this.speakerNameplate.classList.add('hidden');
-        this.nextIndicator.textContent = '■ End';
-        this.nextIndicator.style.opacity = '0';
-        this.updateControlsState();
-      }
-    } finally {
-      this.isAdvancing = false;
-      if (this.advanceQueued && (this.isSkip || this.isAuto)) {
-        this.advanceQueued = false;
-        void this.advance();
-      }
-    }
-  }
-
-  private onDialogueLineFinished(): void {
-    if (this.isSkip) {
-      setTimeout(() => {
-        void this.advance();
-      }, 50);
-    } else if (this.isAuto) {
-      this.autoTimerId = window.setTimeout(() => {
-        void this.advance();
-      }, 1600);
-    }
-  }
-
-  /**
-   * Áp dụng lệnh ngoại vi (Side effect) lên Renderer hoặc Audio
-   */
-  private async applySideEffect(instr: Instruction): Promise<void> {
-    if (instr.type === 'BACKGROUND') {
-      await this.renderer.setBackground(instr, instr.transition, this.getAssetGraphicResolver());
-    } else if (instr.type === 'SHOW') {
-      const isProp = this.checkIsProp(instr.character);
-      await this.renderer.showCharacter(instr, this.getAssetGraphicResolver(), isProp);
-    } else if (instr.type === 'HIDE') {
-      this.renderer.hideCharacter(instr.character);
-    } else if (instr.type === 'HIDE_DIALOGUE') {
-      this.dialogueBox.classList.add('hidden');
-      this.speakerNameplate.classList.add('hidden');
-      this.nextIndicator.style.opacity = '0';
-    } else if (instr.type === 'INSPECT_BEGIN') {
-      this.showInspectModal(instr.assetId, instr.title);
-    } else if (instr.type === 'INSPECT_END') {
-      this.hideInspectModal();
-    } else if (instr.type === 'PLAY') {
-      const audioResolver = this.getAssetAudioResolver();
-      this.audio.play(instr.channel, instr.assetId, audioResolver(instr.assetId), {
-        volume: instr.volume,
-        loop: instr.loop,
-        fadeIn: instr.fadeIn,
-      });
-    } else if (instr.type === 'STOP') {
-      this.audio.stop(instr.channel, { fadeOut: instr.fadeOut });
-    }
-  }
-
-  /**
-   * Hiển thị danh sách lựa chọn rẽ nhánh kèm phím tắt số [1], [2]
-   */
-  private presentChoices(): void {
-    const choices = this.vm.getAvailableChoices();
-    this.choiceList.innerHTML = '';
-    this.choiceButtons = [];
-    this.selectedChoiceIndex = 0;
-
-    const firstEnabledIndex = choices.findIndex(c => c.enabled);
-    if (firstEnabledIndex !== -1) {
-      this.selectedChoiceIndex = firstEnabledIndex;
-    }
-
-    choices.forEach((choice: { text: string; enabled: boolean }, index: number) => {
-      const btn = document.createElement('button');
-      btn.className = 'choice-btn';
-
-      const keySpan = document.createElement('span');
-      keySpan.className = 'choice-key-hint';
-      keySpan.textContent = `[${index + 1}]`;
-      btn.appendChild(keySpan);
-
-      const textSpan = document.createElement('span');
-      textSpan.textContent = choice.enabled ? choice.text : `${choice.text} (Conditions not met)`;
-      btn.appendChild(textSpan);
-
-      if (!choice.enabled) {
-        btn.disabled = true;
-      } else {
-        btn.addEventListener('click', () => {
-          this.choiceOverlay.classList.add('hidden');
-          try {
-            this.vm.choose(index);
-          } catch (err: unknown) {
-            this.handleRuntimeError(err);
-            return;
-          }
-          void this.advance();
-        });
-      }
-
-      this.choiceList.appendChild(btn);
-      this.choiceButtons.push(btn);
-    });
-
-    this.updateChoiceVisualSelection();
-    this.choiceOverlay.classList.remove('hidden');
-  }
-
-  private navigateChoice(direction: number): void {
-    const total = this.choiceButtons.length;
-    if (total === 0) return;
-
-    let nextIndex = this.selectedChoiceIndex;
-    for (let i = 0; i < total; i++) {
-      nextIndex = (nextIndex + direction + total) % total;
-      if (!this.choiceButtons[nextIndex]?.disabled) {
-        this.selectedChoiceIndex = nextIndex;
-        break;
-      }
-    }
-    this.updateChoiceVisualSelection();
-  }
-
-  private updateChoiceVisualSelection(): void {
-    this.choiceButtons.forEach((btn, idx) => {
-      btn.classList.toggle('selected', idx === this.selectedChoiceIndex);
-    });
-  }
-
-  /**
-   * Tua lại câu thoại trước (Rollback)
-   */
-  public rollback(): boolean {
-    // Lỗi 126: Nếu đang mở menu lựa chọn (choice), rollback chỉ ẩn menu choice
-    // và hiển thị lại câu thoại dẫn đến choice chứ không pop lùi thêm câu thoại trước đó
-    if (!this.choiceOverlay.classList.contains('hidden')) {
-      this.clearAutoTimer();
-      this.clearSkip();
-      this.clearWaitTimer();
-      this.choiceOverlay.classList.add('hidden');
-      if (
-        this.currentDialogueInstruction &&
-        this.currentDialogueInstruction.text &&
-        this.currentDialogueInstruction.text.trim().length > 0
-      ) {
-        this.dialogueBox.classList.remove('hidden');
-        if (this.currentDialogueInstruction.character) {
-          this.speakerNameplate.classList.remove('hidden');
-        }
-        this.nextIndicator.style.opacity = '1';
-      }
-      this.updateControlsState();
-      return true;
-    }
-
-    if (!this.vm.canRollback()) {
-      this.showToast('Cannot rollback further!');
-      return false;
-    }
-
-    this.clearAutoTimer();
-    this.clearSkip();
-    this.clearWaitTimer();
-    this.choiceOverlay.classList.add('hidden');
-
-    const success = this.vm.rollback();
-    if (!success) return false;
-
-    const catchUp = this.vm.getStateCatchUp();
-
-    if (this.backlog.length > 0) {
-      this.backlog.pop();
-    }
-
-    void this.renderer.syncStateCatchUp(
-      {
-        background: catchUp.background,
-        sprites: catchUp.sprites,
+  public openDesyncWarningModal(slot: SaveSlotData, slotIndex: number): void {
+    const currentHash = this.vm.getScriptHash();
+    this.desyncModal.open(slot, slotIndex, currentHash, {
+      onContinue: () => {
+        this.saveLoadController.restoreFromSlotData(slot);
+        this.settingsModal.close();
       },
-      this.getAssetGraphicResolver(),
-      (id: string) => this.checkIsProp(id),
-    );
-    this.audio.syncStateCatchUp(catchUp.audio, this.getAssetAudioResolver());
-
-    if (
-      catchUp.currentDialogue &&
-      catchUp.currentDialogue.text &&
-      catchUp.currentDialogue.text.trim().length > 0
-    ) {
-      this.dialogueBox.classList.remove('hidden');
-      this.currentDialogueInstruction = catchUp.currentDialogue;
-      let speakerDisplay = catchUp.currentDialogue.character;
-      if (catchUp.currentDialogue.character) {
-        const vmState = this.vm.getState();
-        speakerDisplay =
-          vmState.characterDisplayOverrides[catchUp.currentDialogue.character] ??
-          catchUp.currentDialogue.displayNameOverride ??
-          catchUp.currentDialogue.character;
-      }
-
-      if (speakerDisplay) {
-        const charKey = speakerDisplay.toUpperCase();
-        const declaredChar = this.projectData.characters?.find(
-          c =>
-            (catchUp.currentDialogue?.character &&
-              c.id.toLowerCase() === catchUp.currentDialogue.character.toLowerCase()) ||
-            c.name.toLowerCase() === speakerDisplay.toLowerCase(),
-        );
-        const charColor = declaredChar?.colorHex || CHAR_COLOR_MAP[charKey] || '#38bdf8';
-        this.speakerNameplate.textContent = charKey;
-        this.speakerNameplate.style.color = charColor;
-        this.speakerNameplate.style.borderColor = charColor;
-        this.speakerNameplate.classList.remove('hidden');
-      } else {
-        this.speakerNameplate.classList.add('hidden');
-      }
-
-      this.typewriter.stop();
-      renderTokensToElement(parseTypewriterTokens(catchUp.currentDialogue.text), this.dialogueText);
-      this.nextIndicator.style.opacity = '1';
-    } else {
-      this.dialogueBox.classList.add('hidden');
-      this.speakerNameplate.classList.add('hidden');
-    }
-
-    if (catchUp.activeInspect) {
-      this.showInspectModal(catchUp.activeInspect.assetId, catchUp.activeInspect.title);
-    } else {
-      this.hideInspectModal();
-    }
-
-    this.updateControlsState();
-    return true;
-  }
-
-  /**
-   * Bật/tắt chế độ Auto
-   */
-  public toggleAuto(): void {
-    this.isAuto = !this.isAuto;
-    if (this.isAuto) {
-      this.clearSkip();
-      this.btnAuto.classList.add('active');
-      this.showToast('Auto-forward: ON');
-      if (!this.typewriter.isTyping()) {
-        this.onDialogueLineFinished();
-      }
-    } else {
-      this.clearAutoTimer();
-      this.btnAuto.classList.remove('active');
-      this.showToast('Auto-forward: OFF');
-    }
-  }
-
-  /**
-   * Bật/tắt chế độ Skip
-   */
-  public toggleSkip(): void {
-    this.isSkip = !this.isSkip;
-    if (this.isSkip) {
-      this.clearAutoTimer();
-      this.btnSkip.classList.add('active');
-      this.showToast('Skip: ON (Tua nhanh câu đã đọc)');
-      if (this.typewriter.isTyping()) {
-        this.typewriter.finishImmediately();
-      } else {
-        void this.advance();
-      }
-    } else {
-      this.clearSkip();
-      this.showToast('Skip: OFF');
-    }
-  }
-
-  private clearAutoTimer(): void {
-    if (this.autoTimerId !== null) {
-      clearTimeout(this.autoTimerId);
-      this.autoTimerId = null;
-    }
-    if (!this.isSkip) {
-      this.advanceQueued = false;
-    }
-  }
-
-  private clearWaitTimer(): void {
-    if (this.waitTimerId !== null) {
-      clearTimeout(this.waitTimerId);
-      this.waitTimerId = null;
-    }
-  }
-
-  private clearSkip(): void {
-    this.isSkip = false;
-    this.advanceQueued = false;
-    this.btnSkip.classList.remove('active');
-    if (this.skipTimerId !== null) {
-      clearTimeout(this.skipTimerId);
-      this.skipTimerId = null;
-    }
-  }
-
-  private updateControlsState(): void {
-    this.btnBack.disabled = !this.vm.canRollback();
-  }
-
-  /**
-   * Render lưới ô Lưu/Tải game trong Settings Menu
-   */
-  private renderSaveSlots(): void {
-    const slots = GameStorage.getSlots();
-    this.saveSlotsContainer.innerHTML = '';
-
-    // Cập nhật trạng thái các nút phân trang
-    this.savePageButtons.forEach(btn => {
-      const pageIdx = parseInt(btn.dataset.page || '0', 10);
-      btn.classList.toggle('active', pageIdx === this.currentSavePage);
-    });
-
-    const startIndex = this.currentSavePage * SLOTS_PER_PAGE;
-    const endIndex = Math.min(startIndex + SLOTS_PER_PAGE, TOTAL_SLOTS);
-
-    for (let index = startIndex; index < endIndex; index++) {
-      const slot = slots[index];
-      const card = document.createElement('div');
-      card.className = 'save-slot-card';
-
-      if (slot) {
-        const dateStr = new Date(slot.timestamp).toLocaleString('en-US');
-        card.innerHTML = `
-          <div class="slot-header-row">
-            <span class="slot-scene"></span>
-            <span class="slot-badge saved">SAVED</span>
-          </div>
-          <img class="slot-thumbnail" alt="Thumbnail" />
-          <div class="slot-meta">
-            <span class="slot-date"></span>
-          </div>
-          <div class="slot-actions">
-            <button class="slot-btn-action slot-btn-delete" data-action="delete" title="Delete this slot">[Delete]</button>
-            <button class="slot-btn-action" data-action="confirm">${this.activeModalMode === 'save' ? '[Overwrite]' : '[Load]'}</button>
-          </div>
-        `;
-        const sceneEl = card.querySelector('.slot-scene');
-        if (sceneEl) sceneEl.textContent = `[Slot ${index + 1}] ${slot.sceneName}`;
-        const imgEl = card.querySelector('.slot-thumbnail') as HTMLImageElement;
-        if (imgEl && slot.thumbnail) imgEl.src = slot.thumbnail;
-        const dateEl = card.querySelector('.slot-date');
-        if (dateEl) dateEl.textContent = dateStr;
-      } else {
-        card.innerHTML = `
-          <div class="slot-header-row">
-            <span class="slot-scene">[Slot ${index + 1}] Empty</span>
-            <span class="slot-badge">EMPTY</span>
-          </div>
-          <div class="slot-thumbnail">[ NO DATA ]</div>
-          <div class="slot-meta"><span>--/--/----</span></div>
-          <div class="slot-actions">
-            <button class="slot-btn-action" data-action="confirm">${this.activeModalMode === 'save' ? '[Save here]' : '[Cannot load]'}</button>
-          </div>
-        `;
-      }
-
-      // Xử lý sự kiện click trên card
-      card.addEventListener('click', async (e: MouseEvent) => {
-        const target = e.target as HTMLElement;
-        const action = target.dataset.action;
-
-        if (action === 'delete') {
-          e.stopPropagation();
-          GameStorage.deleteSlot(index);
-          this.showToast(`Deleted save slot ${index + 1}`);
-          this.renderSaveSlots();
-          return;
-        }
-
-        if (this.activeModalMode === 'save') {
-          await this.saveToSlot(index);
-          this.showToast(`Successfully saved to Slot ${index + 1}`);
-          this.renderSaveSlots();
-        } else {
-          if (slot) {
-            const ok = this.loadFromSlot(index);
-            if (ok) {
-              this.showToast(`Successfully loaded Slot ${index + 1}`);
-              this.closeSettingsMenu();
-            }
-          } else {
-            this.showToast('This slot is empty, no data to load!');
-          }
-        }
-      });
-
-      this.saveSlotsContainer.appendChild(card);
-    }
-  }
-
-  private async saveToSlot(slotIndex: number): Promise<void> {
-    const thumbnail = await this.renderer.captureThumbnail(320, 180);
-    const vmState = this.vm.getState();
-    const scriptHash = this.vm.getScriptHash();
-    const data: Omit<SaveSlotData, 'slotIndex'> = {
-      timestamp: Date.now(),
-      sceneName: vmState.currentScene,
-      thumbnail,
-      vmStateJson: this.vm.serialize({ projectId: this.projectData.id, scriptHash }),
-      dialoguePreview: stripControlTags(this.currentDialogueInstruction?.text || ''),
-      projectId: this.projectData.id,
-      scriptHash,
-      backlogJson: JSON.stringify(this.backlog),
-    };
-    GameStorage.saveSlot(slotIndex, data);
-  }
-
-  private loadFromSlot(slotIndex: number): boolean {
-    try {
-      const slot = GameStorage.loadSlot(slotIndex);
-      if (!slot) {
-        this.showToast('This slot is empty!');
-        return false;
-      }
-      this.restoreFromSlotData(slot);
-      return true;
-    } catch (err) {
-      console.error(`[SaveLoad] Error loading slot ${slotIndex + 1}:`, err);
-      this.showToast('⚠️ Corrupted save data! Cannot load.');
-      return false;
-    }
-  }
-
-  public async quickSave(): Promise<void> {
-    const thumbnail = await this.renderer.captureThumbnail(320, 180);
-    const vmState = this.vm.getState();
-    const scriptHash = this.vm.getScriptHash();
-    GameStorage.quickSave({
-      timestamp: Date.now(),
-      sceneName: vmState.currentScene,
-      thumbnail,
-      vmStateJson: this.vm.serialize({ projectId: this.projectData.id, scriptHash }),
-      dialoguePreview: stripControlTags(this.currentDialogueInstruction?.text || ''),
-      projectId: this.projectData.id,
-      scriptHash,
-      backlogJson: JSON.stringify(this.backlog),
-    });
-    this.showToast('● QUICK SAVED');
-  }
-
-  public quickLoad(): boolean {
-    try {
-      const slot = GameStorage.quickLoad();
-      if (!slot) {
-        this.showToast('No quick save data found!');
-        return false;
-      }
-      this.restoreFromSlotData(slot);
-      this.showToast('● QUICK LOADED');
-      return true;
-    } catch (err) {
-      console.error('[SaveLoad] Error during quick load:', err);
-      this.showToast('⚠️ Corrupted quick save data! Cannot load.');
-      return false;
-    }
-  }
-
-  private restoreFromSlotData(slot: SaveSlotData): void {
-    this.clearAutoTimer();
-    this.clearSkip();
-    this.choiceOverlay.classList.add('hidden');
-
-    const restoreResult = this.vm.restore(slot.vmStateJson);
-    if (restoreResult.desyncWarning) {
-      console.warn(
-        `[SaveLoad] Script version mismatch! Saved: ${restoreResult.savedHash}, Current: ${restoreResult.currentHash}`,
-      );
-      this.showToast('⚠️ Lưu ý: Kịch bản đã được cập nhật, dữ liệu chơi có thể bị lệch nhịp.');
-    }
-
-    // Khôi phục Backlog
-    if (slot.backlogJson) {
-      try {
-        const parsed = JSON.parse(slot.backlogJson);
-        if (Array.isArray(parsed)) {
-          this.backlog = parsed;
-        }
-      } catch {
-        // Giữ backlog cũ nếu parse thất bại
-      }
-    }
-
-    // Kích hoạt State Catch-up
-    const catchUp = this.vm.getStateCatchUp();
-    void this.renderer.syncStateCatchUp(
-      {
-        background: catchUp.background,
-        sprites: catchUp.sprites,
+      onRestartScene: () => {
+        this.saveLoadController.restoreAndRestartScene(slot);
+        this.settingsModal.close();
       },
-      this.getAssetGraphicResolver(),
-      (id: string) => this.checkIsProp(id),
-    );
-    this.audio.syncStateCatchUp(catchUp.audio, this.getAssetAudioResolver());
-
-    if (
-      catchUp.currentDialogue &&
-      catchUp.currentDialogue.text &&
-      catchUp.currentDialogue.text.trim().length > 0
-    ) {
-      this.dialogueBox.classList.remove('hidden');
-      this.currentDialogueInstruction = catchUp.currentDialogue;
-      let speakerDisplay = catchUp.currentDialogue.character;
-      if (catchUp.currentDialogue.character) {
-        const vmState = this.vm.getState();
-        speakerDisplay =
-          vmState.characterDisplayOverrides[catchUp.currentDialogue.character] ??
-          catchUp.currentDialogue.displayNameOverride ??
-          catchUp.currentDialogue.character;
-      }
-
-      if (speakerDisplay) {
-        const charKey = speakerDisplay.toUpperCase();
-        const declaredChar = this.projectData.characters?.find(
-          c =>
-            (catchUp.currentDialogue?.character &&
-              c.id.toLowerCase() === catchUp.currentDialogue.character.toLowerCase()) ||
-            c.name.toLowerCase() === speakerDisplay.toLowerCase(),
-        );
-        const charColor = declaredChar?.colorHex || CHAR_COLOR_MAP[charKey] || '#38bdf8';
-        this.speakerNameplate.textContent = charKey;
-        this.speakerNameplate.style.color = charColor;
-        this.speakerNameplate.style.borderColor = charColor;
-        this.speakerNameplate.classList.remove('hidden');
-      } else {
-        this.speakerNameplate.classList.add('hidden');
-      }
-      this.typewriter.stop();
-      renderTokensToElement(parseTypewriterTokens(catchUp.currentDialogue.text), this.dialogueText);
-      this.nextIndicator.style.opacity = '1';
-    } else {
-      this.dialogueBox.classList.add('hidden');
-      this.speakerNameplate.classList.add('hidden');
-    }
-
-    if (catchUp.activeInspect) {
-      this.showInspectModal(catchUp.activeInspect.assetId, catchUp.activeInspect.title);
-    } else {
-      this.hideInspectModal();
-    }
-
-    this.updateControlsState();
-  }
-
-  /**
-   * Render danh sách lịch sử thoại (Backlog)
-   */
-  private renderBacklog(): void {
-    this.backlogContainer.innerHTML = '';
-    this.backlog.forEach(entry => {
-      const item = document.createElement('div');
-      item.className = 'backlog-item';
-      if (entry.speaker) {
-        const spk = document.createElement('div');
-        spk.className = 'backlog-speaker';
-        spk.textContent = entry.speaker.toUpperCase();
-        item.appendChild(spk);
-      }
-      const txt = document.createElement('div');
-      txt.className = 'backlog-text';
-      txt.textContent = entry.text;
-      item.appendChild(txt);
-      this.backlogContainer.appendChild(item);
     });
-
-    // Tự động cuộn xuống đáy
-    const modalBody = this.modalSettingsMenu.querySelector('.wf-modal-body');
-    if (modalBody) {
-      modalBody.scrollTop = modalBody.scrollHeight;
-    }
   }
 
-  /**
-   * Render thông tin Debug Inspector
-   */
-  private renderDebugInfo(): void {
-    const vmState = this.vm.getState();
-    const sceneEl = document.getElementById('debug-scene');
-    const ipEl = document.getElementById('debug-ip');
-    const callstackEl = document.getElementById('debug-callstack');
-
-    if (sceneEl) sceneEl.textContent = vmState.currentScene;
-    if (ipEl) ipEl.textContent = vmState.instructionPointer.toString();
-    if (callstackEl) callstackEl.textContent = vmState.callStack.length.toString();
-
-    // Biến
-    const varBody = document.getElementById('debug-variables-body');
-    if (varBody) {
-      varBody.innerHTML = '';
-      for (const [name, val] of Object.entries(vmState.variables)) {
-        const tr = document.createElement('tr');
-
-        const tdName = document.createElement('td');
-        tdName.textContent = name;
-
-        const tdVal = document.createElement('td');
-        const strong = document.createElement('strong');
-        strong.textContent = String(val);
-        tdVal.appendChild(strong);
-
-        const tdType = document.createElement('td');
-        tdType.textContent = typeof val;
-
-        tr.appendChild(tdName);
-        tr.appendChild(tdVal);
-        tr.appendChild(tdType);
-        varBody.appendChild(tr);
-      }
-    }
-
-    // Audio
-    const audioBody = document.getElementById('debug-audio-body');
-    if (audioBody) {
-      audioBody.innerHTML = '';
-      for (const ch of this.audio.getChannelsState()) {
-        const tr = document.createElement('tr');
-
-        const tdName = document.createElement('td');
-        tdName.textContent = ch.name;
-
-        const tdAsset = document.createElement('td');
-        tdAsset.textContent = ch.currentAssetId ?? '-';
-
-        const tdVol = document.createElement('td');
-        tdVol.textContent = `${Math.round(ch.volume * 100)}%`;
-
-        const tdLoop = document.createElement('td');
-        tdLoop.textContent = ch.loop ? 'Yes' : 'No';
-
-        const tdPlay = document.createElement('td');
-        tdPlay.textContent = ch.isPlaying ? 'Playing' : 'Stopped';
-
-        tr.appendChild(tdName);
-        tr.appendChild(tdAsset);
-        tr.appendChild(tdVol);
-        tr.appendChild(tdLoop);
-        tr.appendChild(tdPlay);
-        audioBody.appendChild(tr);
-      }
-    }
+  public closeDesyncWarningModal(): void {
+    this.desyncModal.close();
   }
 
-  /**
-   * Tải lại và bắt đầu thực thi chương trình bytecode mới (Hot Reload / Live Preview)
-   */
+  public toggleMute(): void {
+    const isMuted = !this.audio.isMuted();
+    if (isMuted) {
+      this.audio.mute();
+    } else {
+      this.audio.unmute();
+    }
+    const btnMute = document.getElementById('btn-mute-toggle') as HTMLButtonElement;
+    if (btnMute) {
+      btnMute.textContent = isMuted ? 'UNMUTE [M]' : 'MUTE AUDIO [M]';
+      btnMute.classList.toggle('active', isMuted);
+    }
+    this.showToast(isMuted ? 'Audio: MUTED' : 'Audio: UNMUTED');
+  }
+
+  public showToast(message: string): void {
+    if (!this.toastNotification) return;
+    this.toastNotification.textContent = message;
+    this.toastNotification.classList.remove('hidden');
+    if (this.toastTimerId !== null) {
+      clearTimeout(this.toastTimerId);
+    }
+    this.toastTimerId = window.setTimeout(() => {
+      this.toastNotification.classList.add('hidden');
+      this.toastTimerId = null;
+    }, 2500);
+  }
+
+  private handleRuntimeError(err: unknown): void {
+    console.error('[RuntimePlayer] Virtual Machine Runtime Error:', err);
+    const msg = err instanceof Error ? err.message : String(err);
+    this.showToast(`VM Error: ${msg}`);
+  }
+
   public async reloadProgram(
     program: Instruction[],
     options?: {
@@ -1533,9 +824,9 @@ export class VNPlayer {
     }
 
     // 1. Dừng các tiến trình tự động hoặc tua nhanh
-    this.clearAutoTimer();
-    this.clearSkip();
-    this.clearWaitTimer();
+    this.playbackController.clearAutoTimer();
+    this.playbackController.clearSkip();
+    this.playbackController.clearWaitTimer();
 
     // 2. Dừng âm thanh đang phát trên các kênh
     this.audio.stop('music');
@@ -1561,21 +852,14 @@ export class VNPlayer {
       emptyCallStackBehavior: 'halt',
     });
     this.backlog = [];
-    this.currentDialogueInstruction = null;
 
     // 5. Reset giao diện UI
-    this.choiceOverlay.classList.add('hidden');
-    this.choiceList.innerHTML = '';
-    this.choiceButtons = [];
-    this.dialogueBox.classList.add('hidden');
-    this.dialogueText.textContent = '';
-    this.speakerNameplate.textContent = '';
-    this.speakerNameplate.classList.add('hidden');
-    this.nextIndicator.textContent = '▼ CONTINUE [→]';
-    this.nextIndicator.style.opacity = '0';
+    this.choiceOverlay.hide();
+    this.dialogueView.hide();
+    this.dialogueView.resetNextIndicator();
     this.closeAllModals();
 
-    // 6. Xử lý điểm nhảy bắt đầu (nếu có yêu cầu Run from Line / Run from Scene)
+    // 6. Xử lý điểm nhảy bắt đầu
     let jumped = false;
     if (options?.targetLine) {
       jumped = this.vm.jumpToLine(options.targetLine, options.fileId ?? undefined);
@@ -1604,11 +888,11 @@ export class VNPlayer {
     }
 
     // 8. Cập nhật thanh điều khiển và bước vào kịch bản mới
-    this.updateControlsState();
+    this.playbackController.updateControlsState();
     if (program.length > 0) {
       await this.advance();
     } else {
-      this.dialogueBox.classList.add('hidden');
+      this.dialogueView.hide();
     }
   }
 }
