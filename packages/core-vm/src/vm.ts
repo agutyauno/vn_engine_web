@@ -999,9 +999,34 @@ export class VisualNovelVM {
   }
 
   /**
+   * Can thiệp / ghi đè giá trị biến runtime phục vụ Live Debugging (ADR-024)
+   * @param name Tên biến cần thay đổi
+   * @param value Giá trị mới (chuỗi, số hoặc boolean)
+   * @param scope Phạm vi biến: 'global' | 'local'. Mặc định: tự suy luận ('local' nếu biến đang có trong localVariables, ngược lại là 'global')
+   */
+  public setVariable(
+    name: string,
+    value: string | number | boolean,
+    scope?: 'global' | 'local',
+  ): void {
+    if (scope === 'local') {
+      this.state.localVariables[name] = value;
+    } else if (scope === 'global') {
+      this.state.variables[name] = value;
+    } else {
+      if (name in this.state.localVariables) {
+        this.state.localVariables[name] = value;
+      } else {
+        this.state.variables[name] = value;
+      }
+    }
+  }
+
+  /**
    * Lấy evaluator để phục vụ mở rộng hàm ngoài
    */
   public getEvaluator(): SandboxEvaluator {
     return this.evaluator;
   }
 }
+
