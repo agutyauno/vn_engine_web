@@ -131,7 +131,7 @@ Bạn có thể chạy riêng từng ứng dụng hoặc chạy song song:
 - **Khởi chạy Web Editor Studio** (cổng mặc định `3001`):
 
   ```bash
-  pnpm dev:editor
+  pnpm dev
   ```
 
   Truy cập: [http://localhost:3001](http://localhost:3001)

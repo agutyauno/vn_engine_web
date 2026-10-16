@@ -19,3 +19,23 @@ describe('PreviewBridge Origin Security', () => {
     expect(isAllowedPreviewOrigin('http://localhost:8080', configuredPreviewOrigin)).toBe(false);
   });
 });
+
+describe('PreviewBridge URL Building and Project Isolation', () => {
+  it('builds preview url with mode=preview, embedded=true, and projectId', async () => {
+    const { buildPreviewUrl } = await import('../src/modules/previewBridge');
+    const url = buildPreviewUrl('http://localhost:3000', 'proj_alpha');
+    expect(url).toContain('mode=preview');
+    expect(url).toContain('embedded=true');
+    expect(url).toContain('projectId=proj_alpha');
+  });
+
+  it('builds popout preview url with popout=true and projectId', async () => {
+    const { buildPreviewUrl } = await import('../src/modules/previewBridge');
+    const url = buildPreviewUrl('http://localhost:3000', 'proj_beta', { isPopout: true });
+    expect(url).toContain('mode=preview');
+    expect(url).toContain('popout=true');
+    expect(url).toContain('projectId=proj_beta');
+    expect(url).not.toContain('embedded=true');
+  });
+});
+

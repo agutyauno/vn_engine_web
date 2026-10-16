@@ -56,9 +56,12 @@ export class VNPlayer implements PlayerContext {
   private gameRoot: HTMLElement;
   private canvasContainer: HTMLElement;
   private toastNotification: HTMLElement;
+  private standbyScreen: HTMLElement | null = null;
+  private isStandby: boolean = false;
 
-  constructor(program: Instruction[]) {
+  constructor(program: Instruction[], options?: { isStandby?: boolean }) {
     this.initialProgram = program;
+    this.isStandby = options?.isStandby ?? false;
 
     if (typeof window !== 'undefined' && window.location?.search) {
       const urlParams = new URLSearchParams(window.location.search);
@@ -93,6 +96,11 @@ export class VNPlayer implements PlayerContext {
     this.gameRoot = document.getElementById('game-root')!;
     this.canvasContainer = document.getElementById('canvas-container')!;
     this.toastNotification = document.getElementById('toast-notification')!;
+    this.standbyScreen = document.getElementById('preview-standby-screen');
+
+    if (this.isStandby) {
+      this.standbyScreen?.classList.remove('hidden');
+    }
 
     // Khởi tạo các module con
     this.assetResolver = new AssetResolver(() => this.projectData);
@@ -214,6 +222,10 @@ export class VNPlayer implements PlayerContext {
     return this.assetResolver.checkIsProp(characterId);
   }
 
+  public getIsStandby(): boolean {
+    return this.isStandby;
+  }
+
   public updateProjectData(data: {
     id?: string;
     characters?: Character[];
@@ -262,6 +274,12 @@ export class VNPlayer implements PlayerContext {
       (typeof window !== 'undefined' && window.parent && window.parent !== window) ||
       isPopout ||
       urlParams?.get('embedded') === 'true';
+
+    if (this.isStandby) {
+      this.titleScreen.hide();
+      this.standbyScreen?.classList.remove('hidden');
+      return;
+    }
 
     if (!isEmbedded) {
       this.titleScreen.show();
@@ -819,6 +837,9 @@ export class VNPlayer implements PlayerContext {
     }
 
     this.initialProgram = program;
+    this.isStandby = false;
+    this.standbyScreen?.classList.add('hidden');
+
     if (this.projectData.id) {
       this.seenDialogues = GameStorage.getSeenDialogues(this.projectData.id);
     }

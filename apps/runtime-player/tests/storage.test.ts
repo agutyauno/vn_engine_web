@@ -104,4 +104,63 @@ describe('GameStorage Unit Tests', () => {
     GameStorage.clearSeenDialogues();
     expect(GameStorage.getSeenDialogues().size).toBe(0);
   });
+
+  it('isolates save slots, quicksave, and seen dialogues between Standalone and Preview modes', () => {
+    GameStorage.setProjectId('proj_demo');
+    GameStorage.setPreviewMode(false); // Standalone mode
+
+    GameStorage.saveSlot(0, {
+      timestamp: 1000,
+      sceneName: 'standalone_scene',
+      thumbnail: '',
+      vmStateJson: '{"mode":"standalone"}',
+      dialoguePreview: 'Standalone text',
+    });
+    GameStorage.quickSave({
+      timestamp: 1001,
+      sceneName: 'standalone_quick',
+      thumbnail: '',
+      vmStateJson: '{"quick":true}',
+      dialoguePreview: 'Standalone quick text',
+    });
+    GameStorage.saveSeenDialogues(new Set(['dialogue_standalone']));
+
+    // Switch to Preview mode for the same project ID
+    GameStorage.setPreviewMode(true);
+    expect(GameStorage.isPreview()).toBe(true);
+
+    // Preview mode should have fresh slots
+    expect(GameStorage.loadSlot(0)).toBeNull();
+    expect(GameStorage.quickLoad()).toBeNull();
+    expect(GameStorage.getSeenDialogues().has('dialogue_standalone')).toBe(false);
+
+    // Save in Preview mode
+    GameStorage.saveSlot(0, {
+      timestamp: 2000,
+      sceneName: 'preview_scene',
+      thumbnail: '',
+      vmStateJson: '{"mode":"preview"}',
+      dialoguePreview: 'Preview text',
+    });
+    GameStorage.quickSave({
+      timestamp: 2001,
+      sceneName: 'preview_quick',
+      thumbnail: '',
+      vmStateJson: '{"quick_preview":true}',
+      dialoguePreview: 'Preview quick text',
+    });
+    GameStorage.saveSeenDialogues(new Set(['dialogue_preview']));
+
+    expect(GameStorage.loadSlot(0)?.sceneName).toBe('preview_scene');
+    expect(GameStorage.quickLoad()?.sceneName).toBe('preview_quick');
+    expect(GameStorage.getSeenDialogues().has('dialogue_preview')).toBe(true);
+
+    // Switch back to Standalone mode: original standalone data remains intact!
+    GameStorage.setPreviewMode(false);
+    expect(GameStorage.isPreview()).toBe(false);
+    expect(GameStorage.loadSlot(0)?.sceneName).toBe('standalone_scene');
+    expect(GameStorage.quickLoad()?.sceneName).toBe('standalone_quick');
+    expect(GameStorage.getSeenDialogues().has('dialogue_standalone')).toBe(true);
+    expect(GameStorage.getSeenDialogues().has('dialogue_preview')).toBe(false);
+  });
 });

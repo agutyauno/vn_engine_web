@@ -5,6 +5,7 @@
 import { compileString } from '@vn-engine/dsl-compiler';
 import { isValidProgram, validateProgram } from '@vn-engine/core-vm';
 import { VNPlayer } from './player';
+import { GameStorage } from './storage';
 import scenarioSource from './scenario.vns?raw';
 
 function isAllowedEditorOrigin(origin: string): boolean {
@@ -19,30 +20,50 @@ function isAllowedEditorOrigin(origin: string): boolean {
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
-  console.log('[RuntimePlayer] Loading and compiling sample VNS scenario...');
-
-  const compileResult = compileString(scenarioSource, 'scenario.vns');
-  if (!compileResult.success || !compileResult.program || !isValidProgram(compileResult.program)) {
-    console.error('[RuntimePlayer] Script compilation or validation error:', compileResult.errors);
-    alert('Script compilation error! Please check Console.');
-    return;
-  }
-
-  console.log(
-    `[RuntimePlayer] Successfully compiled ${compileResult.program.length} instructions. Initializing VNPlayer...`,
-  );
-
-  const player = new VNPlayer(compileResult.program);
-  await player.start();
-
-  // Expose player to window for debugging if needed
-  (window as unknown as { vnPlayer: VNPlayer }).vnPlayer = player;
-
   // Kiểm tra nếu đang nhúng trong iframe hoặc mở Pop-out (Web Studio Live Preview)
   const urlParams = new URLSearchParams(window.location.search);
   const isPopout = urlParams.get('popout') === 'true' || window.name === 'VN_Preview_Popout';
+  const isModePreview = urlParams.get('mode') === 'preview';
   const isEmbedded =
-    (window.parent && window.parent !== window) || isPopout || urlParams.get('embedded') === 'true';
+    (window.parent && window.parent !== window) || isPopout || urlParams.get('embedded') === 'true' || isModePreview;
+
+  const pid = urlParams.get('projectId') || urlParams.get('project');
+  if (pid) {
+    GameStorage.setProjectId(pid);
+  }
+
+  if (isModePreview || isEmbedded) {
+    GameStorage.setPreviewMode(true);
+  } else {
+    GameStorage.setPreviewMode(false);
+  }
+
+  let player: VNPlayer;
+
+  // Nếu là Live Preview: Khởi động ở chế độ Standby tinh gọn, không chạy kịch bản mẫu
+  if (isModePreview || isEmbedded) {
+    console.log('[RuntimePlayer] Initializing in Live Preview Standby mode...');
+    player = new VNPlayer([], { isStandby: true });
+    await player.start();
+  } else {
+    console.log('[RuntimePlayer] Loading and compiling sample VNS scenario...');
+    const compileResult = compileString(scenarioSource, 'scenario.vns');
+    if (!compileResult.success || !compileResult.program || !isValidProgram(compileResult.program)) {
+      console.error('[RuntimePlayer] Script compilation or validation error:', compileResult.errors);
+      alert('Script compilation error! Please check Console.');
+      return;
+    }
+
+    console.log(
+      `[RuntimePlayer] Successfully compiled ${compileResult.program.length} instructions. Initializing VNPlayer...`,
+    );
+
+    player = new VNPlayer(compileResult.program);
+    await player.start();
+  }
+
+  // Expose player to window for debugging if needed
+  (window as unknown as { vnPlayer: VNPlayer }).vnPlayer = player;
   if (isEmbedded) {
     document.documentElement.classList.add('is-embedded');
     document.body.classList.add('is-embedded');
@@ -114,8 +135,12 @@ window.addEventListener('message', async (event: MessageEvent) => {
     );
     const player = (window as unknown as { vnPlayer?: VNPlayer }).vnPlayer;
     if (player) {
-      if (event.data.characters || event.data.assets) {
+      if (event.data.projectId) {
+        GameStorage.setProjectId(event.data.projectId);
+      }
+      if (event.data.characters || event.data.assets || event.data.projectId) {
         player.updateProjectData({
+          id: event.data.projectId,
           characters: event.data.characters,
           assets: event.data.assets,
         });

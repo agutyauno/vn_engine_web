@@ -20,6 +20,7 @@ export const SLOTS_PER_PAGE = 6;
 
 export class GameStorage {
   private static activeProjectId: string | null = null;
+  private static isPreviewMode: boolean = false;
 
   public static setProjectId(projectId: string | null): void {
     this.activeProjectId = projectId;
@@ -29,14 +30,28 @@ export class GameStorage {
     return this.activeProjectId;
   }
 
+  public static setPreviewMode(isPreview: boolean): void {
+    this.isPreviewMode = isPreview;
+  }
+
+  public static isPreview(): boolean {
+    return this.isPreviewMode;
+  }
+
+  private static getPrefix(): string {
+    return this.isPreviewMode ? 'vn_engine_preview' : 'vn_engine_player';
+  }
+
   private static getSlotsKey(projectId?: string): string {
     const pid = projectId ?? this.activeProjectId;
-    return pid ? `vn_engine_${pid}_save_slots` : 'vn_engine_save_slots';
+    const prefix = this.getPrefix();
+    return pid ? `${prefix}_${pid}_save_slots` : `${prefix}_save_slots`;
   }
 
   private static getQuickKey(projectId?: string): string {
     const pid = projectId ?? this.activeProjectId;
-    return pid ? `vn_engine_${pid}_quicksave` : 'vn_engine_quicksave';
+    const prefix = this.getPrefix();
+    return pid ? `${prefix}_${pid}_quicksave` : `${prefix}_quicksave`;
   }
 
   /**
@@ -137,7 +152,8 @@ export class GameStorage {
 
   private static getSeenKey(projectId?: string): string {
     const pid = projectId ?? this.activeProjectId;
-    return pid ? `vn_engine_${pid}_seen_dialogues` : 'vn_engine_seen_dialogues';
+    const prefix = this.getPrefix();
+    return pid ? `${prefix}_${pid}_seen_dialogues` : `${prefix}_seen_dialogues`;
   }
 
   /**

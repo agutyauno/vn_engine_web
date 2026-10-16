@@ -1073,4 +1073,62 @@ body.is-embedded .public-footer {
   color: #000000;
 }
 
+/* ================================================================
+   PREVIEW STANDBY SCREEN (WHEN EMBEDDED IN LIVE PREVIEW)
+   ================================================================ */
+.preview-standby-screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 10, 10, 0.92);
+  backdrop-filter: blur(8px);
+  z-index: 15;
+  transition: opacity var(--vn-transition-normal);
+}
+
+.preview-standby-screen.hidden {
+  display: none !important;
+}
+
+.standby-box {
+  background: #141414;
+  border: 1px solid var(--vn-border-secondary);
+  padding: 28px 36px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8);
+}
+
+.standby-status-pill {
+  font-family: var(--vn-font-mono);
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  color: #4ade80;
+  background: rgba(74, 222, 128, 0.12);
+  border: 1px solid rgba(74, 222, 128, 0.3);
+  padding: 3px 10px;
+  border-radius: 9999px;
+  font-weight: 600;
+}
+
+.standby-title {
+  font-family: var(--vn-font-sans);
+  font-size: 18px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 0.5px;
+}
+
+.standby-desc {
+  font-family: var(--vn-font-mono);
+  font-size: 13px;
+  color: var(--vn-text-secondary);
+}
+
+
 

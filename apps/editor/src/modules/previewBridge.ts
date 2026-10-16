@@ -29,6 +29,28 @@ export function isAllowedPreviewOrigin(
   return userContentRegex.test(origin);
 }
 
+/**
+ * Xây dựng URL nhúng Live Preview với query params đầy đủ (mode=preview, projectId)
+ */
+export function buildPreviewUrl(
+  baseUrl: string,
+  projectId?: string | null,
+  options?: { isPopout?: boolean },
+): string {
+  const cleanBase = baseUrl ? baseUrl.replace(/\/+$/, '') : '';
+  const params = new URLSearchParams();
+  if (options?.isPopout) {
+    params.set('popout', 'true');
+  } else {
+    params.set('embedded', 'true');
+  }
+  params.set('mode', 'preview');
+  if (projectId) {
+    params.set('projectId', projectId);
+  }
+  return `${cleanBase}/?${params.toString()}`;
+}
+
 export class PreviewBridge {
   private context: StudioContext;
   private previewIframe: HTMLIFrameElement;
@@ -38,8 +60,9 @@ export class PreviewBridge {
   constructor(context: StudioContext) {
     this.context = context;
     this.previewIframe = document.getElementById('preview-iframe') as HTMLIFrameElement;
+    const project = this.context.getProject();
     if (this.previewIframe) {
-      this.previewIframe.src = `${this.context.getPreviewBaseUrl()}/?embedded=true`;
+      this.previewIframe.src = buildPreviewUrl(this.context.getPreviewBaseUrl(), project?.id);
     }
     this.previewStatusBadge = document.getElementById('preview-hot-reload-status');
 
@@ -70,6 +93,15 @@ export class PreviewBridge {
     });
   }
 
+  public loadProject(projectId: string): void {
+    if (this.previewIframe) {
+      this.previewIframe.src = buildPreviewUrl(this.context.getPreviewBaseUrl(), projectId);
+      if (this.previewStatusBadge) {
+        this.previewStatusBadge.textContent = 'HOT RELOAD: CONNECTING...';
+      }
+    }
+  }
+
   public sendProgramToPreview(
     program: Instruction[],
     options?: { targetScene?: string | null; targetLine?: number | null; fileId?: string | null },
@@ -79,6 +111,7 @@ export class PreviewBridge {
 
     const payload = {
       type: 'HOT_RELOAD_PROGRAM',
+      projectId: project.id,
       program,
       characters: project.characters,
       assets: project.assets,
@@ -104,7 +137,10 @@ export class PreviewBridge {
   }
 
   public popoutPreview(): void {
-    const targetUrl = `${this.context.getPreviewBaseUrl()}/`;
+    const project = this.context.getProject();
+    const targetUrl = buildPreviewUrl(this.context.getPreviewBaseUrl(), project?.id, {
+      isPopout: true,
+    });
     this.popoutWindow = window.open(
       targetUrl,
       'VN_Preview_Popout',
@@ -117,3 +153,4 @@ export class PreviewBridge {
     }
   }
 }
+

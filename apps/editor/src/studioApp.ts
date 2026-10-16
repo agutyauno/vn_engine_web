@@ -474,6 +474,7 @@ export class StudioApp implements StudioContext {
           editor.setModel(model);
           editor.layout();
         }
+        this.previewBridge?.loadProject(this.project.id);
         this.compileCurrentScript();
       } else {
         console.warn(
