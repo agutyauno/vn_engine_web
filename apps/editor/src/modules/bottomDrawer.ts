@@ -3,9 +3,10 @@
 // Quản lý Drawer phía dưới: Báo cáo lỗi (Problems), Variables Watch & AST Inspector
 // ================================================================
 
-import * as monaco from 'monaco-editor';
+import type * as monaco from 'monaco-editor';
 import type { CompileError } from '@vn-engine/dsl-compiler';
 import type { StudioContext } from './editorTypes';
+import type { PreviewStateUpdateMessage } from './previewBridge';
 
 export interface VariableMeta {
   name: string;
@@ -22,6 +23,15 @@ export class BottomDrawer {
   private problemsList: HTMLElement;
   private varsWatchTbody: HTMLElement;
 
+  private cachedAstVariables: Map<string, VariableMeta> = new Map();
+  private latestLiveState: PreviewStateUpdateMessage | null = null;
+  private previousValues: Map<string, unknown> = new Map();
+  private onVariableChange?: (
+    name: string,
+    value: string | number | boolean,
+    scope?: 'global' | 'local',
+  ) => void;
+
   constructor(context: StudioContext) {
     this.context = context;
     this.drawerTabProblems = document.getElementById('drawer-tab-problems')!;
@@ -30,6 +40,17 @@ export class BottomDrawer {
     this.varsWatchTbody = document.getElementById('vars-watch-tbody')!;
 
     this.setupBottomDrawer();
+  }
+
+  public setOnVariableChange(
+    cb: (name: string, value: string | number | boolean, scope?: 'global' | 'local') => void,
+  ): void {
+    this.onVariableChange = cb;
+  }
+
+  public updateLiveVariables(liveState: PreviewStateUpdateMessage): void {
+    this.latestLiveState = liveState;
+    this.renderVariablesWatch();
   }
 
   private setupBottomDrawer(): void {
@@ -84,7 +105,7 @@ export class BottomDrawer {
     this.problemsList.innerHTML = `<div class="problems-empty-state">✓ No problems detected in project. Code is valid.</div>`;
 
     if (currentModel) {
-      monaco.editor.setModelMarkers(currentModel, 'vns-compiler', []);
+      this.context.setModelMarkers(currentModel, 'vns-compiler', []);
     }
   }
 
@@ -135,10 +156,10 @@ export class BottomDrawer {
             endLineNumber: line,
             endColumn: Math.max(col + 1, lineContent.length + 1),
             message: err.message,
-            severity: monaco.MarkerSeverity.Error,
+            severity: 8, // monaco.MarkerSeverity.Error
           };
         });
-      monaco.editor.setModelMarkers(currentModel, 'vns-compiler', markers);
+      this.context.setModelMarkers(currentModel, 'vns-compiler', markers);
     }
 
     this.problemsList.innerHTML = '';
@@ -173,9 +194,34 @@ export class BottomDrawer {
     });
   }
 
-  public renderVariablesWatch(variables: Map<string, VariableMeta>): void {
+  public renderVariablesWatch(variables?: Map<string, VariableMeta>): void {
+    if (variables) {
+      this.cachedAstVariables = new Map(variables);
+    }
+
+    const combined = new Map<string, VariableMeta>(this.cachedAstVariables);
+
+    if (this.latestLiveState) {
+      for (const [varName, val] of Object.entries(this.latestLiveState.variables)) {
+        if (!combined.has(varName)) {
+          combined.set(varName, { name: varName, value: val, scope: 'global' });
+        }
+      }
+      for (const [varName, val] of Object.entries(this.latestLiveState.localVariables)) {
+        const localKey = `${this.latestLiveState.currentScene}.${varName}`;
+        if (!combined.has(varName) && !combined.has(localKey)) {
+          combined.set(varName, {
+            name: varName,
+            value: val,
+            scope: 'local',
+            sceneName: this.latestLiveState.currentScene,
+          });
+        }
+      }
+    }
+
     this.varsWatchTbody.innerHTML = '';
-    if (variables.size === 0) {
+    if (combined.size === 0) {
       const tr = document.createElement('tr');
       const td = document.createElement('td');
       td.colSpan = 4;
@@ -183,34 +229,112 @@ export class BottomDrawer {
       td.textContent = 'No variables.';
       tr.appendChild(td);
       this.varsWatchTbody.appendChild(tr);
-    } else {
-      for (const [, meta] of variables) {
-        const tr = document.createElement('tr');
+      return;
+    }
 
-        const tdName = document.createElement('td');
-        tdName.style.fontWeight = '600';
-        tdName.style.color = '#fff';
-        tdName.textContent = meta.name;
+    for (const [, meta] of combined) {
+      const tr = document.createElement('tr');
 
-        const tdScope = document.createElement('td');
-        tdScope.style.color = meta.scope === 'global' ? '#4ade80' : '#60a5fa';
-        tdScope.textContent =
-          meta.scope === 'global' ? 'Global' : `Local (${meta.sceneName || 'scene'})`;
-
-        const tdType = document.createElement('td');
-        tdType.style.color = '#888';
-        tdType.textContent = typeof meta.value;
-
-        const tdVal = document.createElement('td');
-        tdVal.style.color = '#22c55e';
-        tdVal.textContent = String(meta.value);
-
-        tr.appendChild(tdName);
-        tr.appendChild(tdScope);
-        tr.appendChild(tdType);
-        tr.appendChild(tdVal);
-        this.varsWatchTbody.appendChild(tr);
+      let effectiveValue = meta.value;
+      if (this.latestLiveState) {
+        if (meta.scope === 'local' && meta.name in this.latestLiveState.localVariables) {
+          effectiveValue = this.latestLiveState.localVariables[meta.name];
+        } else if (meta.name in this.latestLiveState.variables) {
+          effectiveValue = this.latestLiveState.variables[meta.name];
+        }
       }
+
+      const prevVal = this.previousValues.get(meta.name);
+      const isChanged = prevVal !== undefined && prevVal !== effectiveValue;
+      this.previousValues.set(meta.name, effectiveValue);
+
+      if (isChanged) {
+        tr.classList.add('var-row-changed');
+      }
+
+      const tdName = document.createElement('td');
+      tdName.style.fontWeight = '600';
+      tdName.style.color = '#fff';
+      tdName.textContent = meta.name;
+
+      const tdScope = document.createElement('td');
+      tdScope.style.color = meta.scope === 'global' ? '#4ade80' : '#60a5fa';
+      tdScope.textContent =
+        meta.scope === 'global' ? 'Global' : `Local (${meta.sceneName || 'scene'})`;
+
+      const tdType = document.createElement('td');
+      tdType.style.color = '#888';
+      tdType.textContent = typeof effectiveValue;
+
+      const tdVal = document.createElement('td');
+      tdVal.className = 'var-val-cell';
+      tdVal.style.color = '#22c55e';
+      tdVal.style.cursor = 'pointer';
+      tdVal.title = 'Click to edit value';
+      tdVal.textContent = String(effectiveValue);
+
+      tdVal.addEventListener('click', () => {
+        if (tdVal.querySelector('input')) return;
+
+        const currentText = String(effectiveValue ?? '');
+        tdVal.innerHTML = '';
+
+        const input = document.createElement('input');
+        input.className = 'var-inline-input';
+        input.value = currentText;
+        input.style.width = '100%';
+        input.style.boxSizing = 'border-box';
+        input.style.padding = '2px 6px';
+        input.style.background = '#0f172a';
+        input.style.color = '#22c55e';
+        input.style.border = '1px solid #38bdf8';
+        input.style.borderRadius = '3px';
+        input.style.fontFamily = 'monospace';
+
+        let committed = false;
+        const commit = () => {
+          if (committed) return;
+          committed = true;
+          const raw = input.value.trim();
+          let parsed: string | number | boolean = raw;
+          if (raw.toLowerCase() === 'true') {
+            parsed = true;
+          } else if (raw.toLowerCase() === 'false') {
+            parsed = false;
+          } else if (!isNaN(Number(raw)) && raw !== '') {
+            parsed = Number(raw);
+          }
+          this.onVariableChange?.(meta.name, parsed, meta.scope);
+          tdVal.innerHTML = '';
+          tdVal.textContent = String(parsed);
+          this.previousValues.set(meta.name, parsed);
+        };
+
+        input.addEventListener('keydown', (e: KeyboardEvent | { key: string }) => {
+          if (e.key === 'Enter') {
+            commit();
+          } else if (e.key === 'Escape') {
+            committed = true;
+            tdVal.innerHTML = '';
+            tdVal.textContent = currentText;
+          }
+        });
+
+        input.addEventListener('blur', () => {
+          commit();
+        });
+
+        tdVal.appendChild(input);
+        if (typeof input.focus === 'function') {
+          input.focus();
+        }
+      });
+
+      tr.appendChild(tdName);
+      tr.appendChild(tdScope);
+      tr.appendChild(tdType);
+      tr.appendChild(tdVal);
+      this.varsWatchTbody.appendChild(tr);
     }
   }
 

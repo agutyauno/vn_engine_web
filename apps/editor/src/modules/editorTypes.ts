@@ -42,4 +42,9 @@ export interface StudioContext {
   renderFileList(): void;
   renderCharacterList(): void;
   renderAssetList(): void;
+  setModelMarkers(
+    currentModel: monaco.editor.ITextModel,
+    owner: string,
+    markers: monaco.editor.IMarkerData[],
+  ): void;
 }

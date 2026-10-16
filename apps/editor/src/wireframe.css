@@ -1398,6 +1398,42 @@ html {
   font-weight: 700;
 }
 
+@keyframes varRowFlash {
+  0% {
+    background-color: rgba(34, 197, 94, 0.35);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.vars-watch-table tr.var-row-changed {
+  animation: varRowFlash 1.2s ease-out;
+}
+
+.vars-watch-table td.var-val-cell {
+  position: relative;
+  transition: background-color 0.15s ease;
+}
+
+.vars-watch-table td.var-val-cell:hover {
+  background-color: rgba(56, 189, 248, 0.1);
+  text-decoration: underline;
+  text-decoration-style: dotted;
+}
+
+.var-inline-input {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 11px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.var-inline-input:focus {
+  border-color: #38bdf8 !important;
+  box-shadow: 0 0 6px rgba(56, 189, 248, 0.4);
+}
+
 /* ================================================================
    6. MODAL XUẤT BẢN GAME (#modal-export-wizard)
    ================================================================ */

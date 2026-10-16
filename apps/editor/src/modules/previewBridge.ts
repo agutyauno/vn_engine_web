@@ -51,11 +51,20 @@ export function buildPreviewUrl(
   return `${cleanBase}/?${params.toString()}`;
 }
 
+export interface PreviewStateUpdateMessage {
+  type: 'PREVIEW_STATE_UPDATE';
+  variables: Record<string, string | number | boolean>;
+  localVariables: Record<string, string | number | boolean>;
+  currentScene: string;
+  instructionPointer: number;
+}
+
 export class PreviewBridge {
   private context: StudioContext;
   private previewIframe: HTMLIFrameElement;
   private previewStatusBadge: HTMLElement | null;
   private popoutWindow: Window | null = null;
+  private onStateUpdateCallbacks: Array<(state: PreviewStateUpdateMessage) => void> = [];
 
   constructor(context: StudioContext) {
     this.context = context;
@@ -90,7 +99,53 @@ export class PreviewBridge {
           this.sendProgramToPreview(latestProgram);
         }
       }
+
+      if (event.data?.type === 'PREVIEW_STATE_UPDATE') {
+        const update = event.data as PreviewStateUpdateMessage;
+        for (const cb of this.onStateUpdateCallbacks) {
+          try {
+            cb(update);
+          } catch (err) {
+            console.error('[PreviewBridge] Error in onStateUpdate callback:', err);
+          }
+        }
+      }
     });
+  }
+
+  /**
+   * Đăng ký callback lắng nghe trạng thái VM thời gian thực từ Live Preview (Live Watch)
+   */
+  public onStateUpdate(cb: (state: PreviewStateUpdateMessage) => void): () => void {
+    this.onStateUpdateCallbacks.push(cb);
+    return () => {
+      this.onStateUpdateCallbacks = this.onStateUpdateCallbacks.filter(c => c !== cb);
+    };
+  }
+
+  /**
+   * Gửi lệnh can thiệp giá trị biến (Variable Injection) sang Live Preview
+   */
+  public setVariable(
+    name: string,
+    value: string | number | boolean,
+    scope?: 'global' | 'local',
+  ): void {
+    const targetOrigin = this.context.getPreviewOrigin();
+    const payload = {
+      type: 'SET_VM_VARIABLE',
+      name,
+      value,
+      scope,
+    };
+
+    if (this.previewIframe && this.previewIframe.contentWindow) {
+      this.previewIframe.contentWindow.postMessage(payload, targetOrigin);
+    }
+
+    if (this.popoutWindow && !this.popoutWindow.closed) {
+      this.popoutWindow.postMessage(payload, targetOrigin);
+    }
   }
 
   public loadProject(projectId: string): void {

@@ -149,6 +149,16 @@ export class StudioApp implements StudioContext {
     // 3. Khởi tạo các module chuyên trách
     this.bottomDrawer = new BottomDrawer(this);
     this.previewBridge = new PreviewBridge(this);
+
+    this.bottomDrawer.setOnVariableChange((name, value, scope) => {
+      this.previewBridge?.setVariable(name, value, scope);
+      this.showToast(`[Debugger] Injected ${name} = ${value}`);
+    });
+
+    this.previewBridge.onStateUpdate(liveState => {
+      this.bottomDrawer?.updateLiveVariables(liveState);
+    });
+
     this.exportWizard = new ExportWizard(this);
     this.fileExplorer = new FileExplorer(this);
     this.characterManager = new CharacterManager(this);
@@ -353,6 +363,14 @@ export class StudioApp implements StudioContext {
     for (const b of this.cachedAstMetadata.assets.backgrounds) backgrounds.add(b);
     for (const a of this.cachedAstMetadata.assets.audio) audio.add(a);
     return { backgrounds, audio };
+  }
+
+  public setModelMarkers(
+    currentModel: monaco.editor.ITextModel,
+    owner: string,
+    markers: monaco.editor.IMarkerData[],
+  ): void {
+    monaco.editor.setModelMarkers(currentModel, owner, markers);
   }
 
   // ================================================================
