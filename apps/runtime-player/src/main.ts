@@ -152,4 +152,14 @@ window.addEventListener('message', async (event: MessageEvent) => {
       });
     }
   }
+
+  if (event.data?.type === 'SET_VM_VARIABLE') {
+    const player = (window as unknown as { vnPlayer?: VNPlayer }).vnPlayer;
+    if (player && typeof event.data.name === 'string') {
+      console.log(
+        `[RuntimePlayer] Received SET_VM_VARIABLE for '${event.data.name}' from ${event.origin}`,
+      );
+      player.setVariable(event.data.name, event.data.value, event.data.scope);
+    }
+  }
 });

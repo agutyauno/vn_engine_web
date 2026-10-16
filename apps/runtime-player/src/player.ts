@@ -410,6 +410,7 @@ export class VNPlayer implements PlayerContext {
       }
     } finally {
       this.playbackController.setIsAdvancing(false);
+      this.broadcastStateUpdate();
       if (
         this.playbackController.getAdvanceQueued() &&
         (this.playbackController.getIsSkip() || this.playbackController.getIsAuto())
@@ -704,7 +705,71 @@ export class VNPlayer implements PlayerContext {
   // PUBLIC HELPER METHODS (BACKWARDS COMPATIBILITY)
   // ================================================================
   public rollback(): boolean {
-    return this.playbackController.rollback();
+    const success = this.playbackController.rollback();
+    if (success) {
+      this.broadcastStateUpdate();
+    }
+    return success;
+  }
+
+  /**
+   * Can thiệp / ghi đè giá trị biến trên máy ảo VM và phát tín hiệu đồng bộ về Editor (ADR-024)
+   */
+  public setVariable(
+    name: string,
+    value: string | number | boolean,
+    scope?: 'global' | 'local',
+  ): void {
+    this.vm.setVariable(name, value, scope);
+    this.broadcastStateUpdate();
+  }
+
+  /**
+   * Phát thông điệp PREVIEW_STATE_UPDATE sang Web Studio Editor (ADR-024 / SAD 3.6)
+   */
+  public broadcastStateUpdate(): void {
+    if (typeof window === 'undefined') return;
+
+    const urlParams = window.location?.search ? new URLSearchParams(window.location.search) : null;
+    const isPopout =
+      (typeof window !== 'undefined' && window.name === 'VN_Preview_Popout') ||
+      urlParams?.get('popout') === 'true';
+    const isEmbedded =
+      (window.parent && window.parent !== window) ||
+      isPopout ||
+      urlParams?.get('embedded') === 'true' ||
+      urlParams?.get('mode') === 'preview';
+
+    if (!isEmbedded) return;
+
+    let targetOrigin =
+      window.location.hostname === 'localhost' ? 'http://localhost:3001' : window.location.origin;
+    if (document.referrer) {
+      try {
+        const refUrl = new URL(document.referrer);
+        if (refUrl.origin) {
+          targetOrigin = refUrl.origin;
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    const vmState = this.vm.getState();
+    const message = {
+      type: 'PREVIEW_STATE_UPDATE',
+      variables: vmState.variables,
+      localVariables: vmState.localVariables,
+      currentScene: vmState.currentScene,
+      instructionPointer: vmState.instructionPointer,
+    };
+
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage(message, targetOrigin);
+    }
+    if (window.opener) {
+      window.opener.postMessage(message, targetOrigin);
+    }
   }
 
   public toggleAuto(): void {
