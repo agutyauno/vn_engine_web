@@ -40,12 +40,15 @@ const DEFAULT_STARTER_SCRIPT = `# ==============================================
 # Write your script here and see the live preview on the right.
 # ==============================================================
 
+define player_name = "Traveler"
+define affinity = 10
+
 scene start {
     background bg_courtyard transition: "fade"
     play music "theme_peaceful" volume: 0.8 loop: true
 
     show alice.happy(position: "center")
-    alice: "Hello and welcome to your new visual novel story!"
+    alice: "Hello and welcome to your new visual novel story, ~player_name!"
     alice: "You can write script scenes here and see them previewed live on the right."
 
     choice {
@@ -54,7 +57,9 @@ scene start {
     }
 
     scene .more_info {
+        ~ affinity = affinity + 5
         alice: "You can manage characters, backgrounds, and audio assets in the tabs above."
+        alice: "Your affinity with Alice is now ~affinity!"
         goto .begin
     }
 
@@ -94,6 +99,7 @@ export class StudioApp implements StudioContext {
   private activeFile: string = 'main.vns';
   private latestProgram: Instruction[] | null = null;
   private isDirty: boolean = false;
+  private lastParsedAst: ProgramAST | null = null;
 
   private cachedAstMetadata: CachedAstMetadata = {
     scenes: [],
@@ -168,6 +174,17 @@ export class StudioApp implements StudioContext {
       onRunFromStart: () => this.runFromStart(),
       onRunFromLine: (targetLine, targetScene) => this.runFromLine(targetLine, targetScene),
     });
+
+    const editorInstance = this.editorController.getEditor();
+    if (editorInstance) {
+      editorInstance.onDidChangeCursorPosition(e => {
+        const line = e.position.lineNumber;
+        const sceneName = this.findSceneAtLine(line);
+        if (sceneName) {
+          this.bottomDrawer?.setEditorCursorScene(sceneName);
+        }
+      });
+    }
 
     this.layoutResizer = new LayoutResizer(this, {
       onRenameFileRequested: () => {
@@ -557,6 +574,9 @@ export class StudioApp implements StudioContext {
 
     if (result.success && result.program) {
       this.latestProgram = result.program;
+      if (result.ast) {
+        this.lastParsedAst = result.ast;
+      }
       this.bottomDrawer?.renderSuccess(this.latestProgram.length, currentModel ?? undefined);
       this.previewBridge?.sendProgramToPreview(this.latestProgram);
 
@@ -729,7 +749,25 @@ export class StudioApp implements StudioContext {
     }
 
     // 3. Render Variables Watch in Bottom Drawer
+    this.bottomDrawer?.populateSceneFilter(scenesList);
     this.bottomDrawer?.renderVariablesWatch(variables);
+  }
+
+  public findSceneAtLine(line: number): string | null {
+    if (!this.lastParsedAst?.scenes) return null;
+    let matchingScene: string | null = null;
+    let minDiff = Infinity;
+    for (const sc of this.lastParsedAst.scenes) {
+      const scLine = sc.loc?.line ?? 1;
+      if (scLine <= line) {
+        const diff = line - scLine;
+        if (diff < minDiff) {
+          minDiff = diff;
+          matchingScene = sc.name;
+        }
+      }
+    }
+    return matchingScene;
   }
 
   // ================================================================

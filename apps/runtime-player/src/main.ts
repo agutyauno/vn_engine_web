@@ -95,8 +95,14 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   // Báo cho parent (Editor / Live Preview Container) biết Player đã sẵn sàng
   let targetOrigin =
-    window.location.hostname === 'localhost' ? 'http://localhost:3001' : window.location.origin;
-  if (document.referrer) {
+    window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+      ? `http://${window.location.hostname}:3001`
+      : window.location.origin;
+
+  const editorOriginParam = urlParams.get('editorOrigin');
+  if (editorOriginParam && isAllowedEditorOrigin(editorOriginParam)) {
+    targetOrigin = editorOriginParam;
+  } else if (document.referrer) {
     try {
       const refUrl = new URL(document.referrer);
       if (isAllowedEditorOrigin(refUrl.origin)) {
@@ -106,6 +112,9 @@ window.addEventListener('DOMContentLoaded', async () => {
       // ignore
     }
   }
+
+  player.setEditorOrigin(targetOrigin);
+
   if (isEmbedded) {
     window.parent.postMessage({ type: 'PLAYER_READY' }, targetOrigin);
   }
@@ -118,6 +127,11 @@ window.addEventListener('DOMContentLoaded', async () => {
 window.addEventListener('message', async (event: MessageEvent) => {
   if (!isAllowedEditorOrigin(event.origin)) {
     return;
+  }
+
+  const player = (window as unknown as { vnPlayer?: VNPlayer }).vnPlayer;
+  if (player) {
+    player.setEditorOrigin(event.origin);
   }
 
   if (event.data?.type === 'HOT_RELOAD_PROGRAM') {

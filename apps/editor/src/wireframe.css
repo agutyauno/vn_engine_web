@@ -1400,7 +1400,11 @@ html {
 
 @keyframes varRowFlash {
   0% {
-    background-color: rgba(34, 197, 94, 0.35);
+    background-color: rgba(234, 179, 8, 0.45);
+    box-shadow: inset 0 0 10px rgba(34, 197, 94, 0.4);
+  }
+  40% {
+    background-color: rgba(34, 197, 94, 0.3);
   }
   100% {
     background-color: transparent;
@@ -1414,12 +1418,22 @@ html {
 .vars-watch-table td.var-val-cell {
   position: relative;
   transition: background-color 0.15s ease;
+  user-select: none;
 }
 
 .vars-watch-table td.var-val-cell:hover {
   background-color: rgba(56, 189, 248, 0.1);
-  text-decoration: underline;
-  text-decoration-style: dotted;
+}
+
+.var-edit-icon {
+  transition: opacity 0.2s, color 0.2s, transform 0.2s;
+  display: inline-block;
+}
+
+.vars-watch-table td.var-val-cell:hover .var-edit-icon {
+  opacity: 1 !important;
+  color: #38bdf8;
+  transform: scale(1.15);
 }
 
 .var-inline-input {
@@ -1432,6 +1446,62 @@ html {
 .var-inline-input:focus {
   border-color: #38bdf8 !important;
   box-shadow: 0 0 6px rgba(56, 189, 248, 0.4);
+}
+
+.vars-filter-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  background-color: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--studio-border);
+  font-size: 11px;
+}
+
+.vars-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.vars-scene-select {
+  background: #18181b;
+  color: #e2e8f0;
+  border: 1px solid var(--studio-border);
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-family: inherit;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.vars-scene-select:focus,
+.vars-scene-select:hover {
+  border-color: #38bdf8;
+}
+
+.vars-stats-badge {
+  color: #94a3b8;
+  font-size: 11px;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.scope-inactive-pill {
+  display: inline-block;
+  font-size: 9px;
+  padding: 1px 5px;
+  margin-left: 6px;
+  border-radius: 3px;
+  background: #334155;
+  color: #cbd5e1;
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  vertical-align: middle;
 }
 
 /* ================================================================

@@ -214,4 +214,42 @@ describe('Runtime Player Live Debugging & State Broadcasting (ADR-024)', () => {
     };
     expect(payload.variables['gold']).toBe(500);
   });
+
+  it('should throttle frequent broadcastStateUpdate calls (50-100ms)', async () => {
+    vi.useFakeTimers();
+    try {
+      const program: Instruction[] = [
+        { type: 'SCENE', name: 'intro' },
+        { type: 'ASSIGN', variable: 'timer', value: { type: 'Literal', value: 0 }, scope: 'global' },
+      ];
+
+      const player = new VNPlayer([], { isStandby: true });
+      await player.reloadProgram(program);
+
+      // Advance past initial reload broadcast
+      vi.advanceTimersByTime(100);
+      postedMessages = [];
+
+      // Call broadcastStateUpdate multiple times consecutively
+      player.broadcastStateUpdate();
+      player.broadcastStateUpdate();
+      player.broadcastStateUpdate();
+
+      // The first call broadcasts, subsequent calls within 60ms are throttled
+      expect(postedMessages.length).toBe(1);
+
+      // Advance time by 30ms (still within 60ms window)
+      vi.advanceTimersByTime(30);
+      expect(postedMessages.length).toBe(1);
+
+      // Trigger another throttled broadcast
+      player.broadcastStateUpdate();
+
+      // Advance time to pass the 60ms window
+      vi.advanceTimersByTime(35);
+      expect(postedMessages.length).toBe(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

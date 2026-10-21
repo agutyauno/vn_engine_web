@@ -5,13 +5,19 @@ import type { StudioContext } from '../src/modules/editorTypes';
 import type { Project } from '@vn-engine/shared-types';
 
 class MockClassList {
-  private classes: Set<string> = new Set();
+  public classes: Set<string> = new Set();
   constructor(initial: string = '') {
     initial.split(/\s+/).filter(Boolean).forEach(c => this.classes.add(c));
   }
   add(cls: string) { this.classes.add(cls); }
   remove(cls: string) { this.classes.delete(cls); }
   contains(cls: string) { return this.classes.has(cls); }
+  toggle(cls: string, force?: boolean): boolean {
+    const shouldAdd = force !== undefined ? force : !this.classes.has(cls);
+    if (shouldAdd) this.classes.add(cls);
+    else this.classes.delete(cls);
+    return shouldAdd;
+  }
 }
 
 class MockElement {
@@ -20,7 +26,22 @@ class MockElement {
   public classList: MockClassList;
   public children: MockElement[] = [];
   public style: Record<string, string> = {};
-  public textContent: string = '';
+  private _textContent: string = '';
+  get textContent(): string {
+    if (this.children.length > 0) {
+      return this.children.map(c => c.textContent).join('');
+    }
+    return this._textContent;
+  }
+  set textContent(val: string) {
+    this._textContent = val;
+  }
+  get className(): string {
+    return Array.from(this.classList.classes).join(' ');
+  }
+  set className(val: string) {
+    this.classList = new MockClassList(val);
+  }
   private _innerHTML: string = '';
   get innerHTML(): string {
     return this._innerHTML;
@@ -71,16 +92,21 @@ class MockElement {
 
   focus() {}
 
+  matchesSelector(selector: string): boolean {
+    if (selector.startsWith('.')) {
+      return this.classList.contains(selector.slice(1));
+    } else if (selector.startsWith('#')) {
+      return this.id === selector.slice(1);
+    } else if (this.tagName.toLowerCase() === selector.toLowerCase()) {
+      return true;
+    }
+    return false;
+  }
+
   querySelectorAll(selector: string): MockElement[] {
     const results: MockElement[] = [];
     const check = (el: MockElement) => {
-      if (selector.startsWith('.')) {
-        if (el.classList.contains(selector.slice(1))) results.push(el);
-      } else if (selector.startsWith('#')) {
-        if (el.id === selector.slice(1)) results.push(el);
-      } else if (el.tagName.toLowerCase() === selector.toLowerCase()) {
-        results.push(el);
-      }
+      if (el.matchesSelector(selector)) results.push(el);
       el.children.forEach(check);
     };
     this.children.forEach(check);
@@ -116,10 +142,22 @@ function setupMockDom() {
   };
 
   createEl('span', 'preview-hot-reload-status');
-  createEl('div', 'drawer-tab-problems');
+  const problemsTab = createEl('button', 'drawer-tab-problems', 'drawer-tab-btn active');
+  problemsTab.dataset['drawerTab'] = 'problems';
+  const varsTab = createEl('button', 'drawer-tab-variables', 'drawer-tab-btn');
+  varsTab.dataset['drawerTab'] = 'variables';
+
+  createEl('div', 'drawer-pane-problems', 'drawer-pane active');
+  createEl('div', 'drawer-pane-variables', 'drawer-pane');
+  createEl('div', 'studio-bottom-drawer');
+  createEl('button', 'drawer-toggle-btn');
+
   createEl('div', 'problems-summary');
   createEl('div', 'problems-list');
   createEl('tbody', 'vars-watch-tbody');
+  const filterSelect = createEl('select', 'vars-scene-filter');
+  filterSelect.value = '__active__';
+  createEl('div', 'vars-count-badge');
 
   const mockDoc = {
     getElementById: (id: string) => domRegistry[id] ?? null,
@@ -127,12 +165,14 @@ function setupMockDom() {
     querySelectorAll: (selector: string): MockElement[] => {
       const list: MockElement[] = [];
       Object.values(domRegistry).forEach(root => {
+        if (root.matchesSelector(selector)) list.push(root);
         list.push(...root.querySelectorAll(selector));
       });
       return list;
     },
     querySelector: (selector: string): MockElement | null => {
       for (const root of Object.values(domRegistry)) {
+        if (root.matchesSelector(selector)) return root;
         const found = root.querySelector(selector);
         if (found) return found;
       }
@@ -345,4 +385,218 @@ describe('PreviewBridge & BottomDrawer Live Debugger Suite (ADR-024)', () => {
 
     expect(onVarChange).toHaveBeenCalledWith('points', 250, 'global');
   });
+
+  it('PreviewBridge also handles VM_STATE_UPDATE as an alias for PREVIEW_STATE_UPDATE', () => {
+    const ctx = createMockContext();
+    const bridge = new PreviewBridgeClass(ctx);
+
+    let receivedUpdate: PreviewStateUpdateMessage | null = null;
+    bridge.onStateUpdate((state: PreviewStateUpdateMessage) => {
+      receivedUpdate = state;
+    });
+
+    const fakeEvent = {
+      origin: 'http://localhost:3000',
+      data: {
+        type: 'VM_STATE_UPDATE',
+        variables: { score: 999 },
+        localVariables: {},
+        currentScene: 'chapter_two',
+        instructionPointer: 20,
+      },
+    };
+
+    windowMessageListeners.forEach(fn => fn(fakeEvent));
+
+    expect(receivedUpdate).not.toBeNull();
+    const res = receivedUpdate as unknown as PreviewStateUpdateMessage;
+    expect(res.variables['score']).toBe(999);
+  });
+
+  it('BottomDrawer tab switching correctly activates drawer-pane-variables', () => {
+    const ctx = createMockContext();
+    new BottomDrawerClass(ctx);
+
+    const varsTab = domRegistry['drawer-tab-variables']!;
+    const problemsPane = domRegistry['drawer-pane-problems']!;
+    const varsPane = domRegistry['drawer-pane-variables']!;
+
+    expect(problemsPane.classList.contains('active')).toBe(true);
+    expect(varsPane.classList.contains('active')).toBe(false);
+
+    // Click tab
+    varsTab.dispatchEvent({ type: 'click' });
+
+    expect(varsTab.classList.contains('active')).toBe(true);
+    expect(varsPane.classList.contains('active')).toBe(true);
+    expect(problemsPane.classList.contains('active')).toBe(false);
+  });
+
+  it('BottomDrawer supports edit icon, double-click, and unquotes string inputs', () => {
+    const ctx = createMockContext();
+    const drawer = new BottomDrawerClass(ctx);
+    const onVarChange = vi.fn();
+    drawer.setOnVariableChange(onVarChange);
+
+    const astVariables = new Map<string, VariableMeta>([
+      ['hero_name', { name: 'hero_name', value: 'Arthur', scope: 'global' }],
+    ]);
+    drawer.renderVariablesWatch(astVariables);
+
+    const tbody = domRegistry['vars-watch-tbody']!;
+    const valCell = tbody.querySelectorAll('tr')[0]!.querySelectorAll('td')[3]!;
+
+    // Must render an edit icon
+    const editIcon = valCell.querySelector('.var-edit-icon');
+    expect(editIcon).not.toBeNull();
+
+    // Trigger edit via icon click
+    editIcon!.dispatchEvent({ type: 'click' });
+    const input = valCell.querySelector('input');
+    expect(input).not.toBeNull();
+
+    // User types quoted string "Lancelot"
+    if (input) {
+      input.value = '"Lancelot"';
+      input.dispatchEvent({ type: 'keydown', key: 'Enter' });
+    }
+
+    expect(onVarChange).toHaveBeenCalledWith('hero_name', 'Lancelot', 'global');
+  });
+
+  it('BottomDrawer filters variables by active scene by default and updates with live state', () => {
+    const ctx = createMockContext();
+    const drawer = new BottomDrawerClass(ctx);
+
+    const astVariables = new Map<string, VariableMeta>([
+      ['gold', { name: 'gold', value: 100, scope: 'global' }],
+      ['start_flag', { name: 'start_flag', value: true, scope: 'local', sceneName: 'start' }],
+      ['dungeon_key', { name: 'dungeon_key', value: false, scope: 'local', sceneName: 'dungeon' }],
+    ]);
+
+    drawer.populateSceneFilter(['start', 'dungeon']);
+    drawer.renderVariablesWatch(astVariables);
+
+    const tbody = domRegistry['vars-watch-tbody']!;
+    let rows = tbody.querySelectorAll('tr');
+
+    // Default active scene is 'start': should only show gold (global) and start_flag (start local)
+    expect(rows.length).toBe(2);
+    const varNames = rows.map(r => r.querySelectorAll('td')[0]?.textContent);
+    expect(varNames).toContain('gold');
+    expect(varNames).toContain('start_flag');
+    expect(varNames).not.toContain('dungeon_key');
+
+    // Live state updates: currentScene is now 'dungeon'
+    drawer.updateLiveVariables({
+      type: 'PREVIEW_STATE_UPDATE',
+      variables: { gold: 120 },
+      localVariables: { dungeon_key: true },
+      currentScene: 'dungeon',
+      instructionPointer: 5,
+    });
+
+    rows = tbody.querySelectorAll('tr');
+    expect(rows.length).toBe(2);
+    const updatedNames = rows.map(r => r.querySelectorAll('td')[0]?.textContent);
+    expect(updatedNames).toContain('gold');
+    expect(updatedNames).toContain('dungeon_key');
+    expect(updatedNames).not.toContain('start_flag');
+  });
+
+  it('BottomDrawer allows manually overriding scope filter and resuming auto-follow', () => {
+    const ctx = createMockContext();
+    const drawer = new BottomDrawerClass(ctx);
+
+    const astVariables = new Map<string, VariableMeta>([
+      ['gold', { name: 'gold', value: 100, scope: 'global' }],
+      ['start_flag', { name: 'start_flag', value: true, scope: 'local', sceneName: 'start' }],
+      ['dungeon_key', { name: 'dungeon_key', value: false, scope: 'local', sceneName: 'dungeon' }],
+    ]);
+
+    drawer.populateSceneFilter(['start', 'dungeon']);
+    drawer.renderVariablesWatch(astVariables);
+
+    const filterSelect = domRegistry['vars-scene-filter']!;
+    const tbody = domRegistry['vars-watch-tbody']!;
+
+    // Select __all__
+    filterSelect.value = '__all__';
+    filterSelect.dispatchEvent({ type: 'change' });
+
+    let rows = tbody.querySelectorAll('tr');
+    expect(rows.length).toBe(3);
+
+    // Select specific scene 'start'
+    filterSelect.value = 'start';
+    filterSelect.dispatchEvent({ type: 'change' });
+
+    rows = tbody.querySelectorAll('tr');
+    expect(rows.length).toBe(2);
+    expect(rows.map(r => r.querySelectorAll('td')[0]?.textContent)).toContain('start_flag');
+
+    // Select __active__ to resume auto-follow
+    filterSelect.value = '__active__';
+    filterSelect.dispatchEvent({ type: 'change' });
+
+    rows = tbody.querySelectorAll('tr');
+    expect(rows.length).toBe(2);
+  });
+
+  it('BottomDrawer standby mode follows editor cursor scene', () => {
+    const ctx = createMockContext();
+    const drawer = new BottomDrawerClass(ctx);
+
+    const astVariables = new Map<string, VariableMeta>([
+      ['gold', { name: 'gold', value: 100, scope: 'global' }],
+      ['start_flag', { name: 'start_flag', value: true, scope: 'local', sceneName: 'start' }],
+      ['dungeon_key', { name: 'dungeon_key', value: false, scope: 'local', sceneName: 'dungeon' }],
+    ]);
+
+    drawer.populateSceneFilter(['start', 'dungeon']);
+    drawer.renderVariablesWatch(astVariables);
+
+    // In standby (no live state), move editor cursor to 'dungeon'
+    drawer.setEditorCursorScene('dungeon');
+
+    expect(drawer.getActiveSceneName()).toBe('dungeon');
+    const tbody = domRegistry['vars-watch-tbody']!;
+    const rows = tbody.querySelectorAll('tr');
+    expect(rows.length).toBe(2);
+    const varNames = rows.map(r => r.querySelectorAll('td')[0]?.textContent);
+    expect(varNames).toContain('gold');
+    expect(varNames).toContain('dungeon_key');
+    expect(varNames).not.toContain('start_flag');
+  });
+
+  it('BottomDrawer marks inactive local variables with [Inactive] pill when viewing other scenes', () => {
+    const ctx = createMockContext();
+    const drawer = new BottomDrawerClass(ctx);
+
+    const astVariables = new Map<string, VariableMeta>([
+      ['gold', { name: 'gold', value: 100, scope: 'global' }],
+      ['start_flag', { name: 'start_flag', value: true, scope: 'local', sceneName: 'start' }],
+      ['dungeon_key', { name: 'dungeon_key', value: false, scope: 'local', sceneName: 'dungeon' }],
+    ]);
+
+    drawer.populateSceneFilter(['start', 'dungeon']);
+    drawer.renderVariablesWatch(astVariables);
+
+    // Switch to __all__
+    const filterSelect = domRegistry['vars-scene-filter']!;
+    filterSelect.value = '__all__';
+    filterSelect.dispatchEvent({ type: 'change' });
+
+    const tbody = domRegistry['vars-watch-tbody']!;
+    const rows = tbody.querySelectorAll('tr');
+    expect(rows.length).toBe(3);
+
+    // 'start' is the active scene, so 'dungeon_key' row should have .scope-inactive-pill
+    const dungeonRow = rows.find(r => r.querySelectorAll('td')[0]?.textContent === 'dungeon_key');
+    expect(dungeonRow).toBeDefined();
+    const scopeCell = dungeonRow!.querySelectorAll('td')[1]!;
+    expect(scopeCell.innerHTML).toContain('scope-inactive-pill');
+    expect(scopeCell.innerHTML).toContain('Inactive');
+  });
 });
+

@@ -35,7 +35,7 @@ export function isAllowedPreviewOrigin(
 export function buildPreviewUrl(
   baseUrl: string,
   projectId?: string | null,
-  options?: { isPopout?: boolean },
+  options?: { isPopout?: boolean; editorOrigin?: string },
 ): string {
   const cleanBase = baseUrl ? baseUrl.replace(/\/+$/, '') : '';
   const params = new URLSearchParams();
@@ -48,11 +48,16 @@ export function buildPreviewUrl(
   if (projectId) {
     params.set('projectId', projectId);
   }
+  const edOrigin =
+    options?.editorOrigin || (typeof window !== 'undefined' ? window.location.origin : '');
+  if (edOrigin) {
+    params.set('editorOrigin', edOrigin);
+  }
   return `${cleanBase}/?${params.toString()}`;
 }
 
 export interface PreviewStateUpdateMessage {
-  type: 'PREVIEW_STATE_UPDATE';
+  type: 'PREVIEW_STATE_UPDATE' | 'VM_STATE_UPDATE';
   variables: Record<string, string | number | boolean>;
   localVariables: Record<string, string | number | boolean>;
   currentScene: string;
@@ -100,7 +105,10 @@ export class PreviewBridge {
         }
       }
 
-      if (event.data?.type === 'PREVIEW_STATE_UPDATE') {
+      if (
+        event.data?.type === 'PREVIEW_STATE_UPDATE' ||
+        event.data?.type === 'VM_STATE_UPDATE'
+      ) {
         const update = event.data as PreviewStateUpdateMessage;
         for (const cb of this.onStateUpdateCallbacks) {
           try {

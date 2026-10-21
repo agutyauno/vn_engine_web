@@ -22,10 +22,17 @@ export class BottomDrawer {
   private problemsSummary: HTMLElement;
   private problemsList: HTMLElement;
   private varsWatchTbody: HTMLElement;
+  private varsSceneFilterSelect: HTMLSelectElement | null = null;
+  private varsCountBadge: HTMLElement | null = null;
+
+  private filterMode: string = '__active__';
+  private editorCursorScene: string | null = null;
+  private allScenesList: string[] = [];
 
   private cachedAstVariables: Map<string, VariableMeta> = new Map();
   private latestLiveState: PreviewStateUpdateMessage | null = null;
   private previousValues: Map<string, unknown> = new Map();
+  private changedTimestamps: Map<string, number> = new Map();
   private onVariableChange?: (
     name: string,
     value: string | number | boolean,
@@ -38,6 +45,17 @@ export class BottomDrawer {
     this.problemsSummary = document.getElementById('problems-summary')!;
     this.problemsList = document.getElementById('problems-list')!;
     this.varsWatchTbody = document.getElementById('vars-watch-tbody')!;
+    this.varsSceneFilterSelect = document.getElementById(
+      'vars-scene-filter',
+    ) as HTMLSelectElement | null;
+    this.varsCountBadge = document.getElementById('vars-count-badge');
+
+    if (this.varsSceneFilterSelect) {
+      this.varsSceneFilterSelect.addEventListener('change', () => {
+        this.filterMode = this.varsSceneFilterSelect?.value || '__active__';
+        this.renderVariablesWatch();
+      });
+    }
 
     this.setupBottomDrawer();
   }
@@ -46,6 +64,58 @@ export class BottomDrawer {
     cb: (name: string, value: string | number | boolean, scope?: 'global' | 'local') => void,
   ): void {
     this.onVariableChange = cb;
+  }
+
+  public populateSceneFilter(scenes: string[]): void {
+    this.allScenesList = scenes;
+    if (!this.varsSceneFilterSelect) return;
+
+    const currentSelected = this.filterMode;
+    const activeSceneName = this.getActiveSceneName();
+
+    this.varsSceneFilterSelect.innerHTML = '';
+
+    const optActive = document.createElement('option');
+    optActive.value = '__active__';
+    optActive.textContent = `🎯 Active Scene (${activeSceneName})`;
+    this.varsSceneFilterSelect.appendChild(optActive);
+
+    const optAll = document.createElement('option');
+    optAll.value = '__all__';
+    optAll.textContent = '🌐 All Variables (Toàn bộ)';
+    this.varsSceneFilterSelect.appendChild(optAll);
+
+    if (scenes.length > 0) {
+      const optGroup = document.createElement('optgroup');
+      optGroup.label = 'Specific Scenes';
+      for (const sc of scenes) {
+        const opt = document.createElement('option');
+        opt.value = sc;
+        opt.textContent = `Scene: ${sc}`;
+        optGroup.appendChild(opt);
+      }
+      this.varsSceneFilterSelect.appendChild(optGroup);
+    }
+
+    this.varsSceneFilterSelect.value = currentSelected;
+  }
+
+  public setEditorCursorScene(sceneName: string): void {
+    if (this.editorCursorScene !== sceneName) {
+      this.editorCursorScene = sceneName;
+      if (this.filterMode === '__active__' && !this.latestLiveState) {
+        this.renderVariablesWatch();
+      }
+    }
+  }
+
+  public getActiveSceneName(): string {
+    return (
+      this.latestLiveState?.currentScene ||
+      this.editorCursorScene ||
+      this.allScenesList[0] ||
+      'start'
+    );
   }
 
   public updateLiveVariables(liveState: PreviewStateUpdateMessage): void {
@@ -64,7 +134,11 @@ export class BottomDrawer {
         const targetTab = tab.dataset.drawerTab;
         drawerTabs.forEach(t => t.classList.toggle('active', t === tab));
         drawerPanes.forEach(p => {
-          p.classList.toggle('active', p.id === `drawer-pane-${targetTab}`);
+          const isTarget =
+            p.id === `drawer-pane-${targetTab}` ||
+            (targetTab === 'variables-watch' && p.id === 'drawer-pane-variables') ||
+            (targetTab === 'variables' && p.id === 'drawer-pane-variables-watch');
+          p.classList.toggle('active', isTarget);
         });
 
         if (bottomDrawer?.classList.contains('collapsed')) {
@@ -220,19 +294,51 @@ export class BottomDrawer {
       }
     }
 
+    const activeSceneName = this.getActiveSceneName();
+
+    if (this.varsSceneFilterSelect) {
+      const optActive = this.varsSceneFilterSelect.querySelector('option[value="__active__"]');
+      if (optActive) {
+        optActive.textContent = `🎯 Active Scene (${activeSceneName})`;
+      }
+    }
+
+    // Lọc biến theo filterMode
+    const filtered = new Map<string, VariableMeta>();
+    for (const [key, meta] of combined) {
+      if (meta.scope === 'global') {
+        filtered.set(key, meta);
+      } else if (this.filterMode === '__all__') {
+        filtered.set(key, meta);
+      } else if (this.filterMode === '__active__') {
+        if (!meta.sceneName || meta.sceneName === activeSceneName) {
+          filtered.set(key, meta);
+        }
+      } else {
+        if (meta.sceneName === this.filterMode) {
+          filtered.set(key, meta);
+        }
+      }
+    }
+
+    if (this.varsCountBadge) {
+      const count = filtered.size;
+      this.varsCountBadge.textContent = `${count} variable${count === 1 ? '' : 's'}`;
+    }
+
     this.varsWatchTbody.innerHTML = '';
-    if (combined.size === 0) {
+    if (filtered.size === 0) {
       const tr = document.createElement('tr');
       const td = document.createElement('td');
       td.colSpan = 4;
       td.style.color = '#666';
-      td.textContent = 'No variables.';
+      td.textContent = 'No variables for selected scope.';
       tr.appendChild(td);
       this.varsWatchTbody.appendChild(tr);
       return;
     }
 
-    for (const [, meta] of combined) {
+    for (const [, meta] of filtered) {
       const tr = document.createElement('tr');
 
       let effectiveValue = meta.value;
@@ -247,8 +353,12 @@ export class BottomDrawer {
       const prevVal = this.previousValues.get(meta.name);
       const isChanged = prevVal !== undefined && prevVal !== effectiveValue;
       this.previousValues.set(meta.name, effectiveValue);
-
       if (isChanged) {
+        this.changedTimestamps.set(meta.name, Date.now());
+      }
+
+      const flashAge = Date.now() - (this.changedTimestamps.get(meta.name) ?? 0);
+      if (flashAge < 1500) {
         tr.classList.add('var-row-changed');
       }
 
@@ -259,8 +369,17 @@ export class BottomDrawer {
 
       const tdScope = document.createElement('td');
       tdScope.style.color = meta.scope === 'global' ? '#4ade80' : '#60a5fa';
-      tdScope.textContent =
-        meta.scope === 'global' ? 'Global' : `Local (${meta.sceneName || 'scene'})`;
+      if (meta.scope === 'global') {
+        tdScope.textContent = 'Global';
+      } else {
+        const sceneLabel = meta.sceneName || 'scene';
+        const isCurrentActive = meta.sceneName === activeSceneName;
+        if (isCurrentActive) {
+          tdScope.textContent = `Local (${sceneLabel})`;
+        } else {
+          tdScope.innerHTML = `<span>Local (${sceneLabel})</span> <span class="scope-inactive-pill" title="This scene is not active in VM right now">Inactive</span>`;
+        }
+      }
 
       const tdType = document.createElement('td');
       tdType.style.color = '#888';
@@ -270,10 +389,25 @@ export class BottomDrawer {
       tdVal.className = 'var-val-cell';
       tdVal.style.color = '#22c55e';
       tdVal.style.cursor = 'pointer';
-      tdVal.title = 'Click to edit value';
-      tdVal.textContent = String(effectiveValue);
+      tdVal.title = 'Double-click or click edit icon to change value';
 
-      tdVal.addEventListener('click', () => {
+      const valSpan = document.createElement('span');
+      valSpan.className = 'var-val-text';
+      valSpan.textContent = String(effectiveValue);
+
+      const editIcon = document.createElement('span');
+      editIcon.className = 'var-edit-icon';
+      editIcon.title = 'Edit variable value';
+      editIcon.textContent = ' ✎';
+      editIcon.style.opacity = '0.7';
+      editIcon.style.fontSize = '12px';
+      editIcon.style.marginLeft = '6px';
+      editIcon.style.cursor = 'pointer';
+
+      tdVal.appendChild(valSpan);
+      tdVal.appendChild(editIcon);
+
+      const startEditing = () => {
         if (tdVal.querySelector('input')) return;
 
         const currentText = String(effectiveValue ?? '');
@@ -303,11 +437,34 @@ export class BottomDrawer {
             parsed = false;
           } else if (!isNaN(Number(raw)) && raw !== '') {
             parsed = Number(raw);
+          } else if (
+            (raw.startsWith('"') && raw.endsWith('"')) ||
+            (raw.startsWith("'") && raw.endsWith("'"))
+          ) {
+            parsed = raw.slice(1, -1);
           }
           this.onVariableChange?.(meta.name, parsed, meta.scope);
           tdVal.innerHTML = '';
-          tdVal.textContent = String(parsed);
+          const newSpan = document.createElement('span');
+          newSpan.className = 'var-val-text';
+          newSpan.textContent = String(parsed);
+          const newIcon = document.createElement('span');
+          newIcon.className = 'var-edit-icon';
+          newIcon.title = 'Edit variable value';
+          newIcon.textContent = ' ✎';
+          newIcon.style.opacity = '0.7';
+          newIcon.style.fontSize = '12px';
+          newIcon.style.marginLeft = '6px';
+          newIcon.style.cursor = 'pointer';
+          newIcon.addEventListener('click', (e: Event) => {
+            e?.stopPropagation?.();
+            startEditing();
+          });
+          tdVal.appendChild(newSpan);
+          tdVal.appendChild(newIcon);
           this.previousValues.set(meta.name, parsed);
+          this.changedTimestamps.set(meta.name, Date.now());
+          tr.classList.add('var-row-changed');
         };
 
         input.addEventListener('keydown', (e: KeyboardEvent | { key: string }) => {
@@ -316,7 +473,8 @@ export class BottomDrawer {
           } else if (e.key === 'Escape') {
             committed = true;
             tdVal.innerHTML = '';
-            tdVal.textContent = currentText;
+            tdVal.appendChild(valSpan);
+            tdVal.appendChild(editIcon);
           }
         });
 
@@ -328,6 +486,13 @@ export class BottomDrawer {
         if (typeof input.focus === 'function') {
           input.focus();
         }
+      };
+
+      tdVal.addEventListener('click', startEditing);
+      tdVal.addEventListener('dblclick', startEditing);
+      editIcon.addEventListener('click', (e: Event) => {
+        e?.stopPropagation?.();
+        startEditing();
       });
 
       tr.appendChild(tdName);

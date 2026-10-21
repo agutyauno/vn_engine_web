@@ -59,6 +59,11 @@ export class VNPlayer implements PlayerContext {
   private standbyScreen: HTMLElement | null = null;
   private isStandby: boolean = false;
 
+  private editorOrigin: string | null = null;
+  private stateUpdateTimer: ReturnType<typeof setTimeout> | null = null;
+  private lastBroadcastTime: number = 0;
+  private static readonly THROTTLE_MS = 60; // 50-100ms throttle (ADR-024 / note.md)
+
   constructor(program: Instruction[], options?: { isStandby?: boolean }) {
     this.initialProgram = program;
     this.isStandby = options?.isStandby ?? false;
@@ -712,6 +717,10 @@ export class VNPlayer implements PlayerContext {
     return success;
   }
 
+  public setEditorOrigin(origin: string): void {
+    this.editorOrigin = origin;
+  }
+
   /**
    * Can thiệp / ghi đè giá trị biến trên máy ảo VM và phát tín hiệu đồng bộ về Editor (ADR-024)
    */
@@ -721,13 +730,14 @@ export class VNPlayer implements PlayerContext {
     scope?: 'global' | 'local',
   ): void {
     this.vm.setVariable(name, value, scope);
-    this.broadcastStateUpdate();
+    this.broadcastStateUpdate(true);
   }
 
   /**
-   * Phát thông điệp PREVIEW_STATE_UPDATE sang Web Studio Editor (ADR-024 / SAD 3.6)
+   * Phát thông điệp PREVIEW_STATE_UPDATE sang Web Studio Editor (ADR-024 / SAD 3.6 / note.md)
+   * Có throttling 50-100ms đối với cập nhật thông thường và phát ngay lập tức khi forceImmediate = true.
    */
-  public broadcastStateUpdate(): void {
+  public broadcastStateUpdate(forceImmediate: boolean = false): void {
     if (typeof window === 'undefined') return;
 
     const urlParams = window.location?.search ? new URLSearchParams(window.location.search) : null;
@@ -742,33 +752,61 @@ export class VNPlayer implements PlayerContext {
 
     if (!isEmbedded) return;
 
-    let targetOrigin =
-      window.location.hostname === 'localhost' ? 'http://localhost:3001' : window.location.origin;
-    if (document.referrer) {
-      try {
-        const refUrl = new URL(document.referrer);
-        if (refUrl.origin) {
-          targetOrigin = refUrl.origin;
-        }
-      } catch {
-        // ignore
+    const doBroadcast = () => {
+      this.lastBroadcastTime = Date.now();
+      if (this.stateUpdateTimer) {
+        clearTimeout(this.stateUpdateTimer);
+        this.stateUpdateTimer = null;
       }
-    }
 
-    const vmState = this.vm.getState();
-    const message = {
-      type: 'PREVIEW_STATE_UPDATE',
-      variables: vmState.variables,
-      localVariables: vmState.localVariables,
-      currentScene: vmState.currentScene,
-      instructionPointer: vmState.instructionPointer,
+      let targetOrigin = this.editorOrigin;
+      if (!targetOrigin) {
+        targetOrigin =
+          window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? `http://${window.location.hostname}:3001`
+            : window.location.origin;
+        if (document.referrer) {
+          try {
+            const refUrl = new URL(document.referrer);
+            if (refUrl.origin) {
+              targetOrigin = refUrl.origin;
+            }
+          } catch {
+            // ignore
+          }
+        }
+      }
+
+      const vmState = this.vm.getState();
+      const message = {
+        type: 'PREVIEW_STATE_UPDATE',
+        variables: vmState.variables,
+        localVariables: vmState.localVariables,
+        currentScene: vmState.currentScene,
+        instructionPointer: vmState.instructionPointer,
+      };
+
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage(message, targetOrigin);
+      }
+      if (window.opener) {
+        window.opener.postMessage(message, targetOrigin);
+      }
     };
 
-    if (window.parent && window.parent !== window) {
-      window.parent.postMessage(message, targetOrigin);
+    if (forceImmediate) {
+      doBroadcast();
+      return;
     }
-    if (window.opener) {
-      window.opener.postMessage(message, targetOrigin);
+
+    const now = Date.now();
+    const elapsed = now - this.lastBroadcastTime;
+    if (elapsed >= VNPlayer.THROTTLE_MS) {
+      doBroadcast();
+    } else if (!this.stateUpdateTimer) {
+      this.stateUpdateTimer = setTimeout(() => {
+        doBroadcast();
+      }, VNPlayer.THROTTLE_MS - elapsed);
     }
   }
 
