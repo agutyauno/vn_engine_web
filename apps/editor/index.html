@@ -141,6 +141,7 @@
                 id="tab-btn-characters">Characters</button>
               <button class="workspace-tab sidebar-tab" data-tab="assets" id="tab-btn-assets">Assets</button>
               <button class="workspace-tab sidebar-tab" data-tab="variables" id="tab-btn-variables">Variables</button>
+              <button class="workspace-tab sidebar-tab" data-tab="bytecode" id="tab-btn-bytecode">Bytecode & AST</button>
               <div class="workspace-actions">
                 <button class="wf-btn-sm" id="btn-reload-preview" title="Reload Live Preview">Reload</button>
                 <button class="wf-btn-sm" id="btn-popout-preview"
@@ -201,6 +202,74 @@
                   <span>SCRIPT STATE VARIABLES</span>
                 </div>
                 <div id="variable-list-container"></div>
+              </div>
+
+              <!-- TAB 5: BYTECODE & AST INSPECTOR -->
+              <div class="workspace-pane sidebar-pane" id="pane-bytecode">
+                <div id="bytecode-out-of-date-alert" class="bytecode-alert-banner hidden">
+                  ⚠ Out of date (Code has errors - check Problems tab)
+                </div>
+
+                <div class="bytecode-inspector-header">
+                  <div class="bytecode-subtabs-group">
+                    <button type="button" class="subtab-btn active" id="subtab-btn-bytecode" data-subview="bytecode">
+                      📋 Bytecode View
+                    </button>
+                    <button type="button" class="subtab-btn" id="subtab-btn-ast" data-subview="ast">
+                      🌳 AST JSON
+                    </button>
+                  </div>
+                </div>
+
+                <!-- SUBVIEW 1: BYTECODE TABLE -->
+                <div id="bytecode-view-container" class="bytecode-subview active">
+                  <div class="bytecode-toolbar">
+                    <div class="bytecode-toolbar-left">
+                      <input type="text" id="bytecode-search-input" class="bytecode-search-input font-mono"
+                        placeholder="Filter opcode, args, PC..." />
+                      <select id="bytecode-scene-select" class="vars-scene-select">
+                        <option value="__all__">All Scenes (Toàn bộ)</option>
+                      </select>
+                    </div>
+                    <div class="bytecode-toolbar-right">
+                      <span id="bytecode-count-badge" class="vars-stats-badge">0 instructions</span>
+                      <button type="button" class="wf-btn-sm" id="btn-jump-current-pc" title="Jump scroll to active instruction PC">
+                        Jump to PC
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="bytecode-table-wrapper">
+                    <table class="bytecode-table" id="bytecode-table">
+                      <thead>
+                        <tr>
+                          <th style="width: 75px;">PC</th>
+                          <th style="width: 140px;">Opcode</th>
+                          <th>Payload / Arguments</th>
+                          <th style="width: 120px;">Source Line</th>
+                        </tr>
+                      </thead>
+                      <tbody id="bytecode-tbody">
+                        <tr>
+                          <td colspan="4" style="color: #666; text-align: center; padding: 16px;">
+                            No compiled bytecode instructions.
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <!-- SUBVIEW 2: AST JSON -->
+                <div id="ast-view-container" class="bytecode-subview hidden">
+                  <div class="ast-toolbar">
+                    <div class="ast-info-text">Abstract Syntax Tree (Parsed AST)</div>
+                    <button type="button" class="wf-btn-sm" id="btn-copy-ast-json" title="Copy full AST JSON to clipboard">
+                      📋 Copy AST JSON
+                    </button>
+                  </div>
+                  <div id="ast-monaco-container" class="ast-monaco-wrapper"></div>
+                </div>
               </div>
             </div>
           </section>

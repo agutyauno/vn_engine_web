@@ -34,6 +34,7 @@ import { BottomDrawer, type VariableMeta } from './modules/bottomDrawer';
 import { PreviewBridge } from './modules/previewBridge';
 import { ExportWizard } from './modules/exportWizard';
 import { LayoutResizer } from './modules/layoutResizer';
+import { BytecodeInspector } from './modules/bytecodeInspector';
 
 const DEFAULT_STARTER_SCRIPT = `# ==============================================================
 # Welcome to Visual Novel Engine!
@@ -120,6 +121,7 @@ export class StudioApp implements StudioContext {
   public previewBridge!: PreviewBridge;
   public exportWizard!: ExportWizard;
   public layoutResizer!: LayoutResizer;
+  public bytecodeInspector!: BytecodeInspector;
 
   // DOM Elements
   private projectTitleEl: HTMLElement;
@@ -163,8 +165,13 @@ export class StudioApp implements StudioContext {
 
     this.previewBridge.onStateUpdate(liveState => {
       this.bottomDrawer?.updateLiveVariables(liveState);
+      this.bytecodeInspector?.updateExecutionPointer(
+        liveState.instructionPointer,
+        liveState.currentScene,
+      );
     });
 
+    this.bytecodeInspector = new BytecodeInspector(this);
     this.exportWizard = new ExportWizard(this);
     this.fileExplorer = new FileExplorer(this);
     this.characterManager = new CharacterManager(this);
@@ -579,6 +586,8 @@ export class StudioApp implements StudioContext {
       }
       this.bottomDrawer?.renderSuccess(this.latestProgram.length, currentModel ?? undefined);
       this.previewBridge?.sendProgramToPreview(this.latestProgram);
+      this.bytecodeInspector?.updateCompiledProgram(this.latestProgram, result.ast);
+      this.bytecodeInspector?.setOutOfDate(false);
 
       if (result.ast) {
         this.updateSidebarMetadata(result.ast);
@@ -586,6 +595,7 @@ export class StudioApp implements StudioContext {
     } else {
       const errors = result.errors || [];
       this.bottomDrawer?.renderErrors(errors, currentModel ?? undefined);
+      this.bytecodeInspector?.setOutOfDate(true, errors.length);
     }
   }
 
