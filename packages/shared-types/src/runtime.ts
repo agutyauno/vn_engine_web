@@ -31,6 +31,7 @@ export interface VMState {
   activeSprites?: Record<string, ShowInstruction>;
   activeAudio?: Record<string, PlayInstruction>;
   currentDialogue?: DialogueInstruction;
+  activeExecutingPc?: number;
 }
 
 export type StepResult =

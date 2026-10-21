@@ -62,6 +62,7 @@ export interface PreviewStateUpdateMessage {
   localVariables: Record<string, string | number | boolean>;
   currentScene: string;
   instructionPointer: number;
+  activeExecutingPc?: number;
 }
 
 export class PreviewBridge {

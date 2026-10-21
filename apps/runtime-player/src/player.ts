@@ -784,6 +784,7 @@ export class VNPlayer implements PlayerContext {
         localVariables: vmState.localVariables,
         currentScene: vmState.currentScene,
         instructionPointer: vmState.instructionPointer,
+        activeExecutingPc: this.vm.getActiveExecutingPc(),
       };
 
       if (window.parent && window.parent !== window) {

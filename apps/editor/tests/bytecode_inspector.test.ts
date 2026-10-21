@@ -480,4 +480,76 @@ describe('BytecodeInspector Module', () => {
     expect(navigator.clipboard.writeText).toHaveBeenCalled();
     expect(ctx.showToast).toHaveBeenCalledWith('✓ AST JSON copied to clipboard!');
   });
+
+  it('formats CHOICE actions showing goto/call and enables searching them', () => {
+    const ctx = createMockContext();
+    const inspector = new BytecodeInspectorClass(ctx);
+
+    const programWithChoice: Instruction[] = [
+      {
+        type: 'CHOICE',
+        choices: [
+          { text: 'Path A', action: 'goto', targetScene: 'scene_a' },
+          { text: 'Subroutine B', action: 'call', targetScene: 'scene_b' },
+        ],
+      },
+    ];
+
+    inspector.updateCompiledProgram(programWithChoice);
+    const tbody = domRegistry['bytecode-tbody']!;
+    const choiceRow = tbody.querySelectorAll('tr')[0]!;
+    expect(choiceRow.textContent).toContain('"Path A" -> goto scene_a');
+    expect(choiceRow.textContent).toContain('"Subroutine B" -> call scene_b');
+
+    // Searching "call" matches this choice row
+    inspector.search('call');
+    expect(choiceRow.classList.contains('hidden')).toBe(false);
+
+    // Searching "goto" matches this choice row
+    inspector.search('goto');
+    expect(choiceRow.classList.contains('hidden')).toBe(false);
+  });
+
+  it('supports subscenes when filtering by parent scene, and global preamble', () => {
+    const ctx = createMockContext();
+    const inspector = new BytecodeInspectorClass(ctx);
+
+    const hierarchicalProgram: Instruction[] = [
+      { type: 'ASSIGN', variable: 'gold', value: { type: 'Literal', value: 100 } }, // Preamble (before SCENE)
+      { type: 'SCENE', name: 'lab_flow' },
+      { type: 'DIALOGUE', character: null, text: 'Main scene' },
+      { type: 'SCENE', name: 'lab_flow.turn' },
+      { type: 'DIALOGUE', character: null, text: 'Sub-scene turn' },
+      { type: 'SCENE', name: 'other_scene' },
+      { type: 'DIALOGUE', character: null, text: 'Other scene' },
+    ];
+
+    const ast: ProgramAST = {
+      type: 'Program',
+      scenes: [
+        { type: 'Scene', name: 'lab_flow', body: [] },
+        { type: 'Scene', name: 'lab_flow.turn', body: [] },
+        { type: 'Scene', name: 'other_scene', body: [] },
+      ],
+    };
+
+    inspector.updateCompiledProgram(hierarchicalProgram, ast);
+    const tbody = domRegistry['bytecode-tbody']!;
+
+    // Filter by parent scene "lab_flow": both lab_flow AND lab_flow.turn should be visible!
+    inspector.filterByScene('lab_flow');
+    let visibleRows = tbody.querySelectorAll('tr').filter(r => !r.classList.contains('hidden'));
+    expect(visibleRows.length).toBe(4); // SCENE lab_flow, DIALOGUE Main scene, SCENE lab_flow.turn, DIALOGUE Sub-scene turn
+
+    // Filter by subscene "lab_flow.turn": only lab_flow.turn rows should be visible
+    inspector.filterByScene('lab_flow.turn');
+    visibleRows = tbody.querySelectorAll('tr').filter(r => !r.classList.contains('hidden'));
+    expect(visibleRows.length).toBe(2); // SCENE lab_flow.turn, DIALOGUE Sub-scene turn
+
+    // Filter by preamble: global ASSIGN row should be visible
+    inspector.filterByScene('__preamble__');
+    visibleRows = tbody.querySelectorAll('tr').filter(r => !r.classList.contains('hidden'));
+    expect(visibleRows.length).toBe(1);
+    expect(visibleRows[0].textContent).toContain('ASSIGN');
+  });
 });

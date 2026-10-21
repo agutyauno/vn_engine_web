@@ -165,10 +165,11 @@ export class StudioApp implements StudioContext {
 
     this.previewBridge.onStateUpdate(liveState => {
       this.bottomDrawer?.updateLiveVariables(liveState);
-      this.bytecodeInspector?.updateExecutionPointer(
-        liveState.instructionPointer,
-        liveState.currentScene,
-      );
+      const targetPc =
+        typeof liveState.activeExecutingPc === 'number'
+          ? liveState.activeExecutingPc
+          : liveState.instructionPointer;
+      this.bytecodeInspector?.updateExecutionPointer(targetPc, liveState.currentScene);
     });
 
     this.bytecodeInspector = new BytecodeInspector(this);

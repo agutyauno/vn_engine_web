@@ -175,6 +175,11 @@ export class BytecodeInspector {
     optAll.textContent = 'All Scenes (Toàn bộ)';
     this.sceneSelect.appendChild(optAll);
 
+    const optGlobal = document.createElement('option');
+    optGlobal.value = '__preamble__';
+    optGlobal.textContent = 'Global Declarations (Preamble)';
+    this.sceneSelect.appendChild(optGlobal);
+
     if (Array.isArray(ast.scenes)) {
       for (const sc of ast.scenes) {
         if (sc?.name) {
@@ -214,7 +219,7 @@ export class BytecodeInspector {
       return;
     }
 
-    let currentSceneContext = 'start';
+    let currentSceneContext = '__preamble__';
 
     for (let pc = 0; pc < this.program.length; pc++) {
       const inst = this.program[pc];
@@ -314,7 +319,10 @@ export class BytecodeInspector {
       const opcode = r.dataset['opcode'] || '';
       const text = r.textContent?.toLowerCase() || '';
 
-      const matchesScene = this.selectedScene === '__all__' || scene === this.selectedScene;
+      const matchesScene =
+        this.selectedScene === '__all__' ||
+        scene === this.selectedScene ||
+        scene.startsWith(this.selectedScene + '.');
       const matchesSearch =
         !this.searchQuery ||
         pc.includes(this.searchQuery) ||
@@ -395,7 +403,9 @@ export class BytecodeInspector {
       case 'STOP':
         return `[${inst.channel}]`;
       case 'CHOICE':
-        return inst.choices.map(c => `"${c.text}" -> ${c.targetScene}`).join(' | ');
+        return inst.choices
+          .map(c => `"${c.text}" -> ${c.action ?? 'goto'} ${c.targetScene}`)
+          .join(' | ');
       case 'GOTO':
         return `goto ${inst.targetScene}`;
       case 'CONDITIONAL_GOTO':

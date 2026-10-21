@@ -12,6 +12,7 @@ export { StudioApp };
 window.addEventListener('DOMContentLoaded', async () => {
   const repository = new SupabaseProjectRepository();
   const app = new StudioApp(repository);
+  (window as unknown as { studioApp?: StudioApp }).studioApp = app;
   await app.init();
 
   const router = new AppRouter(repository);

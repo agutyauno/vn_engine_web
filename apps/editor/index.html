@@ -95,10 +95,11 @@
                 <div class="drawer-pane" id="drawer-pane-variables">
                   <div class="vars-filter-toolbar">
                     <div class="vars-filter-group">
-                      <label for="vars-scene-filter" style="color: var(--studio-text-secondary); font-weight: 500;">Scope:</label>
+                      <label for="vars-scene-filter"
+                        style="color: var(--studio-text-secondary); font-weight: 500;">Scope:</label>
                       <select id="vars-scene-filter" class="vars-scene-select">
-                        <option value="__active__">🎯 Active Scene</option>
-                        <option value="__all__">🌐 All Variables (Toàn bộ)</option>
+                        <option value="__active__">Active Scene</option>
+                        <option value="__all__">All Variables (Toàn bộ)</option>
                       </select>
                     </div>
                     <div id="vars-count-badge" class="vars-stats-badge">0 variables</div>
@@ -141,7 +142,8 @@
                 id="tab-btn-characters">Characters</button>
               <button class="workspace-tab sidebar-tab" data-tab="assets" id="tab-btn-assets">Assets</button>
               <button class="workspace-tab sidebar-tab" data-tab="variables" id="tab-btn-variables">Variables</button>
-              <button class="workspace-tab sidebar-tab" data-tab="bytecode" id="tab-btn-bytecode">Bytecode & AST</button>
+              <button class="workspace-tab sidebar-tab" data-tab="bytecode" id="tab-btn-bytecode">Bytecode &
+                AST</button>
               <div class="workspace-actions">
                 <button class="wf-btn-sm" id="btn-reload-preview" title="Reload Live Preview">Reload</button>
                 <button class="wf-btn-sm" id="btn-popout-preview"
@@ -213,10 +215,10 @@
                 <div class="bytecode-inspector-header">
                   <div class="bytecode-subtabs-group">
                     <button type="button" class="subtab-btn active" id="subtab-btn-bytecode" data-subview="bytecode">
-                      📋 Bytecode View
+                      Bytecode View
                     </button>
                     <button type="button" class="subtab-btn" id="subtab-btn-ast" data-subview="ast">
-                      🌳 AST JSON
+                      AST JSON
                     </button>
                   </div>
                 </div>
@@ -233,7 +235,8 @@
                     </div>
                     <div class="bytecode-toolbar-right">
                       <span id="bytecode-count-badge" class="vars-stats-badge">0 instructions</span>
-                      <button type="button" class="wf-btn-sm" id="btn-jump-current-pc" title="Jump scroll to active instruction PC">
+                      <button type="button" class="wf-btn-sm" id="btn-jump-current-pc"
+                        title="Jump scroll to active instruction PC">
                         Jump to PC
                       </button>
                     </div>
@@ -264,7 +267,8 @@
                 <div id="ast-view-container" class="bytecode-subview hidden">
                   <div class="ast-toolbar">
                     <div class="ast-info-text">Abstract Syntax Tree (Parsed AST)</div>
-                    <button type="button" class="wf-btn-sm" id="btn-copy-ast-json" title="Copy full AST JSON to clipboard">
+                    <button type="button" class="wf-btn-sm" id="btn-copy-ast-json"
+                      title="Copy full AST JSON to clipboard">
                       📋 Copy AST JSON
                     </button>
                   </div>
