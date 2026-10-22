@@ -32,6 +32,7 @@ export class BytecodeInspector {
   private selectedScene: string = '__all__';
   private astJsonString: string = '';
   private astEditor: monaco.editor.IStandaloneCodeEditor | null = null;
+  private expandedChoicePcs: Set<number> = new Set();
 
   constructor(context: StudioContext) {
     this.context = context;
@@ -262,8 +263,106 @@ export class BytecodeInspector {
       const tdPayload = document.createElement('td');
       tdPayload.className = 'col-payload font-mono';
       const formattedArgs = this.formatInstructionArgs(inst);
-      tdPayload.textContent = formattedArgs;
       tdPayload.title = JSON.stringify(inst, null, 2);
+
+      let subRow: HTMLTableRowElement | null = null;
+
+      if (inst.type === 'CHOICE' && Array.isArray(inst.choices)) {
+        const isExpanded = this.expandedChoicePcs.has(pc);
+
+        const expandBtn = document.createElement('button');
+        expandBtn.type = 'button';
+        expandBtn.className = 'btn-toggle-choice-expand';
+        expandBtn.textContent = `${isExpanded ? '▼' : '▶'} ${inst.choices.length} choices`;
+
+        const summarySpan = document.createElement('span');
+        summarySpan.className = 'choice-summary-text';
+        summarySpan.textContent = formattedArgs;
+
+        tdPayload.appendChild(expandBtn);
+        tdPayload.appendChild(summarySpan);
+
+        // Build expandable sub-row
+        subRow = document.createElement('tr') as HTMLTableRowElement;
+        subRow.className = 'choice-subrow';
+        if (!isExpanded) {
+          subRow.classList.add('hidden');
+        }
+        subRow.dataset['forPc'] = String(pc);
+        subRow.dataset['scene'] = currentSceneContext;
+
+        const subTd = document.createElement('td');
+        subTd.colSpan = 4;
+        subTd.className = 'choice-subrow-cell';
+
+        const container = document.createElement('div');
+        container.className = 'choice-options-container';
+
+        inst.choices.forEach((c, idx) => {
+          const optRow = document.createElement('div');
+          optRow.className = 'choice-option-item';
+
+          const badgeIdx = document.createElement('span');
+          badgeIdx.className = 'choice-opt-index font-mono';
+          badgeIdx.textContent = `[${idx}]`;
+
+          const textSpan = document.createElement('span');
+          textSpan.className = 'choice-opt-text font-mono';
+          textSpan.textContent = `"${c.text}"`;
+
+          optRow.appendChild(badgeIdx);
+          optRow.appendChild(textSpan);
+
+          if (c.condition) {
+            const condSpan = document.createElement('span');
+            condSpan.className = 'choice-opt-cond font-mono';
+            condSpan.textContent = `if ${this.formatExpr(c.condition)}`;
+            optRow.appendChild(condSpan);
+          }
+
+          const arrowSpan = document.createElement('span');
+          arrowSpan.className = 'choice-opt-arrow';
+          arrowSpan.textContent = '->';
+          optRow.appendChild(arrowSpan);
+
+          const actionBadge = document.createElement('span');
+          const actionType = c.action ?? 'goto';
+          actionBadge.className = `choice-opt-action action-${actionType}`;
+          actionBadge.textContent = actionType;
+          optRow.appendChild(actionBadge);
+
+          const targetSpan = document.createElement('span');
+          targetSpan.className = 'choice-opt-target font-mono';
+          targetSpan.textContent = c.targetScene;
+          optRow.appendChild(targetSpan);
+
+          container.appendChild(optRow);
+        });
+
+        subTd.appendChild(container);
+        subRow.appendChild(subTd);
+
+        subRow.addEventListener('click', () => {
+          this.jumpToLine(inst.loc?.line ?? 1, inst.loc?.col ?? 1, inst.loc?.fileId);
+        });
+
+        expandBtn.addEventListener('click', (e: Event) => {
+          if (e && typeof e.stopPropagation === 'function') {
+            e.stopPropagation();
+          }
+          if (this.expandedChoicePcs.has(pc)) {
+            this.expandedChoicePcs.delete(pc);
+            expandBtn.textContent = `▶ ${inst.choices.length} choices`;
+            subRow?.classList.add('hidden');
+          } else {
+            this.expandedChoicePcs.add(pc);
+            expandBtn.textContent = `▼ ${inst.choices.length} choices`;
+            subRow?.classList.remove('hidden');
+          }
+        });
+      } else {
+        tdPayload.textContent = formattedArgs;
+      }
 
       // Column 4: Source Line (loc)
       const tdLoc = document.createElement('td');
@@ -274,26 +373,7 @@ export class BytecodeInspector {
 
       // Click to jump to line
       tr.addEventListener('click', () => {
-        const targetLine = inst.loc?.line ?? 1;
-        const targetCol = inst.loc?.col ?? 1;
-        const targetFile = inst.loc?.fileId;
-
-        if (targetFile && targetFile !== this.context.getActiveFile()) {
-          this.context.setActiveFile(targetFile);
-          const model = this.context.getOrCreateTextModel(
-            targetFile,
-            this.context.getFileContent(targetFile),
-          );
-          this.context.getEditorInstance()?.setModel(model);
-          this.context.renderFileList();
-        }
-
-        const editor = this.context.getEditorInstance();
-        if (editor) {
-          editor.revealLineInCenter(targetLine);
-          editor.setPosition({ lineNumber: targetLine, column: targetCol });
-          editor.focus();
-        }
+        this.jumpToLine(inst.loc?.line ?? 1, inst.loc?.col ?? 1, inst.loc?.fileId);
       });
 
       tr.appendChild(tdPc);
@@ -302,9 +382,31 @@ export class BytecodeInspector {
       tr.appendChild(tdLoc);
 
       this.bytecodeTbody.appendChild(tr);
+      if (subRow) {
+        this.bytecodeTbody.appendChild(subRow);
+      }
     }
 
     this.applyVisibilityFilters();
+  }
+
+  private jumpToLine(targetLine: number, targetCol: number, targetFile?: string): void {
+    if (targetFile && targetFile !== this.context.getActiveFile()) {
+      this.context.setActiveFile(targetFile);
+      const model = this.context.getOrCreateTextModel(
+        targetFile,
+        this.context.getFileContent(targetFile),
+      );
+      this.context.getEditorInstance()?.setModel(model);
+      this.context.renderFileList();
+    }
+
+    const editor = this.context.getEditorInstance();
+    if (editor) {
+      editor.revealLineInCenter(targetLine);
+      editor.setPosition({ lineNumber: targetLine, column: targetCol });
+      editor.focus();
+    }
   }
 
   private applyVisibilityFilters(): void {
@@ -312,8 +414,20 @@ export class BytecodeInspector {
     const rows = this.bytecodeTbody.querySelectorAll('tr');
 
     let visibleCount = 0;
+    let lastParentVisible = true;
 
     rows.forEach(r => {
+      if (r.classList.contains('choice-subrow')) {
+        const forPc = r.dataset['forPc'];
+        const isExpanded = forPc !== undefined && this.expandedChoicePcs.has(Number(forPc));
+        if (lastParentVisible && isExpanded) {
+          r.classList.remove('hidden');
+        } else {
+          r.classList.add('hidden');
+        }
+        return;
+      }
+
       const pc = r.dataset['pc'] || '';
       const scene = r.dataset['scene'] || '';
       const opcode = r.dataset['opcode'] || '';
@@ -332,8 +446,10 @@ export class BytecodeInspector {
       if (matchesScene && matchesSearch) {
         r.classList.remove('hidden');
         visibleCount++;
+        lastParentVisible = true;
       } else {
         r.classList.add('hidden');
+        lastParentVisible = false;
       }
     });
 

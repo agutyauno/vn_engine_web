@@ -361,7 +361,7 @@ describe('BytecodeInspector Module', () => {
     inspector.updateCompiledProgram(sampleInstructions, sampleAst);
 
     const tbody = domRegistry['bytecode-tbody']!;
-    const rows = tbody.querySelectorAll('tr');
+    const rows = tbody.querySelectorAll('.bytecode-row');
     expect(rows.length).toBe(6);
 
     // Row 0: SCENE
@@ -452,7 +452,7 @@ describe('BytecodeInspector Module', () => {
 
     // Existing instructions still remain displayed
     const tbody = domRegistry['bytecode-tbody']!;
-    expect(tbody.querySelectorAll('tr').length).toBe(6);
+    expect(tbody.querySelectorAll('.bytecode-row').length).toBe(6);
 
     // Successful re-compile clears alert
     inspector.setOutOfDate(false);
@@ -551,5 +551,66 @@ describe('BytecodeInspector Module', () => {
     visibleRows = tbody.querySelectorAll('tr').filter(r => !r.classList.contains('hidden'));
     expect(visibleRows.length).toBe(1);
     expect(visibleRows[0].textContent).toContain('ASSIGN');
+  });
+
+  it('renders expandable sub-row for CHOICE instructions with detailed options and conditions', async () => {
+    const ctx = createMockContext();
+    const inspector = new BytecodeInspectorClass(ctx);
+
+    const programWithChoice: Instruction[] = [
+      {
+        type: 'CHOICE',
+        choices: [
+          { text: 'Option 1', action: 'goto', targetScene: 'scene_a' },
+          {
+            text: 'Locked Option 2',
+            action: 'call',
+            targetScene: 'scene_b',
+            condition: {
+              type: 'BinaryExpression',
+              operator: '>=',
+              left: { type: 'Identifier', name: 'counter' },
+              right: { type: 'Literal', value: 2 },
+            },
+          },
+        ],
+      },
+    ];
+
+    inspector.updateCompiledProgram(programWithChoice);
+    const tbody = domRegistry['bytecode-tbody']!;
+    const rows = tbody.querySelectorAll('tr');
+    expect(rows.length).toBe(2); // main CHOICE row + sub-row
+
+    const choiceRow = rows[0]!;
+    const subRow = rows[1]!;
+
+    expect(subRow.classList.contains('choice-subrow')).toBe(true);
+    expect(subRow.classList.contains('hidden')).toBe(true); // Collapsed by default
+
+    // Find expand button
+    const expandBtn = choiceRow.querySelector('.btn-toggle-choice-expand')!;
+    expect(expandBtn).toBeDefined();
+    expect(expandBtn.textContent).toContain('2 choices');
+
+    // Expand
+    await expandBtn.dispatchEvent({ type: 'click' });
+    expect(subRow.classList.contains('hidden')).toBe(false);
+
+    // Verify sub-row contents
+    expect(subRow.textContent).toContain('[0]');
+    expect(subRow.textContent).toContain('"Option 1"');
+    expect(subRow.textContent).toContain('goto');
+    expect(subRow.textContent).toContain('scene_a');
+
+    expect(subRow.textContent).toContain('[1]');
+    expect(subRow.textContent).toContain('"Locked Option 2"');
+    expect(subRow.textContent).toContain('if counter >= 2');
+    expect(subRow.textContent).toContain('call');
+    expect(subRow.textContent).toContain('scene_b');
+
+    // Collapse
+    await expandBtn.dispatchEvent({ type: 'click' });
+    expect(subRow.classList.contains('hidden')).toBe(true);
   });
 });
