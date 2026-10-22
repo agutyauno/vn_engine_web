@@ -8,8 +8,14 @@ import type { ProjectData } from '../playerContext';
 export class AssetResolver {
   private getProjectData: () => ProjectData;
 
+  private warnedMissingAssets: Set<string> = new Set();
+
   constructor(getProjectData: () => ProjectData) {
     this.getProjectData = getProjectData;
+  }
+
+  public resetWarnedAssets(): void {
+    this.warnedMissingAssets.clear();
   }
 
   public checkIsProp(characterId: string): boolean {
@@ -105,6 +111,14 @@ export class AssetResolver {
           }
         }
       }
+
+      if (assetKey && assetKey.trim().length > 0 && !this.warnedMissingAssets.has(assetKey)) {
+        this.warnedMissingAssets.add(assetKey);
+        console.warn(
+          `[Assets] Missing graphic asset: "${assetKey}". Check spelling in script or upload it in Assets tab.`,
+        );
+      }
+
       return undefined;
     };
   }
@@ -117,6 +131,12 @@ export class AssetResolver {
           a.name.toLowerCase() === assetKey.toLowerCase() ||
           a.id.toLowerCase() === assetKey.toLowerCase(),
       );
+      if (!found && assetKey && assetKey.trim().length > 0 && !this.warnedMissingAssets.has(assetKey)) {
+        this.warnedMissingAssets.add(assetKey);
+        console.warn(
+          `[Assets] Missing audio asset: "${assetKey}". Check Assets tab or script syntax.`,
+        );
+      }
       return found?.storageUrl || assetKey;
     };
   }

@@ -41,6 +41,29 @@ function installConsoleForwarder(): void {
         .map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a)))
         .join(' ');
 
+      // Lọc bỏ triệt để các log kỹ thuật nội bộ không có giá trị với người làm kịch bản
+      if (
+        message.includes('[RuntimePlayer] Initializing') ||
+        message.includes('[RuntimePlayer] Loading and compiling sample') ||
+        message.includes('[RuntimePlayer] Successfully compiled') ||
+        message.includes('[vite]') ||
+        message.includes('Download the React DevTools')
+      ) {
+        return;
+      }
+
+      // Đối với log INFO: chỉ giữ lại nếu xuất phát từ kịch bản hoặc lệnh in của tác giả
+      const isScriptOrStoryLog =
+        message.includes('[Script]') ||
+        message.includes('[Author]') ||
+        message.includes('[Print]') ||
+        message.includes('[Story]') ||
+        message.includes('[Game]');
+
+      if (level === 'info' && !isScriptOrStoryLog) {
+        return;
+      }
+
       let channel: 'player' | 'assets' = 'player';
       let source = 'Runtime';
 

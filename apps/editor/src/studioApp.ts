@@ -132,6 +132,7 @@ export class StudioApp implements StudioContext {
   private toastEl: HTMLElement;
   private varContainer: HTMLElement | null;
   private toastTimerId: number | null = null;
+  private hadCompileErrors: boolean = false;
 
   constructor(repository?: IProjectRepository) {
     this.compiler = new Compiler();
@@ -226,7 +227,7 @@ export class StudioApp implements StudioContext {
     this.setupHeaderActions();
 
     // 6. Biên dịch lần đầu
-    this.compileCurrentScript();
+    this.compileCurrentScript({ verbose: true });
   }
 
   // ================================================================
@@ -567,7 +568,7 @@ export class StudioApp implements StudioContext {
   // ================================================================
   // COMPILATION & AST METADATA PROCESSING
   // ================================================================
-  public compileCurrentScript(): void {
+  public compileCurrentScript(options?: { verbose?: boolean }): void {
     const editor = this.getEditorInstance();
     if (editor) {
       this.setFileContent(this.activeFile, editor.getValue());
@@ -601,11 +602,20 @@ export class StudioApp implements StudioContext {
         this.updateSidebarMetadata(result.ast);
       }
 
-      this.outputManager?.info(
-        'compiler',
-        `Compiled ${this.latestProgram.length} instructions successfully across ${scriptFiles.length} file(s).`,
-      );
+      if (options?.verbose) {
+        this.outputManager?.info(
+          'compiler',
+          `✓ Compiled script successfully (${this.latestProgram.length} instructions).`,
+        );
+      } else if (this.hadCompileErrors) {
+        this.outputManager?.info(
+          'compiler',
+          `✓ All compilation errors resolved (${this.latestProgram.length} instructions).`,
+        );
+      }
+      this.hadCompileErrors = false;
     } else {
+      this.hadCompileErrors = true;
       const errors = result.errors || [];
       this.bottomDrawer?.renderErrors(errors, currentModel ?? undefined);
       this.bytecodeInspector?.setOutOfDate(true, errors.length);
@@ -804,7 +814,8 @@ export class StudioApp implements StudioContext {
   public runFromStart(): void {
     this.flushEditorChanges();
     this.outputManager?.clear();
-    this.outputManager?.info('player', '--- [Live Preview Started from Beginning] ---');
+    this.compileCurrentScript({ verbose: true });
+    this.outputManager?.info('player', '▶ Preview started.');
     if (this.latestProgram) {
       this.previewBridge?.sendProgramToPreview(this.latestProgram);
       this.showToast('▶ Running script from start!');
@@ -852,7 +863,8 @@ export class StudioApp implements StudioContext {
 
     document.getElementById('btn-reload-preview')?.addEventListener('click', () => {
       this.outputManager?.clear();
-      this.outputManager?.info('player', '--- [Live Preview Reloaded] ---');
+      this.compileCurrentScript({ verbose: true });
+      this.outputManager?.info('player', '▶ Preview reloaded.');
       this.previewBridge?.reloadPreview();
     });
 
