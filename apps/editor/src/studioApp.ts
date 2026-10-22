@@ -35,6 +35,7 @@ import { PreviewBridge } from './modules/previewBridge';
 import { ExportWizard } from './modules/exportWizard';
 import { LayoutResizer } from './modules/layoutResizer';
 import { BytecodeInspector } from './modules/bytecodeInspector';
+import { OutputManager } from './modules/outputManager';
 
 const DEFAULT_STARTER_SCRIPT = `# ==============================================================
 # Welcome to Visual Novel Engine!
@@ -122,6 +123,7 @@ export class StudioApp implements StudioContext {
   public exportWizard!: ExportWizard;
   public layoutResizer!: LayoutResizer;
   public bytecodeInspector!: BytecodeInspector;
+  public outputManager!: OutputManager;
 
   // DOM Elements
   private projectTitleEl: HTMLElement;
@@ -155,8 +157,13 @@ export class StudioApp implements StudioContext {
     }
 
     // 3. Khởi tạo các module chuyên trách
+    this.outputManager = new OutputManager(this);
     this.bottomDrawer = new BottomDrawer(this);
     this.previewBridge = new PreviewBridge(this);
+
+    this.previewBridge.onLogEntry(log => {
+      this.outputManager?.appendLog(log);
+    });
 
     this.bottomDrawer.setOnVariableChange((name, value, scope) => {
       this.previewBridge?.setVariable(name, value, scope);
@@ -593,10 +600,20 @@ export class StudioApp implements StudioContext {
       if (result.ast) {
         this.updateSidebarMetadata(result.ast);
       }
+
+      this.outputManager?.info(
+        'compiler',
+        `Compiled ${this.latestProgram.length} instructions successfully across ${scriptFiles.length} file(s).`,
+      );
     } else {
       const errors = result.errors || [];
       this.bottomDrawer?.renderErrors(errors, currentModel ?? undefined);
       this.bytecodeInspector?.setOutOfDate(true, errors.length);
+
+      errors.forEach(err => {
+        const locStr = err.loc?.line ? ` [line ${err.loc.line}:${err.loc.col ?? 1}]` : '';
+        this.outputManager?.error('compiler', `Compile Error${locStr}: ${err.message}`);
+      });
     }
   }
 
@@ -786,6 +803,8 @@ export class StudioApp implements StudioContext {
   // ================================================================
   public runFromStart(): void {
     this.flushEditorChanges();
+    this.outputManager?.clear();
+    this.outputManager?.info('player', '--- [Live Preview Started from Beginning] ---');
     if (this.latestProgram) {
       this.previewBridge?.sendProgramToPreview(this.latestProgram);
       this.showToast('▶ Running script from start!');
@@ -832,6 +851,8 @@ export class StudioApp implements StudioContext {
     });
 
     document.getElementById('btn-reload-preview')?.addEventListener('click', () => {
+      this.outputManager?.clear();
+      this.outputManager?.info('player', '--- [Live Preview Reloaded] ---');
       this.previewBridge?.reloadPreview();
     });
 

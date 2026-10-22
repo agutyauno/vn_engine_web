@@ -77,6 +77,11 @@
                     title="Real-time variable values">
                     <span>Watch Variables</span>
                   </button>
+                  <button class="drawer-tab-btn" id="drawer-tab-output" data-drawer-tab="output"
+                    title="Console & Log Stream">
+                    <span>Output</span>
+                    <span id="output-error-badge" class="output-badge-count hidden">0</span>
+                  </button>
                 </div>
                 <div class="drawer-actions">
                   <button class="drawer-toggle-btn" id="drawer-toggle-btn" title="Collapse / Expand Drawer">▾</button>
@@ -120,6 +125,44 @@
                         </tr>
                       </tbody>
                     </table>
+                  </div>
+                </div>
+
+                <!-- PANE 3: OUTPUT (CONSOLE & LOG STREAM) -->
+                <div class="drawer-pane" id="drawer-pane-output">
+                  <div class="output-toolbar">
+                    <div class="output-toolbar-left">
+                      <select id="output-channel-filter" class="vars-scene-select" title="Filter by Channel">
+                        <option value="all">Channel: All</option>
+                        <option value="compiler">Channel: Compiler</option>
+                        <option value="player">Channel: Player Runtime</option>
+                        <option value="assets">Channel: Assets</option>
+                        <option value="export">Channel: Export</option>
+                      </select>
+                      <select id="output-level-filter" class="vars-scene-select" title="Filter by Log Level">
+                        <option value="all">Level: All</option>
+                        <option value="info">Level: INFO</option>
+                        <option value="warn">Level: WARN</option>
+                        <option value="error">Level: ERROR</option>
+                      </select>
+                      <input type="text" id="output-search-input" class="bytecode-search-input font-mono"
+                        placeholder="Search logs..." />
+                    </div>
+                    <div class="output-toolbar-right">
+                      <label class="output-checkbox-label" title="Auto-scroll terminal to bottom when new logs arrive">
+                        <input type="checkbox" id="toggle-autoscroll-output" checked />
+                        <span>Auto-scroll</span>
+                      </label>
+                      <button type="button" class="wf-btn-sm" id="btn-copy-output" title="Copy logs to clipboard">
+                        📋 Copy
+                      </button>
+                      <button type="button" class="wf-btn-sm" id="btn-clear-output" title="Clear console logs">
+                        ✕ Clear
+                      </button>
+                    </div>
+                  </div>
+                  <div class="output-terminal-wrapper">
+                    <div id="output-terminal-lines" class="output-terminal-lines font-mono"></div>
                   </div>
                 </div>
               </div>

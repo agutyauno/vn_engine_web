@@ -61,3 +61,22 @@ export interface SaveFileData {
   state: VMState;
   dialogueCounter: number;
 }
+
+export type LogChannel = 'all' | 'compiler' | 'player' | 'assets' | 'export';
+export type LogLevel = 'info' | 'warn' | 'error';
+
+export interface LogEntry {
+  id: string;
+  timestamp: number;
+  channel: LogChannel;
+  level: LogLevel;
+  message: string;
+  source?: string;
+  details?: unknown;
+}
+
+export interface PlayerLogMessage {
+  type: 'PLAYER_LOG';
+  log: LogEntry;
+}
+

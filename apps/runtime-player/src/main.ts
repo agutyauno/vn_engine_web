@@ -8,6 +8,8 @@ import { VNPlayer } from './player';
 import { GameStorage } from './storage';
 import scenarioSource from './scenario.vns?raw';
 
+let activeEditorOrigin = 'http://localhost:3001';
+
 function isAllowedEditorOrigin(origin: string): boolean {
   const envOrigin = import.meta.env.VITE_EDITOR_ORIGIN;
   const allowedOrigins = ['http://localhost:3001', 'http://127.0.0.1:3001', window.location.origin];
@@ -19,7 +21,82 @@ function isAllowedEditorOrigin(origin: string): boolean {
   return userContentRegex.test(origin);
 }
 
+function installConsoleForwarder(): void {
+  const originalLog = console.log.bind(console);
+  const originalInfo = console.info ? console.info.bind(console) : originalLog;
+  const originalWarn = console.warn.bind(console);
+  const originalError = console.error.bind(console);
+
+  let isForwarding = false;
+
+  const forward = (level: 'info' | 'warn' | 'error', ...args: unknown[]) => {
+    if (level === 'error') originalError(...args);
+    else if (level === 'warn') originalWarn(...args);
+    else originalInfo(...args);
+
+    if (isForwarding) return;
+    isForwarding = true;
+    try {
+      const message = args
+        .map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a)))
+        .join(' ');
+
+      let channel: 'player' | 'assets' = 'player';
+      let source = 'Runtime';
+
+      if (message.includes('[Renderer]')) {
+        channel = 'player';
+        source = 'Renderer';
+      } else if (message.includes('[AudioManager]')) {
+        channel = 'player';
+        source = 'Audio';
+      } else if (message.includes('[VN Engine') || message.includes('Virtual Machine')) {
+        channel = 'player';
+        source = 'Core VM';
+      } else if (
+        message.includes('[AssetResolver]') ||
+        message.toLowerCase().includes('missing asset') ||
+        message.toLowerCase().includes('failed to load') ||
+        message.toLowerCase().includes('texture') ||
+        message.toLowerCase().includes('audio asset')
+      ) {
+        channel = 'assets';
+        source = 'Assets';
+      }
+
+      const logPayload = {
+        type: 'PLAYER_LOG',
+        log: {
+          id: `plog_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+          timestamp: Date.now(),
+          channel,
+          level,
+          message,
+          source,
+        },
+      };
+
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage(logPayload, activeEditorOrigin);
+      }
+      if (window.opener) {
+        window.opener.postMessage(logPayload, activeEditorOrigin);
+      }
+    } catch {
+      // ignore
+    } finally {
+      isForwarding = false;
+    }
+  };
+
+  console.log = (...args: unknown[]) => forward('info', ...args);
+  console.info = (...args: unknown[]) => forward('info', ...args);
+  console.warn = (...args: unknown[]) => forward('warn', ...args);
+  console.error = (...args: unknown[]) => forward('error', ...args);
+}
+
 window.addEventListener('DOMContentLoaded', async () => {
+  installConsoleForwarder();
   // Kiểm tra nếu đang nhúng trong iframe hoặc mở Pop-out (Web Studio Live Preview)
   const urlParams = new URLSearchParams(window.location.search);
   const isPopout = urlParams.get('popout') === 'true' || window.name === 'VN_Preview_Popout';
@@ -113,6 +190,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  activeEditorOrigin = targetOrigin;
   player.setEditorOrigin(targetOrigin);
 
   if (isEmbedded) {
@@ -128,6 +206,7 @@ window.addEventListener('message', async (event: MessageEvent) => {
   if (!isAllowedEditorOrigin(event.origin)) {
     return;
   }
+  activeEditorOrigin = event.origin;
 
   const player = (window as unknown as { vnPlayer?: VNPlayer }).vnPlayer;
   if (player) {

@@ -1505,6 +1505,173 @@ html {
 }
 
 /* ================================================================
+   TAB OUTPUT (CONSOLE & LOG STREAM) (#drawer-pane-output)
+   ================================================================ */
+.output-badge-count {
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 10px;
+  margin-left: 5px;
+  line-height: 1.1;
+  display: inline-block;
+}
+
+.output-badge-count.hidden {
+  display: none;
+}
+
+#drawer-pane-output {
+  display: none;
+  flex-direction: column;
+  height: 100%;
+  padding: 0;
+  overflow: hidden;
+}
+
+#drawer-pane-output.active {
+  display: flex;
+}
+
+.output-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  background: #101014;
+  border-bottom: 1px solid var(--studio-border);
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.output-toolbar-left,
+.output-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.output-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--studio-text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.output-terminal-wrapper {
+  flex: 1;
+  overflow-y: auto;
+  background: #090a0f;
+  padding: 8px 10px;
+}
+
+.output-terminal-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-family: var(--vn-font-mono);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+.log-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  word-break: break-word;
+  white-space: pre-wrap;
+  padding: 1px 4px;
+  border-radius: 2px;
+  transition: background-color 0.1s ease;
+}
+
+.log-line:hover {
+  background-color: rgba(255, 255, 255, 0.04);
+}
+
+.log-line.hidden {
+  display: none;
+}
+
+.log-time {
+  color: #64748b;
+  font-size: 10.5px;
+  flex-shrink: 0;
+}
+
+.log-channel-tag {
+  font-size: 10px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.log-channel-tag.tag-compiler {
+  color: #38bdf8;
+}
+
+.log-channel-tag.tag-player {
+  color: #a855f7;
+}
+
+.log-channel-tag.tag-assets {
+  color: #fb923c;
+}
+
+.log-channel-tag.tag-export {
+  color: #34d399;
+}
+
+.log-level-pill {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.log-level-pill.level-info {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+.log-level-pill.level-warn {
+  background: rgba(234, 179, 8, 0.15);
+  color: #facc15;
+  border: 1px solid rgba(234, 179, 8, 0.3);
+}
+
+.log-level-pill.level-error {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.log-message {
+  flex: 1;
+  color: #e2e8f0;
+}
+
+.log-line.log-warn .log-message {
+  color: #fef08a;
+}
+
+.log-line.log-error {
+  background-color: rgba(239, 68, 68, 0.06);
+}
+
+.log-line.log-error .log-message {
+  color: #fca5a5;
+  font-weight: 600;
+}
+
+/* ================================================================
    BYTECODE & AST INSPECTOR STYLES (#pane-bytecode)
    ================================================================ */
 #pane-bytecode {

@@ -3,7 +3,7 @@
 // Giao tiếp hai chiều với Sandbox Live Preview Iframe & Pop-out Window
 // ================================================================
 
-import type { Instruction } from '@vn-engine/shared-types';
+import type { Instruction, LogEntry } from '@vn-engine/shared-types';
 import type { StudioContext } from './editorTypes';
 
 /**
@@ -71,6 +71,7 @@ export class PreviewBridge {
   private previewStatusBadge: HTMLElement | null;
   private popoutWindow: Window | null = null;
   private onStateUpdateCallbacks: Array<(state: PreviewStateUpdateMessage) => void> = [];
+  private onLogEntryCallbacks: Array<(log: LogEntry) => void> = [];
 
   constructor(context: StudioContext) {
     this.context = context;
@@ -119,6 +120,17 @@ export class PreviewBridge {
           }
         }
       }
+
+      if (event.data?.type === 'PLAYER_LOG' && event.data.log) {
+        const log = event.data.log as LogEntry;
+        for (const cb of this.onLogEntryCallbacks) {
+          try {
+            cb(log);
+          } catch (err) {
+            console.error('[PreviewBridge] Error in onLogEntry callback:', err);
+          }
+        }
+      }
     });
   }
 
@@ -129,6 +141,16 @@ export class PreviewBridge {
     this.onStateUpdateCallbacks.push(cb);
     return () => {
       this.onStateUpdateCallbacks = this.onStateUpdateCallbacks.filter(c => c !== cb);
+    };
+  }
+
+  /**
+   * Đăng ký callback lắng nghe log runtime từ Live Preview (Output Tab)
+   */
+  public onLogEntry(cb: (log: LogEntry) => void): () => void {
+    this.onLogEntryCallbacks.push(cb);
+    return () => {
+      this.onLogEntryCallbacks = this.onLogEntryCallbacks.filter(c => c !== cb);
     };
   }
 
