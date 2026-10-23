@@ -36,6 +36,6 @@ export interface PlayerContext {
   applySideEffect(instr: Instruction): Promise<void>;
 
   getAssetGraphicResolver(): (assetKey: string) => string | undefined;
-  getAssetAudioResolver(): (assetKey: string) => string;
+  getAssetAudioResolver(): (assetKey: string) => string | undefined;
   checkIsProp(characterId: string): boolean;
 }

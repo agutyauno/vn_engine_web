@@ -123,7 +123,7 @@ export class AssetResolver {
     };
   }
 
-  public getAssetAudioResolver(): (assetKey: string) => string {
+  public getAssetAudioResolver(): (assetKey: string) => string | undefined {
     return (assetKey: string) => {
       const projectData = this.getProjectData();
       const found = projectData.assets?.find(
@@ -131,13 +131,31 @@ export class AssetResolver {
           a.name.toLowerCase() === assetKey.toLowerCase() ||
           a.id.toLowerCase() === assetKey.toLowerCase(),
       );
+      if (found?.storageUrl) {
+        return found.storageUrl;
+      }
+
+      // Hỗ trợ nếu assetKey tự nó là một URL hoặc đường dẫn file âm thanh hợp lệ
+      if (
+        assetKey &&
+        (assetKey.startsWith('http://') ||
+          assetKey.startsWith('https://') ||
+          assetKey.startsWith('data:audio/') ||
+          assetKey.startsWith('blob:') ||
+          assetKey.startsWith('/') ||
+          assetKey.startsWith('./') ||
+          /\.(mp3|ogg|wav|m4a|aac|flac|webm)(\?.*)?$/i.test(assetKey))
+      ) {
+        return assetKey;
+      }
+
       if (!found && assetKey && assetKey.trim().length > 0 && !this.warnedMissingAssets.has(assetKey)) {
         this.warnedMissingAssets.add(assetKey);
         console.warn(
           `[Assets] Missing audio asset: "${assetKey}". Check Assets tab or script syntax.`,
         );
       }
-      return found?.storageUrl || assetKey;
+      return undefined;
     };
   }
 }

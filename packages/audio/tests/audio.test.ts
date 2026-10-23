@@ -173,4 +173,14 @@ describe('@vn-engine/audio - AudioManager (Open Channel Registry)', () => {
     const soundState = states.find(s => s.name === 'sound');
     expect(soundState?.isPlaying).toBe(false); // SFX cũ đã dừng
   });
+
+  it('bỏ qua và không khởi tạo Howl nếu URL rỗng hoặc không hợp lệ', () => {
+    // Chơi với URL rỗng
+    audio.play('music', 'missing_asset', '');
+    expect(audio.getChannelsState()).toHaveLength(0);
+
+    // Chơi với URL chỉ chứa khoảng trắng
+    audio.play('sound', 'missing_sfx', '   ');
+    expect(audio.getChannelsState()).toHaveLength(0);
+  });
 });

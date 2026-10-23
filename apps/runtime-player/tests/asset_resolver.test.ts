@@ -98,10 +98,10 @@ describe('AssetResolver Unit Tests', () => {
     expect(res2).toBeUndefined();
     expect(warnSpy).not.toHaveBeenCalled();
 
-    // Unknown audio
+    // Unknown audio without extension or URL prefix returns undefined (prevents Howler extension warning)
     warnSpy.mockClear();
     const audioRes = audioResolver('missing_sfx_explosion');
-    expect(audioRes).toBe('missing_sfx_explosion');
+    expect(audioRes).toBeUndefined();
     expect(warnSpy).toHaveBeenCalledWith(
       expect.stringContaining('[Assets] Missing audio asset: "missing_sfx_explosion"'),
     );
@@ -110,6 +110,10 @@ describe('AssetResolver Unit Tests', () => {
     warnSpy.mockClear();
     audioResolver('missing_sfx_explosion');
     expect(warnSpy).not.toHaveBeenCalled();
+
+    // Direct valid audio URL should still resolve directly
+    expect(audioResolver('https://example.com/custom_music.mp3')).toBe('https://example.com/custom_music.mp3');
+    expect(audioResolver('/audio/ambient.ogg')).toBe('/audio/ambient.ogg');
 
     warnSpy.mockRestore();
   });

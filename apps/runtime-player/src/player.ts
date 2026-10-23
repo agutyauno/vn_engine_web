@@ -219,7 +219,7 @@ export class VNPlayer implements PlayerContext {
     return this.assetResolver.getAssetGraphicResolver();
   }
 
-  public getAssetAudioResolver(): (assetKey: string) => string {
+  public getAssetAudioResolver(): (assetKey: string) => string | undefined {
     return this.assetResolver.getAssetAudioResolver();
   }
 
@@ -443,11 +443,14 @@ export class VNPlayer implements PlayerContext {
       this.inspectModal.hide();
     } else if (instr.type === 'PLAY') {
       const audioResolver = this.getAssetAudioResolver();
-      this.audio.play(instr.channel, instr.assetId, audioResolver(instr.assetId), {
-        volume: instr.volume,
-        loop: instr.loop,
-        fadeIn: instr.fadeIn,
-      });
+      const resolvedUrl = audioResolver(instr.assetId);
+      if (resolvedUrl) {
+        this.audio.play(instr.channel, instr.assetId, resolvedUrl, {
+          volume: instr.volume,
+          loop: instr.loop,
+          fadeIn: instr.fadeIn,
+        });
+      }
     } else if (instr.type === 'STOP') {
       this.audio.stop(instr.channel, { fadeOut: instr.fadeOut });
     }
