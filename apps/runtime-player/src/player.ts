@@ -17,6 +17,7 @@ import { GameStorage, type SaveSlotData } from './storage';
 
 import type { PlayerContext, BacklogEntry, ProjectData } from './playerContext';
 import { AssetResolver } from './controllers/assetResolver';
+import { DiagnosticBus } from './services/diagnosticBus';
 import { PlaybackController } from './controllers/playbackController';
 import { SaveLoadController } from './controllers/saveLoadController';
 import { DialogueView, CHAR_COLOR_MAP } from './ui/dialogueView';
@@ -42,6 +43,7 @@ export class VNPlayer implements PlayerContext {
   private projectData: ProjectData = {};
 
   // Submodules
+  public diagnosticBus: DiagnosticBus;
   public assetResolver: AssetResolver;
   public dialogueView: DialogueView;
   public choiceOverlay: ChoiceOverlay;
@@ -64,9 +66,14 @@ export class VNPlayer implements PlayerContext {
   private lastBroadcastTime: number = 0;
   private static readonly THROTTLE_MS = 60; // 50-100ms throttle (ADR-024 / note.md)
 
-  constructor(program: Instruction[], options?: { isStandby?: boolean }) {
+  constructor(
+    program: Instruction[],
+    options?: { isStandby?: boolean; diagnosticBus?: DiagnosticBus; editorOrigin?: string },
+  ) {
     this.initialProgram = program;
     this.isStandby = options?.isStandby ?? false;
+    this.diagnosticBus =
+      options?.diagnosticBus ?? new DiagnosticBus({ editorOrigin: options?.editorOrigin });
 
     if (typeof window !== 'undefined' && window.location?.search) {
       const urlParams = new URLSearchParams(window.location.search);
@@ -108,7 +115,7 @@ export class VNPlayer implements PlayerContext {
     }
 
     // Khởi tạo các module con
-    this.assetResolver = new AssetResolver(() => this.projectData);
+    this.assetResolver = new AssetResolver(() => this.projectData, this.diagnosticBus);
     this.dialogueView = new DialogueView();
     this.choiceOverlay = new ChoiceOverlay();
     this.inspectModal = new InspectModal();
@@ -175,6 +182,10 @@ export class VNPlayer implements PlayerContext {
 
   public getRenderer(): GameRenderer {
     return this.renderer;
+  }
+
+  public getDiagnosticBus(): DiagnosticBus {
+    return this.diagnosticBus;
   }
 
   public getAudio(): AudioManager {
@@ -722,6 +733,7 @@ export class VNPlayer implements PlayerContext {
 
   public setEditorOrigin(origin: string): void {
     this.editorOrigin = origin;
+    this.diagnosticBus.setEditorOrigin(origin);
   }
 
   /**
@@ -925,8 +937,14 @@ export class VNPlayer implements PlayerContext {
   }
 
   private handleRuntimeError(err: unknown): void {
-    console.error('[RuntimePlayer] Virtual Machine Runtime Error:', err);
     const msg = err instanceof Error ? err.message : String(err);
+    this.diagnosticBus.report({
+      category: 'runtime',
+      severity: 'error',
+      message: `Virtual Machine Runtime Error: ${msg}`,
+      code: 'ERR_VM_RUNTIME',
+      details: err,
+    });
     this.showToast(`VM Error: ${msg}`);
   }
 
@@ -939,13 +957,19 @@ export class VNPlayer implements PlayerContext {
     },
   ): Promise<void> {
     if (!isValidProgram(program)) {
-      console.error('[VNPlayer] reloadProgram rejected invalid bytecode program structure.');
+      this.diagnosticBus.report({
+        category: 'runtime',
+        severity: 'error',
+        message: 'reloadProgram rejected invalid bytecode program structure.',
+        code: 'ERR_INVALID_PROGRAM',
+      });
       return;
     }
 
     this.initialProgram = program;
     this.isStandby = false;
     this.standbyScreen?.classList.add('hidden');
+    this.diagnosticBus.clear();
 
     if (this.projectData.id) {
       this.seenDialogues = GameStorage.getSeenDialogues(this.projectData.id);
@@ -998,7 +1022,13 @@ export class VNPlayer implements PlayerContext {
         this.vm.jumpToScene(options.targetScene);
         jumped = true;
       } catch (e) {
-        console.warn(`[RuntimePlayer] Cannot jump to scene "${options.targetScene}":`, e);
+        this.diagnosticBus.report({
+          category: 'runtime',
+          severity: 'error',
+          message: `Cannot jump to scene "${options.targetScene}": ${e instanceof Error ? e.message : String(e)}`,
+          code: 'ERR_SCENE_NOT_FOUND',
+          details: e,
+        });
       }
     }
 

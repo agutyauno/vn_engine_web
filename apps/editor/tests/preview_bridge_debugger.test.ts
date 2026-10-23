@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, beforeAll, vi } from 'vitest';
 import type { PreviewStateUpdateMessage } from '../src/modules/previewBridge';
 import type { VariableMeta } from '../src/modules/bottomDrawer';
 import type { StudioContext } from '../src/modules/editorTypes';
-import type { Project } from '@vn-engine/shared-types';
+import type { Project, EngineDiagnostic } from '@vn-engine/shared-types';
 
 class MockClassList {
   public classes: Set<string> = new Set();
@@ -334,6 +334,122 @@ describe('PreviewBridge & BottomDrawer Live Debugger Suite (ADR-024)', () => {
     const res = receivedUpdate as unknown as PreviewStateUpdateMessage;
     expect(res.variables['score']).toBe(100);
     expect(res.currentScene).toBe('chapter_one');
+  });
+
+  it('PreviewBridge triggers onDiagnostic upon receiving ENGINE_DIAGNOSTIC from allowed origin', () => {
+    const ctx = createMockContext();
+    const bridge = new PreviewBridgeClass(ctx);
+
+    let receivedDiag: EngineDiagnostic | null = null;
+    bridge.onDiagnostic((diag: EngineDiagnostic) => {
+      receivedDiag = diag;
+    });
+
+    const fakeEvent = {
+      origin: 'http://localhost:3000',
+      data: {
+        type: 'ENGINE_DIAGNOSTIC',
+        diagnostic: {
+          id: 'diag_123',
+          timestamp: Date.now(),
+          category: 'asset',
+          severity: 'warning',
+          code: 'ERR_ASSET_NOT_FOUND',
+          assetKey: 'bg_room',
+          message: 'Background asset not found: "bg_room"',
+        },
+      },
+    };
+
+    windowMessageListeners.forEach(fn => fn(fakeEvent));
+
+    expect(receivedDiag).not.toBeNull();
+    expect((receivedDiag as unknown as EngineDiagnostic)?.category).toBe('asset');
+    expect((receivedDiag as unknown as EngineDiagnostic)?.assetKey).toBe('bg_room');
+    expect((receivedDiag as unknown as EngineDiagnostic)?.code).toBe('ERR_ASSET_NOT_FOUND');
+  });
+
+  it('PreviewBridge ignores ENGINE_DIAGNOSTIC from untrusted origin', () => {
+    const ctx = createMockContext();
+    const bridge = new PreviewBridgeClass(ctx);
+
+    let receivedDiag: EngineDiagnostic | null = null;
+    bridge.onDiagnostic((diag: EngineDiagnostic) => {
+      receivedDiag = diag;
+    });
+
+    const fakeEvent = {
+      origin: 'http://malicious-site.com',
+      data: {
+        type: 'ENGINE_DIAGNOSTIC',
+        diagnostic: {
+          id: 'diag_evil',
+          timestamp: Date.now(),
+          category: 'runtime',
+          severity: 'error',
+          message: 'Hacked',
+        },
+      },
+    };
+
+    windowMessageListeners.forEach(fn => fn(fakeEvent));
+    expect(receivedDiag).toBeNull();
+  });
+
+  it('PreviewBridge unsubscribes onDiagnostic when calling returned unregister function', () => {
+    const ctx = createMockContext();
+    const bridge = new PreviewBridgeClass(ctx);
+
+    let callCount = 0;
+    const unsubscribe = bridge.onDiagnostic(() => {
+      callCount++;
+    });
+
+    const fakeEvent = {
+      origin: 'http://localhost:3000',
+      data: {
+        type: 'ENGINE_DIAGNOSTIC',
+        diagnostic: {
+          id: 'diag_1',
+          timestamp: Date.now(),
+          category: 'runtime',
+          severity: 'error',
+          message: 'Error 1',
+        },
+      },
+    };
+
+    windowMessageListeners.forEach(fn => fn(fakeEvent));
+    expect(callCount).toBe(1);
+
+    unsubscribe();
+    windowMessageListeners.forEach(fn => fn(fakeEvent));
+    expect(callCount).toBe(1);
+  });
+
+  it('PreviewBridge triggers onDiagnosticsClear upon receiving DIAGNOSTICS_CLEAR from allowed origin', () => {
+    const ctx = createMockContext();
+    const bridge = new PreviewBridgeClass(ctx);
+
+    let cleared = false;
+    const unsubscribe = bridge.onDiagnosticsClear(() => {
+      cleared = true;
+    });
+
+    const fakeEvent = {
+      origin: 'http://localhost:3000',
+      data: {
+        type: 'DIAGNOSTICS_CLEAR',
+      },
+    };
+
+    windowMessageListeners.forEach(fn => fn(fakeEvent));
+    expect(cleared).toBe(true);
+
+    cleared = false;
+    unsubscribe();
+    windowMessageListeners.forEach(fn => fn(fakeEvent));
+    expect(cleared).toBe(false);
   });
 
   it('BottomDrawer renders live variables and triggers onVariableChange upon inline edit', () => {

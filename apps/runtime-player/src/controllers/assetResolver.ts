@@ -4,14 +4,17 @@
 // ================================================================
 
 import type { ProjectData } from '../playerContext';
+import type { DiagnosticBus } from '../services/diagnosticBus';
 
 export class AssetResolver {
   private getProjectData: () => ProjectData;
+  private diagnosticBus?: DiagnosticBus;
 
   private warnedMissingAssets: Set<string> = new Set();
 
-  constructor(getProjectData: () => ProjectData) {
+  constructor(getProjectData: () => ProjectData, diagnosticBus?: DiagnosticBus) {
     this.getProjectData = getProjectData;
+    this.diagnosticBus = diagnosticBus;
   }
 
   public resetWarnedAssets(): void {
@@ -112,11 +115,21 @@ export class AssetResolver {
         }
       }
 
-      if (assetKey && assetKey.trim().length > 0 && !this.warnedMissingAssets.has(assetKey)) {
-        this.warnedMissingAssets.add(assetKey);
-        console.warn(
-          `[Assets] Missing graphic asset: "${assetKey}". Check spelling in script or upload it in Assets tab.`,
-        );
+      if (assetKey && assetKey.trim().length > 0) {
+        if (this.diagnosticBus) {
+          this.diagnosticBus.report({
+            category: 'asset',
+            severity: 'warning',
+            message: `Missing graphic asset: "${assetKey}". Check spelling in script or upload it in Assets tab.`,
+            code: 'ERR_MISSING_GRAPHIC',
+            assetKey,
+          });
+        } else if (!this.warnedMissingAssets.has(assetKey)) {
+          this.warnedMissingAssets.add(assetKey);
+          console.warn(
+            `[Assets] Missing graphic asset: "${assetKey}". Check spelling in script or upload it in Assets tab.`,
+          );
+        }
       }
 
       return undefined;
@@ -149,11 +162,21 @@ export class AssetResolver {
         return assetKey;
       }
 
-      if (!found && assetKey && assetKey.trim().length > 0 && !this.warnedMissingAssets.has(assetKey)) {
-        this.warnedMissingAssets.add(assetKey);
-        console.warn(
-          `[Assets] Missing audio asset: "${assetKey}". Check Assets tab or script syntax.`,
-        );
+      if (!found && assetKey && assetKey.trim().length > 0) {
+        if (this.diagnosticBus) {
+          this.diagnosticBus.report({
+            category: 'asset',
+            severity: 'warning',
+            message: `Missing audio asset: "${assetKey}". Check Assets tab or script syntax.`,
+            code: 'ERR_MISSING_AUDIO',
+            assetKey,
+          });
+        } else if (!this.warnedMissingAssets.has(assetKey)) {
+          this.warnedMissingAssets.add(assetKey);
+          console.warn(
+            `[Assets] Missing audio asset: "${assetKey}". Check Assets tab or script syntax.`,
+          );
+        }
       }
       return undefined;
     };

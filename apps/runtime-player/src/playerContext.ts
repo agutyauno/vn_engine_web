@@ -6,6 +6,7 @@ import type { VisualNovelVM } from '@vn-engine/core-vm';
 import type { GameRenderer } from '@vn-engine/renderer';
 import type { AudioManager } from '@vn-engine/audio';
 import type { Character, AssetRef, Instruction } from '@vn-engine/shared-types';
+import type { DiagnosticBus } from './services/diagnosticBus';
 
 export interface BacklogEntry {
   speaker: string | null;
@@ -22,6 +23,7 @@ export interface PlayerContext {
   getVM(): VisualNovelVM;
   getRenderer(): GameRenderer;
   getAudio(): AudioManager;
+  getDiagnosticBus(): DiagnosticBus;
   getProjectData(): ProjectData;
   getBacklog(): BacklogEntry[];
   addToBacklog(entry: BacklogEntry): void;
@@ -39,3 +41,4 @@ export interface PlayerContext {
   getAssetAudioResolver(): (assetKey: string) => string | undefined;
   checkIsProp(characterId: string): boolean;
 }
+

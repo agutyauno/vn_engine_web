@@ -3,7 +3,11 @@
 // Giao tiếp hai chiều với Sandbox Live Preview Iframe & Pop-out Window
 // ================================================================
 
-import type { Instruction, LogEntry } from '@vn-engine/shared-types';
+import type {
+  Instruction,
+  LogEntry,
+  EngineDiagnostic,
+} from '@vn-engine/shared-types';
 import type { StudioContext } from './editorTypes';
 
 /**
@@ -72,6 +76,8 @@ export class PreviewBridge {
   private popoutWindow: Window | null = null;
   private onStateUpdateCallbacks: Array<(state: PreviewStateUpdateMessage) => void> = [];
   private onLogEntryCallbacks: Array<(log: LogEntry) => void> = [];
+  private onDiagnosticCallbacks: Array<(diag: EngineDiagnostic) => void> = [];
+  private onDiagnosticsClearCallbacks: Array<() => void> = [];
 
   constructor(context: StudioContext) {
     this.context = context;
@@ -121,6 +127,27 @@ export class PreviewBridge {
         }
       }
 
+      if (event.data?.type === 'ENGINE_DIAGNOSTIC' && event.data.diagnostic) {
+        const diag = event.data.diagnostic as EngineDiagnostic;
+        for (const cb of this.onDiagnosticCallbacks) {
+          try {
+            cb(diag);
+          } catch (err) {
+            console.error('[PreviewBridge] Error in onDiagnostic callback:', err);
+          }
+        }
+      }
+
+      if (event.data?.type === 'DIAGNOSTICS_CLEAR') {
+        for (const cb of this.onDiagnosticsClearCallbacks) {
+          try {
+            cb();
+          } catch (err) {
+            console.error('[PreviewBridge] Error in onDiagnosticsClear callback:', err);
+          }
+        }
+      }
+
       if (event.data?.type === 'PLAYER_LOG' && event.data.log) {
         const log = event.data.log as LogEntry;
         for (const cb of this.onLogEntryCallbacks) {
@@ -145,7 +172,27 @@ export class PreviewBridge {
   }
 
   /**
-   * Đăng ký callback lắng nghe log runtime từ Live Preview (Output Tab)
+   * Đăng ký callback lắng nghe chẩn đoán chuyên trách có cấu trúc từ Engine (ADR-025)
+   */
+  public onDiagnostic(cb: (diag: EngineDiagnostic) => void): () => void {
+    this.onDiagnosticCallbacks.push(cb);
+    return () => {
+      this.onDiagnosticCallbacks = this.onDiagnosticCallbacks.filter(c => c !== cb);
+    };
+  }
+
+  /**
+   * Đăng ký callback lắng nghe sự kiện xóa sạch chẩn đoán phiên cũ khi reload
+   */
+  public onDiagnosticsClear(cb: () => void): () => void {
+    this.onDiagnosticsClearCallbacks.push(cb);
+    return () => {
+      this.onDiagnosticsClearCallbacks = this.onDiagnosticsClearCallbacks.filter(c => c !== cb);
+    };
+  }
+
+  /**
+   * Đăng ký callback lắng nghe log runtime từ Live Preview (Legacy fallback)
    */
   public onLogEntry(cb: (log: LogEntry) => void): () => void {
     this.onLogEntryCallbacks.push(cb);

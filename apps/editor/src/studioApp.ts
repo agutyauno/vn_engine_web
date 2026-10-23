@@ -156,18 +156,20 @@ export class StudioApp implements StudioContext {
     this.bottomDrawer = new BottomDrawer(this);
     this.previewBridge = new PreviewBridge(this);
 
-    this.previewBridge.onLogEntry(log => {
-      // Tích hợp cảnh báo và lỗi từ Live Preview vào tab Problems thống nhất
-      if (log.level === 'warn' || log.level === 'error' || log.channel === 'assets') {
-        const category: 'asset' | 'runtime' = log.channel === 'assets' ? 'asset' : 'runtime';
-        const severity: 'warning' | 'error' = log.level === 'error' ? 'error' : 'warning';
-        this.bottomDrawer?.addRuntimeDiagnostic({
-          category,
-          severity,
-          message: log.message,
-          assetKey: (log.details as { assetKey?: string })?.assetKey,
-        });
-      }
+    this.previewBridge.onDiagnostic(diag => {
+      this.bottomDrawer?.addRuntimeDiagnostic({
+        category: diag.category === 'asset' ? 'asset' : 'runtime',
+        severity: diag.severity === 'error' ? 'error' : 'warning',
+        message: diag.message,
+        assetKey: diag.assetKey,
+        fileId: diag.fileId,
+        line: diag.line,
+        col: diag.col,
+      });
+    });
+
+    this.previewBridge.onDiagnosticsClear(() => {
+      this.bottomDrawer?.clearRuntimeDiagnostics();
     });
 
     this.bottomDrawer.setOnVariableChange((name, value, scope) => {

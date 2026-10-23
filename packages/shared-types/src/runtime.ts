@@ -80,3 +80,30 @@ export interface PlayerLogMessage {
   log: LogEntry;
 }
 
+export type DiagnosticCategory = 'compiler' | 'asset' | 'runtime' | 'storage';
+export type DiagnosticSeverity = 'error' | 'warning' | 'info';
+
+export interface EngineDiagnostic {
+  id: string;
+  timestamp: number;
+  category: DiagnosticCategory;
+  severity: DiagnosticSeverity;
+  message: string;
+  code?: string;
+  assetKey?: string;
+  fileId?: string;
+  line?: number;
+  col?: number;
+  details?: unknown;
+}
+
+export interface EngineDiagnosticMessage {
+  type: 'ENGINE_DIAGNOSTIC';
+  diagnostic: EngineDiagnostic;
+}
+
+export interface DiagnosticsClearMessage {
+  type: 'DIAGNOSTICS_CLEAR';
+}
+
+
