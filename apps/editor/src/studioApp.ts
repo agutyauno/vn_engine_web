@@ -813,7 +813,6 @@ export class StudioApp implements StudioContext {
   // ================================================================
   public runFromStart(): void {
     this.flushEditorChanges();
-    this.outputManager?.clear();
     this.compileCurrentScript({ verbose: true });
     this.outputManager?.info('player', '▶ Preview started.');
     if (this.latestProgram) {
@@ -862,7 +861,6 @@ export class StudioApp implements StudioContext {
     });
 
     document.getElementById('btn-reload-preview')?.addEventListener('click', () => {
-      this.outputManager?.clear();
       this.compileCurrentScript({ verbose: true });
       this.outputManager?.info('player', '▶ Preview reloaded.');
       this.previewBridge?.reloadPreview();

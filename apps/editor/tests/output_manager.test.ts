@@ -412,4 +412,30 @@ describe('OutputManager Module', () => {
     expect(copiedText).toContain('[PLAYER]');
     expect(copiedText).toContain('Volume low');
   });
+
+  it('preserves existing logs across consecutive script compilation/preview events without auto-clearing', () => {
+    const ctx = createMockContext();
+    const manager = new OutputManagerClass(ctx);
+
+    // Initial compile
+    manager.info('compiler', '✓ Compiled script successfully (25 instructions).');
+    manager.info('player', '▶ Preview started.');
+
+    // Runtime events
+    manager.warn('assets', 'Missing graphic asset: "test_bg".');
+
+    // Second compile/reload event
+    manager.info('compiler', '✓ Compiled script successfully (28 instructions).');
+    manager.info('player', '▶ Preview reloaded.');
+
+    const logs = manager.getLogs();
+    expect(logs.length).toBe(5);
+    expect(logs[0].message).toContain('(25 instructions)');
+    expect(logs[2].message).toContain('Missing graphic asset: "test_bg"');
+    expect(logs[4].message).toContain('▶ Preview reloaded.');
+
+    // Only explicit clear clears it
+    manager.clear();
+    expect(manager.getLogs().length).toBe(0);
+  });
 });
