@@ -1357,27 +1357,91 @@ html {
 }
 
 .problem-row {
-  color: #ef4444;
   padding: 5px 8px;
   cursor: pointer;
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 8px;
-  border-radius: 2px;
-  transition: background-color 0.15s;
+  border-radius: 3px;
+  transition: background-color 0.15s, border-color 0.15s;
+  border-left: 2px solid transparent;
 }
 
-.problem-row:hover {
+.problem-row.problem-compiler {
+  color: #f87171;
+  border-left-color: #ef4444;
+}
+
+.problem-row.problem-compiler:hover {
   background-color: rgba(239, 68, 68, 0.12);
-  text-decoration: underline;
 }
 
+.problem-row.problem-asset {
+  color: #fbbf24;
+  border-left-color: #f59e0b;
+}
+
+.problem-row.problem-asset:hover {
+  background-color: rgba(245, 158, 11, 0.12);
+}
+
+.problem-row.problem-runtime {
+  color: #c084fc;
+  border-left-color: #a855f7;
+}
+
+.problem-row.problem-runtime:hover {
+  background-color: rgba(168, 85, 247, 0.12);
+}
+
+.diag-badge {
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  line-height: 1.3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.diag-badge-compiler {
+  background-color: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.5);
+}
+
+.diag-badge-asset {
+  background-color: rgba(245, 158, 11, 0.2);
+  color: #fde68a;
+  border: 1px solid rgba(245, 158, 11, 0.5);
+}
+
+.diag-badge-runtime {
+  background-color: rgba(168, 85, 247, 0.2);
+  color: #e9d5ff;
+  border: 1px solid rgba(168, 85, 247, 0.5);
+}
+
+.problem-text {
+  flex: 1;
+  font-family: var(--vn-font-mono);
+  font-size: 11px;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.problems-empty-state,
 .no-problem-message {
   color: #22c55e;
   font-size: 11px;
   display: flex;
   align-items: center;
   gap: 6px;
+  padding: 6px 4px;
 }
 
 .vars-watch-table {

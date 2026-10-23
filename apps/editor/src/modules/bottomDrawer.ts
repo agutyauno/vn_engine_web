@@ -15,6 +15,17 @@ export interface VariableMeta {
   sceneName?: string;
 }
 
+export interface DiagnosticProblem {
+  id: string;
+  category: 'compiler' | 'asset' | 'runtime';
+  severity: 'error' | 'warning';
+  message: string;
+  fileId?: string;
+  line?: number;
+  col?: number;
+  assetKey?: string;
+}
+
 export class BottomDrawer {
   private context: StudioContext;
 
@@ -24,6 +35,10 @@ export class BottomDrawer {
   private varsWatchTbody: HTMLElement;
   private varsSceneFilterSelect: HTMLSelectElement | null = null;
   private varsCountBadge: HTMLElement | null = null;
+
+  private compilerErrors: CompileError[] = [];
+  private runtimeDiagnostics: DiagnosticProblem[] = [];
+  private diagnosticIdCounter: number = 0;
 
   private filterMode: string = '__active__';
   private editorCursorScene: string | null = null;
@@ -173,45 +188,42 @@ export class BottomDrawer {
     });
   }
 
-  public renderSuccess(_instructionCount: number, currentModel?: monaco.editor.ITextModel): void {
-    this.drawerTabProblems.classList.remove('has-error');
-    this.problemsSummary.textContent = '● Problems (0)';
-    this.problemsList.innerHTML = `<div class="problems-empty-state">✓ No problems detected in project. Code is valid.</div>`;
+  public addRuntimeDiagnostic(diag: Omit<DiagnosticProblem, 'id'>): void {
+    const exists = this.runtimeDiagnostics.some(
+      d =>
+        d.category === diag.category &&
+        d.message === diag.message &&
+        d.assetKey === diag.assetKey,
+    );
+    if (exists) return;
 
+    this.runtimeDiagnostics.push({
+      ...diag,
+      id: `diag_${++this.diagnosticIdCounter}_${Date.now()}`,
+    });
+    this.renderAllProblems();
+  }
+
+  public clearRuntimeDiagnostics(): void {
+    this.runtimeDiagnostics = [];
+    this.renderAllProblems();
+  }
+
+  public renderSuccess(_instructionCount: number, currentModel?: monaco.editor.ITextModel): void {
+    this.compilerErrors = [];
     if (currentModel) {
       this.context.setModelMarkers(currentModel, 'vns-compiler', []);
     }
+    this.renderAllProblems();
   }
 
   public renderErrors(errors: CompileError[], currentModel?: monaco.editor.ITextModel): void {
-    this.drawerTabProblems.classList.add('has-error');
-    this.problemsSummary.textContent = `● Problems (${errors.length} errors)`;
-
-    const bottomDrawer = document.getElementById('studio-bottom-drawer');
-    if (bottomDrawer?.classList.contains('collapsed')) {
-      bottomDrawer.classList.remove('collapsed');
-      const toggleBtn = document.getElementById('drawer-toggle-btn');
-      if (toggleBtn) toggleBtn.textContent = '▾';
-      this.context.getEditorInstance()?.layout();
-    }
-
-    // Đảm bảo tab Problems active trong bottom drawer
-    const problemsTab = document.getElementById('drawer-tab-problems');
-    const problemsPane = document.getElementById('drawer-pane-problems');
-    if (problemsTab && !problemsTab.classList.contains('active')) {
-      document
-        .querySelectorAll('.drawer-tab-btn')
-        .forEach(t => t.classList.toggle('active', t === problemsTab));
-      document
-        .querySelectorAll('.drawer-pane')
-        .forEach(p => p.classList.toggle('active', p === problemsPane));
-    }
-
-    const project = this.context.getProject();
-    const activeFile = this.context.getActiveFile();
+    this.compilerErrors = errors;
 
     // Tạo markers gạch chân đỏ trên Monaco
     if (currentModel) {
+      const project = this.context.getProject();
+      const activeFile = this.context.getActiveFile();
       const activeFileObj = project.files.find(f => f.name === activeFile);
       const activeFileId = activeFileObj?.id;
 
@@ -236,18 +248,72 @@ export class BottomDrawer {
       this.context.setModelMarkers(currentModel, 'vns-compiler', markers);
     }
 
+    this.renderAllProblems();
+  }
+
+  public renderAllProblems(): void {
+    const totalCount = this.compilerErrors.length + this.runtimeDiagnostics.length;
+
+    if (totalCount === 0) {
+      this.drawerTabProblems.classList.remove('has-error');
+      this.problemsSummary.textContent = '● Problems (0)';
+      this.problemsList.innerHTML = '';
+      const emptyDiv = document.createElement('div');
+      emptyDiv.className = 'problems-empty-state';
+      emptyDiv.textContent = '✓ No problems detected in project. Code is valid.';
+      this.problemsList.appendChild(emptyDiv);
+      return;
+    }
+
+    this.drawerTabProblems.classList.add('has-error');
+    this.problemsSummary.textContent = `● Problems (${totalCount} issue${totalCount === 1 ? '' : 's'})`;
+
+    const bottomDrawer = document.getElementById('studio-bottom-drawer');
+    if (bottomDrawer?.classList.contains('collapsed')) {
+      bottomDrawer.classList.remove('collapsed');
+      const toggleBtn = document.getElementById('drawer-toggle-btn');
+      if (toggleBtn) toggleBtn.textContent = '▾';
+      this.context.getEditorInstance()?.layout();
+    }
+
+    // Đảm bảo tab Problems active trong bottom drawer
+    const problemsTab = document.getElementById('drawer-tab-problems');
+    const problemsPane = document.getElementById('drawer-pane-problems');
+    if (problemsTab && !problemsTab.classList.contains('active')) {
+      document
+        .querySelectorAll('.drawer-tab-btn')
+        .forEach(t => t.classList.toggle('active', t === problemsTab));
+      document
+        .querySelectorAll('.drawer-pane')
+        .forEach(p => p.classList.toggle('active', p === problemsPane));
+    }
+
+    const project = this.context.getProject();
+    const activeFile = this.context.getActiveFile();
     this.problemsList.innerHTML = '';
-    errors.forEach((err: CompileError) => {
+
+    // 1. Render compiler errors
+    this.compilerErrors.forEach((err: CompileError) => {
       const row = document.createElement('div');
-      row.className = 'problem-row';
+      row.className = 'problem-row problem-compiler';
       const line = err.loc?.line ?? 1;
       const col = err.loc?.col ?? 1;
       const matchingFile = project.files.find(
         f => f.id === err.loc?.fileId || f.name === err.loc?.fileId,
       );
       const displayFileName = matchingFile ? matchingFile.name : err.loc?.fileId || activeFile;
-      const file = `[${displayFileName}] `;
-      row.textContent = `✕ ${file}Line ${line}, Col ${col}: ${err.message}`;
+
+      const badge = document.createElement('span');
+      badge.className = 'diag-badge diag-badge-compiler font-mono';
+      badge.textContent = '[COMPILER]';
+
+      const text = document.createElement('span');
+      text.className = 'problem-text font-mono';
+      text.textContent = ` [${displayFileName}] Line ${line}, Col ${col}: ${err.message}`;
+
+      row.appendChild(badge);
+      row.appendChild(text);
+
       row.addEventListener('click', () => {
         if (err.loc?.fileId && err.loc.fileId !== activeFile) {
           const matchingName = matchingFile ? matchingFile.name : err.loc.fileId;
@@ -264,6 +330,33 @@ export class BottomDrawer {
         }
         this.jumpToLine(line, col);
       });
+      this.problemsList.appendChild(row);
+    });
+
+    // 2. Render runtime & asset diagnostics
+    this.runtimeDiagnostics.forEach((diag: DiagnosticProblem) => {
+      const row = document.createElement('div');
+      row.className = `problem-row problem-${diag.category}`;
+
+      const badge = document.createElement('span');
+      badge.className = `diag-badge diag-badge-${diag.category} font-mono`;
+      badge.textContent = `[${diag.category.toUpperCase()}]`;
+
+      const text = document.createElement('span');
+      text.className = 'problem-text font-mono';
+      text.textContent = ` ${diag.message}`;
+
+      row.appendChild(badge);
+      row.appendChild(text);
+
+      if (diag.category === 'asset' && diag.assetKey) {
+        row.style.cursor = 'pointer';
+        row.title = `Click to investigate missing asset: ${diag.assetKey}`;
+        row.addEventListener('click', () => {
+          this.context.showToast(`Investigate asset: "${diag.assetKey}" in Characters/Assets tab`);
+        });
+      }
+
       this.problemsList.appendChild(row);
     });
   }
