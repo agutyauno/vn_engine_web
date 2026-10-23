@@ -23,7 +23,7 @@ export interface StudioContext {
   markDirty(): void;
   saveProjectToStorage(): Promise<void>;
   showToast(message: string): void;
-  compileCurrentScript(options?: { verbose?: boolean }): void;
+  compileCurrentScript(options?: { verbose?: boolean; clearOutput?: boolean }): void;
   getPreviewBaseUrl(): string;
   getPreviewOrigin(): string;
   getFilesMap(): Record<string, string>;

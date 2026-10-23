@@ -947,6 +947,7 @@ export class VNPlayer implements PlayerContext {
     if (this.projectData.id) {
       this.seenDialogues = GameStorage.getSeenDialogues(this.projectData.id);
     }
+    this.assetResolver.resetWarnedAssets();
 
     // 1. Dừng các tiến trình tự động hoặc tua nhanh
     this.playbackController.clearAutoTimer();

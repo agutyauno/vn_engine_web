@@ -413,29 +413,30 @@ describe('OutputManager Module', () => {
     expect(copiedText).toContain('Volume low');
   });
 
-  it('preserves existing logs across consecutive script compilation/preview events without auto-clearing', () => {
+  it('clears previous logs when recompiling so output does not retain old logs', () => {
     const ctx = createMockContext();
     const manager = new OutputManagerClass(ctx);
 
-    // Initial compile
+    // Initial compile and run session
     manager.info('compiler', '✓ Compiled script successfully (25 instructions).');
     manager.info('player', '▶ Preview started.');
-
-    // Runtime events
     manager.warn('assets', 'Missing graphic asset: "test_bg".');
 
-    // Second compile/reload event
-    manager.info('compiler', '✓ Compiled script successfully (28 instructions).');
-    manager.info('player', '▶ Preview reloaded.');
+    expect(manager.getLogs().length).toBe(3);
 
-    const logs = manager.getLogs();
-    expect(logs.length).toBe(5);
-    expect(logs[0].message).toContain('(25 instructions)');
-    expect(logs[2].message).toContain('Missing graphic asset: "test_bg"');
-    expect(logs[4].message).toContain('▶ Preview reloaded.');
-
-    // Only explicit clear clears it
+    // On recompiling the script, previous logs are cleared
     manager.clear();
     expect(manager.getLogs().length).toBe(0);
+
+    // New compilation and run only shows fresh logs
+    manager.info('compiler', '✓ Compiled script successfully (28 instructions).');
+    manager.info('player', '▶ Preview started.');
+
+    const logs = manager.getLogs();
+    expect(logs.length).toBe(2);
+    expect(logs[0].message).toContain('(28 instructions)');
+    expect(logs[1].message).toContain('▶ Preview started.');
+    // Old missing asset log from previous session is gone
+    expect(logs.some(l => l.message.includes('test_bg'))).toBe(false);
   });
 });

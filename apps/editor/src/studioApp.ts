@@ -568,7 +568,11 @@ export class StudioApp implements StudioContext {
   // ================================================================
   // COMPILATION & AST METADATA PROCESSING
   // ================================================================
-  public compileCurrentScript(options?: { verbose?: boolean }): void {
+  public compileCurrentScript(options?: { verbose?: boolean; clearOutput?: boolean }): void {
+    if (options?.clearOutput !== false) {
+      this.outputManager?.clear();
+    }
+
     const editor = this.getEditorInstance();
     if (editor) {
       this.setFileContent(this.activeFile, editor.getValue());
