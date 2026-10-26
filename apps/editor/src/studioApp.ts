@@ -34,18 +34,22 @@ import { BottomDrawer, type VariableMeta } from './modules/bottomDrawer';
 import { PreviewBridge } from './modules/previewBridge';
 import { ExportWizard } from './modules/exportWizard';
 import { LayoutResizer } from './modules/layoutResizer';
+import { BytecodeInspector } from './modules/bytecodeInspector';
 
 const DEFAULT_STARTER_SCRIPT = `# ==============================================================
 # Welcome to Visual Novel Engine!
 # Write your script here and see the live preview on the right.
 # ==============================================================
 
+define player_name = "Traveler"
+define affinity = 10
+
 scene start {
     background bg_courtyard transition: "fade"
     play music "theme_peaceful" volume: 0.8 loop: true
 
     show alice.happy(position: "center")
-    alice: "Hello and welcome to your new visual novel story!"
+    alice: "Hello and welcome to your new visual novel story, ~player_name!"
     alice: "You can write script scenes here and see them previewed live on the right."
 
     choice {
@@ -54,7 +58,9 @@ scene start {
     }
 
     scene .more_info {
+        ~ affinity = affinity + 5
         alice: "You can manage characters, backgrounds, and audio assets in the tabs above."
+        alice: "Your affinity with Alice is now ~affinity!"
         goto .begin
     }
 
@@ -94,6 +100,7 @@ export class StudioApp implements StudioContext {
   private activeFile: string = 'main.vns';
   private latestProgram: Instruction[] | null = null;
   private isDirty: boolean = false;
+  private lastParsedAst: ProgramAST | null = null;
 
   private cachedAstMetadata: CachedAstMetadata = {
     scenes: [],
@@ -114,13 +121,13 @@ export class StudioApp implements StudioContext {
   public previewBridge!: PreviewBridge;
   public exportWizard!: ExportWizard;
   public layoutResizer!: LayoutResizer;
+  public bytecodeInspector!: BytecodeInspector;
 
   // DOM Elements
   private projectTitleEl: HTMLElement;
   private saveStatusPill: HTMLElement;
   private activeFilenameEl: HTMLElement;
   private toastEl: HTMLElement;
-  private varContainer: HTMLElement | null;
   private toastTimerId: number | null = null;
 
   constructor(repository?: IProjectRepository) {
@@ -131,7 +138,6 @@ export class StudioApp implements StudioContext {
     this.saveStatusPill = document.getElementById('save-status')!;
     this.activeFilenameEl = document.getElementById('active-filename')!;
     this.toastEl = document.getElementById('studio-toast')!;
-    this.varContainer = document.getElementById('variable-list-container');
   }
 
   public async init(): Promise<void> {
@@ -149,6 +155,38 @@ export class StudioApp implements StudioContext {
     // 3. Khởi tạo các module chuyên trách
     this.bottomDrawer = new BottomDrawer(this);
     this.previewBridge = new PreviewBridge(this);
+
+    this.previewBridge.onDiagnostic(diag => {
+      this.bottomDrawer?.addRuntimeDiagnostic({
+        category: diag.category === 'asset' ? 'asset' : 'runtime',
+        severity: diag.severity === 'error' ? 'error' : 'warning',
+        message: diag.message,
+        assetKey: diag.assetKey,
+        fileId: diag.fileId,
+        line: diag.line,
+        col: diag.col,
+      });
+    });
+
+    this.previewBridge.onDiagnosticsClear(() => {
+      this.bottomDrawer?.clearRuntimeDiagnostics();
+    });
+
+    this.bottomDrawer.setOnVariableChange((name, value, scope) => {
+      this.previewBridge?.setVariable(name, value, scope);
+      this.showToast(`[Debugger] Injected ${name} = ${value}`);
+    });
+
+    this.previewBridge.onStateUpdate(liveState => {
+      this.bottomDrawer?.updateLiveVariables(liveState);
+      const targetPc =
+        typeof liveState.activeExecutingPc === 'number'
+          ? liveState.activeExecutingPc
+          : liveState.instructionPointer;
+      this.bytecodeInspector?.updateExecutionPointer(targetPc, liveState.currentScene);
+    });
+
+    this.bytecodeInspector = new BytecodeInspector(this);
     this.exportWizard = new ExportWizard(this);
     this.fileExplorer = new FileExplorer(this);
     this.characterManager = new CharacterManager(this);
@@ -158,6 +196,17 @@ export class StudioApp implements StudioContext {
       onRunFromStart: () => this.runFromStart(),
       onRunFromLine: (targetLine, targetScene) => this.runFromLine(targetLine, targetScene),
     });
+
+    const editorInstance = this.editorController.getEditor();
+    if (editorInstance) {
+      editorInstance.onDidChangeCursorPosition(e => {
+        const line = e.position.lineNumber;
+        const sceneName = this.findSceneAtLine(line);
+        if (sceneName) {
+          this.bottomDrawer?.setEditorCursorScene(sceneName);
+        }
+      });
+    }
 
     this.layoutResizer = new LayoutResizer(this, {
       onRenameFileRequested: () => {
@@ -184,7 +233,7 @@ export class StudioApp implements StudioContext {
     this.setupHeaderActions();
 
     // 6. Biên dịch lần đầu
-    this.compileCurrentScript();
+    this.compileCurrentScript({ verbose: true });
   }
 
   // ================================================================
@@ -355,6 +404,14 @@ export class StudioApp implements StudioContext {
     return { backgrounds, audio };
   }
 
+  public setModelMarkers(
+    currentModel: monaco.editor.ITextModel,
+    owner: string,
+    markers: monaco.editor.IMarkerData[],
+  ): void {
+    monaco.editor.setModelMarkers(currentModel, owner, markers);
+  }
+
   // ================================================================
   // PROJECT STORAGE (LOAD & SAVE)
   // ================================================================
@@ -517,7 +574,11 @@ export class StudioApp implements StudioContext {
   // ================================================================
   // COMPILATION & AST METADATA PROCESSING
   // ================================================================
-  public compileCurrentScript(): void {
+  public compileCurrentScript(options?: { verbose?: boolean; clearOutput?: boolean }): void {
+    if (options?.clearOutput !== false) {
+      this.bottomDrawer?.clearRuntimeDiagnostics();
+    }
+
     const editor = this.getEditorInstance();
     if (editor) {
       this.setFileContent(this.activeFile, editor.getValue());
@@ -539,8 +600,13 @@ export class StudioApp implements StudioContext {
 
     if (result.success && result.program) {
       this.latestProgram = result.program;
+      if (result.ast) {
+        this.lastParsedAst = result.ast;
+      }
       this.bottomDrawer?.renderSuccess(this.latestProgram.length, currentModel ?? undefined);
       this.previewBridge?.sendProgramToPreview(this.latestProgram);
+      this.bytecodeInspector?.updateCompiledProgram(this.latestProgram, result.ast);
+      this.bytecodeInspector?.setOutOfDate(false);
 
       if (result.ast) {
         this.updateSidebarMetadata(result.ast);
@@ -548,6 +614,7 @@ export class StudioApp implements StudioContext {
     } else {
       const errors = result.errors || [];
       this.bottomDrawer?.renderErrors(errors, currentModel ?? undefined);
+      this.bytecodeInspector?.setOutOfDate(true, errors.length);
     }
   }
 
@@ -669,49 +736,26 @@ export class StudioApp implements StudioContext {
     );
     this.renderAssetList();
 
-    // 2. Render Variables Tab
-    if (this.varContainer) {
-      this.varContainer.innerHTML = '';
-      if (variables.size === 0) {
-        const hint = document.createElement('div');
-        hint.className = 'empty-meta-hint';
-        hint.textContent =
-          'No state variables yet. Use syntax: define var_name = value to declare a variable.';
-        this.varContainer.appendChild(hint);
-      } else {
-        for (const [, meta] of variables) {
-          const card = document.createElement('div');
-          card.className = 'meta-card';
+    // 2. Render Variables Watch in Bottom Drawer (Live Debugger & Initial AST values)
+    this.bottomDrawer?.populateSceneFilter(scenesList);
+    this.bottomDrawer?.renderVariablesWatch(variables);
+  }
 
-          const title = document.createElement('div');
-          title.className = 'meta-card-title';
-          title.textContent = `define ${meta.name}`;
-          card.appendChild(title);
-
-          const tags = document.createElement('div');
-          tags.className = 'meta-tags-list';
-
-          const scopePill = document.createElement('span');
-          scopePill.className = 'meta-tag-pill';
-          scopePill.style.fontWeight = '600';
-          scopePill.style.color = meta.scope === 'global' ? '#4ade80' : '#60a5fa';
-          scopePill.textContent =
-            meta.scope === 'global' ? 'Global' : `Local: ${meta.sceneName || 'scene'}`;
-          tags.appendChild(scopePill);
-
-          const pill = document.createElement('span');
-          pill.className = 'meta-tag-pill';
-          pill.textContent = `Initial: ${String(meta.value)}`;
-          tags.appendChild(pill);
-
-          card.appendChild(tags);
-          this.varContainer.appendChild(card);
+  public findSceneAtLine(line: number): string | null {
+    if (!this.lastParsedAst?.scenes) return null;
+    let matchingScene: string | null = null;
+    let minDiff = Infinity;
+    for (const sc of this.lastParsedAst.scenes) {
+      const scLine = sc.loc?.line ?? 1;
+      if (scLine <= line) {
+        const diff = line - scLine;
+        if (diff < minDiff) {
+          minDiff = diff;
+          matchingScene = sc.name;
         }
       }
     }
-
-    // 3. Render Variables Watch in Bottom Drawer
-    this.bottomDrawer?.renderVariablesWatch(variables);
+    return matchingScene;
   }
 
   // ================================================================
@@ -719,6 +763,7 @@ export class StudioApp implements StudioContext {
   // ================================================================
   public runFromStart(): void {
     this.flushEditorChanges();
+    this.compileCurrentScript({ verbose: true });
     if (this.latestProgram) {
       this.previewBridge?.sendProgramToPreview(this.latestProgram);
       this.showToast('▶ Running script from start!');
@@ -765,6 +810,7 @@ export class StudioApp implements StudioContext {
     });
 
     document.getElementById('btn-reload-preview')?.addEventListener('click', () => {
+      this.compileCurrentScript({ verbose: true });
       this.previewBridge?.reloadPreview();
     });
 

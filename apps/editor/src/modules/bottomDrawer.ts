@@ -3,15 +3,27 @@
 // Quản lý Drawer phía dưới: Báo cáo lỗi (Problems), Variables Watch & AST Inspector
 // ================================================================
 
-import * as monaco from 'monaco-editor';
+import type * as monaco from 'monaco-editor';
 import type { CompileError } from '@vn-engine/dsl-compiler';
 import type { StudioContext } from './editorTypes';
+import type { PreviewStateUpdateMessage } from './previewBridge';
 
 export interface VariableMeta {
   name: string;
   value: unknown;
   scope: 'global' | 'local';
   sceneName?: string;
+}
+
+export interface DiagnosticProblem {
+  id: string;
+  category: 'compiler' | 'asset' | 'runtime';
+  severity: 'error' | 'warning';
+  message: string;
+  fileId?: string;
+  line?: number;
+  col?: number;
+  assetKey?: string;
 }
 
 export class BottomDrawer {
@@ -21,6 +33,26 @@ export class BottomDrawer {
   private problemsSummary: HTMLElement;
   private problemsList: HTMLElement;
   private varsWatchTbody: HTMLElement;
+  private varsSceneFilterSelect: HTMLSelectElement | null = null;
+  private varsCountBadge: HTMLElement | null = null;
+
+  private compilerErrors: CompileError[] = [];
+  private runtimeDiagnostics: DiagnosticProblem[] = [];
+  private diagnosticIdCounter: number = 0;
+
+  private filterMode: string = '__active__';
+  private editorCursorScene: string | null = null;
+  private allScenesList: string[] = [];
+
+  private cachedAstVariables: Map<string, VariableMeta> = new Map();
+  private latestLiveState: PreviewStateUpdateMessage | null = null;
+  private previousValues: Map<string, unknown> = new Map();
+  private changedTimestamps: Map<string, number> = new Map();
+  private onVariableChange?: (
+    name: string,
+    value: string | number | boolean,
+    scope?: 'global' | 'local',
+  ) => void;
 
   constructor(context: StudioContext) {
     this.context = context;
@@ -28,8 +60,82 @@ export class BottomDrawer {
     this.problemsSummary = document.getElementById('problems-summary')!;
     this.problemsList = document.getElementById('problems-list')!;
     this.varsWatchTbody = document.getElementById('vars-watch-tbody')!;
+    this.varsSceneFilterSelect = document.getElementById(
+      'vars-scene-filter',
+    ) as HTMLSelectElement | null;
+    this.varsCountBadge = document.getElementById('vars-count-badge');
+
+    if (this.varsSceneFilterSelect) {
+      this.varsSceneFilterSelect.addEventListener('change', () => {
+        this.filterMode = this.varsSceneFilterSelect?.value || '__active__';
+        this.renderVariablesWatch();
+      });
+    }
 
     this.setupBottomDrawer();
+  }
+
+  public setOnVariableChange(
+    cb: (name: string, value: string | number | boolean, scope?: 'global' | 'local') => void,
+  ): void {
+    this.onVariableChange = cb;
+  }
+
+  public populateSceneFilter(scenes: string[]): void {
+    this.allScenesList = scenes;
+    if (!this.varsSceneFilterSelect) return;
+
+    const currentSelected = this.filterMode;
+    const activeSceneName = this.getActiveSceneName();
+
+    this.varsSceneFilterSelect.innerHTML = '';
+
+    const optActive = document.createElement('option');
+    optActive.value = '__active__';
+    optActive.textContent = `🎯 Active Scene (${activeSceneName})`;
+    this.varsSceneFilterSelect.appendChild(optActive);
+
+    const optAll = document.createElement('option');
+    optAll.value = '__all__';
+    optAll.textContent = '🌐 All Variables (Toàn bộ)';
+    this.varsSceneFilterSelect.appendChild(optAll);
+
+    if (scenes.length > 0) {
+      const optGroup = document.createElement('optgroup');
+      optGroup.label = 'Specific Scenes';
+      for (const sc of scenes) {
+        const opt = document.createElement('option');
+        opt.value = sc;
+        opt.textContent = `Scene: ${sc}`;
+        optGroup.appendChild(opt);
+      }
+      this.varsSceneFilterSelect.appendChild(optGroup);
+    }
+
+    this.varsSceneFilterSelect.value = currentSelected;
+  }
+
+  public setEditorCursorScene(sceneName: string): void {
+    if (this.editorCursorScene !== sceneName) {
+      this.editorCursorScene = sceneName;
+      if (this.filterMode === '__active__' && !this.latestLiveState) {
+        this.renderVariablesWatch();
+      }
+    }
+  }
+
+  public getActiveSceneName(): string {
+    return (
+      this.latestLiveState?.currentScene ||
+      this.editorCursorScene ||
+      this.allScenesList[0] ||
+      'start'
+    );
+  }
+
+  public updateLiveVariables(liveState: PreviewStateUpdateMessage): void {
+    this.latestLiveState = liveState;
+    this.renderVariablesWatch();
   }
 
   private setupBottomDrawer(): void {
@@ -43,7 +149,11 @@ export class BottomDrawer {
         const targetTab = tab.dataset.drawerTab;
         drawerTabs.forEach(t => t.classList.toggle('active', t === tab));
         drawerPanes.forEach(p => {
-          p.classList.toggle('active', p.id === `drawer-pane-${targetTab}`);
+          const isTarget =
+            p.id === `drawer-pane-${targetTab}` ||
+            (targetTab === 'variables-watch' && p.id === 'drawer-pane-variables') ||
+            (targetTab === 'variables' && p.id === 'drawer-pane-variables-watch');
+          p.classList.toggle('active', isTarget);
         });
 
         if (bottomDrawer?.classList.contains('collapsed')) {
@@ -78,19 +188,85 @@ export class BottomDrawer {
     });
   }
 
-  public renderSuccess(_instructionCount: number, currentModel?: monaco.editor.ITextModel): void {
-    this.drawerTabProblems.classList.remove('has-error');
-    this.problemsSummary.textContent = '● Problems (0)';
-    this.problemsList.innerHTML = `<div class="problems-empty-state">✓ No problems detected in project. Code is valid.</div>`;
+  public addRuntimeDiagnostic(diag: Omit<DiagnosticProblem, 'id'>): void {
+    const exists = this.runtimeDiagnostics.some(
+      d =>
+        d.category === diag.category &&
+        d.message === diag.message &&
+        d.assetKey === diag.assetKey,
+    );
+    if (exists) return;
 
+    this.runtimeDiagnostics.push({
+      ...diag,
+      id: `diag_${++this.diagnosticIdCounter}_${Date.now()}`,
+    });
+    this.renderAllProblems();
+  }
+
+  public clearRuntimeDiagnostics(): void {
+    this.runtimeDiagnostics = [];
+    this.renderAllProblems();
+  }
+
+  public renderSuccess(_instructionCount: number, currentModel?: monaco.editor.ITextModel): void {
+    this.compilerErrors = [];
     if (currentModel) {
-      monaco.editor.setModelMarkers(currentModel, 'vns-compiler', []);
+      this.context.setModelMarkers(currentModel, 'vns-compiler', []);
     }
+    this.renderAllProblems();
   }
 
   public renderErrors(errors: CompileError[], currentModel?: monaco.editor.ITextModel): void {
+    this.compilerErrors = errors;
+
+    // Tạo markers gạch chân đỏ trên Monaco
+    if (currentModel) {
+      const project = this.context.getProject();
+      const activeFile = this.context.getActiveFile();
+      const activeFileObj = project.files.find(f => f.name === activeFile);
+      const activeFileId = activeFileObj?.id;
+
+      const markers: monaco.editor.IMarkerData[] = errors
+        .filter(
+          err =>
+            !err.loc?.fileId || err.loc.fileId === activeFile || err.loc.fileId === activeFileId,
+        )
+        .map(err => {
+          const line = err.loc?.line ?? 1;
+          const col = err.loc?.col ?? 1;
+          const lineContent = currentModel.getLineContent(line) || '';
+          return {
+            startLineNumber: line,
+            startColumn: col,
+            endLineNumber: line,
+            endColumn: Math.max(col + 1, lineContent.length + 1),
+            message: err.message,
+            severity: 8, // monaco.MarkerSeverity.Error
+          };
+        });
+      this.context.setModelMarkers(currentModel, 'vns-compiler', markers);
+    }
+
+    this.renderAllProblems();
+  }
+
+  public renderAllProblems(): void {
+    const totalCount = this.compilerErrors.length + this.runtimeDiagnostics.length;
+
+    if (totalCount === 0) {
+      this.drawerTabProblems.classList.remove('has-error');
+      this.problemsSummary.textContent = '● Problems (0)';
+      this.problemsList.innerHTML = '';
+      const emptyDiv = document.createElement('div');
+      emptyDiv.className = 'problems-empty-state';
+      emptyDiv.textContent = '✓ No problems detected in project. Code is valid.';
+      this.problemsList.appendChild(emptyDiv);
+      return;
+    }
+
     this.drawerTabProblems.classList.add('has-error');
-    this.problemsSummary.textContent = `● Problems (${errors.length} errors)`;
+    this.problemsSummary.textContent = `● Problems (${totalCount} issue${totalCount === 1 ? '' : 's'})`;
 
     const bottomDrawer = document.getElementById('studio-bottom-drawer');
     if (bottomDrawer?.classList.contains('collapsed')) {
@@ -114,45 +290,30 @@ export class BottomDrawer {
 
     const project = this.context.getProject();
     const activeFile = this.context.getActiveFile();
-
-    // Tạo markers gạch chân đỏ trên Monaco
-    if (currentModel) {
-      const activeFileObj = project.files.find(f => f.name === activeFile);
-      const activeFileId = activeFileObj?.id;
-
-      const markers: monaco.editor.IMarkerData[] = errors
-        .filter(
-          err =>
-            !err.loc?.fileId || err.loc.fileId === activeFile || err.loc.fileId === activeFileId,
-        )
-        .map(err => {
-          const line = err.loc?.line ?? 1;
-          const col = err.loc?.col ?? 1;
-          const lineContent = currentModel.getLineContent(line) || '';
-          return {
-            startLineNumber: line,
-            startColumn: col,
-            endLineNumber: line,
-            endColumn: Math.max(col + 1, lineContent.length + 1),
-            message: err.message,
-            severity: monaco.MarkerSeverity.Error,
-          };
-        });
-      monaco.editor.setModelMarkers(currentModel, 'vns-compiler', markers);
-    }
-
     this.problemsList.innerHTML = '';
-    errors.forEach((err: CompileError) => {
+
+    // 1. Render compiler errors
+    this.compilerErrors.forEach((err: CompileError) => {
       const row = document.createElement('div');
-      row.className = 'problem-row';
+      row.className = 'problem-row problem-compiler';
       const line = err.loc?.line ?? 1;
       const col = err.loc?.col ?? 1;
       const matchingFile = project.files.find(
         f => f.id === err.loc?.fileId || f.name === err.loc?.fileId,
       );
       const displayFileName = matchingFile ? matchingFile.name : err.loc?.fileId || activeFile;
-      const file = `[${displayFileName}] `;
-      row.textContent = `✕ ${file}Line ${line}, Col ${col}: ${err.message}`;
+
+      const badge = document.createElement('span');
+      badge.className = 'diag-badge diag-badge-compiler font-mono';
+      badge.textContent = '[COMPILER]';
+
+      const text = document.createElement('span');
+      text.className = 'problem-text font-mono';
+      text.textContent = ` [${displayFileName}] Line ${line}, Col ${col}: ${err.message}`;
+
+      row.appendChild(badge);
+      row.appendChild(text);
+
       row.addEventListener('click', () => {
         if (err.loc?.fileId && err.loc.fileId !== activeFile) {
           const matchingName = matchingFile ? matchingFile.name : err.loc.fileId;
@@ -171,46 +332,267 @@ export class BottomDrawer {
       });
       this.problemsList.appendChild(row);
     });
+
+    // 2. Render runtime & asset diagnostics
+    this.runtimeDiagnostics.forEach((diag: DiagnosticProblem) => {
+      const row = document.createElement('div');
+      row.className = `problem-row problem-${diag.category}`;
+
+      const badge = document.createElement('span');
+      badge.className = `diag-badge diag-badge-${diag.category} font-mono`;
+      badge.textContent = `[${diag.category.toUpperCase()}]`;
+
+      const text = document.createElement('span');
+      text.className = 'problem-text font-mono';
+      text.textContent = ` ${diag.message}`;
+
+      row.appendChild(badge);
+      row.appendChild(text);
+
+      if (diag.category === 'asset' && diag.assetKey) {
+        row.style.cursor = 'pointer';
+        row.title = `Click to investigate missing asset: ${diag.assetKey}`;
+        row.addEventListener('click', () => {
+          this.context.showToast(`Investigate asset: "${diag.assetKey}" in Characters/Assets tab`);
+        });
+      }
+
+      this.problemsList.appendChild(row);
+    });
   }
 
-  public renderVariablesWatch(variables: Map<string, VariableMeta>): void {
+  public renderVariablesWatch(variables?: Map<string, VariableMeta>): void {
+    if (variables) {
+      this.cachedAstVariables = new Map(variables);
+    }
+
+    const combined = new Map<string, VariableMeta>(this.cachedAstVariables);
+
+    if (this.latestLiveState) {
+      for (const [varName, val] of Object.entries(this.latestLiveState.variables)) {
+        if (!combined.has(varName)) {
+          combined.set(varName, { name: varName, value: val, scope: 'global' });
+        }
+      }
+      for (const [varName, val] of Object.entries(this.latestLiveState.localVariables)) {
+        const localKey = `${this.latestLiveState.currentScene}.${varName}`;
+        if (!combined.has(varName) && !combined.has(localKey)) {
+          combined.set(varName, {
+            name: varName,
+            value: val,
+            scope: 'local',
+            sceneName: this.latestLiveState.currentScene,
+          });
+        }
+      }
+    }
+
+    const activeSceneName = this.getActiveSceneName();
+
+    if (this.varsSceneFilterSelect) {
+      const optActive = this.varsSceneFilterSelect.querySelector('option[value="__active__"]');
+      if (optActive) {
+        optActive.textContent = `🎯 Active Scene (${activeSceneName})`;
+      }
+    }
+
+    // Lọc biến theo filterMode
+    const filtered = new Map<string, VariableMeta>();
+    for (const [key, meta] of combined) {
+      if (meta.scope === 'global') {
+        filtered.set(key, meta);
+      } else if (this.filterMode === '__all__') {
+        filtered.set(key, meta);
+      } else if (this.filterMode === '__active__') {
+        if (!meta.sceneName || meta.sceneName === activeSceneName) {
+          filtered.set(key, meta);
+        }
+      } else {
+        if (meta.sceneName === this.filterMode) {
+          filtered.set(key, meta);
+        }
+      }
+    }
+
+    if (this.varsCountBadge) {
+      const count = filtered.size;
+      this.varsCountBadge.textContent = `${count} variable${count === 1 ? '' : 's'}`;
+    }
+
     this.varsWatchTbody.innerHTML = '';
-    if (variables.size === 0) {
+    if (filtered.size === 0) {
       const tr = document.createElement('tr');
       const td = document.createElement('td');
       td.colSpan = 4;
       td.style.color = '#666';
-      td.textContent = 'No variables.';
+      td.textContent = 'No variables for selected scope.';
       tr.appendChild(td);
       this.varsWatchTbody.appendChild(tr);
-    } else {
-      for (const [, meta] of variables) {
-        const tr = document.createElement('tr');
+      return;
+    }
 
-        const tdName = document.createElement('td');
-        tdName.style.fontWeight = '600';
-        tdName.style.color = '#fff';
-        tdName.textContent = meta.name;
+    for (const [, meta] of filtered) {
+      const tr = document.createElement('tr');
 
-        const tdScope = document.createElement('td');
-        tdScope.style.color = meta.scope === 'global' ? '#4ade80' : '#60a5fa';
-        tdScope.textContent =
-          meta.scope === 'global' ? 'Global' : `Local (${meta.sceneName || 'scene'})`;
-
-        const tdType = document.createElement('td');
-        tdType.style.color = '#888';
-        tdType.textContent = typeof meta.value;
-
-        const tdVal = document.createElement('td');
-        tdVal.style.color = '#22c55e';
-        tdVal.textContent = String(meta.value);
-
-        tr.appendChild(tdName);
-        tr.appendChild(tdScope);
-        tr.appendChild(tdType);
-        tr.appendChild(tdVal);
-        this.varsWatchTbody.appendChild(tr);
+      let effectiveValue = meta.value;
+      if (this.latestLiveState) {
+        if (meta.scope === 'local' && meta.name in this.latestLiveState.localVariables) {
+          effectiveValue = this.latestLiveState.localVariables[meta.name];
+        } else if (meta.name in this.latestLiveState.variables) {
+          effectiveValue = this.latestLiveState.variables[meta.name];
+        }
       }
+
+      const prevVal = this.previousValues.get(meta.name);
+      const isChanged = prevVal !== undefined && prevVal !== effectiveValue;
+      this.previousValues.set(meta.name, effectiveValue);
+      if (isChanged) {
+        this.changedTimestamps.set(meta.name, Date.now());
+      }
+
+      const flashAge = Date.now() - (this.changedTimestamps.get(meta.name) ?? 0);
+      if (flashAge < 1500) {
+        tr.classList.add('var-row-changed');
+      }
+
+      const tdName = document.createElement('td');
+      tdName.style.fontWeight = '600';
+      tdName.style.color = '#fff';
+      tdName.textContent = meta.name;
+
+      const tdScope = document.createElement('td');
+      tdScope.style.color = meta.scope === 'global' ? '#4ade80' : '#60a5fa';
+      if (meta.scope === 'global') {
+        tdScope.textContent = 'Global';
+      } else {
+        const sceneLabel = meta.sceneName || 'scene';
+        const isCurrentActive = meta.sceneName === activeSceneName;
+        if (isCurrentActive) {
+          tdScope.textContent = `Local (${sceneLabel})`;
+        } else {
+          tdScope.innerHTML = `<span>Local (${sceneLabel})</span> <span class="scope-inactive-pill" title="This scene is not active in VM right now">Inactive</span>`;
+        }
+      }
+
+      const tdType = document.createElement('td');
+      tdType.style.color = '#888';
+      tdType.textContent = typeof effectiveValue;
+
+      const tdVal = document.createElement('td');
+      tdVal.className = 'var-val-cell';
+      tdVal.style.color = '#22c55e';
+      tdVal.style.cursor = 'pointer';
+      tdVal.title = 'Double-click or click edit icon to change value';
+
+      const valSpan = document.createElement('span');
+      valSpan.className = 'var-val-text';
+      valSpan.textContent = String(effectiveValue);
+
+      const editIcon = document.createElement('span');
+      editIcon.className = 'var-edit-icon';
+      editIcon.title = 'Edit variable value';
+      editIcon.textContent = ' ✎';
+      editIcon.style.opacity = '0.7';
+      editIcon.style.fontSize = '12px';
+      editIcon.style.marginLeft = '6px';
+      editIcon.style.cursor = 'pointer';
+
+      tdVal.appendChild(valSpan);
+      tdVal.appendChild(editIcon);
+
+      const startEditing = () => {
+        if (tdVal.querySelector('input')) return;
+
+        const currentText = String(effectiveValue ?? '');
+        tdVal.innerHTML = '';
+
+        const input = document.createElement('input');
+        input.className = 'var-inline-input';
+        input.value = currentText;
+        input.style.width = '100%';
+        input.style.boxSizing = 'border-box';
+        input.style.padding = '2px 6px';
+        input.style.background = '#0f172a';
+        input.style.color = '#22c55e';
+        input.style.border = '1px solid #38bdf8';
+        input.style.borderRadius = '3px';
+        input.style.fontFamily = 'monospace';
+
+        let committed = false;
+        const commit = () => {
+          if (committed) return;
+          committed = true;
+          const raw = input.value.trim();
+          let parsed: string | number | boolean = raw;
+          if (raw.toLowerCase() === 'true') {
+            parsed = true;
+          } else if (raw.toLowerCase() === 'false') {
+            parsed = false;
+          } else if (!isNaN(Number(raw)) && raw !== '') {
+            parsed = Number(raw);
+          } else if (
+            (raw.startsWith('"') && raw.endsWith('"')) ||
+            (raw.startsWith("'") && raw.endsWith("'"))
+          ) {
+            parsed = raw.slice(1, -1);
+          }
+          this.onVariableChange?.(meta.name, parsed, meta.scope);
+          tdVal.innerHTML = '';
+          const newSpan = document.createElement('span');
+          newSpan.className = 'var-val-text';
+          newSpan.textContent = String(parsed);
+          const newIcon = document.createElement('span');
+          newIcon.className = 'var-edit-icon';
+          newIcon.title = 'Edit variable value';
+          newIcon.textContent = ' ✎';
+          newIcon.style.opacity = '0.7';
+          newIcon.style.fontSize = '12px';
+          newIcon.style.marginLeft = '6px';
+          newIcon.style.cursor = 'pointer';
+          newIcon.addEventListener('click', (e: Event) => {
+            e?.stopPropagation?.();
+            startEditing();
+          });
+          tdVal.appendChild(newSpan);
+          tdVal.appendChild(newIcon);
+          this.previousValues.set(meta.name, parsed);
+          this.changedTimestamps.set(meta.name, Date.now());
+          tr.classList.add('var-row-changed');
+        };
+
+        input.addEventListener('keydown', (e: KeyboardEvent | { key: string }) => {
+          if (e.key === 'Enter') {
+            commit();
+          } else if (e.key === 'Escape') {
+            committed = true;
+            tdVal.innerHTML = '';
+            tdVal.appendChild(valSpan);
+            tdVal.appendChild(editIcon);
+          }
+        });
+
+        input.addEventListener('blur', () => {
+          commit();
+        });
+
+        tdVal.appendChild(input);
+        if (typeof input.focus === 'function') {
+          input.focus();
+        }
+      };
+
+      tdVal.addEventListener('click', startEditing);
+      tdVal.addEventListener('dblclick', startEditing);
+      editIcon.addEventListener('click', (e: Event) => {
+        e?.stopPropagation?.();
+        startEditing();
+      });
+
+      tr.appendChild(tdName);
+      tr.appendChild(tdScope);
+      tr.appendChild(tdType);
+      tr.appendChild(tdVal);
+      this.varsWatchTbody.appendChild(tr);
     }
   }
 

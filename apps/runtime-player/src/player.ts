@@ -17,6 +17,7 @@ import { GameStorage, type SaveSlotData } from './storage';
 
 import type { PlayerContext, BacklogEntry, ProjectData } from './playerContext';
 import { AssetResolver } from './controllers/assetResolver';
+import { DiagnosticBus } from './services/diagnosticBus';
 import { PlaybackController } from './controllers/playbackController';
 import { SaveLoadController } from './controllers/saveLoadController';
 import { DialogueView, CHAR_COLOR_MAP } from './ui/dialogueView';
@@ -42,6 +43,7 @@ export class VNPlayer implements PlayerContext {
   private projectData: ProjectData = {};
 
   // Submodules
+  public diagnosticBus: DiagnosticBus;
   public assetResolver: AssetResolver;
   public dialogueView: DialogueView;
   public choiceOverlay: ChoiceOverlay;
@@ -59,9 +61,19 @@ export class VNPlayer implements PlayerContext {
   private standbyScreen: HTMLElement | null = null;
   private isStandby: boolean = false;
 
-  constructor(program: Instruction[], options?: { isStandby?: boolean }) {
+  private editorOrigin: string | null = null;
+  private stateUpdateTimer: ReturnType<typeof setTimeout> | null = null;
+  private lastBroadcastTime: number = 0;
+  private static readonly THROTTLE_MS = 60; // 50-100ms throttle (ADR-024 / note.md)
+
+  constructor(
+    program: Instruction[],
+    options?: { isStandby?: boolean; diagnosticBus?: DiagnosticBus; editorOrigin?: string },
+  ) {
     this.initialProgram = program;
     this.isStandby = options?.isStandby ?? false;
+    this.diagnosticBus =
+      options?.diagnosticBus ?? new DiagnosticBus({ editorOrigin: options?.editorOrigin });
 
     if (typeof window !== 'undefined' && window.location?.search) {
       const urlParams = new URLSearchParams(window.location.search);
@@ -103,7 +115,7 @@ export class VNPlayer implements PlayerContext {
     }
 
     // Khởi tạo các module con
-    this.assetResolver = new AssetResolver(() => this.projectData);
+    this.assetResolver = new AssetResolver(() => this.projectData, this.diagnosticBus);
     this.dialogueView = new DialogueView();
     this.choiceOverlay = new ChoiceOverlay();
     this.inspectModal = new InspectModal();
@@ -172,6 +184,10 @@ export class VNPlayer implements PlayerContext {
     return this.renderer;
   }
 
+  public getDiagnosticBus(): DiagnosticBus {
+    return this.diagnosticBus;
+  }
+
   public getAudio(): AudioManager {
     return this.audio;
   }
@@ -214,7 +230,7 @@ export class VNPlayer implements PlayerContext {
     return this.assetResolver.getAssetGraphicResolver();
   }
 
-  public getAssetAudioResolver(): (assetKey: string) => string {
+  public getAssetAudioResolver(): (assetKey: string) => string | undefined {
     return this.assetResolver.getAssetAudioResolver();
   }
 
@@ -410,6 +426,7 @@ export class VNPlayer implements PlayerContext {
       }
     } finally {
       this.playbackController.setIsAdvancing(false);
+      this.broadcastStateUpdate();
       if (
         this.playbackController.getAdvanceQueued() &&
         (this.playbackController.getIsSkip() || this.playbackController.getIsAuto())
@@ -437,11 +454,14 @@ export class VNPlayer implements PlayerContext {
       this.inspectModal.hide();
     } else if (instr.type === 'PLAY') {
       const audioResolver = this.getAssetAudioResolver();
-      this.audio.play(instr.channel, instr.assetId, audioResolver(instr.assetId), {
-        volume: instr.volume,
-        loop: instr.loop,
-        fadeIn: instr.fadeIn,
-      });
+      const resolvedUrl = audioResolver(instr.assetId);
+      if (resolvedUrl) {
+        this.audio.play(instr.channel, instr.assetId, resolvedUrl, {
+          volume: instr.volume,
+          loop: instr.loop,
+          fadeIn: instr.fadeIn,
+        });
+      }
     } else if (instr.type === 'STOP') {
       this.audio.stop(instr.channel, { fadeOut: instr.fadeOut });
     }
@@ -704,7 +724,106 @@ export class VNPlayer implements PlayerContext {
   // PUBLIC HELPER METHODS (BACKWARDS COMPATIBILITY)
   // ================================================================
   public rollback(): boolean {
-    return this.playbackController.rollback();
+    const success = this.playbackController.rollback();
+    if (success) {
+      this.broadcastStateUpdate();
+    }
+    return success;
+  }
+
+  public setEditorOrigin(origin: string): void {
+    this.editorOrigin = origin;
+    this.diagnosticBus.setEditorOrigin(origin);
+  }
+
+  /**
+   * Can thiệp / ghi đè giá trị biến trên máy ảo VM và phát tín hiệu đồng bộ về Editor (ADR-024)
+   */
+  public setVariable(
+    name: string,
+    value: string | number | boolean,
+    scope?: 'global' | 'local',
+  ): void {
+    this.vm.setVariable(name, value, scope);
+    this.broadcastStateUpdate(true);
+  }
+
+  /**
+   * Phát thông điệp PREVIEW_STATE_UPDATE sang Web Studio Editor (ADR-024 / SAD 3.6 / note.md)
+   * Có throttling 50-100ms đối với cập nhật thông thường và phát ngay lập tức khi forceImmediate = true.
+   */
+  public broadcastStateUpdate(forceImmediate: boolean = false): void {
+    if (typeof window === 'undefined') return;
+
+    const urlParams = window.location?.search ? new URLSearchParams(window.location.search) : null;
+    const isPopout =
+      (typeof window !== 'undefined' && window.name === 'VN_Preview_Popout') ||
+      urlParams?.get('popout') === 'true';
+    const isEmbedded =
+      (window.parent && window.parent !== window) ||
+      isPopout ||
+      urlParams?.get('embedded') === 'true' ||
+      urlParams?.get('mode') === 'preview';
+
+    if (!isEmbedded) return;
+
+    const doBroadcast = () => {
+      this.lastBroadcastTime = Date.now();
+      if (this.stateUpdateTimer) {
+        clearTimeout(this.stateUpdateTimer);
+        this.stateUpdateTimer = null;
+      }
+
+      let targetOrigin = this.editorOrigin;
+      if (!targetOrigin) {
+        targetOrigin =
+          window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? `http://${window.location.hostname}:3001`
+            : window.location.origin;
+        if (document.referrer) {
+          try {
+            const refUrl = new URL(document.referrer);
+            if (refUrl.origin) {
+              targetOrigin = refUrl.origin;
+            }
+          } catch {
+            // ignore
+          }
+        }
+      }
+
+      const vmState = this.vm.getState();
+      const message = {
+        type: 'PREVIEW_STATE_UPDATE',
+        variables: vmState.variables,
+        localVariables: vmState.localVariables,
+        currentScene: vmState.currentScene,
+        instructionPointer: vmState.instructionPointer,
+        activeExecutingPc: this.vm.getActiveExecutingPc(),
+      };
+
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage(message, targetOrigin);
+      }
+      if (window.opener) {
+        window.opener.postMessage(message, targetOrigin);
+      }
+    };
+
+    if (forceImmediate) {
+      doBroadcast();
+      return;
+    }
+
+    const now = Date.now();
+    const elapsed = now - this.lastBroadcastTime;
+    if (elapsed >= VNPlayer.THROTTLE_MS) {
+      doBroadcast();
+    } else if (!this.stateUpdateTimer) {
+      this.stateUpdateTimer = setTimeout(() => {
+        doBroadcast();
+      }, VNPlayer.THROTTLE_MS - elapsed);
+    }
   }
 
   public toggleAuto(): void {
@@ -818,8 +937,14 @@ export class VNPlayer implements PlayerContext {
   }
 
   private handleRuntimeError(err: unknown): void {
-    console.error('[RuntimePlayer] Virtual Machine Runtime Error:', err);
     const msg = err instanceof Error ? err.message : String(err);
+    this.diagnosticBus.report({
+      category: 'runtime',
+      severity: 'error',
+      message: `Virtual Machine Runtime Error: ${msg}`,
+      code: 'ERR_VM_RUNTIME',
+      details: err,
+    });
     this.showToast(`VM Error: ${msg}`);
   }
 
@@ -832,17 +957,24 @@ export class VNPlayer implements PlayerContext {
     },
   ): Promise<void> {
     if (!isValidProgram(program)) {
-      console.error('[VNPlayer] reloadProgram rejected invalid bytecode program structure.');
+      this.diagnosticBus.report({
+        category: 'runtime',
+        severity: 'error',
+        message: 'reloadProgram rejected invalid bytecode program structure.',
+        code: 'ERR_INVALID_PROGRAM',
+      });
       return;
     }
 
     this.initialProgram = program;
     this.isStandby = false;
     this.standbyScreen?.classList.add('hidden');
+    this.diagnosticBus.clear();
 
     if (this.projectData.id) {
       this.seenDialogues = GameStorage.getSeenDialogues(this.projectData.id);
     }
+    this.assetResolver.resetWarnedAssets();
 
     // 1. Dừng các tiến trình tự động hoặc tua nhanh
     this.playbackController.clearAutoTimer();
@@ -890,7 +1022,13 @@ export class VNPlayer implements PlayerContext {
         this.vm.jumpToScene(options.targetScene);
         jumped = true;
       } catch (e) {
-        console.warn(`[RuntimePlayer] Cannot jump to scene "${options.targetScene}":`, e);
+        this.diagnosticBus.report({
+          category: 'runtime',
+          severity: 'error',
+          message: `Cannot jump to scene "${options.targetScene}": ${e instanceof Error ? e.message : String(e)}`,
+          code: 'ERR_SCENE_NOT_FOUND',
+          details: e,
+        });
       }
     }
 

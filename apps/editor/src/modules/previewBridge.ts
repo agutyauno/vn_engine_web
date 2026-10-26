@@ -3,7 +3,11 @@
 // Giao tiếp hai chiều với Sandbox Live Preview Iframe & Pop-out Window
 // ================================================================
 
-import type { Instruction } from '@vn-engine/shared-types';
+import type {
+  Instruction,
+  LogEntry,
+  EngineDiagnostic,
+} from '@vn-engine/shared-types';
 import type { StudioContext } from './editorTypes';
 
 /**
@@ -35,7 +39,7 @@ export function isAllowedPreviewOrigin(
 export function buildPreviewUrl(
   baseUrl: string,
   projectId?: string | null,
-  options?: { isPopout?: boolean },
+  options?: { isPopout?: boolean; editorOrigin?: string },
 ): string {
   const cleanBase = baseUrl ? baseUrl.replace(/\/+$/, '') : '';
   const params = new URLSearchParams();
@@ -48,7 +52,21 @@ export function buildPreviewUrl(
   if (projectId) {
     params.set('projectId', projectId);
   }
+  const edOrigin =
+    options?.editorOrigin || (typeof window !== 'undefined' ? window.location.origin : '');
+  if (edOrigin) {
+    params.set('editorOrigin', edOrigin);
+  }
   return `${cleanBase}/?${params.toString()}`;
+}
+
+export interface PreviewStateUpdateMessage {
+  type: 'PREVIEW_STATE_UPDATE' | 'VM_STATE_UPDATE';
+  variables: Record<string, string | number | boolean>;
+  localVariables: Record<string, string | number | boolean>;
+  currentScene: string;
+  instructionPointer: number;
+  activeExecutingPc?: number;
 }
 
 export class PreviewBridge {
@@ -56,6 +74,10 @@ export class PreviewBridge {
   private previewIframe: HTMLIFrameElement;
   private previewStatusBadge: HTMLElement | null;
   private popoutWindow: Window | null = null;
+  private onStateUpdateCallbacks: Array<(state: PreviewStateUpdateMessage) => void> = [];
+  private onLogEntryCallbacks: Array<(log: LogEntry) => void> = [];
+  private onDiagnosticCallbacks: Array<(diag: EngineDiagnostic) => void> = [];
+  private onDiagnosticsClearCallbacks: Array<() => void> = [];
 
   constructor(context: StudioContext) {
     this.context = context;
@@ -90,7 +112,118 @@ export class PreviewBridge {
           this.sendProgramToPreview(latestProgram);
         }
       }
+
+      if (
+        event.data?.type === 'PREVIEW_STATE_UPDATE' ||
+        event.data?.type === 'VM_STATE_UPDATE'
+      ) {
+        const update = event.data as PreviewStateUpdateMessage;
+        for (const cb of this.onStateUpdateCallbacks) {
+          try {
+            cb(update);
+          } catch (err) {
+            console.error('[PreviewBridge] Error in onStateUpdate callback:', err);
+          }
+        }
+      }
+
+      if (event.data?.type === 'ENGINE_DIAGNOSTIC' && event.data.diagnostic) {
+        const diag = event.data.diagnostic as EngineDiagnostic;
+        for (const cb of this.onDiagnosticCallbacks) {
+          try {
+            cb(diag);
+          } catch (err) {
+            console.error('[PreviewBridge] Error in onDiagnostic callback:', err);
+          }
+        }
+      }
+
+      if (event.data?.type === 'DIAGNOSTICS_CLEAR') {
+        for (const cb of this.onDiagnosticsClearCallbacks) {
+          try {
+            cb();
+          } catch (err) {
+            console.error('[PreviewBridge] Error in onDiagnosticsClear callback:', err);
+          }
+        }
+      }
+
+      if (event.data?.type === 'PLAYER_LOG' && event.data.log) {
+        const log = event.data.log as LogEntry;
+        for (const cb of this.onLogEntryCallbacks) {
+          try {
+            cb(log);
+          } catch (err) {
+            console.error('[PreviewBridge] Error in onLogEntry callback:', err);
+          }
+        }
+      }
     });
+  }
+
+  /**
+   * Đăng ký callback lắng nghe trạng thái VM thời gian thực từ Live Preview (Live Watch)
+   */
+  public onStateUpdate(cb: (state: PreviewStateUpdateMessage) => void): () => void {
+    this.onStateUpdateCallbacks.push(cb);
+    return () => {
+      this.onStateUpdateCallbacks = this.onStateUpdateCallbacks.filter(c => c !== cb);
+    };
+  }
+
+  /**
+   * Đăng ký callback lắng nghe chẩn đoán chuyên trách có cấu trúc từ Engine (ADR-025)
+   */
+  public onDiagnostic(cb: (diag: EngineDiagnostic) => void): () => void {
+    this.onDiagnosticCallbacks.push(cb);
+    return () => {
+      this.onDiagnosticCallbacks = this.onDiagnosticCallbacks.filter(c => c !== cb);
+    };
+  }
+
+  /**
+   * Đăng ký callback lắng nghe sự kiện xóa sạch chẩn đoán phiên cũ khi reload
+   */
+  public onDiagnosticsClear(cb: () => void): () => void {
+    this.onDiagnosticsClearCallbacks.push(cb);
+    return () => {
+      this.onDiagnosticsClearCallbacks = this.onDiagnosticsClearCallbacks.filter(c => c !== cb);
+    };
+  }
+
+  /**
+   * Đăng ký callback lắng nghe log runtime từ Live Preview (Legacy fallback)
+   */
+  public onLogEntry(cb: (log: LogEntry) => void): () => void {
+    this.onLogEntryCallbacks.push(cb);
+    return () => {
+      this.onLogEntryCallbacks = this.onLogEntryCallbacks.filter(c => c !== cb);
+    };
+  }
+
+  /**
+   * Gửi lệnh can thiệp giá trị biến (Variable Injection) sang Live Preview
+   */
+  public setVariable(
+    name: string,
+    value: string | number | boolean,
+    scope?: 'global' | 'local',
+  ): void {
+    const targetOrigin = this.context.getPreviewOrigin();
+    const payload = {
+      type: 'SET_VM_VARIABLE',
+      name,
+      value,
+      scope,
+    };
+
+    if (this.previewIframe && this.previewIframe.contentWindow) {
+      this.previewIframe.contentWindow.postMessage(payload, targetOrigin);
+    }
+
+    if (this.popoutWindow && !this.popoutWindow.closed) {
+      this.popoutWindow.postMessage(payload, targetOrigin);
+    }
   }
 
   public loadProject(projectId: string): void {

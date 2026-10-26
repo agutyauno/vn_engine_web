@@ -4,12 +4,21 @@
 // ================================================================
 
 import type { ProjectData } from '../playerContext';
+import type { DiagnosticBus } from '../services/diagnosticBus';
 
 export class AssetResolver {
   private getProjectData: () => ProjectData;
+  private diagnosticBus?: DiagnosticBus;
 
-  constructor(getProjectData: () => ProjectData) {
+  private warnedMissingAssets: Set<string> = new Set();
+
+  constructor(getProjectData: () => ProjectData, diagnosticBus?: DiagnosticBus) {
     this.getProjectData = getProjectData;
+    this.diagnosticBus = diagnosticBus;
+  }
+
+  public resetWarnedAssets(): void {
+    this.warnedMissingAssets.clear();
   }
 
   public checkIsProp(characterId: string): boolean {
@@ -105,11 +114,29 @@ export class AssetResolver {
           }
         }
       }
+
+      if (assetKey && assetKey.trim().length > 0) {
+        if (this.diagnosticBus) {
+          this.diagnosticBus.report({
+            category: 'asset',
+            severity: 'warning',
+            message: `Missing graphic asset: "${assetKey}". Check spelling in script or upload it in Assets tab.`,
+            code: 'ERR_MISSING_GRAPHIC',
+            assetKey,
+          });
+        } else if (!this.warnedMissingAssets.has(assetKey)) {
+          this.warnedMissingAssets.add(assetKey);
+          console.warn(
+            `[Assets] Missing graphic asset: "${assetKey}". Check spelling in script or upload it in Assets tab.`,
+          );
+        }
+      }
+
       return undefined;
     };
   }
 
-  public getAssetAudioResolver(): (assetKey: string) => string {
+  public getAssetAudioResolver(): (assetKey: string) => string | undefined {
     return (assetKey: string) => {
       const projectData = this.getProjectData();
       const found = projectData.assets?.find(
@@ -117,7 +144,41 @@ export class AssetResolver {
           a.name.toLowerCase() === assetKey.toLowerCase() ||
           a.id.toLowerCase() === assetKey.toLowerCase(),
       );
-      return found?.storageUrl || assetKey;
+      if (found?.storageUrl) {
+        return found.storageUrl;
+      }
+
+      // Hỗ trợ nếu assetKey tự nó là một URL hoặc đường dẫn file âm thanh hợp lệ
+      if (
+        assetKey &&
+        (assetKey.startsWith('http://') ||
+          assetKey.startsWith('https://') ||
+          assetKey.startsWith('data:audio/') ||
+          assetKey.startsWith('blob:') ||
+          assetKey.startsWith('/') ||
+          assetKey.startsWith('./') ||
+          /\.(mp3|ogg|wav|m4a|aac|flac|webm)(\?.*)?$/i.test(assetKey))
+      ) {
+        return assetKey;
+      }
+
+      if (!found && assetKey && assetKey.trim().length > 0) {
+        if (this.diagnosticBus) {
+          this.diagnosticBus.report({
+            category: 'asset',
+            severity: 'warning',
+            message: `Missing audio asset: "${assetKey}". Check Assets tab or script syntax.`,
+            code: 'ERR_MISSING_AUDIO',
+            assetKey,
+          });
+        } else if (!this.warnedMissingAssets.has(assetKey)) {
+          this.warnedMissingAssets.add(assetKey);
+          console.warn(
+            `[Assets] Missing audio asset: "${assetKey}". Check Assets tab or script syntax.`,
+          );
+        }
+      }
+      return undefined;
     };
   }
 }

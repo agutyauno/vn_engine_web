@@ -94,6 +94,10 @@ export class AudioManager {
    * Phát âm thanh trên một kênh xác định
    */
   public play(channelName: string, assetId: string, url: string, options?: AudioPlayOptions): void {
+    if (!url || typeof url !== 'string' || url.trim().length === 0) {
+      return;
+    }
+
     const channel = this.getOrCreateChannel(channelName);
     const preset = this.channelPresets.get(channelName) ?? {
       defaultLoop: false,

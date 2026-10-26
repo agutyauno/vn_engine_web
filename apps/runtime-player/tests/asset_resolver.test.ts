@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { AssetResolver } from '../src/controllers/assetResolver';
 import type { Character, AssetRef } from '@vn-engine/shared-types';
 
@@ -75,5 +75,46 @@ describe('AssetResolver Unit Tests', () => {
     const audioResolver = resolver.getAssetAudioResolver();
     expect(audioResolver('theme_peaceful')).toBe('https://example.com/theme.mp3');
     expect(audioResolver('music_theme')).toBe('https://example.com/theme.mp3');
+  });
+
+  it('emits actionable warning when graphic or audio asset cannot be found, and de-duplicates repeated warnings', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const graphicResolver = resolver.getAssetGraphicResolver();
+    const audioResolver = resolver.getAssetAudioResolver();
+
+    // Reset warnings state
+    resolver.resetWarnedAssets();
+
+    // Unknown graphic
+    const res1 = graphicResolver('missing_bg_dungeon');
+    expect(res1).toBeUndefined();
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('[Assets] Missing graphic asset: "missing_bg_dungeon"'),
+    );
+
+    // Resolving same missing graphic again should not trigger a second duplicate warning
+    warnSpy.mockClear();
+    const res2 = graphicResolver('missing_bg_dungeon');
+    expect(res2).toBeUndefined();
+    expect(warnSpy).not.toHaveBeenCalled();
+
+    // Unknown audio without extension or URL prefix returns undefined (prevents Howler extension warning)
+    warnSpy.mockClear();
+    const audioRes = audioResolver('missing_sfx_explosion');
+    expect(audioRes).toBeUndefined();
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('[Assets] Missing audio asset: "missing_sfx_explosion"'),
+    );
+
+    // De-duplicated audio warning
+    warnSpy.mockClear();
+    audioResolver('missing_sfx_explosion');
+    expect(warnSpy).not.toHaveBeenCalled();
+
+    // Direct valid audio URL should still resolve directly
+    expect(audioResolver('https://example.com/custom_music.mp3')).toBe('https://example.com/custom_music.mp3');
+    expect(audioResolver('/audio/ambient.ogg')).toBe('/audio/ambient.ogg');
+
+    warnSpy.mockRestore();
   });
 });

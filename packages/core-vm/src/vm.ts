@@ -103,6 +103,7 @@ export class VisualNovelVM {
       activeSprites: { ...(initialState?.activeSprites ?? {}) },
       activeAudio: { ...(initialState?.activeAudio ?? {}) },
       currentDialogue: initialState?.currentDialogue,
+      activeExecutingPc: initialState?.activeExecutingPc ?? initialState?.instructionPointer ?? 0,
     };
 
     // Lập bản đồ chỉ mục Scene để nhảy O(1) và sinh khóa định danh câu thoại
@@ -239,6 +240,7 @@ export class VisualNovelVM {
    */
   private jumpTo(targetIndex: number, sceneName?: string): void {
     this.state.instructionPointer = targetIndex;
+    this.state.activeExecutingPc = targetIndex;
     if (sceneName) {
       this.state.currentScene = sceneName;
     } else if (targetIndex < this.program.length) {
@@ -354,7 +356,9 @@ export class VisualNovelVM {
       return { type: 'HALTED' };
     }
 
-    const instr = this.program[this.state.instructionPointer]!;
+    const currentIp = this.state.instructionPointer;
+    this.state.activeExecutingPc = currentIp;
+    const instr = this.program[currentIp]!;
 
     switch (instr.type) {
       case 'SCENE': {
@@ -650,6 +654,7 @@ export class VisualNovelVM {
 
       // Nếu đang đứng ngay tại CHOICE (đã suspend trước đó mà chưa choose)
       if (currentInstr.type === 'CHOICE') {
+        this.state.activeExecutingPc = this.state.instructionPointer;
         this.captureChoiceSnapshot();
         const evalContext = this.getEvalContext();
         const interpolatedChoices = currentInstr.choices.map(c => ({
@@ -999,9 +1004,47 @@ export class VisualNovelVM {
   }
 
   /**
+   * Lấy chỉ mục con trỏ lệnh đang trực tiếp hiển thị hoặc thực thi (Active Executing PC)
+   */
+  public getActiveExecutingPc(): number {
+    if (typeof this.state.activeExecutingPc === 'number') {
+      return this.state.activeExecutingPc;
+    }
+    if (this.state.currentDialogue && this.state.instructionPointer > 0) {
+      return this.state.instructionPointer - 1;
+    }
+    return this.state.instructionPointer;
+  }
+
+  /**
+   * Can thiệp / ghi đè giá trị biến runtime phục vụ Live Debugging (ADR-024)
+   * @param name Tên biến cần thay đổi
+   * @param value Giá trị mới (chuỗi, số hoặc boolean)
+   * @param scope Phạm vi biến: 'global' | 'local'. Mặc định: tự suy luận ('local' nếu biến đang có trong localVariables, ngược lại là 'global')
+   */
+  public setVariable(
+    name: string,
+    value: string | number | boolean,
+    scope?: 'global' | 'local',
+  ): void {
+    if (scope === 'local') {
+      this.state.localVariables[name] = value;
+    } else if (scope === 'global') {
+      this.state.variables[name] = value;
+    } else {
+      if (name in this.state.localVariables) {
+        this.state.localVariables[name] = value;
+      } else {
+        this.state.variables[name] = value;
+      }
+    }
+  }
+
+  /**
    * Lấy evaluator để phục vụ mở rộng hàm ngoài
    */
   public getEvaluator(): SandboxEvaluator {
     return this.evaluator;
   }
 }
+

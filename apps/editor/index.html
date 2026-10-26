@@ -22,7 +22,8 @@
         <!-- HEADER CONTROLS (#studio-header) -->
         <header id="studio-header">
           <div class="header-left">
-            <button class="wf-btn btn-back-projects" id="btn-back-to-projects" title="Back to Projects Dashboard (Ctrl+Q)">
+            <button class="wf-btn btn-back-projects" id="btn-back-to-projects"
+              title="Back to Projects Dashboard (Ctrl+Q)">
               ← Projects
             </button>
             <div class="studio-logo">VN-STUDIO</div>
@@ -32,345 +33,422 @@
             <span class="save-status-pill" id="save-status">● SAVED</span>
           </div>
 
-      <div class="header-right">
-        <button class="wf-btn btn-primary" id="btn-run-from-start" title="Run script from start (F5)">▶ Run from
-          Start</button>
-        <button class="wf-btn" id="btn-run-from-line" title="Run from scene at cursor line (Ctrl+Enter)">▶ Run this
-          Line</button>
-        <button class="wf-btn btn-accent" id="btn-export-game"
-          title="Open game export & distribution portal">Export</button>
-      </div>
-    </header>
-
-    <!-- MAIN WORKSPACE: CODE EDITOR COLUMN ON LEFT + PREVIEW & PANELS ON RIGHT -->
-    <main id="studio-workspace">
-      <!-- CODE EDITOR COLUMN (FULL-HEIGHT) -->
-      <section id="editor-main">
-        <div class="editor-tabs-bar">
-          <div class="editor-file-tab" id="active-file-tab">
-            <span id="active-filename">main.vns</span>
-            <span class="tab-dirty-indicator">●</span>
+          <div class="header-right">
+            <button class="wf-btn btn-primary" id="btn-run-from-start" title="Run script from start (F5)">▶ Run from
+              Start</button>
+            <button class="wf-btn" id="btn-run-from-line" title="Run from scene at cursor line (Ctrl+Enter)">▶ Run this
+              Line</button>
+            <button class="wf-btn btn-accent" id="btn-export-game"
+              title="Open game export & distribution portal">Export</button>
           </div>
-          <div class="editor-tabs-actions">
-            <button class="wf-btn-sm btn-format" id="btn-format-document" title="Auto Format Script (Shift+Alt+F)">⚡
-              Format</button>
-          </div>
-        </div>
+        </header>
 
-        <div id="monaco-container"></div>
-
-        <!-- RESIZE HANDLE FOR BOTTOM DRAWER -->
-        <div id="drawer-resize-handle" class="drawer-resize-handle" title="Drag up/down to resize bottom drawer">
-          <div class="h-handle-grip">···</div>
-        </div>
-
-        <!-- BOTTOM DRAWER: PROBLEMS (ERRORS) & WATCH VARIABLES -->
-        <div id="studio-bottom-drawer">
-          <div class="drawer-header">
-            <div class="drawer-tabs">
-              <button class="drawer-tab-btn active" id="drawer-tab-problems" data-drawer-tab="problems"
-                title="Compiler error list">
-                <span id="problems-summary">● Problems (0 errors)</span>
-              </button>
-              <button class="drawer-tab-btn" id="drawer-tab-variables" data-drawer-tab="variables-watch"
-                title="Real-time variable values">
-                <span>Watch Variables</span>
-              </button>
-            </div>
-            <div class="drawer-actions">
-              <button class="drawer-toggle-btn" id="drawer-toggle-btn" title="Collapse / Expand Drawer">▾</button>
-            </div>
-          </div>
-
-          <div class="drawer-body" id="drawer-body">
-            <!-- PANE 1: PROBLEMS -->
-            <div class="drawer-pane active" id="drawer-pane-problems">
-              <div id="problems-list">
-                <div class="no-problem-message">✓ No problems detected in script.</div>
+        <!-- MAIN WORKSPACE: CODE EDITOR COLUMN ON LEFT + PREVIEW & PANELS ON RIGHT -->
+        <main id="studio-workspace">
+          <!-- CODE EDITOR COLUMN (FULL-HEIGHT) -->
+          <section id="editor-main">
+            <div class="editor-tabs-bar">
+              <div class="editor-file-tab" id="active-file-tab">
+                <span id="active-filename">main.vns</span>
+                <span class="tab-dirty-indicator">●</span>
+              </div>
+              <div class="editor-tabs-actions">
+                <button class="wf-btn-sm btn-format" id="btn-format-document" title="Auto Format Script (Shift+Alt+F)">⚡
+                  Format</button>
               </div>
             </div>
 
-            <!-- PANE 2: VARIABLES WATCH -->
-            <div class="drawer-pane" id="drawer-pane-variables">
-              <div id="vars-watch-list">
-                <table class="vars-watch-table">
-                  <thead>
-                    <tr>
-                      <th>Variable Name</th>
-                      <th>Scope</th>
-                      <th>Type</th>
-                      <th>Initial Value</th>
-                    </tr>
-                  </thead>
-                  <tbody id="vars-watch-tbody">
-                    <tr>
-                      <td colspan="4" style="color: #666;">No variables.</td>
-                    </tr>
-                  </tbody>
-                </table>
+            <div id="monaco-container"></div>
+
+            <!-- RESIZE HANDLE FOR BOTTOM DRAWER -->
+            <div id="drawer-resize-handle" class="drawer-resize-handle" title="Drag up/down to resize bottom drawer">
+              <div class="h-handle-grip">···</div>
+            </div>
+
+            <!-- BOTTOM DRAWER: PROBLEMS (ERRORS) & WATCH VARIABLES -->
+            <div id="studio-bottom-drawer">
+              <div class="drawer-header">
+                <div class="drawer-tabs">
+                  <button class="drawer-tab-btn active" id="drawer-tab-problems" data-drawer-tab="problems"
+                    title="Compiler error list">
+                    <span id="problems-summary">● Problems (0 errors)</span>
+                  </button>
+                  <button class="drawer-tab-btn" id="drawer-tab-variables" data-drawer-tab="variables"
+                    title="Real-time variable values">
+                    <span>Watch Variables</span>
+                  </button>
+                </div>
+                <div class="drawer-actions">
+                  <button class="drawer-toggle-btn" id="drawer-toggle-btn" title="Collapse / Expand Drawer">▾</button>
+                </div>
+              </div>
+
+              <div class="drawer-body" id="drawer-body">
+                <!-- PANE 1: PROBLEMS -->
+                <div class="drawer-pane active" id="drawer-pane-problems">
+                  <div id="problems-list">
+                    <div class="no-problem-message">✓ No problems detected in script.</div>
+                  </div>
+                </div>
+
+                <!-- PANE 2: VARIABLES WATCH -->
+                <div class="drawer-pane" id="drawer-pane-variables">
+                  <div class="vars-filter-toolbar">
+                    <div class="vars-filter-group">
+                      <label for="vars-scene-filter"
+                        style="color: var(--studio-text-secondary); font-weight: 500;">Scope:</label>
+                      <select id="vars-scene-filter" class="vars-scene-select">
+                        <option value="__active__">Active Scene</option>
+                        <option value="__all__">All Variables (Toàn bộ)</option>
+                      </select>
+                    </div>
+                    <div id="vars-count-badge" class="vars-stats-badge">0 variables</div>
+                  </div>
+                  <div id="vars-watch-list">
+                    <table class="vars-watch-table">
+                      <thead>
+                        <tr>
+                          <th>Variable Name</th>
+                          <th>Scope</th>
+                          <th>Type</th>
+                          <th>Value</th>
+                        </tr>
+                      </thead>
+                      <tbody id="vars-watch-tbody">
+                        <tr>
+                          <td colspan="4" style="color: #666;">No variables.</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- VERTICAL RESIZE HANDLE -->
+          <div id="sidebar-resize-handle" title="Drag left/right to resize Code Editor">
+            <div class="v-handle-grip">·<br>·<br>·</div>
+          </div>
+
+          <!-- RIGHT WORKSPACE (TABBED WORKSPACE: LIVE PREVIEW & PROJECT MANAGEMENT) -->
+          <section id="main-workspace">
+            <!-- UNIFIED TABS BAR -->
+            <div class="workspace-tabs" id="workspace-tabs">
+              <button class="workspace-tab sidebar-tab active" data-tab="preview" id="tab-btn-preview">Live
+                Preview</button>
+              <button class="workspace-tab sidebar-tab" data-tab="files" id="tab-btn-files">Files .vns</button>
+              <button class="workspace-tab sidebar-tab" data-tab="characters"
+                id="tab-btn-characters">Characters</button>
+              <button class="workspace-tab sidebar-tab" data-tab="assets" id="tab-btn-assets">Assets</button>
+              <button class="workspace-tab sidebar-tab" data-tab="bytecode" id="tab-btn-bytecode">Bytecode &
+                AST</button>
+              <div class="workspace-actions">
+                <button class="wf-btn-sm" id="btn-reload-preview" title="Reload Live Preview">Reload</button>
+                <button class="wf-btn-sm" id="btn-popout-preview"
+                  title="Pop out Live Preview to independent window (Multi-monitor)">Pop-out Window</button>
+              </div>
+            </div>
+
+            <!-- TAB PANES -->
+            <div class="workspace-panes" id="workspace-panes">
+              <!-- TAB 0: LIVE PREVIEW -->
+              <div class="workspace-pane sidebar-pane active" id="pane-preview">
+                <div id="preview-dock">
+                  <div class="dock-stage">
+                    <iframe id="preview-iframe" src="about:blank" frameborder="0" allow="autoplay; fullscreen"></iframe>
+                  </div>
+                </div>
+              </div>
+
+              <!-- TAB 1: FILES .VNS -->
+              <div class="workspace-pane sidebar-pane" id="pane-files">
+                <div class="pane-heading">
+                  <span>SCRIPT FILES LIST</span>
+                  <button class="wf-btn-sm" id="btn-add-file" title="Create new .vns script file">+ Add File</button>
+                </div>
+                <ul class="file-list" id="file-list"></ul>
+              </div>
+
+              <!-- TAB 2: CHARACTERS -->
+              <div class="workspace-pane sidebar-pane" id="pane-characters">
+                <div class="pane-heading">
+                  <span>PROJECT CHARACTERS</span>
+                  <button class="wf-btn-sm" id="btn-add-character" title="Add new character to project">+ Add
+                    Character</button>
+                </div>
+                <div id="char-reconciliation-alerts"></div>
+                <div id="character-list-container"></div>
+              </div>
+
+              <!-- TAB 3: ASSETS -->
+              <div class="workspace-pane sidebar-pane" id="pane-assets">
+                <div class="pane-heading">
+                  <span>ASSETS</span>
+                  <button class="wf-btn-sm" id="btn-add-asset" title="Add new asset to project">+ Add Asset</button>
+                </div>
+                <div class="asset-filter-bar">
+                  <button class="asset-filter-btn active" data-filter="all">All</button>
+                  <button class="asset-filter-btn" data-filter="image">Images</button>
+                  <button class="asset-filter-btn" data-filter="audio">Audio</button>
+                  <button class="asset-filter-btn" data-filter="video">Videos</button>
+                </div>
+                <div id="asset-reconciliation-alerts"></div>
+                <div id="asset-list-container"></div>
+              </div>
+
+              <!-- TAB 4: BYTECODE & AST INSPECTOR -->
+              <div class="workspace-pane sidebar-pane" id="pane-bytecode">
+                <div id="bytecode-out-of-date-alert" class="bytecode-alert-banner hidden">
+                  ⚠ Out of date (Code has errors - check Problems tab)
+                </div>
+
+                <div class="bytecode-inspector-header">
+                  <div class="bytecode-subtabs-group">
+                    <button type="button" class="subtab-btn active" id="subtab-btn-bytecode" data-subview="bytecode">
+                      Bytecode View
+                    </button>
+                    <button type="button" class="subtab-btn" id="subtab-btn-ast" data-subview="ast">
+                      AST JSON
+                    </button>
+                  </div>
+                </div>
+
+                <!-- SUBVIEW 1: BYTECODE TABLE -->
+                <div id="bytecode-view-container" class="bytecode-subview active">
+                  <div class="bytecode-toolbar">
+                    <div class="bytecode-toolbar-left">
+                      <input type="text" id="bytecode-search-input" class="bytecode-search-input font-mono"
+                        placeholder="Filter opcode, args, PC..." />
+                      <select id="bytecode-scene-select" class="vars-scene-select">
+                        <option value="__all__">All Scenes (Toàn bộ)</option>
+                      </select>
+                    </div>
+                    <div class="bytecode-toolbar-right">
+                      <span id="bytecode-count-badge" class="vars-stats-badge">0 instructions</span>
+                      <button type="button" class="wf-btn-sm" id="btn-jump-current-pc"
+                        title="Jump scroll to active instruction PC">
+                        Jump to PC
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="bytecode-table-wrapper">
+                    <table class="bytecode-table" id="bytecode-table">
+                      <thead>
+                        <tr>
+                          <th style="width: 75px;">PC</th>
+                          <th style="width: 140px;">Opcode</th>
+                          <th>Payload / Arguments</th>
+                          <th style="width: 120px;">Source Line</th>
+                        </tr>
+                      </thead>
+                      <tbody id="bytecode-tbody">
+                        <tr>
+                          <td colspan="4" style="color: #666; text-align: center; padding: 16px;">
+                            No compiled bytecode instructions.
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <!-- SUBVIEW 2: AST JSON -->
+                <div id="ast-view-container" class="bytecode-subview hidden">
+                  <div class="ast-toolbar">
+                    <div class="ast-info-text">Abstract Syntax Tree (Parsed AST)</div>
+                    <button type="button" class="wf-btn-sm" id="btn-copy-ast-json"
+                      title="Copy full AST JSON to clipboard">
+                      📋 Copy AST JSON
+                    </button>
+                  </div>
+                  <div id="ast-monaco-container" class="ast-monaco-wrapper"></div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </main>
+
+        <div id="modal-export-wizard" class="wf-modal-backdrop hidden">
+          <div class="wf-modal">
+            <div class="wf-modal-header">
+              <div class="wf-modal-title">GAME EXPORT & DISTRIBUTION</div>
+              <button class="wf-btn-sm" id="btn-close-export">✕ Close (Esc)</button>
+            </div>
+            <div class="wf-modal-body">
+              <div class="export-card">
+                <div class="export-card-title">1. Playable Web Link <span class="dock-meta-badge"
+                    style="color: #eab308;">(P1 - Coming Soon)</span></div>
+                <div class="export-card-desc">Direct playable link on Edge CDN:
+                </div>
+                <div class="export-input-row">
+                  <input type="text" id="export-url-input" readonly
+                    value="https://secret-academy.usercontent-platform.com" class="export-input"
+                    style="opacity: 0.6;" />
+                  <button class="wf-btn" id="btn-copy-link" disabled style="opacity: 0.5;">Copy Link</button>
+                  <button class="wf-btn" id="btn-open-playable">Open Playable Web (Local) ↗</button>
+                </div>
+
+                <div style="margin-top: 12px;">
+                  <div class="export-card-desc">iFrame Embed Code (Embed directly into Website or Blog):</div>
+                  <div class="export-input-row">
+                    <input type="text" id="export-iframe-input" readonly
+                      value='<iframe src="https://secret-academy.usercontent-platform.com" width="960" height="540" frameborder="0" allowfullscreen></iframe>'
+                      class="export-input" style="opacity: 0.6;" />
+                    <button class="wf-btn" id="btn-copy-iframe" disabled style="opacity: 0.5;">Copy iFrame</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="export-card">
+                <div class="export-card-title">2. Web Bundle / HTML5 ZIP Package (itch.io - Ready)</div>
+                <div class="export-card-desc">Bundle all scripts, bytecode, and project assets into a self-contained
+                  package
+                  to load into runner or upload to itch.io:</div>
+                <div class="export-input-row" style="margin-top: 8px;">
+                  <button class="wf-btn" id="btn-download-bundle">Export Game Bundle (bundle.json)</button>
+                  <button class="wf-btn" id="btn-download-zip">Download game.zip</button>
+                </div>
+              </div>
+
+              <div class="export-card">
+                <div class="export-card-title">3. Desktop App Package <span class="dock-meta-badge"
+                    style="color: #eab308;">(P1 - Coming Soon)</span></div>
+                <div class="export-card-desc">Package as a standalone desktop application via Electron & GitHub Actions.
+                </div>
+                <div class="export-input-row" style="margin-top: 8px;">
+                  <button class="wf-btn" id="btn-build-desktop" disabled style="opacity: 0.5;">Request Desktop Build
+                    (P1)</button>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </section>
 
-      <!-- VERTICAL RESIZE HANDLE -->
-      <div id="sidebar-resize-handle" title="Drag left/right to resize Code Editor">
-        <div class="v-handle-grip">·<br>·<br>·</div>
-      </div>
+        <!-- MODAL CHARACTER FORM -->
+        <div id="modal-character-form" class="wf-modal-backdrop hidden">
+          <div class="wf-modal" style="max-width: 520px;">
+            <div class="wf-modal-header">
+              <div class="wf-modal-title" id="modal-char-title">ADD NEW CHARACTER</div>
+              <button class="wf-btn-sm" id="btn-close-char-modal">✕ Close (Esc)</button>
+            </div>
+            <form id="form-character" class="wf-modal-body">
+              <input type="hidden" id="char-edit-mode" value="create" />
+              <input type="hidden" id="char-original-id" value="" />
 
-      <!-- RIGHT WORKSPACE (TABBED WORKSPACE: LIVE PREVIEW & PROJECT MANAGEMENT) -->
-      <section id="main-workspace">
-        <!-- UNIFIED TABS BAR -->
-        <div class="workspace-tabs" id="workspace-tabs">
-          <button class="workspace-tab sidebar-tab active" data-tab="preview" id="tab-btn-preview">Live Preview</button>
-          <button class="workspace-tab sidebar-tab" data-tab="files" id="tab-btn-files">Files .vns</button>
-          <button class="workspace-tab sidebar-tab" data-tab="characters" id="tab-btn-characters">Characters</button>
-          <button class="workspace-tab sidebar-tab" data-tab="assets" id="tab-btn-assets">Assets</button>
-          <button class="workspace-tab sidebar-tab" data-tab="variables" id="tab-btn-variables">Variables</button>
-          <div class="workspace-actions">
-            <button class="wf-btn-sm" id="btn-reload-preview" title="Reload Live Preview">Reload</button>
-            <button class="wf-btn-sm" id="btn-popout-preview"
-              title="Pop out Live Preview to independent window (Multi-monitor)">Pop-out Window</button>
-          </div>
-        </div>
-
-        <!-- TAB PANES -->
-        <div class="workspace-panes" id="workspace-panes">
-          <!-- TAB 0: LIVE PREVIEW -->
-          <div class="workspace-pane sidebar-pane active" id="pane-preview">
-            <div id="preview-dock">
-              <div class="dock-stage">
-                <iframe id="preview-iframe" src="about:blank" frameborder="0"
-                  allow="autoplay; fullscreen"></iframe>
+              <div class="wf-form-group">
+                <label class="wf-form-label" for="char-input-id">Character ID (Used in script) *</label>
+                <div class="wf-form-hint">Used in commands: alice:, show alice happy (lowercase letters, numbers,
+                  underscores)</div>
+                <input type="text" id="char-input-id" class="wf-form-input" required
+                  placeholder="e.g.: alice, bob, teacher_minh" pattern="^[a-zA-Z0-9_]+$" />
               </div>
-            </div>
-          </div>
 
-          <!-- TAB 1: FILES .VNS -->
-          <div class="workspace-pane sidebar-pane" id="pane-files">
-            <div class="pane-heading">
-              <span>SCRIPT FILES LIST</span>
-              <button class="wf-btn-sm" id="btn-add-file" title="Create new .vns script file">+ Add File</button>
-            </div>
-            <ul class="file-list" id="file-list"></ul>
-          </div>
-
-          <!-- TAB 2: CHARACTERS -->
-          <div class="workspace-pane sidebar-pane" id="pane-characters">
-            <div class="pane-heading">
-              <span>PROJECT CHARACTERS</span>
-              <button class="wf-btn-sm" id="btn-add-character" title="Add new character to project">+ Add
-                Character</button>
-            </div>
-            <div id="char-reconciliation-alerts"></div>
-            <div id="character-list-container"></div>
-          </div>
-
-          <!-- TAB 3: ASSETS -->
-          <div class="workspace-pane sidebar-pane" id="pane-assets">
-            <div class="pane-heading">
-              <span>ASSETS</span>
-              <button class="wf-btn-sm" id="btn-add-asset" title="Add new asset to project">+ Add Asset</button>
-            </div>
-            <div class="asset-filter-bar">
-              <button class="asset-filter-btn active" data-filter="all">All</button>
-              <button class="asset-filter-btn" data-filter="image">Images</button>
-              <button class="asset-filter-btn" data-filter="audio">Audio</button>
-              <button class="asset-filter-btn" data-filter="video">Videos</button>
-            </div>
-            <div id="asset-reconciliation-alerts"></div>
-            <div id="asset-list-container"></div>
-          </div>
-
-          <!-- TAB 4: STATE VARIABLES -->
-          <div class="workspace-pane sidebar-pane" id="pane-variables">
-            <div class="pane-heading">
-              <span>SCRIPT STATE VARIABLES</span>
-            </div>
-            <div id="variable-list-container"></div>
-          </div>
-        </div>
-      </section>
-    </main>
-
-    <div id="modal-export-wizard" class="wf-modal-backdrop hidden">
-      <div class="wf-modal">
-        <div class="wf-modal-header">
-          <div class="wf-modal-title">GAME EXPORT & DISTRIBUTION</div>
-          <button class="wf-btn-sm" id="btn-close-export">✕ Close (Esc)</button>
-        </div>
-        <div class="wf-modal-body">
-          <div class="export-card">
-            <div class="export-card-title">1. Playable Web Link <span class="dock-meta-badge"
-                style="color: #eab308;">(P1 - Coming Soon)</span></div>
-            <div class="export-card-desc">Direct playable link on Edge CDN:
-            </div>
-            <div class="export-input-row">
-              <input type="text" id="export-url-input" readonly value="https://secret-academy.usercontent-platform.com"
-                class="export-input" style="opacity: 0.6;" />
-              <button class="wf-btn" id="btn-copy-link" disabled style="opacity: 0.5;">Copy Link</button>
-              <button class="wf-btn" id="btn-open-playable">Open Playable Web (Local) ↗</button>
-            </div>
-
-            <div style="margin-top: 12px;">
-              <div class="export-card-desc">iFrame Embed Code (Embed directly into Website or Blog):</div>
-              <div class="export-input-row">
-                <input type="text" id="export-iframe-input" readonly
-                  value='<iframe src="https://secret-academy.usercontent-platform.com" width="960" height="540" frameborder="0" allowfullscreen></iframe>'
-                  class="export-input" style="opacity: 0.6;" />
-                <button class="wf-btn" id="btn-copy-iframe" disabled style="opacity: 0.5;">Copy iFrame</button>
+              <div class="wf-form-group">
+                <label class="wf-form-label" for="char-input-name">Dialogue Display Name *</label>
+                <div class="wf-form-hint">Name shown on character nameplate during dialogue</div>
+                <input type="text" id="char-input-name" class="wf-form-input" required
+                  placeholder="e.g.: Alice Carroll, Teacher Minh" />
               </div>
-            </div>
-          </div>
 
-          <div class="export-card">
-            <div class="export-card-title">2. Web Bundle / HTML5 ZIP Package (itch.io - Ready)</div>
-            <div class="export-card-desc">Bundle all scripts, bytecode, and project assets into a self-contained package
-              to load into runner or upload to itch.io:</div>
-            <div class="export-input-row" style="margin-top: 8px;">
-              <button class="wf-btn" id="btn-download-bundle">Export Game Bundle (bundle.json)</button>
-              <button class="wf-btn" id="btn-download-zip">Download game.zip</button>
-            </div>
-          </div>
-
-          <div class="export-card">
-            <div class="export-card-title">3. Desktop App Package <span class="dock-meta-badge"
-                style="color: #eab308;">(P1 - Coming Soon)</span></div>
-            <div class="export-card-desc">Package as a standalone desktop application via Electron & GitHub Actions.
-            </div>
-            <div class="export-input-row" style="margin-top: 8px;">
-              <button class="wf-btn" id="btn-build-desktop" disabled style="opacity: 0.5;">Request Desktop Build
-                (P1)</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- MODAL CHARACTER FORM -->
-    <div id="modal-character-form" class="wf-modal-backdrop hidden">
-      <div class="wf-modal" style="max-width: 520px;">
-        <div class="wf-modal-header">
-          <div class="wf-modal-title" id="modal-char-title">ADD NEW CHARACTER</div>
-          <button class="wf-btn-sm" id="btn-close-char-modal">✕ Close (Esc)</button>
-        </div>
-        <form id="form-character" class="wf-modal-body">
-          <input type="hidden" id="char-edit-mode" value="create" />
-          <input type="hidden" id="char-original-id" value="" />
-
-          <div class="wf-form-group">
-            <label class="wf-form-label" for="char-input-id">Character ID (Used in script) *</label>
-            <div class="wf-form-hint">Used in commands: alice:, show alice happy (lowercase letters, numbers,
-              underscores)</div>
-            <input type="text" id="char-input-id" class="wf-form-input" required
-              placeholder="e.g.: alice, bob, teacher_minh" pattern="^[a-zA-Z0-9_]+$" />
-          </div>
-
-          <div class="wf-form-group">
-            <label class="wf-form-label" for="char-input-name">Dialogue Display Name *</label>
-            <div class="wf-form-hint">Name shown on character nameplate during dialogue</div>
-            <input type="text" id="char-input-name" class="wf-form-input" required
-              placeholder="e.g.: Alice Carroll, Teacher Minh" />
-          </div>
-
-          <div class="wf-form-group">
-            <label class="wf-form-label">Nameplate Color (HEX Code) *</label>
-            <div class="wf-form-hint">Enter HEX code (e.g. #38BDF8) or pick from palette and presets</div>
-            <div class="char-color-hex-group">
-              <input type="text" id="char-input-color-hex" class="wf-form-input font-mono" value="#38BDF8" maxlength="7"
-                placeholder="#38BDF8" style="width: 100px; text-transform: uppercase;" required />
-              <input type="color" id="char-input-color" value="#38bdf8" class="wf-color-input"
-                title="Pick color from palette" />
-              <div class="color-presets">
-                <button type="button" class="color-preset-btn" style="background:#38bdf8;" data-color="#38bdf8"
-                  title="Sky Blue (#38BDF8)"></button>
-                <button type="button" class="color-preset-btn" style="background:#f43f5e;" data-color="#f43f5e"
-                  title="Rose Pink (#F43F5E)"></button>
-                <button type="button" class="color-preset-btn" style="background:#10b981;" data-color="#10b981"
-                  title="Emerald Green (#10B981)"></button>
-                <button type="button" class="color-preset-btn" style="background:#eab308;" data-color="#eab308"
-                  title="Amber Yellow (#EAB308)"></button>
-                <button type="button" class="color-preset-btn" style="background:#a855f7;" data-color="#a855f7"
-                  title="Amethyst Purple (#A855F7)"></button>
-                <button type="button" class="color-preset-btn" style="background:#fb923c;" data-color="#fb923c"
-                  title="Vibrant Orange (#FB923C)"></button>
-                <button type="button" class="color-preset-btn" style="background:#ffffff;" data-color="#ffffff"
-                  title="Bright White (#FFFFFF)"></button>
+              <div class="wf-form-group">
+                <label class="wf-form-label">Nameplate Color (HEX Code) *</label>
+                <div class="wf-form-hint">Enter HEX code (e.g. #38BDF8) or pick from palette and presets</div>
+                <div class="char-color-hex-group">
+                  <input type="text" id="char-input-color-hex" class="wf-form-input font-mono" value="#38BDF8"
+                    maxlength="7" placeholder="#38BDF8" style="width: 100px; text-transform: uppercase;" required />
+                  <input type="color" id="char-input-color" value="#38bdf8" class="wf-color-input"
+                    title="Pick color from palette" />
+                  <div class="color-presets">
+                    <button type="button" class="color-preset-btn" style="background:#38bdf8;" data-color="#38bdf8"
+                      title="Sky Blue (#38BDF8)"></button>
+                    <button type="button" class="color-preset-btn" style="background:#f43f5e;" data-color="#f43f5e"
+                      title="Rose Pink (#F43F5E)"></button>
+                    <button type="button" class="color-preset-btn" style="background:#10b981;" data-color="#10b981"
+                      title="Emerald Green (#10B981)"></button>
+                    <button type="button" class="color-preset-btn" style="background:#eab308;" data-color="#eab308"
+                      title="Amber Yellow (#EAB308)"></button>
+                    <button type="button" class="color-preset-btn" style="background:#a855f7;" data-color="#a855f7"
+                      title="Amethyst Purple (#A855F7)"></button>
+                    <button type="button" class="color-preset-btn" style="background:#fb923c;" data-color="#fb923c"
+                      title="Vibrant Orange (#FB923C)"></button>
+                    <button type="button" class="color-preset-btn" style="background:#ffffff;" data-color="#ffffff"
+                      title="Bright White (#FFFFFF)"></button>
+                  </div>
+                  <div class="char-color-preview-tag" id="char-color-preview-tag"
+                    style="color: #38bdf8; border-color: #38bdf8;">Display Name</div>
+                </div>
               </div>
-              <div class="char-color-preview-tag" id="char-color-preview-tag"
-                style="color: #38bdf8; border-color: #38bdf8;">Display Name</div>
-            </div>
-          </div>
 
-          <div class="wf-form-group">
-            <div class="sprites-header-row">
-              <label class="wf-form-label">Character Expressions & Images (Each image is 1 expression)</label>
-              <button type="button" id="btn-add-sprite-row" class="wf-btn-sm">+ Add Expression</button>
-            </div>
-            <div class="wf-form-hint">Each expression corresponds to a sprite image (PNG, JPG, WebP). The first
-              expression or 'default' will be used as default in scripts (e.g. show alice).</div>
-            <div id="char-sprites-manager-list" class="sprites-manager-list">
-              <!-- Rendered dynamically by JavaScript -->
-            </div>
-          </div>
+              <div class="wf-form-group">
+                <div class="sprites-header-row">
+                  <label class="wf-form-label">Character Expressions & Images (Each image is 1 expression)</label>
+                  <button type="button" id="btn-add-sprite-row" class="wf-btn-sm">+ Add Expression</button>
+                </div>
+                <div class="wf-form-hint">Each expression corresponds to a sprite image (PNG, JPG, WebP). The first
+                  expression or 'default' will be used as default in scripts (e.g. show alice).</div>
+                <div id="char-sprites-manager-list" class="sprites-manager-list">
+                  <!-- Rendered dynamically by JavaScript -->
+                </div>
+              </div>
 
-          <div class="wf-modal-actions">
-            <button type="button" class="wf-btn" id="btn-cancel-char-modal">Cancel</button>
-            <button type="submit" class="wf-btn btn-accent" id="btn-save-char">Save Character</button>
+              <div class="wf-modal-actions">
+                <button type="button" class="wf-btn" id="btn-cancel-char-modal">Cancel</button>
+                <button type="submit" class="wf-btn btn-accent" id="btn-save-char">Save Character</button>
+              </div>
+            </form>
           </div>
-        </form>
-      </div>
-    </div>
-
-    <!-- MODAL ASSET FORM -->
-    <div id="modal-asset-form" class="wf-modal-backdrop hidden">
-      <div class="wf-modal" style="max-width: 520px;">
-        <div class="wf-modal-header">
-          <div class="wf-modal-title" id="modal-asset-title">ADD NEW ASSET</div>
-          <button class="wf-btn-sm" id="btn-close-asset-modal">✕ Close (Esc)</button>
         </div>
-        <form id="form-asset" class="wf-modal-body">
-          <input type="hidden" id="asset-edit-mode" value="create" />
-          <input type="hidden" id="asset-original-id" value="" />
 
-          <div class="wf-form-group">
-            <label class="wf-form-label" for="asset-input-type">Asset Type *</label>
-            <select id="asset-input-type" class="wf-form-select">
-              <option value="image">🖼 Image (Background, sprite, CG, GIF)</option>
-              <option value="audio">🎵 Audio (BGM, SFX)</option>
-              <option value="video">🎥 Video (Cutscene, Opening, Movie)</option>
-            </select>
+        <!-- MODAL ASSET FORM -->
+        <div id="modal-asset-form" class="wf-modal-backdrop hidden">
+          <div class="wf-modal" style="max-width: 520px;">
+            <div class="wf-modal-header">
+              <div class="wf-modal-title" id="modal-asset-title">ADD NEW ASSET</div>
+              <button class="wf-btn-sm" id="btn-close-asset-modal">✕ Close (Esc)</button>
+            </div>
+            <form id="form-asset" class="wf-modal-body">
+              <input type="hidden" id="asset-edit-mode" value="create" />
+              <input type="hidden" id="asset-original-id" value="" />
+
+              <div class="wf-form-group">
+                <label class="wf-form-label" for="asset-input-type">Asset Type *</label>
+                <select id="asset-input-type" class="wf-form-select">
+                  <option value="image">🖼 Image (Background, sprite, CG, GIF)</option>
+                  <option value="audio">🎵 Audio (BGM, SFX)</option>
+                  <option value="video">🎥 Video (Cutscene, Opening, Movie)</option>
+                </select>
+              </div>
+
+              <div class="wf-form-group">
+                <label class="wf-form-label" for="asset-input-name">Asset Name (Used in script) *</label>
+                <div class="wf-form-hint">e.g.: background bg_courtyard or play music theme_peaceful</div>
+                <input type="text" id="asset-input-name" class="wf-form-input" required
+                  placeholder="e.g.: bg_courtyard, theme_peaceful, sfx_bell" />
+              </div>
+
+              <div class="wf-form-group">
+                <label class="wf-form-label" for="asset-input-file">Upload File from Device (Optional)</label>
+                <div class="wf-form-hint">Data is stored directly in project IndexedDB database</div>
+                <input type="file" id="asset-input-file" class="wf-form-file" accept="image/*,audio/*,video/*" />
+              </div>
+
+              <div class="wf-form-group">
+                <label class="wf-form-label" for="asset-input-url">Or Enter Path / Storage URL</label>
+                <input type="text" id="asset-input-url" class="wf-form-input"
+                  placeholder="assets/bg_courtyard.png or https://..." />
+              </div>
+
+              <div class="wf-modal-actions">
+                <button type="button" class="wf-btn" id="btn-cancel-asset-modal">Cancel</button>
+                <button type="submit" class="wf-btn btn-accent" id="btn-save-asset">Save Asset</button>
+              </div>
+            </form>
           </div>
+        </div>
 
-          <div class="wf-form-group">
-            <label class="wf-form-label" for="asset-input-name">Asset Name (Used in script) *</label>
-            <div class="wf-form-hint">e.g.: background bg_courtyard or play music theme_peaceful</div>
-            <input type="text" id="asset-input-name" class="wf-form-input" required
-              placeholder="e.g.: bg_courtyard, theme_peaceful, sfx_bell" />
-          </div>
-
-          <div class="wf-form-group">
-            <label class="wf-form-label" for="asset-input-file">Upload File from Device (Optional)</label>
-            <div class="wf-form-hint">Data is stored directly in project IndexedDB database</div>
-            <input type="file" id="asset-input-file" class="wf-form-file" accept="image/*,audio/*,video/*" />
-          </div>
-
-          <div class="wf-form-group">
-            <label class="wf-form-label" for="asset-input-url">Or Enter Path / Storage URL</label>
-            <input type="text" id="asset-input-url" class="wf-form-input"
-              placeholder="assets/bg_courtyard.png or https://..." />
-          </div>
-
-          <div class="wf-modal-actions">
-            <button type="button" class="wf-btn" id="btn-cancel-asset-modal">Cancel</button>
-            <button type="submit" class="wf-btn btn-accent" id="btn-save-asset">Save Asset</button>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <div id="studio-toast" class="toast-popup hidden"></div>
+        <div id="studio-toast" class="toast-popup hidden"></div>
       </div>
     </div>
   </div>

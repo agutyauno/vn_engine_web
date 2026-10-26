@@ -23,7 +23,7 @@ export interface StudioContext {
   markDirty(): void;
   saveProjectToStorage(): Promise<void>;
   showToast(message: string): void;
-  compileCurrentScript(): void;
+  compileCurrentScript(options?: { verbose?: boolean; clearOutput?: boolean }): void;
   getPreviewBaseUrl(): string;
   getPreviewOrigin(): string;
   getFilesMap(): Record<string, string>;
@@ -42,4 +42,9 @@ export interface StudioContext {
   renderFileList(): void;
   renderCharacterList(): void;
   renderAssetList(): void;
+  setModelMarkers(
+    currentModel: monaco.editor.ITextModel,
+    owner: string,
+    markers: monaco.editor.IMarkerData[],
+  ): void;
 }

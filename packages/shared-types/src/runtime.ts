@@ -31,6 +31,7 @@ export interface VMState {
   activeSprites?: Record<string, ShowInstruction>;
   activeAudio?: Record<string, PlayInstruction>;
   currentDialogue?: DialogueInstruction;
+  activeExecutingPc?: number;
 }
 
 export type StepResult =
@@ -60,3 +61,49 @@ export interface SaveFileData {
   state: VMState;
   dialogueCounter: number;
 }
+
+export type LogChannel = 'all' | 'compiler' | 'player' | 'assets' | 'export';
+export type LogLevel = 'info' | 'warn' | 'error';
+
+export interface LogEntry {
+  id: string;
+  timestamp: number;
+  channel: LogChannel;
+  level: LogLevel;
+  message: string;
+  source?: string;
+  details?: unknown;
+}
+
+export interface PlayerLogMessage {
+  type: 'PLAYER_LOG';
+  log: LogEntry;
+}
+
+export type DiagnosticCategory = 'compiler' | 'asset' | 'runtime' | 'storage';
+export type DiagnosticSeverity = 'error' | 'warning' | 'info';
+
+export interface EngineDiagnostic {
+  id: string;
+  timestamp: number;
+  category: DiagnosticCategory;
+  severity: DiagnosticSeverity;
+  message: string;
+  code?: string;
+  assetKey?: string;
+  fileId?: string;
+  line?: number;
+  col?: number;
+  details?: unknown;
+}
+
+export interface EngineDiagnosticMessage {
+  type: 'ENGINE_DIAGNOSTIC';
+  diagnostic: EngineDiagnostic;
+}
+
+export interface DiagnosticsClearMessage {
+  type: 'DIAGNOSTICS_CLEAR';
+}
+
+

@@ -8,6 +8,7 @@ import { VNPlayer } from './player';
 import { GameStorage } from './storage';
 import scenarioSource from './scenario.vns?raw';
 
+
 function isAllowedEditorOrigin(origin: string): boolean {
   const envOrigin = import.meta.env.VITE_EDITOR_ORIGIN;
   const allowedOrigins = ['http://localhost:3001', 'http://127.0.0.1:3001', window.location.origin];
@@ -95,8 +96,14 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   // Báo cho parent (Editor / Live Preview Container) biết Player đã sẵn sàng
   let targetOrigin =
-    window.location.hostname === 'localhost' ? 'http://localhost:3001' : window.location.origin;
-  if (document.referrer) {
+    window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+      ? `http://${window.location.hostname}:3001`
+      : window.location.origin;
+
+  const editorOriginParam = urlParams.get('editorOrigin');
+  if (editorOriginParam && isAllowedEditorOrigin(editorOriginParam)) {
+    targetOrigin = editorOriginParam;
+  } else if (document.referrer) {
     try {
       const refUrl = new URL(document.referrer);
       if (isAllowedEditorOrigin(refUrl.origin)) {
@@ -106,6 +113,9 @@ window.addEventListener('DOMContentLoaded', async () => {
       // ignore
     }
   }
+
+  player.setEditorOrigin(targetOrigin);
+
   if (isEmbedded) {
     window.parent.postMessage({ type: 'PLAYER_READY' }, targetOrigin);
   }
@@ -118,6 +128,11 @@ window.addEventListener('DOMContentLoaded', async () => {
 window.addEventListener('message', async (event: MessageEvent) => {
   if (!isAllowedEditorOrigin(event.origin)) {
     return;
+  }
+
+  const player = (window as unknown as { vnPlayer?: VNPlayer }).vnPlayer;
+  if (player) {
+    player.setEditorOrigin(event.origin);
   }
 
   if (event.data?.type === 'HOT_RELOAD_PROGRAM') {
@@ -150,6 +165,16 @@ window.addEventListener('message', async (event: MessageEvent) => {
         targetLine: event.data.targetLine,
         fileId: event.data.fileId,
       });
+    }
+  }
+
+  if (event.data?.type === 'SET_VM_VARIABLE') {
+    const player = (window as unknown as { vnPlayer?: VNPlayer }).vnPlayer;
+    if (player && typeof event.data.name === 'string') {
+      console.log(
+        `[RuntimePlayer] Received SET_VM_VARIABLE for '${event.data.name}' from ${event.origin}`,
+      );
+      player.setVariable(event.data.name, event.data.value, event.data.scope);
     }
   }
 });
