@@ -276,7 +276,7 @@ describe('Unified Diagnostics Hub (Problems Tab)', () => {
 
   it('initializes with zero problems in clean state', () => {
     const ctx = createMockContext();
-    const drawer = new BottomDrawerClass(ctx);
+    const _drawer = new BottomDrawerClass(ctx);
 
     const summary = domRegistry['problems-summary']!;
     expect(summary.textContent).toContain('Problems (0)');
@@ -285,7 +285,7 @@ describe('Unified Diagnostics Hub (Problems Tab)', () => {
 
   it('renders compiler errors with line/column and jumps to editor on click', () => {
     const ctx = createMockContext();
-    const drawer = new BottomDrawerClass(ctx);
+    const _drawer = new BottomDrawerClass(ctx);
 
     const errors: CompileError[] = [
       {
@@ -315,7 +315,7 @@ describe('Unified Diagnostics Hub (Problems Tab)', () => {
 
   it('adds and aggregates runtime & missing asset diagnostics alongside compiler errors', () => {
     const ctx = createMockContext();
-    const drawer = new BottomDrawerClass(ctx);
+    const _drawer = new BottomDrawerClass(ctx);
 
     // 1. Add compiler error
     drawer.renderErrors([
@@ -353,7 +353,7 @@ describe('Unified Diagnostics Hub (Problems Tab)', () => {
 
   it('clears runtime diagnostics when clearRuntimeDiagnostics is called on recompile', () => {
     const ctx = createMockContext();
-    const drawer = new BottomDrawerClass(ctx);
+    const _drawer = new BottomDrawerClass(ctx);
 
     drawer.addRuntimeDiagnostic({
       category: 'asset',

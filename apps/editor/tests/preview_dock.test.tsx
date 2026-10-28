@@ -30,7 +30,7 @@ const landscapeProject: Project = {
   ],
 };
 
-const portraitMobileProject: Project = {
+const _portraitMobileProject: Project = {
   id: 'proj-mobile',
   title: 'Mobile Webtoon Project',
   createdAt: Date.now(),

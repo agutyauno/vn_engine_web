@@ -4,7 +4,7 @@ import '@testing-library/jest-dom';
 import 'fake-indexeddb/auto';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import type { Project, ScriptFile, AssetRef, Character } from '@vn-engine/shared-types';
+import type { Project } from '@vn-engine/shared-types';
 import {
   scanActiveReconciliation,
   checkAssetDeletionSafety,

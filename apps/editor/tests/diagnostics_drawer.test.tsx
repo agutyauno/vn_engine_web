@@ -4,12 +4,9 @@ import '@testing-library/jest-dom';
 import 'fake-indexeddb/auto';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import type { Project, ScriptFile } from '@vn-engine/shared-types';
+import type { Project } from '@vn-engine/shared-types';
 import { IndexedDBProjectRepository } from '../src/core/repositories/IndexedDBProjectRepository';
-import {
-  type EditorDiagnostic,
-  generateDiagnostics,
-} from '../src/core/services/reconciliation';
+import type { EditorDiagnostic } from '../src/core/services/reconciliation';
 import { DockDrawer } from '../src/components/studio/DockDrawer';
 import { DockProblemsTable } from '../src/components/studio/DockProblemsTable';
 import { RuntimeCheatInjector } from '../src/components/studio/RuntimeCheatInjector';
