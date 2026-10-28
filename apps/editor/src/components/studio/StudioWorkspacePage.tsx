@@ -17,6 +17,7 @@ import { DockDrawer, type DrawerTab } from './DockDrawer';
 import { DockProblemsTable } from './DockProblemsTable';
 import { RuntimeCheatInjector } from './RuntimeCheatInjector';
 import { ConsoleLogStream, type ConsoleLogEntry } from './ConsoleLogStream';
+import { PreviewDock } from './PreviewDock';
 import {
   generateDiagnostics,
   type EditorDiagnostic,
@@ -85,6 +86,15 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
     () => diagnostics.filter((d) => d.severity === 'warning').length,
     [diagnostics]
   );
+
+  // Live Preview State (Milestone 8)
+  const [isPreviewPlaying, setIsPreviewPlaying] = useState<boolean>(false);
+  const [isPreviewPopout, setIsPreviewPopout] = useState<boolean>(false);
+
+  const handleQuickPlayAction = useCallback(() => {
+    setIsPreviewPlaying(true);
+    onQuickPlay?.();
+  }, [onQuickPlay]);
 
   useEffect(() => {
     let isMounted = true;
@@ -555,7 +565,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
         onSave={handleManualSave}
         onBack={onBackToHub}
         onBackToHub={onBackToHub}
-        onQuickPlay={onQuickPlay}
+        onQuickPlay={handleQuickPlayAction}
         onOpenSettings={onOpenSettings}
         onExport={onExport}
       />
@@ -669,29 +679,22 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
         {/* Column 3: Live Preview Dock (100% full-height with aspect-ratio locked container) */}
         <div
           data-testid="col-preview-dock"
-          className="flex w-[400px] lg:w-[460px] shrink-0 h-full flex-col bg-neutral-900/70"
+          className="flex w-[400px] lg:w-[480px] shrink-0 h-full flex-col bg-neutral-900/70"
         >
-          <div className="flex h-9 items-center justify-between border-b border-neutral-800 px-3 text-xs text-neutral-400">
-            <span className="font-semibold">Live Preview</span>
-            <span className="font-mono text-[10px] text-neutral-500">
-              {canvasWidth} × {canvasHeight}
-            </span>
-          </div>
-
-          <div className="flex flex-1 items-center justify-center p-4 overflow-hidden">
-            <div
-              data-testid="preview-dock-container"
-              className="relative flex w-full items-center justify-center rounded border border-neutral-800 bg-black shadow-2xl overflow-hidden"
-              style={{
-                aspectRatio: `${canvasWidth} / ${canvasHeight}`,
-                maxHeight: '100%',
-              }}
-            >
-              <div className="text-center text-xs text-neutral-500 font-mono">
-                <span>Preview Dock Standby (Coming in Milestone 8)</span>
-              </div>
-            </div>
-          </div>
+          <PreviewDock
+            projectId={project.id}
+            canvasWidth={canvasWidth}
+            canvasHeight={canvasHeight}
+            isPlaying={isPreviewPlaying}
+            isPopout={isPreviewPopout}
+            previewUrl={`http://localhost:3000/?mode=preview&projectId=${project.id}`}
+            onTogglePlay={() => setIsPreviewPlaying((prev) => !prev)}
+            onReload={() => {
+              setIsPreviewPlaying(false);
+              setTimeout(() => setIsPreviewPlaying(true), 50);
+            }}
+            onTogglePopout={() => setIsPreviewPopout((prev) => !prev)}
+          />
         </div>
       </main>
 
