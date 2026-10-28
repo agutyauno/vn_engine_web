@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import type { AssetRef, Character, Project, ScriptFile } from '@vn-engine/shared-types';
 import type { ProjectRepository } from '../../core/contracts/repository';
 import { ActivityBar, type StudioTab } from './ActivityBar';
@@ -13,6 +13,14 @@ import { CharacterModal } from '../characters/CharacterModal';
 import { AssetLibraryPane } from './AssetLibraryPane';
 import { EditorTabBar } from './EditorTabBar';
 import { MonacoEditorContainer } from './MonacoEditorContainer';
+import { DockDrawer, type DrawerTab } from './DockDrawer';
+import { DockProblemsTable } from './DockProblemsTable';
+import { RuntimeCheatInjector } from './RuntimeCheatInjector';
+import { ConsoleLogStream, type ConsoleLogEntry } from './ConsoleLogStream';
+import {
+  generateDiagnostics,
+  type EditorDiagnostic,
+} from '../../core/services/reconciliation';
 
 export interface StudioWorkspacePageProps {
   projectId: string;
@@ -50,6 +58,33 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [isCharModalOpen, setIsCharModalOpen] = useState<boolean>(false);
   const [editingCharacter, setEditingCharacter] = useState<Character | null>(null);
+
+  // Diagnostics & Bottom Drawer State (Milestone 7)
+  const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(true);
+  const [drawerTab, setDrawerTab] = useState<DrawerTab>('problems');
+  const [runtimeVariables, setRuntimeVariables] = useState<Record<string, unknown>>({});
+  const [consoleLogs, setConsoleLogs] = useState<ConsoleLogEntry[]>([
+    {
+      id: 'init-log-1',
+      timestamp: Date.now(),
+      level: 'info',
+      message: 'Studio workspace initialized.',
+    },
+  ]);
+  const [cursorJumpTarget, setCursorJumpTarget] = useState<{ line: number; col: number } | null>(null);
+
+  const diagnostics = useMemo<EditorDiagnostic[]>(() => {
+    return project ? generateDiagnostics(project) : [];
+  }, [project]);
+
+  const errorCount = useMemo(
+    () => diagnostics.filter((d) => d.severity === 'error').length,
+    [diagnostics]
+  );
+  const warningCount = useMemo(
+    () => diagnostics.filter((d) => d.severity === 'warning').length,
+    [diagnostics]
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -259,6 +294,51 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
         : null
     );
     setIsCharModalOpen(true);
+  }, []);
+
+  const handleDiagnosticClick = useCallback(
+    (diag: EditorDiagnostic) => {
+      let targetFileId = diag.fileId;
+      if (!targetFileId && diag.fileName && project) {
+        const match = project.files.find((f) => f.name === diag.fileName);
+        if (match) targetFileId = match.id;
+      }
+      if (targetFileId) {
+        handleSelectTab(targetFileId);
+      }
+      if (diag.line) {
+        setCursorJumpTarget({ line: diag.line, col: diag.col || 1 });
+      }
+    },
+    [project, handleSelectTab]
+  );
+
+  const handleQuickFix = useCallback(
+    (diag: EditorDiagnostic) => {
+      if (diag.quickFix?.type === 'create_asset') {
+        setActiveTab('assets');
+      } else if (diag.quickFix?.type === 'create_character') {
+        handleOpenCreateCharacter(diag.quickFix.targetId);
+      }
+    },
+    [handleOpenCreateCharacter]
+  );
+
+  const handleInjectVariable = useCallback((key: string, value: unknown) => {
+    setRuntimeVariables((prev) => ({ ...prev, [key]: value }));
+    setConsoleLogs((prev) => [
+      ...prev,
+      {
+        id: `log-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        timestamp: Date.now(),
+        level: 'info',
+        message: `Injected variable '${key}' = ${JSON.stringify(value)}`,
+      },
+    ]);
+  }, []);
+
+  const handleClearLogs = useCallback(() => {
+    setConsoleLogs([]);
   }, []);
 
   const handleOpenEditCharacter = useCallback((char: Character) => {
@@ -551,23 +631,39 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
           <MonacoEditorContainer
             file={activeFile}
             project={project}
+            cursorJumpTarget={cursorJumpTarget}
             onChange={handleContentChange}
           />
 
-          {/* Bottom Drawer Placeholder (Coming in Milestone 7) */}
-          <div
-            data-testid="workspace-bottom-drawer"
-            className="flex h-36 flex-col border-t border-neutral-800 bg-neutral-900/90 text-xs shrink-0"
+          {/* Bottom Diagnostics & Debugger Drawer (Milestone 7) */}
+          <DockDrawer
+            isOpen={isDrawerOpen}
+            activeTab={drawerTab}
+            errorCount={errorCount}
+            warningCount={warningCount}
+            onToggleDrawer={() => setIsDrawerOpen((prev) => !prev)}
+            onSelectTab={setDrawerTab}
           >
-            <div className="flex h-7 items-center border-b border-neutral-800 px-3 text-neutral-400">
-              <span className="font-semibold tracking-wide uppercase text-[10px]">
-                Diagnostics & Problems (Coming in Milestone 7)
-              </span>
-            </div>
-            <div className="flex-1 p-2 text-neutral-500 font-mono">
-              <span>Zero issues detected in current script workspace.</span>
-            </div>
-          </div>
+            {drawerTab === 'problems' && (
+              <DockProblemsTable
+                diagnostics={diagnostics}
+                onDiagnosticClick={handleDiagnosticClick}
+                onQuickFix={handleQuickFix}
+              />
+            )}
+            {drawerTab === 'cheats' && (
+              <RuntimeCheatInjector
+                variables={runtimeVariables}
+                onInjectVariable={handleInjectVariable}
+              />
+            )}
+            {drawerTab === 'console' && (
+              <ConsoleLogStream
+                logs={consoleLogs}
+                onClearLogs={handleClearLogs}
+              />
+            )}
+          </DockDrawer>
         </div>
 
         {/* Column 3: Live Preview Dock (100% full-height with aspect-ratio locked container) */}

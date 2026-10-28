@@ -5,6 +5,7 @@ import type * as monacoType from 'monaco-editor';
 export interface MonacoEditorContainerProps {
   file: ScriptFile | null;
   project: Project;
+  cursorJumpTarget?: { line: number; col: number } | null;
   onChange?: (newContent: string) => void;
   onCursorChange?: (line: number, col: number) => void;
   readOnly?: boolean;
@@ -15,6 +16,7 @@ let vnsRegistered = false;
 export const MonacoEditorContainer: React.FC<MonacoEditorContainerProps> = ({
   file,
   project,
+  cursorJumpTarget,
   onChange,
   onCursorChange,
   readOnly = false,
@@ -132,6 +134,18 @@ export const MonacoEditorContainer: React.FC<MonacoEditorContainerProps> = ({
       }
     }
   }, [file?.id, file?.content]);
+
+  // Support cursorJumpTarget (IT-EDT-01)
+  useEffect(() => {
+    if (cursorJumpTarget && editorRef.current) {
+      editorRef.current.revealLineInCenter(cursorJumpTarget.line);
+      editorRef.current.setPosition({
+        lineNumber: cursorJumpTarget.line,
+        column: cursorJumpTarget.col || 1,
+      });
+      editorRef.current.focus();
+    }
+  }, [cursorJumpTarget]);
 
   if (!file) {
     return (

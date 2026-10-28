@@ -1,5 +1,24 @@
 import type { Project } from '@vn-engine/shared-types';
 
+export type DiagnosticSeverity = 'error' | 'warning' | 'info';
+export type DiagnosticCategory = 'compiler' | 'asset' | 'character' | 'runtime';
+
+export interface EditorDiagnostic {
+  id: string;
+  category: DiagnosticCategory;
+  severity: DiagnosticSeverity;
+  message: string;
+  fileId?: string;
+  fileName?: string;
+  line?: number;
+  col?: number;
+  quickFix?: {
+    type: 'create_asset' | 'create_character' | 'define_variable';
+    targetId: string;
+    prefillData?: Record<string, unknown>;
+  };
+}
+
 export interface ScriptReference {
   file: string;
   line: number;
@@ -203,4 +222,95 @@ export function checkAssetDeletionSafety(
     safe: true,
     references: [],
   };
+}
+
+/**
+ * Generates editor diagnostics from active reconciliation scanning.
+ * Flags uncreated characters and uncreated assets as actionable warnings with QuickFix payloads.
+ */
+export function generateDiagnostics(project: Project): EditorDiagnostic[] {
+  const report = scanActiveReconciliation(project);
+  const diagnostics: EditorDiagnostic[] = [];
+
+  const fileMap = new Map<string, string>();
+  for (const f of project.files || []) {
+    fileMap.set(f.name, f.id);
+  }
+
+  // Uncreated Assets
+  for (const assetName of report.uncreatedAssets) {
+    const refs = report.assetReferences[assetName] || report.assetReferences[assetName.toLowerCase()] || [];
+    if (refs.length > 0) {
+      for (const ref of refs) {
+        diagnostics.push({
+          id: `diag-asset-${assetName}-${ref.file}-${ref.line}`,
+          category: 'asset',
+          severity: 'warning',
+          message: `Uncreated asset '${assetName}' referenced in script`,
+          fileName: ref.file,
+          fileId: fileMap.get(ref.file),
+          line: ref.line,
+          col: 1,
+          quickFix: {
+            type: 'create_asset',
+            targetId: assetName,
+            prefillData: {
+              name: assetName,
+              category: ref.type === 'audio' ? 'audio' : 'backgrounds',
+            },
+          },
+        });
+      }
+    } else {
+      diagnostics.push({
+        id: `diag-asset-${assetName}`,
+        category: 'asset',
+        severity: 'warning',
+        message: `Uncreated asset '${assetName}' referenced in script`,
+        quickFix: {
+          type: 'create_asset',
+          targetId: assetName,
+          prefillData: { name: assetName, category: 'backgrounds' },
+        },
+      });
+    }
+  }
+
+  // Uncreated Characters
+  for (const charId of report.uncreatedCharacters) {
+    const refs = report.characterReferences[charId] || report.characterReferences[charId.toLowerCase()] || [];
+    if (refs.length > 0) {
+      for (const ref of refs) {
+        diagnostics.push({
+          id: `diag-char-${charId}-${ref.file}-${ref.line}`,
+          category: 'character',
+          severity: 'warning',
+          message: `Uncreated character '${charId}' referenced in script`,
+          fileName: ref.file,
+          fileId: fileMap.get(ref.file),
+          line: ref.line,
+          col: 1,
+          quickFix: {
+            type: 'create_character',
+            targetId: charId,
+            prefillData: { id: charId, name: charId },
+          },
+        });
+      }
+    } else {
+      diagnostics.push({
+        id: `diag-char-${charId}`,
+        category: 'character',
+        severity: 'warning',
+        message: `Uncreated character '${charId}' referenced in script`,
+        quickFix: {
+          type: 'create_character',
+          targetId: charId,
+          prefillData: { id: charId, name: charId },
+        },
+      });
+    }
+  }
+
+  return diagnostics;
 }
