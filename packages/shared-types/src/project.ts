@@ -60,6 +60,7 @@ export interface Character {
   id: string; // Mã nhân vật dùng trong script: "alice"
   name: string; // Tên hiển thị mặc định: "Alice Carroll" (ADR-020)
   colorHex?: string; // Mã màu tên trong hộp thoại: "#e91e63"
+  defaultExpression?: string; // Biểu cảm mặc định khi không chỉ định: "neutral"
   sprites: Record<string, string>; // { "happy": "asset-uuid-1", "sad": "asset-uuid-2" }
 }
 
