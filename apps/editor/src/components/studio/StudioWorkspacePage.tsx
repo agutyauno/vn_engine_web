@@ -1,11 +1,18 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import type { Character, Project, ScriptFile } from '@vn-engine/shared-types';
+import type { AssetRef, Character, Project, ScriptFile } from '@vn-engine/shared-types';
 import type { ProjectRepository } from '../../core/contracts/repository';
 import { ActivityBar, type StudioTab } from './ActivityBar';
-import { FileExplorerPane, cleanChapterName } from './FileExplorerPane';
+import {
+  FileExplorerPane,
+  cleanChapterName,
+  generateDefaultScriptName,
+} from './FileExplorerPane';
 import { StudioHeader } from './StudioHeader';
 import { CharacterManagerPane } from '../characters/CharacterManagerPane';
 import { CharacterModal } from '../characters/CharacterModal';
+import { AssetLibraryPane } from './AssetLibraryPane';
+import { EditorTabBar } from './EditorTabBar';
+import { MonacoEditorContainer } from './MonacoEditorContainer';
 
 export interface StudioWorkspacePageProps {
   projectId: string;
@@ -31,9 +38,14 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   const [activeTab, setActiveTab] = useState<StudioTab>('scripts');
+  const [openFileIds, setOpenFileIds] = useState<string[]>(
+    initialProject?.files ? initialProject.files.map((f) => f.id) : []
+  );
   const [activeFileId, setActiveFileId] = useState<string | null>(
     initialProject?.files[0]?.id ?? null
   );
+  const [dirtyFileIds, setDirtyFileIds] = useState<Set<string>>(new Set());
+
   const [isDirty, setIsDirty] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [isCharModalOpen, setIsCharModalOpen] = useState<boolean>(false);
@@ -52,6 +64,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
           setProject(loaded);
           if (loaded.files.length > 0 && loaded.files[0]) {
             setActiveFileId(loaded.files[0].id);
+            setOpenFileIds(loaded.files.map((f) => f.id));
           }
         } else {
           setError(`Project not found: ${projectId}`);
@@ -93,9 +106,24 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
     [project, repository]
   );
 
-  const handleSelectFile = useCallback((fileId: string) => {
+  const handleSelectTab = useCallback((fileId: string) => {
     setActiveFileId(fileId);
+    setOpenFileIds((prev) => (prev.includes(fileId) ? prev : [...prev, fileId]));
   }, []);
+
+  const handleCloseTab = useCallback(
+    (fileId: string) => {
+      setOpenFileIds((prev) => {
+        const next = prev.filter((id) => id !== fileId);
+        if (activeFileId === fileId) {
+          const nextActive = next[0] || (project?.files?.[0]?.id ?? '');
+          setActiveFileId(nextActive);
+        }
+        return next;
+      });
+    },
+    [activeFileId, project]
+  );
 
   const handleCreateFile = useCallback(
     async (normalizedName: string) => {
@@ -114,12 +142,13 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
       };
       setProject(updated);
       setActiveFileId(newFile.id);
+      setOpenFileIds((prev) => [...prev, newFile.id]);
       setIsSaving(true);
       try {
         await repository.updateProject(updated);
         setIsDirty(false);
       } catch (err) {
-        console.error('Failed to persist new script:', err);
+        console.error('Failed to create script file:', err);
         setIsDirty(true);
       } finally {
         setIsSaving(false);
@@ -129,18 +158,11 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
   );
 
   const handleRenameFile = useCallback(
-    async (fileId: string, newNormalizedName: string) => {
+    async (fileId: string, newName: string) => {
       if (!project) return;
-      const updatedFiles = project.files.map((file) => {
-        if (file.id === fileId) {
-          return {
-            ...file,
-            name: newNormalizedName,
-            version: file.version + 1,
-          };
-        }
-        return file;
-      });
+      const updatedFiles = project.files.map((f) =>
+        f.id === fileId ? { ...f, name: newName, version: f.version + 1 } : f
+      );
       const updated: Project = {
         ...project,
         files: updatedFiles,
@@ -152,7 +174,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
         await repository.updateProject(updated);
         setIsDirty(false);
       } catch (err) {
-        console.error('Failed to persist file rename:', err);
+        console.error('Failed to rename script file:', err);
         setIsDirty(true);
       } finally {
         setIsSaving(false);
@@ -164,40 +186,65 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
   const handleDeleteFile = useCallback(
     async (fileId: string) => {
       if (!project) return;
-      const targetFile = project.files.find((f) => f.id === fileId);
-      if (!targetFile) return;
-
-      // Invariants: root file main.vns cannot be deleted, project must have at least 1 script
-      if (targetFile.name === 'main.vns' || project.files.length <= 1) {
-        return;
-      }
-
-      const remainingFiles = project.files.filter((f) => f.id !== fileId);
+      const updatedFiles = project.files.filter((f) => f.id !== fileId);
       const updated: Project = {
         ...project,
-        files: remainingFiles,
+        files: updatedFiles,
         updatedAt: Date.now(),
       };
       setProject(updated);
-
+      setOpenFileIds((prev) => prev.filter((id) => id !== fileId));
       if (activeFileId === fileId) {
-        const fallback = remainingFiles[0]?.id ?? null;
-        setActiveFileId(fallback);
+        setActiveFileId(updatedFiles[0]?.id ?? null);
       }
-
       setIsSaving(true);
       try {
         await repository.updateProject(updated);
         setIsDirty(false);
       } catch (err) {
-        console.error('Failed to persist file deletion:', err);
+        console.error('Failed to delete script file:', err);
         setIsDirty(true);
       } finally {
         setIsSaving(false);
       }
     },
-    [project, activeFileId, repository]
+    [project, repository, activeFileId]
   );
+
+  // Script content change
+  const handleContentChange = useCallback(
+    (newContent: string) => {
+      if (!project || !activeFileId) return;
+      const updatedFiles = (project.files || []).map((f) =>
+        f.id === activeFileId ? { ...f, content: newContent, version: (f.version || 1) + 1 } : f
+      );
+      const updated: Project = {
+        ...project,
+        files: updatedFiles,
+        updatedAt: Date.now(),
+      };
+      setProject(updated);
+      setDirtyFileIds((prev) => new Set([...prev, activeFileId]));
+      setIsDirty(true);
+    },
+    [project, activeFileId]
+  );
+
+  // Manual save
+  const handleManualSave = useCallback(async () => {
+    if (!project) return;
+    setIsSaving(true);
+    try {
+      await repository.updateProject(project);
+      setDirtyFileIds(new Set());
+      setIsDirty(false);
+    } catch (err) {
+      console.error('Failed to save project:', err);
+      setIsDirty(true);
+    } finally {
+      setIsSaving(false);
+    }
+  }, [project, repository]);
 
   const handleOpenCreateCharacter = useCallback((prefillId?: string) => {
     setEditingCharacter(
@@ -222,14 +269,13 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
   const handleSaveCharacter = useCallback(
     async (savedChar: Character) => {
       if (!project) return;
-      const finalChar = editingCharacter ? { ...savedChar, id: editingCharacter.id } : savedChar;
       const existingChars = project.characters || [];
-      const existingIndex = existingChars.findIndex((c) => c.id === finalChar.id);
+      const existingIndex = existingChars.findIndex((c) => c.id === savedChar.id);
       let updatedCharacters: Character[];
       if (existingIndex >= 0) {
-        updatedCharacters = existingChars.map((c, i) => (i === existingIndex ? finalChar : c));
+        updatedCharacters = existingChars.map((c, i) => (i === existingIndex ? savedChar : c));
       } else {
-        updatedCharacters = [...existingChars, finalChar];
+        updatedCharacters = [...existingChars, savedChar];
       }
       const updated: Project = {
         ...project,
@@ -249,7 +295,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
         setIsCharModalOpen(false);
       }
     },
-    [project, repository, editingCharacter]
+    [project, repository]
   );
 
   const handleDeleteCharacter = useCallback(
@@ -269,6 +315,103 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
         setIsDirty(false);
       } catch (err) {
         console.error('Failed to delete character:', err);
+        setIsDirty(true);
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [project, repository]
+  );
+
+  const handleAddAsset = useCallback(
+    async (newAsset: AssetRef, fileBlob: Blob) => {
+      if (!project) return;
+      try {
+        await repository.saveAssetBlob(newAsset.id, fileBlob);
+      } catch (err) {
+        console.error('Failed to save asset blob:', err);
+      }
+
+      const existing = project.assets || [];
+      const updated: Project = {
+        ...project,
+        assets: [...existing, newAsset],
+        updatedAt: Date.now(),
+      };
+      setProject(updated);
+      setIsSaving(true);
+      try {
+        await repository.updateProject(updated);
+        setIsDirty(false);
+      } catch (err) {
+        console.error('Failed to update project assets:', err);
+        setIsDirty(true);
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [project, repository]
+  );
+
+  const handleReplaceAsset = useCallback(
+    async (assetId: string, newBlob: Blob, newFileName?: string) => {
+      if (!project) return;
+      try {
+        await repository.saveAssetBlob(assetId, newBlob);
+      } catch (err) {
+        console.error('Failed to replace asset blob:', err);
+      }
+
+      const existing = project.assets || [];
+      const updatedAssets = existing.map((a) => {
+        if (a.id === assetId) {
+          return {
+            ...a,
+            name: newFileName || a.name,
+            sizeBytes: newBlob.size,
+            version: (a.version || 1) + 1,
+          };
+        }
+        return a;
+      });
+
+      const updated: Project = {
+        ...project,
+        assets: updatedAssets,
+        updatedAt: Date.now(),
+      };
+      setProject(updated);
+      setIsSaving(true);
+      try {
+        await repository.updateProject(updated);
+        setIsDirty(false);
+      } catch (err) {
+        console.error('Failed to update project after replacing asset:', err);
+        setIsDirty(true);
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [project, repository]
+  );
+
+  const handleDeleteAsset = useCallback(
+    async (assetId: string) => {
+      if (!project) return;
+      const existing = project.assets || [];
+      const updatedAssets = existing.filter((a) => a.id !== assetId);
+      const updated: Project = {
+        ...project,
+        assets: updatedAssets,
+        updatedAt: Date.now(),
+      };
+      setProject(updated);
+      setIsSaving(true);
+      try {
+        await repository.updateProject(updated);
+        setIsDirty(false);
+      } catch (err) {
+        console.error('Failed to delete asset from project:', err);
         setIsDirty(true);
       } finally {
         setIsSaving(false);
@@ -300,41 +443,46 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
             type="button"
             data-testid="btn-error-back-hub"
             onClick={onBackToHub}
-            className="rounded border border-neutral-700 bg-neutral-800 px-3 py-1 text-xs text-neutral-200 hover:bg-neutral-700 transition"
+            className="rounded bg-neutral-800 px-4 py-2 text-xs text-neutral-200 hover:bg-neutral-700 hover:text-white transition"
           >
-            Back to Projects Hub
+            Back to Hub
           </button>
         )}
       </div>
     );
   }
 
-  const activeFile = project.files.find((f) => f.id === activeFileId) ?? project.files[0];
+  const activeFile = project.files.find((f) => f.id === activeFileId) ?? null;
   const canvasWidth = project.displaySettings?.width ?? 1920;
   const canvasHeight = project.displaySettings?.height ?? 1080;
 
   return (
     <div
       data-testid="studio-workspace-page"
-      className="flex h-screen w-screen flex-col bg-neutral-950 text-neutral-100 overflow-hidden select-none"
+      className="flex h-screen w-screen flex-col bg-neutral-950 text-neutral-100 font-sans overflow-hidden select-none"
     >
-      {/* Studio Top Header */}
+      {/* Top Header */}
       <StudioHeader
         projectTitle={project.title}
-        isDirty={isDirty}
-        isSaving={isSaving}
+        title={project.title}
         canvasWidth={canvasWidth}
         canvasHeight={canvasHeight}
-        onBack={onBackToHub ?? (() => {})}
+        width={canvasWidth}
+        height={canvasHeight}
+        isDirty={isDirty}
+        isSaving={isSaving}
         onTitleChange={handleTitleChange}
-        onQuickPlay={onQuickPlay ?? (() => {})}
-        onOpenSettings={onOpenSettings ?? (() => {})}
+        onSave={handleManualSave}
+        onBack={onBackToHub}
+        onBackToHub={onBackToHub}
+        onQuickPlay={onQuickPlay}
+        onOpenSettings={onOpenSettings}
         onExport={onExport}
       />
 
-      {/* 3-Column Studio Body */}
+      {/* 3-Column Director Workspace */}
       <main className="flex flex-1 min-h-0 overflow-hidden">
-        {/* Column 1: Navigation Rail (ActivityBar + Content Pane) */}
+        {/* Column 1: Static Navigator (Activity Bar + FileExplorer / CharacterManager / AssetLibrary) */}
         <div
           data-testid="col-navigation"
           className="flex shrink-0 h-full border-r border-neutral-800 bg-neutral-900/40"
@@ -350,7 +498,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
               files={project.files}
               activeFileId={activeFileId}
               entrySceneName="main.vns"
-              onSelectFile={handleSelectFile}
+              onSelectFile={handleSelectTab}
               onCreateFile={handleCreateFile}
               onRenameFile={handleRenameFile}
               onDeleteFile={handleDeleteFile}
@@ -368,47 +516,48 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
           )}
 
           {activeTab === 'assets' && (
-            <div
-              data-testid="pane-assets-placeholder"
-              className="flex h-full w-64 flex-col border-r border-neutral-800 bg-neutral-900/60 p-4 text-neutral-400 text-xs select-none"
-            >
-              <span className="font-semibold uppercase tracking-wider text-neutral-300">
-                Asset Library
-              </span>
-              <p className="mt-2 text-neutral-500">
-                Asset library & safe delete pane (Coming in Milestone 5)
-              </p>
+            <div data-testid="pane-assets-placeholder" className="w-72 shrink-0 h-full">
+              <AssetLibraryPane
+                project={project}
+                onAddAsset={handleAddAsset}
+                onReplaceAsset={handleReplaceAsset}
+                onDeleteAsset={handleDeleteAsset}
+              />
             </div>
           )}
         </div>
 
-        {/* Column 2: Center Workspace (Editor Tab Bar + Script Content + Bottom Drawer) */}
+        {/* Column 2: Center Workspace (Editor Tab Bar + Monaco Script Workspace + Bottom Drawer) */}
         <div
           data-testid="col-workspace"
           className="flex flex-1 flex-col min-w-0 h-full border-r border-neutral-800 bg-neutral-950"
         >
-          {/* Header Tab Bar Placeholder */}
-          <div
-            data-testid="workspace-tab-bar"
-            className="flex h-9 items-center border-b border-neutral-800 bg-neutral-900/80 px-2 text-xs"
-          >
-            <div className="flex items-center gap-2 rounded bg-neutral-800 px-3 py-1 font-mono text-neutral-200 border border-neutral-700/50">
-              <span>{activeFile ? cleanChapterName(activeFile.name) : 'No file selected'}</span>
-            </div>
-          </div>
+          {/* Header Tab Bar */}
+          <EditorTabBar
+            files={project.files || []}
+            openFileIds={openFileIds}
+            activeFileId={activeFileId || ''}
+            dirtyFileIds={dirtyFileIds}
+            onSelectTab={handleSelectTab}
+            onCloseTab={handleCloseTab}
+            onNewFile={() =>
+              handleCreateFile(
+                generateDefaultScriptName((project.files || []).map((f) => f.name))
+              )
+            }
+          />
 
-          {/* Center Script Container Placeholder */}
-          <div
-            data-testid="workspace-script-container"
-            className="flex-1 overflow-auto p-4 font-mono text-xs text-neutral-300 bg-neutral-950/80"
-          >
-            <pre className="whitespace-pre-wrap">{activeFile?.content || '// Empty script file'}</pre>
-          </div>
+          {/* Center Monaco Script Editor */}
+          <MonacoEditorContainer
+            file={activeFile}
+            project={project}
+            onChange={handleContentChange}
+          />
 
-          {/* Bottom Drawer Placeholder */}
+          {/* Bottom Drawer Placeholder (Coming in Milestone 7) */}
           <div
             data-testid="workspace-bottom-drawer"
-            className="flex h-36 flex-col border-t border-neutral-800 bg-neutral-900/90 text-xs"
+            className="flex h-36 flex-col border-t border-neutral-800 bg-neutral-900/90 text-xs shrink-0"
           >
             <div className="flex h-7 items-center border-b border-neutral-800 px-3 text-neutral-400">
               <span className="font-semibold tracking-wide uppercase text-[10px]">
@@ -450,11 +599,17 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
         </div>
       </main>
 
+      {/* Character Modal Dialog */}
       <CharacterModal
         isOpen={isCharModalOpen}
         initialData={editingCharacter}
-        existingIds={(project.characters || []).map((c) => c.id)}
-        onClose={() => setIsCharModalOpen(false)}
+        existingIds={(project.characters || [])
+          .filter((c) => !editingCharacter || c.id !== editingCharacter.id)
+          .map((c) => c.id)}
+        onClose={() => {
+          setIsCharModalOpen(false);
+          setEditingCharacter(null);
+        }}
         onSave={handleSaveCharacter}
       />
     </div>

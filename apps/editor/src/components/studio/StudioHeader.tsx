@@ -1,19 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { PlayIcon, SettingsIcon, ChevronLeftIcon, EditIcon } from '../common/Icons';
+import { PlayIcon, SettingsIcon, ChevronLeftIcon, EditIcon, SaveIcon } from '../common/Icons';
 
 export interface StudioHeaderProps {
-  projectTitle: string;
+  projectTitle?: string;
+  title?: string;
   isDirty?: boolean;
   isSaving?: boolean;
   lastSavedAt?: number;
   canvasWidth?: number;
   canvasHeight?: number;
+  width?: number;
+  height?: number;
   resolution?: { width: number; height: number; orientation?: string };
-  onBack: () => void;
+  onBack?: () => void;
+  onBackToHub?: () => void;
   onTitleChange?: (newTitle: string) => void;
   onQuickPlay?: () => void;
   onOpenSettings?: () => void;
   onExport?: () => void;
+  onSave?: () => void;
 }
 
 export function getAspectRatioBadge(width?: number, height?: number): string {
@@ -28,36 +33,43 @@ export function getAspectRatioBadge(width?: number, height?: number): string {
 
 export const StudioHeader: React.FC<StudioHeaderProps> = ({
   projectTitle,
+  title,
   isDirty = false,
   isSaving = false,
   canvasWidth,
   canvasHeight,
+  width,
+  height,
   resolution,
   onBack,
+  onBackToHub,
   onTitleChange,
   onQuickPlay,
   onOpenSettings,
   onExport,
+  onSave,
 }) => {
+  const resolvedTitle = projectTitle ?? title ?? '';
   const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [titleValue, setTitleValue] = useState(projectTitle);
+  const [titleValue, setTitleValue] = useState(resolvedTitle);
 
   useEffect(() => {
-    setTitleValue(projectTitle);
-  }, [projectTitle]);
+    setTitleValue(resolvedTitle);
+  }, [resolvedTitle]);
 
   const handleTitleSubmit = () => {
     const trimmed = titleValue.trim();
-    if (trimmed && trimmed !== projectTitle && onTitleChange) {
+    if (trimmed && trimmed !== resolvedTitle && onTitleChange) {
       onTitleChange(trimmed);
     } else {
-      setTitleValue(projectTitle);
+      setTitleValue(resolvedTitle);
     }
     setIsEditingTitle(false);
   };
 
-  const effectiveWidth = resolution?.width ?? canvasWidth ?? 1920;
-  const effectiveHeight = resolution?.height ?? canvasHeight ?? 1080;
+  const effectiveWidth = resolution?.width ?? canvasWidth ?? width ?? 1920;
+  const effectiveHeight = resolution?.height ?? canvasHeight ?? height ?? 1080;
+  const handleBack = onBack ?? onBackToHub ?? (() => {});
 
   let saveStatusText = 'Saved to IndexedDB';
   let saveStatusClass = 'text-emerald-400 bg-emerald-950/40 border-emerald-800/40';
@@ -77,7 +89,7 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
         <button
           type="button"
           data-testid="btn-back-hub"
-          onClick={onBack}
+          onClick={handleBack}
           title="Back to Project Hub"
           className="flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium text-neutral-400 hover:bg-neutral-800 hover:text-white transition"
         >
@@ -97,7 +109,7 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
             onKeyDown={(e) => {
               if (e.key === 'Enter') handleTitleSubmit();
               if (e.key === 'Escape') {
-                setTitleValue(projectTitle);
+                setTitleValue(resolvedTitle);
                 setIsEditingTitle(false);
               }
             }}
@@ -114,7 +126,7 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
               data-testid="header-project-title"
               className="text-sm font-semibold text-neutral-200 tracking-tight"
             >
-              {projectTitle}
+              {resolvedTitle}
             </h1>
             <EditIcon size={12} className="opacity-0 group-hover:opacity-100 text-neutral-500 transition-opacity" />
             {isDirty && (
@@ -149,6 +161,23 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
 
       {/* Right: Actions */}
       <div className="flex items-center gap-2">
+        {onSave && (
+          <button
+            type="button"
+            data-testid="btn-manual-save"
+            onClick={onSave}
+            title={isDirty ? "Save project (Ctrl+S)" : "All changes saved"}
+            className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition ${
+              isDirty
+                ? 'bg-amber-600/90 text-white hover:bg-amber-500'
+                : 'text-neutral-400 hover:bg-neutral-800 hover:text-white'
+            }`}
+          >
+            <SaveIcon size={13} />
+            <span>Save</span>
+          </button>
+        )}
+
         {onQuickPlay && (
           <button
             type="button"
