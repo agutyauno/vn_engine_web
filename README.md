@@ -88,7 +88,6 @@ vn_engine_web/
 │   ├── core-vm/             # Máy ảo thực thi Bytecode, Sandbox Evaluator, Rollback Buffer, Interpolation
 │   ├── renderer/            # Trình dựng hình 2D PixiJS v8 (Layers, Sprites, Background, Silhouettes)
 │   └── audio/               # Quản lý âm thanh Web Audio API (Kênh BGM, SFX, Voice, Fade-in/out)
-├── docs/                    # Tài liệu đặc tả kỹ thuật (DSL Spec, SAD, PRD, Roadmap)
 └── .github/workflows/       # Pipeline CI/CD tự động (Lint, Format, Typecheck, Test)
 ```
 

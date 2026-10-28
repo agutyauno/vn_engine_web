@@ -1,6 +1,6 @@
 // ================================================================
 // MONACO EDITOR - VNS LANGUAGE DEFINITION & THEME
-// Tuân thủ tài liệu đặc tả cú pháp VNS (docs/dsl spec.md)
+// Tuân thủ tài liệu đặc tả cú pháp VNS (docs/specifications/dsl spec.md)
 // ================================================================
 
 import * as monaco from 'monaco-editor';
