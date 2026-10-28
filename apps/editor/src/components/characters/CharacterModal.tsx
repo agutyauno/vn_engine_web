@@ -52,20 +52,29 @@ export function isValidHex(input: string): boolean {
   return /^#[0-9A-Fa-f]{6}$/.test(trimmed) || /^#[0-9A-Fa-f]{3}$/.test(trimmed);
 }
 
+export function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 export function deriveExpressionKey(fileName: string, charId?: string): string {
   // Strip extension
   let base = fileName.replace(/\.[^/.]+$/, '').trim();
 
   // If filename starts with charId + "_" or "-", strip it
   if (charId) {
-    const prefixRegex = new RegExp(`^${charId}[_-]`, 'i');
-    base = base.replace(prefixRegex, '');
+    const trimmedId = charId.trim();
+    if (trimmedId) {
+      const escaped = escapeRegex(trimmedId);
+      const prefixRegex = new RegExp(`^${escaped}[_-]`, 'i');
+      base = base.replace(prefixRegex, '');
+    }
   }
 
   // Normalize: lower case and keep only valid identifier characters
   const sanitized = base
     .toLowerCase()
     .replace(/[^a-z0-9_]/g, '_')
+    .replace(/_+/g, '_')
     .replace(/^_+|_+$/g, '');
 
   return sanitized || 'default';
@@ -359,16 +368,19 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
 
     for (const row of expressions) {
       const k = row.expressionKey.trim().toLowerCase();
-      if (k && row.imageUrl) {
-        spritesMap[k] = row.imageUrl;
+      if (k) {
+        if (row.imageUrl) {
+          spritesMap[k] = row.imageUrl;
+        }
         if (row.isDefault) {
           defaultExpr = k;
         }
       }
     }
 
-    if (!defaultExpr && expressions.length > 0 && expressions[0]?.expressionKey) {
-      defaultExpr = expressions[0].expressionKey.trim().toLowerCase();
+    if (!defaultExpr && expressions.length > 0) {
+      const firstWithKey = expressions.find((r) => r.expressionKey.trim());
+      defaultExpr = firstWithKey ? firstWithKey.expressionKey.trim().toLowerCase() : 'default';
     }
 
     const finalId = (isEditMode && initialData ? initialData.id : charId).trim().toLowerCase();
@@ -423,7 +435,7 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
                 <input
                   type="text"
                   data-testid="input-char-id"
-                  value={charId}
+                  value={isEditMode && initialData ? initialData.id : charId}
                   disabled={isEditMode}
                   readOnly={isEditMode}
                   onChange={(e) => {
@@ -512,7 +524,7 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
                     className="rounded border border-neutral-800 bg-neutral-950 px-2.5 py-1 text-xs font-semibold"
                     style={{ color: isValidHex(colorHex) ? normalizeHex(colorHex) : nativeColor }}
                   >
-                    {displayName || charId || 'Elena Gilbert'}
+                    {displayName || (isEditMode && initialData ? initialData.id : charId) || 'Elena Gilbert'}
                   </span>
                 </div>
               </div>
@@ -543,10 +555,13 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
 
             {/* Warnings list */}
             {warnings.length > 0 && (
-              <div className="rounded border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs text-amber-300 space-y-1">
+              <div
+                data-testid="char-warnings-list"
+                className="rounded border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs text-amber-300 space-y-1"
+              >
                 {warnings.map((w, idx) => (
                   <div key={idx} className="flex items-center gap-1.5">
-                    <AlertTriangleIcon size={14} className="text-amber-400 shrink-0" />
+                    <AlertTriangleIcon size={14} className="shrink-0 text-amber-400" />
                     <span>{w}</span>
                   </div>
                 ))}

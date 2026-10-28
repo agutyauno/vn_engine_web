@@ -78,10 +78,16 @@ describe('Adversarial Verification: Milestone 4 (challenger_m4_1)', () => {
         expect(deriveExpressionKey('')).toBe('default');
       });
 
-      it('sanitizes Unicode characters (observing multi-underscore generation from surrogate pairs)', () => {
+      it('sanitizes Unicode characters cleanly', () => {
         const derived = deriveExpressionKey('chibi_😊_happy.png');
-        expect(derived).toBe('chibi____happy');
+        expect(derived).toBe('chibi_happy');
         expect(/^[a-zA-Z0-9_]+$/.test(derived)).toBe(true);
+      });
+
+      it('safely handles regex metacharacters in charId without crashing', () => {
+        expect(() => deriveExpressionKey('test_smile.png', 'bad[id(test+*?^$')).not.toThrow();
+        expect(deriveExpressionKey('bad[id_smile.png', 'bad[id')).toBe('smile');
+        expect(deriveExpressionKey('special+char_happy.png', 'special+char')).toBe('happy');
       });
     });
 

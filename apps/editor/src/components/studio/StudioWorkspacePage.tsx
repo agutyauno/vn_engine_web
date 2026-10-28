@@ -222,13 +222,14 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
   const handleSaveCharacter = useCallback(
     async (savedChar: Character) => {
       if (!project) return;
+      const finalChar = editingCharacter ? { ...savedChar, id: editingCharacter.id } : savedChar;
       const existingChars = project.characters || [];
-      const existingIndex = existingChars.findIndex((c) => c.id === savedChar.id);
+      const existingIndex = existingChars.findIndex((c) => c.id === finalChar.id);
       let updatedCharacters: Character[];
       if (existingIndex >= 0) {
-        updatedCharacters = existingChars.map((c, i) => (i === existingIndex ? savedChar : c));
+        updatedCharacters = existingChars.map((c, i) => (i === existingIndex ? finalChar : c));
       } else {
-        updatedCharacters = [...existingChars, savedChar];
+        updatedCharacters = [...existingChars, finalChar];
       }
       const updated: Project = {
         ...project,
@@ -248,7 +249,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
         setIsCharModalOpen(false);
       }
     },
-    [project, repository]
+    [project, repository, editingCharacter]
   );
 
   const handleDeleteCharacter = useCallback(
