@@ -2,12 +2,42 @@
 // CẤU TRÚC PROJECT & METADATA (TAD 2.3, system_architecture.md 3.1)
 // ==========================================
 
+export interface ProjectDisplaySettings {
+  width: number;
+  height: number;
+  orientation: 'landscape' | 'portrait';
+  lockAspectRatio: boolean;
+}
+
+export interface ProjectGameplaySettings {
+  unmetChoiceDisplay: 'hidden' | 'disabled';
+  textSpeed: number;
+  autoForwardDelay: number;
+  defaultVolumes: {
+    master: number;
+    bgm: number;
+    sfx: number;
+    voice: number;
+  };
+}
+
+export interface ProjectEditorSettings {
+  autoSave: boolean;
+  autoSaveDebounceMs: number;
+}
+
 export interface Project {
   id: string; // UUIDv4
   title: string;
+  description?: string;
   version: number; // Optimistic Concurrency Check (ADR-011)
   ownerId: string; // Supabase auth.uid() (ADR-019)
   defaultLanguage: string;
+  entryScene?: string;
+  updatedAt?: number;
+  displaySettings?: ProjectDisplaySettings;
+  gameplaySettings?: ProjectGameplaySettings;
+  editorSettings?: ProjectEditorSettings;
   publishedGameId?: string; // Lưu game-id trên Cloudflare R2 khi publish (TAD 7.1, ADR-019)
   files: ScriptFile[]; // Danh sách file kịch bản đa chương
   characters: Character[]; // Danh sách nhân vật
