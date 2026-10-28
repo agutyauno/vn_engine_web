@@ -5,10 +5,56 @@ import { ProjectCard } from './ProjectCard';
 import { NewProjectModal } from './NewProjectModal';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
 
-interface ProjectHubViewProps {
+export interface ProjectHubViewProps {
   repository: ProjectRepository;
   onOpenProject: (projectId: string) => void;
 }
+
+export interface QuotaBadgeInfo {
+  percentage: number;
+  status: 'normal' | 'warning' | 'critical';
+  color: 'green' | 'yellow' | 'red';
+  text: string;
+  badgeClass: string;
+}
+
+export const getQuotaBadgeInfo = (usedBytes: number, quotaBytes?: number): QuotaBadgeInfo => {
+  if (!quotaBytes || quotaBytes <= 0) {
+    return {
+      percentage: 0,
+      status: 'normal',
+      color: 'green',
+      text: 'Storage OK',
+      badgeClass: 'border-emerald-800 bg-emerald-950/40 text-emerald-400',
+    };
+  }
+  const percentage = (usedBytes / quotaBytes) * 100;
+  if (percentage >= 90) {
+    return {
+      percentage,
+      status: 'critical',
+      color: 'red',
+      text: 'Storage Almost Full',
+      badgeClass: 'border-rose-800 bg-rose-950/40 text-rose-400',
+    };
+  }
+  if (percentage >= 70) {
+    return {
+      percentage,
+      status: 'warning',
+      color: 'yellow',
+      text: 'Storage High',
+      badgeClass: 'border-amber-800 bg-amber-950/40 text-amber-400',
+    };
+  }
+  return {
+    percentage,
+    status: 'normal',
+    color: 'green',
+    text: 'Storage OK',
+    badgeClass: 'border-emerald-800 bg-emerald-950/40 text-emerald-400',
+  };
+};
 
 export const ProjectHubView: React.FC<ProjectHubViewProps> = ({ repository, onOpenProject }) => {
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
@@ -44,7 +90,7 @@ export const ProjectHubView: React.FC<ProjectHubViewProps> = ({ repository, onOp
 
   const handleDuplicateProject = async (id: string) => {
     const original = projects.find((p) => p.id === id);
-    const newTitle = original ? `${original.title} - Copy` : 'Cloned Project';
+    const newTitle = original ? `Copy of ${original.title}` : 'Copy of Project';
     await repository.duplicateProject(id, newTitle);
     await loadProjects();
   };
@@ -75,7 +121,7 @@ export const ProjectHubView: React.FC<ProjectHubViewProps> = ({ repository, onOp
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col">
       {/* Top Navigation Bar */}
-      <header className="border-b border-neutral-800 bg-neutral-900/90 px-8 py-4 backdrop-blur">
+      <header id="hub-header" className="border-b border-neutral-800 bg-neutral-900/90 px-8 py-4 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded border border-neutral-700 bg-neutral-800 text-white font-bold">
@@ -88,13 +134,29 @@ export const ProjectHubView: React.FC<ProjectHubViewProps> = ({ repository, onOp
           </div>
 
           <div className="flex items-center gap-4">
-            {storageUsage && (
-              <span className="hidden text-xs text-neutral-400 sm:inline-block">
-                Storage: <span className="font-mono text-neutral-200">{formatBytes(storageUsage.usedBytes)}</span> used
-              </span>
-            )}
+            {storageUsage && (() => {
+              const quota = getQuotaBadgeInfo(storageUsage.usedBytes, storageUsage.quotaBytes);
+              return (
+                <div
+                  id="hub-quota-badge"
+                  data-testid="hub-quota-badge"
+                  data-status={quota.status}
+                  data-color={quota.color}
+                  className={`hidden sm:inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${quota.badgeClass}`}
+                >
+                  <span className="font-semibold">{quota.text}</span>
+                  <span className="font-mono text-neutral-300">
+                    {formatBytes(storageUsage.usedBytes)}
+                    {storageUsage.quotaBytes && storageUsage.quotaBytes > 0
+                      ? ` / ${formatBytes(storageUsage.quotaBytes)} (${Math.round(quota.percentage)}%)`
+                      : ''}
+                  </span>
+                </div>
+              );
+            })()}
             <button
               type="button"
+              id="btn-new-project"
               data-testid="btn-new-project"
               onClick={() => setIsNewModalOpen(true)}
               className="flex items-center gap-2 rounded bg-white px-4 py-2 text-sm font-semibold text-neutral-950 transition hover:bg-neutral-200"
@@ -117,6 +179,7 @@ export const ProjectHubView: React.FC<ProjectHubViewProps> = ({ repository, onOp
             />
             <input
               type="text"
+              id="hub-search-input"
               data-testid="input-project-search"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -189,6 +252,7 @@ export const ProjectHubView: React.FC<ProjectHubViewProps> = ({ repository, onOp
 
       <DeleteConfirmModal
         isOpen={!!projectToDelete}
+        project={projectToDelete}
         projectName={projectToDelete?.title ?? ''}
         onClose={() => setProjectToDelete(null)}
         onConfirm={handleDeleteConfirm}

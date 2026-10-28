@@ -8,6 +8,7 @@ export interface ProjectDisplaySettings {
   orientation: 'landscape' | 'portrait';
   lockAspectRatio: boolean;
 }
+export type DisplaySettings = ProjectDisplaySettings;
 
 export interface ProjectGameplaySettings {
   unmetChoiceDisplay: 'hidden' | 'disabled';
@@ -20,13 +21,15 @@ export interface ProjectGameplaySettings {
     voice: number;
   };
 }
+export type GameplaySettings = ProjectGameplaySettings;
 
 export interface ProjectEditorSettings {
   autoSave: boolean;
   autoSaveDebounceMs: number;
 }
+export type EditorSettings = ProjectEditorSettings;
 
-export interface Project {
+export interface ProjectMetadata {
   id: string; // UUIDv4
   title: string;
   description?: string;
@@ -39,6 +42,9 @@ export interface Project {
   gameplaySettings?: ProjectGameplaySettings;
   editorSettings?: ProjectEditorSettings;
   publishedGameId?: string; // Lưu game-id trên Cloudflare R2 khi publish (TAD 7.1, ADR-019)
+}
+
+export interface Project extends ProjectMetadata {
   files: ScriptFile[]; // Danh sách file kịch bản đa chương
   characters: Character[]; // Danh sách nhân vật
   variables: VariableDeclaration[];
@@ -60,8 +66,8 @@ export interface Character {
   id: string; // Mã nhân vật dùng trong script: "alice"
   name: string; // Tên hiển thị mặc định: "Alice Carroll" (ADR-020)
   colorHex?: string; // Mã màu tên trong hộp thoại: "#e91e63"
-  defaultExpression?: string; // Biểu cảm mặc định khi không chỉ định: "neutral"
   sprites: Record<string, string>; // { "happy": "asset-uuid-1", "sad": "asset-uuid-2" }
+  defaultExpression?: string;
 }
 
 export interface VariableDeclaration {

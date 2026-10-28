@@ -5,6 +5,22 @@ import type {
   ProjectEditorSettings,
 } from '@vn-engine/shared-types';
 
+export type {
+  Project,
+  ProjectDisplaySettings,
+  ProjectGameplaySettings,
+  ProjectEditorSettings,
+};
+
+export type DisplaySettings = ProjectDisplaySettings;
+export type GameplaySettings = ProjectGameplaySettings;
+export type EditorSettings = ProjectEditorSettings;
+
+export interface StorageEstimate {
+  usedBytes: number;
+  quotaBytes: number;
+}
+
 export interface ProjectSummary {
   id: string;
   title: string;
@@ -27,6 +43,14 @@ export interface CreateProjectParams {
   editorSettings?: Partial<ProjectEditorSettings>;
 }
 
+export interface AssetBlobRecord {
+  id: string;
+  blob: Blob;
+  sizeBytes: number;
+  mimeType: string;
+  updatedAt: number;
+}
+
 export interface ProjectRepository {
   listProjects(): Promise<ProjectSummary[]>;
   getProject(id: string): Promise<Project | null>;
@@ -36,5 +60,8 @@ export interface ProjectRepository {
   duplicateProject(id: string, newTitle: string): Promise<Project>;
   exportProjectZip?(id: string): Promise<Blob>;
   importProjectZip?(zipFile: File | Blob): Promise<Project>;
-  getStorageUsage(): Promise<{ usedBytes: number; quotaBytes: number }>;
+  getStorageUsage(): Promise<StorageEstimate>;
+  getAssetBlob(assetId: string): Promise<Blob | null>;
+  saveAssetBlob(assetId: string, blob: Blob): Promise<void>;
+  deleteAssetBlob(assetId: string): Promise<void>;
 }

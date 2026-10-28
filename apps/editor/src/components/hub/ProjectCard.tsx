@@ -1,12 +1,14 @@
 import React from 'react';
 import { ProjectSummary } from '../../core/contracts/repository';
-import { PlayIcon, CopyIcon, TrashIcon } from '../common/Icons';
+import { PlayIcon, CopyIcon, TrashIcon, SettingsIcon, ExternalLinkIcon } from '../common/Icons';
 
-interface ProjectCardProps {
+export interface ProjectCardProps {
   project: ProjectSummary;
   onOpen: (id: string) => void;
   onDuplicate: (id: string) => void;
   onDelete: (id: string) => void;
+  onSettings?: (id: string) => void;
+  onExportZip?: (id: string) => void;
 }
 
 export const ProjectCard: React.FC<ProjectCardProps> = ({
@@ -14,6 +16,8 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
   onOpen,
   onDuplicate,
   onDelete,
+  onSettings,
+  onExportZip,
 }) => {
   const resolutionText = `${project.canvasWidth} × ${project.canvasHeight}`;
 
@@ -46,9 +50,13 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
         </p>
 
         <div className="mt-3 flex items-center gap-3 text-xs text-neutral-500">
-          <span>{project.scriptCount} script{project.scriptCount === 1 ? '' : 's'}</span>
+          <span>
+            {project.scriptCount} script{project.scriptCount === 1 ? '' : 's'}
+          </span>
           <span>•</span>
-          <span>{project.characterCount} char{project.characterCount === 1 ? '' : 's'}</span>
+          <span>
+            {project.characterCount} char{project.characterCount === 1 ? '' : 's'}
+          </span>
           <span>•</span>
           <span>Updated {formattedDate}</span>
         </div>
@@ -66,6 +74,30 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
         </button>
 
         <div className="flex items-center gap-1">
+          {onSettings && (
+            <button
+              type="button"
+              data-testid={`btn-settings-project-${project.id}`}
+              onClick={() => onSettings(project.id)}
+              title="Project Settings"
+              aria-label="Project Settings"
+              className="rounded p-1.5 text-neutral-400 transition hover:bg-neutral-800 hover:text-white"
+            >
+              <SettingsIcon size={15} />
+            </button>
+          )}
+          {onExportZip && (
+            <button
+              type="button"
+              data-testid={`btn-export-project-${project.id}`}
+              onClick={() => onExportZip(project.id)}
+              title="Export Project ZIP"
+              aria-label="Export Project ZIP"
+              className="rounded p-1.5 text-neutral-400 transition hover:bg-neutral-800 hover:text-white"
+            >
+              <ExternalLinkIcon size={15} />
+            </button>
+          )}
           <button
             type="button"
             data-testid={`btn-duplicate-project-${project.id}`}

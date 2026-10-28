@@ -1,24 +1,41 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { TrashIcon, CloseIcon } from '../common/Icons';
 
-interface DeleteConfirmModalProps {
+export interface DeleteConfirmModalProps {
   isOpen: boolean;
-  projectName: string;
+  projectName?: string;
+  project?: { id?: string; title: string } | null;
+  isDeleting?: boolean;
   onClose: () => void;
-  onConfirm: () => Promise<void>;
+  onConfirm: () => Promise<void> | void;
 }
 
 export const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
   isOpen,
-  projectName,
+  projectName = '',
+  project,
+  isDeleting = false,
   onClose,
   onConfirm,
 }) => {
+  const [typedTitle, setTypedTitle] = useState('');
   const [deleting, setDeleting] = useState(false);
+
+  const targetTitle = (project?.title ?? projectName).trim();
+
+  useEffect(() => {
+    if (isOpen) {
+      setTypedTitle('');
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
+  const isMatched = typedTitle.trim() === targetTitle && targetTitle.length > 0;
+  const isBusy = deleting || isDeleting;
+
   const handleConfirm = async () => {
+    if (!isMatched || isBusy) return;
     try {
       setDeleting(true);
       await onConfirm();
@@ -51,11 +68,29 @@ export const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
 
         <div className="mt-4 space-y-3 text-sm text-neutral-300">
           <p>
-            Are you sure you want to delete <span className="font-semibold text-white">"{projectName}"</span>?
+            Are you sure you want to delete <span className="font-semibold text-white">"{targetTitle}"</span>?
           </p>
           <p className="text-xs text-neutral-400">
             This action cannot be undone. All project scripts, assets, and settings stored locally will be permanently removed.
           </p>
+
+          <div className="mt-4">
+            <label
+              htmlFor="confirm-delete-title-input"
+              className="block text-xs font-medium text-neutral-400 mb-1"
+            >
+              Please type <span className="font-semibold text-white">{targetTitle}</span> to confirm:
+            </label>
+            <input
+              id="confirm-delete-title-input"
+              data-testid="confirm-delete-title-input"
+              type="text"
+              value={typedTitle}
+              onChange={(e) => setTypedTitle(e.target.value)}
+              placeholder={targetTitle}
+              className="w-full rounded border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-100 placeholder-neutral-600 focus:border-red-500 focus:outline-none"
+            />
+          </div>
         </div>
 
         <div className="mt-6 flex justify-end space-x-3 border-t border-neutral-800 pt-3">
@@ -63,7 +98,7 @@ export const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
             type="button"
             data-testid="btn-cancel-delete-project"
             onClick={onClose}
-            disabled={deleting}
+            disabled={isBusy}
             className="rounded px-4 py-2 text-sm font-medium text-neutral-300 hover:bg-neutral-800 disabled:opacity-50"
           >
             Cancel
@@ -72,10 +107,10 @@ export const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
             type="button"
             data-testid="btn-confirm-delete-project"
             onClick={handleConfirm}
-            disabled={deleting}
-            className="rounded bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500 disabled:opacity-50"
+            disabled={isBusy || !isMatched}
+            className="rounded bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {deleting ? 'Deleting...' : 'Delete Permanently'}
+            {isBusy ? 'Deleting...' : 'Delete Permanently'}
           </button>
         </div>
       </div>

@@ -3,6 +3,8 @@ import type {
   ProjectRepository,
   ProjectSummary,
   CreateProjectParams,
+  StorageEstimate,
+  AssetBlobRecord,
 } from '../contracts/repository';
 
 const DEFAULT_DB_NAME = 'vn_engine_studio_db';
@@ -76,7 +78,7 @@ export class IndexedDBProjectRepository implements ProjectRepository {
           scriptCount: p.files?.length || 0,
           characterCount: p.characters?.length || 0,
           assetCount: p.assets?.length || 0,
-          totalSizeBytes: JSON.stringify(p).length,
+          totalSizeBytes: typeof Blob !== 'undefined' ? new Blob([JSON.stringify(p)]).size : JSON.stringify(p).length,
         }));
 
         // Sắp xếp theo ngày cập nhật mới nhất trước
@@ -249,7 +251,67 @@ export class IndexedDBProjectRepository implements ProjectRepository {
     });
   }
 
-  async getStorageUsage(): Promise<{ usedBytes: number; quotaBytes: number }> {
+  async getAssetBlob(assetId: string): Promise<Blob | null> {
+    const db = await this.getDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('asset_blobs', 'readonly');
+      const store = tx.objectStore('asset_blobs');
+      const request = store.get(assetId);
+
+      request.onsuccess = () => {
+        const record = request.result as AssetBlobRecord | undefined;
+        resolve(record ? record.blob : null);
+      };
+
+      request.onerror = () => {
+        reject(request.error || new Error(`Failed to get blob ${assetId}`));
+      };
+    });
+  }
+
+  async saveAssetBlob(assetId: string, blob: Blob): Promise<void> {
+    const db = await this.getDB();
+    const record: AssetBlobRecord = {
+      id: assetId,
+      blob,
+      sizeBytes: blob.size,
+      mimeType: blob.type || 'application/octet-stream',
+      updatedAt: Date.now(),
+    };
+
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('asset_blobs', 'readwrite');
+      const store = tx.objectStore('asset_blobs');
+      const request = store.put(record);
+
+      request.onsuccess = () => {
+        resolve();
+      };
+
+      request.onerror = () => {
+        reject(request.error || new Error(`Failed to save blob ${assetId}`));
+      };
+    });
+  }
+
+  async deleteAssetBlob(assetId: string): Promise<void> {
+    const db = await this.getDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('asset_blobs', 'readwrite');
+      const store = tx.objectStore('asset_blobs');
+      const request = store.delete(assetId);
+
+      request.onsuccess = () => {
+        resolve();
+      };
+
+      request.onerror = () => {
+        reject(request.error || new Error(`Failed to delete blob ${assetId}`));
+      };
+    });
+  }
+
+  async getStorageUsage(): Promise<StorageEstimate> {
     if (typeof navigator !== 'undefined' && navigator.storage && navigator.storage.estimate) {
       try {
         const estimate = await navigator.storage.estimate();
@@ -262,11 +324,30 @@ export class IndexedDBProjectRepository implements ProjectRepository {
       }
     }
 
-    // Fallback: Ước lượng dựa trên dung lượng chuỗi JSON của các projects
+    // Fallback: Ước lượng dựa trên dung lượng JSON của các projects + dung lượng asset_blobs
     const summaries = await this.listProjects();
-    const usedBytes = summaries.reduce((acc, curr) => acc + curr.totalSizeBytes, 0);
+    const projectsBytes = summaries.reduce((acc, curr) => acc + curr.totalSizeBytes, 0);
+
+    let blobsBytes = 0;
+    try {
+      const db = await this.getDB();
+      blobsBytes = await new Promise<number>((resolve) => {
+        const tx = db.transaction('asset_blobs', 'readonly');
+        const store = tx.objectStore('asset_blobs');
+        const req = store.getAll();
+        req.onsuccess = () => {
+          const records = (req.result || []) as AssetBlobRecord[];
+          const sum = records.reduce((acc, curr) => acc + (curr.sizeBytes || curr.blob?.size || 0), 0);
+          resolve(sum);
+        };
+        req.onerror = () => resolve(0);
+      });
+    } catch {
+      blobsBytes = 0;
+    }
+
     return {
-      usedBytes,
+      usedBytes: projectsBytes + blobsBytes,
       quotaBytes: 1073741824, // 1GB quota
     };
   }

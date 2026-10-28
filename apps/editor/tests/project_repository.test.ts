@@ -175,4 +175,130 @@ describe('E-Phase 1: Storage & Repository Layer (IndexedDBProjectRepository)', (
     expect(usage.usedBytes).toBeGreaterThanOrEqual(0);
     expect(usage.quotaBytes).toBeGreaterThan(0);
   });
+
+  it('should throw when duplicating a non-existent project', async () => {
+    await expect(repository.duplicateProject('non-existent-proj', 'Copy Title')).rejects.toThrow(
+      'Project not found: non-existent-proj'
+    );
+  });
+
+  it('should save, retrieve, replace, and delete asset blobs in asset_blobs store', async () => {
+    const blobData = 'sample-binary-png-content';
+    const blob = new Blob([blobData], { type: 'image/png' });
+
+    // 1. Save blob
+    await repository.saveAssetBlob('asset-voice-01', blob);
+
+    // 2. Retrieve blob
+    const retrieved = await repository.getAssetBlob('asset-voice-01');
+    expect(retrieved).not.toBeNull();
+    expect(retrieved?.size).toBe(blob.size);
+    expect(retrieved?.type).toBe('image/png');
+
+    const retrievedText = await retrieved?.text();
+    expect(retrievedText).toBe(blobData);
+
+    // 3. Non-existent blob returns null
+    const missing = await repository.getAssetBlob('non-existent-asset');
+    expect(missing).toBeNull();
+
+    // 4. Replace blob keeping assetId intact (UT-EDT-06 pattern)
+    const updatedData = 'updated-binary-content-different-length';
+    const updatedBlob = new Blob([updatedData], { type: 'image/png' });
+    await repository.saveAssetBlob('asset-voice-01', updatedBlob);
+
+    const replaced = await repository.getAssetBlob('asset-voice-01');
+    expect(replaced).not.toBeNull();
+    expect(replaced?.size).toBe(updatedBlob.size);
+    const replacedText = await replaced?.text();
+    expect(replacedText).toBe(updatedData);
+
+    // 5. Delete blob
+    await repository.deleteAssetBlob('asset-voice-01');
+    const deleted = await repository.getAssetBlob('asset-voice-01');
+    expect(deleted).toBeNull();
+  });
+
+  it('should calculate storage quota accounting for both projects and asset blobs in fallback mode', async () => {
+    // Save original navigator.storage if present
+    const originalStorage = globalThis.navigator?.storage;
+    try {
+      // Force fallback mode by deleting navigator.storage
+      if (globalThis.navigator) {
+        Object.defineProperty(globalThis.navigator, 'storage', {
+          value: undefined,
+          configurable: true,
+          writable: true,
+        });
+      }
+
+      // Empty repo storage estimate
+      const initialUsage = await repository.getStorageUsage();
+      expect(initialUsage.usedBytes).toBe(0);
+      expect(initialUsage.quotaBytes).toBe(1073741824);
+
+      // Create a project
+      const proj = await repository.createProject({
+        title: 'Storage Test Project',
+        displaySettings: { width: 1920, height: 1080, orientation: 'landscape', lockAspectRatio: true },
+      });
+
+      const afterProjUsage = await repository.getStorageUsage();
+      expect(afterProjUsage.usedBytes).toBeGreaterThan(0);
+
+      // Add a blob
+      const assetBlob = new Blob(['hello-audio-waveform-bytes-1234567890'], { type: 'audio/mp3' });
+      await repository.saveAssetBlob('ast-audio-1', assetBlob);
+
+      const afterBlobUsage = await repository.getStorageUsage();
+      expect(afterBlobUsage.usedBytes).toBe(afterProjUsage.usedBytes + assetBlob.size);
+
+      // Delete blob
+      await repository.deleteAssetBlob('ast-audio-1');
+      const afterDeleteBlobUsage = await repository.getStorageUsage();
+      expect(afterDeleteBlobUsage.usedBytes).toBe(afterProjUsage.usedBytes);
+
+      // Delete project
+      await repository.deleteProject(proj.id);
+      const finalUsage = await repository.getStorageUsage();
+      expect(finalUsage.usedBytes).toBe(0);
+    } finally {
+      if (globalThis.navigator && originalStorage !== undefined) {
+        Object.defineProperty(globalThis.navigator, 'storage', {
+          value: originalStorage,
+          configurable: true,
+          writable: true,
+        });
+      }
+    }
+  });
+
+  it('should delegate to navigator.storage.estimate when available', async () => {
+    const originalStorage = globalThis.navigator?.storage;
+    try {
+      const mockEstimate = { usage: 42000000, quota: 5000000000 };
+      if (!globalThis.navigator) {
+        (globalThis as unknown as { navigator: unknown }).navigator = {};
+      }
+      Object.defineProperty(globalThis.navigator, 'storage', {
+        value: {
+          estimate: async () => mockEstimate,
+        },
+        configurable: true,
+        writable: true,
+      });
+
+      const usage = await repository.getStorageUsage();
+      expect(usage.usedBytes).toBe(42000000);
+      expect(usage.quotaBytes).toBe(5000000000);
+    } finally {
+      if (globalThis.navigator) {
+        Object.defineProperty(globalThis.navigator, 'storage', {
+          value: originalStorage,
+          configurable: true,
+          writable: true,
+        });
+      }
+    }
+  });
 });
