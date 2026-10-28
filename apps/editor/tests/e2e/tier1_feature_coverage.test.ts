@@ -157,7 +157,7 @@ describe('Tier 1: Feature Coverage (Web Editor Studio Platform)', () => {
     const validation = validateFileName('intro', existing);
     expect(validation.valid).toBe(true);
     expect(validation.normalizedName).toBe('intro.vns');
-    expect(cleanDisplay(validation.normalizedName)).toBe('intro');
+    expect(cleanDisplay(validation.normalizedName!)).toBe('intro');
 
     // Sequential default name generation
     const autoName = generateDefaultScriptName(existing);

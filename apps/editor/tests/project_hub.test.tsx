@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
-import React from 'react';
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import 'fake-indexeddb/auto';
 import { IndexedDBProjectRepository } from '../src/core/repositories/IndexedDBProjectRepository';
@@ -102,10 +101,10 @@ describe('ProjectHubView (TDD)', () => {
     // Project should now be in repository
     const projects = await repo.listProjects();
     expect(projects).toHaveLength(1);
-    expect(projects[0].title).toBe('Mobile Otome Game');
-    expect(projects[0].canvasWidth).toBe(1080);
-    expect(projects[0].canvasHeight).toBe(1920);
-    expect(projects[0].orientation).toBe('portrait');
+    expect(projects[0]!.title).toBe('Mobile Otome Game');
+    expect(projects[0]!.canvasWidth).toBe(1080);
+    expect(projects[0]!.canvasHeight).toBe(1920);
+    expect(projects[0]!.orientation).toBe('portrait');
   });
 
   it('UT-EDT-HUB-04: duplicates an existing project', async () => {
@@ -231,9 +230,9 @@ describe('ProjectHubView (TDD)', () => {
     });
 
     const projects = await repo.listProjects();
-    expect(projects[0].canvasWidth).toBe(2560);
-    expect(projects[0].canvasHeight).toBe(1440);
-    expect(projects[0].orientation).toBe('landscape');
+    expect(projects[0]!.canvasWidth).toBe(2560);
+    expect(projects[0]!.canvasHeight).toBe(1440);
+    expect(projects[0]!.orientation).toBe('landscape');
   });
 
   it('UT-EDT-HUB-07: calculates storage quota status and renders correct color badge thresholds', async () => {

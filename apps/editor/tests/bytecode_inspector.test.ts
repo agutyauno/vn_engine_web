@@ -171,7 +171,7 @@ beforeAll(async () => {
     getElementById: (id: string) => domRegistry[id] || null,
     querySelector: (selector: string) => {
       for (const k in domRegistry) {
-        const found = domRegistry[k].querySelector(selector);
+        const found = domRegistry[k]!.querySelector(selector);
         if (found) return found;
       }
       return null;
@@ -179,7 +179,7 @@ beforeAll(async () => {
     querySelectorAll: (selector: string) => {
       const results: MockElement[] = [];
       for (const k in domRegistry) {
-        const found = domRegistry[k].querySelectorAll(selector);
+        const found = domRegistry[k]!.querySelectorAll(selector);
         found.forEach(el => {
           if (!results.includes(el)) results.push(el);
         });
@@ -277,7 +277,7 @@ function createMockContext(projectOverride?: Partial<Project>): StudioContext {
     compileCurrentScript: vi.fn(),
     getPreviewBaseUrl: () => 'http://localhost:3000',
     getPreviewOrigin: () => 'http://localhost:3000',
-    getFilesMap: () => ({ 'main.vns': project.files[0].content }),
+    getFilesMap: () => ({ 'main.vns': project.files[0]!.content }),
     getFileContent: (name: string) => project.files.find(f => f.name === name)?.content || '',
     setFileContent: vi.fn(),
     removeFile: vi.fn(),
@@ -365,18 +365,18 @@ describe('BytecodeInspector Module', () => {
     expect(rows.length).toBe(6);
 
     // Row 0: SCENE
-    const r0Cols = rows[0].querySelectorAll('td');
-    expect(r0Cols[0].textContent).toContain('0000');
-    expect(r0Cols[1].textContent).toContain('SCENE');
-    expect(r0Cols[2].textContent).toContain('scene start');
-    expect(r0Cols[3].textContent).toContain('main.vns:5');
+    const r0Cols = rows[0]!.querySelectorAll('td');
+    expect(r0Cols[0]!.textContent).toContain('0000');
+    expect(r0Cols[1]!.textContent).toContain('SCENE');
+    expect(r0Cols[2]!.textContent).toContain('scene start');
+    expect(r0Cols[3]!.textContent).toContain('main.vns:5');
 
     // Row 3: DIALOGUE
-    const r3Cols = rows[3].querySelectorAll('td');
-    expect(r3Cols[0].textContent).toContain('0003');
-    expect(r3Cols[1].textContent).toContain('DIALOGUE');
-    expect(r3Cols[2].textContent).toContain('alice: "Hello world!"');
-    expect(r3Cols[3].textContent).toContain('main.vns:8');
+    const r3Cols = rows[3]!.querySelectorAll('td');
+    expect(r3Cols[0]!.textContent).toContain('0003');
+    expect(r3Cols[1]!.textContent).toContain('DIALOGUE');
+    expect(r3Cols[2]!.textContent).toContain('alice: "Hello world!"');
+    expect(r3Cols[3]!.textContent).toContain('main.vns:8');
 
     // Check count badge
     expect(domRegistry['bytecode-count-badge']?.textContent).toContain('6 instructions');
@@ -390,7 +390,7 @@ describe('BytecodeInspector Module', () => {
 
     const tbody = domRegistry['bytecode-tbody']!;
     const row3 = tbody.querySelectorAll('tr')[3]; // DIALOGUE at line 8
-    row3.dispatchEvent({ type: 'click' });
+    row3!.dispatchEvent({ type: 'click' });
 
     const editor = ctx.getEditorInstance();
     expect(editor?.setPosition).toHaveBeenCalledWith({ lineNumber: 8, column: 5 });
@@ -408,13 +408,13 @@ describe('BytecodeInspector Module', () => {
 
     // Execute PC = 2
     inspector.updateExecutionPointer(2);
-    expect(rows[2].classList.contains('bytecode-row-current')).toBe(true);
-    expect(rows[3].classList.contains('bytecode-row-current')).toBe(false);
+    expect(rows[2]!.classList.contains('bytecode-row-current')).toBe(true);
+    expect(rows[3]!.classList.contains('bytecode-row-current')).toBe(false);
 
     // Advance to PC = 3
     inspector.updateExecutionPointer(3);
-    expect(rows[2].classList.contains('bytecode-row-current')).toBe(false);
-    expect(rows[3].classList.contains('bytecode-row-current')).toBe(true);
+    expect(rows[2]!.classList.contains('bytecode-row-current')).toBe(false);
+    expect(rows[3]!.classList.contains('bytecode-row-current')).toBe(true);
   });
 
   it('filters bytecode by search query and scene selection', () => {
@@ -428,7 +428,7 @@ describe('BytecodeInspector Module', () => {
     const tbody = domRegistry['bytecode-tbody']!;
     let visibleRows = tbody.querySelectorAll('tr').filter(r => !r.classList.contains('hidden'));
     expect(visibleRows.length).toBe(1);
-    expect(visibleRows[0].querySelectorAll('td')[1].textContent).toContain('DIALOGUE');
+    expect(visibleRows[0]!.querySelectorAll('td')[1]!.textContent).toContain('DIALOGUE');
 
     // Reset search
     inspector.search('');
@@ -550,7 +550,7 @@ describe('BytecodeInspector Module', () => {
     inspector.filterByScene('__preamble__');
     visibleRows = tbody.querySelectorAll('tr').filter(r => !r.classList.contains('hidden'));
     expect(visibleRows.length).toBe(1);
-    expect(visibleRows[0].textContent).toContain('ASSIGN');
+    expect(visibleRows[0]!.textContent).toContain('ASSIGN');
   });
 
   it('renders expandable sub-row for CHOICE instructions with detailed options and conditions', async () => {

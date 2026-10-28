@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-import React from 'react';
 import '@testing-library/jest-dom';
 import 'fake-indexeddb/auto';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -12,39 +11,26 @@ import { IndexedDBProjectRepository } from '../src/core/repositories/IndexedDBPr
 const landscapeProject: Project = {
   id: 'proj-landscape',
   title: 'Landscape VN Project',
-  createdAt: Date.now(),
+  version: 1,
+  ownerId: 'user-1',
+  defaultLanguage: 'vi',
   updatedAt: Date.now(),
+  characters: [],
+  assets: [],
+  variables: [],
+  uiScreens: [],
+  customScripts: [],
   displaySettings: {
     width: 1920,
     height: 1080,
     orientation: 'landscape',
+    lockAspectRatio: true,
   },
   files: [
     {
       id: 'file-1',
       name: 'main.vns',
       content: 'scene "bg_classroom.png"\n"Teacher" "Good morning!"\n',
-      order: 0,
-      version: 1,
-    },
-  ],
-};
-
-const _portraitMobileProject: Project = {
-  id: 'proj-mobile',
-  title: 'Mobile Webtoon Project',
-  createdAt: Date.now(),
-  updatedAt: Date.now(),
-  displaySettings: {
-    width: 1080,
-    height: 1920,
-    orientation: 'portrait',
-  },
-  files: [
-    {
-      id: 'file-1',
-      name: 'main.vns',
-      content: 'scene "bg_vertical.png"\n"Hero" "Vertical mobile adventure!"\n',
       order: 0,
       version: 1,
     },
@@ -197,7 +183,7 @@ describe('Milestone 8: Live Preview Dock (Column 3 Full-Height)', () => {
 
     beforeEach(async () => {
       repo = new IndexedDBProjectRepository(`studio_m8_${Date.now()}_${Math.random()}`);
-      await repo.createProject(landscapeProject);
+      await repo.updateProject(landscapeProject);
     });
 
     it('activates preview when Quick Play button is clicked in header', async () => {

@@ -57,8 +57,8 @@ describe('E-Phase 1: Storage & Repository Layer (IndexedDBProjectRepository)', (
 
     // Kịch bản khởi tạo mặc định phải có 1 file main.vns chứa scene start
     expect(project.files).toHaveLength(1);
-    expect(project.files[0].name).toBe('main.vns');
-    expect(project.files[0].content).toContain('scene start');
+    expect(project.files[0]!.name).toBe('main.vns');
+    expect(project.files[0]!.content).toContain('scene start');
     expect(project.entryScene).toBe('start');
   });
 
@@ -124,7 +124,7 @@ describe('E-Phase 1: Storage & Repository Layer (IndexedDBProjectRepository)', (
     const reloaded = await repository.getProject(created.id);
     expect(reloaded?.title).toBe('Updated Title');
     expect(reloaded?.characters).toHaveLength(1);
-    expect(reloaded?.characters[0].name).toBe('Alice Margatroid');
+    expect(reloaded?.characters[0]!.name).toBe('Alice Margatroid');
     expect(reloaded?.updatedAt).toBeGreaterThanOrEqual(created.updatedAt || 0);
   });
 
@@ -141,9 +141,9 @@ describe('E-Phase 1: Storage & Repository Layer (IndexedDBProjectRepository)', (
     expect(duplicate.title).toBe('Original Game (Copy)');
     expect(duplicate.description).toBe('Master copy');
     expect(duplicate.files).toHaveLength(original.files.length);
-    expect(duplicate.files[0].name).toBe(original.files[0].name);
-    expect(duplicate.files[0].content).toBe(original.files[0].content);
-    expect(duplicate.files[0].id).not.toBe(original.files[0].id);
+    expect(duplicate.files[0]!.name).toBe(original.files[0]!.name);
+    expect(duplicate.files[0]!.content).toBe(original.files[0]!.content);
+    expect(duplicate.files[0]!.id).not.toBe(original.files[0]!.id);
 
     const list = await repository.listProjects();
     expect(list).toHaveLength(2);
@@ -163,7 +163,7 @@ describe('E-Phase 1: Storage & Repository Layer (IndexedDBProjectRepository)', (
 
     const list = await repository.listProjects();
     expect(list).toHaveLength(1);
-    expect(list[0].id).toBe(p2.id);
+    expect(list[0]!.id).toBe(p2.id);
 
     const deleted = await repository.getProject(p1.id);
     expect(deleted).toBeNull();

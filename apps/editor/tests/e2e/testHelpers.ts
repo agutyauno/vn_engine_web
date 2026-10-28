@@ -217,7 +217,13 @@ export function scanActiveReconciliation(
           referencedAssets.add(stmt.assetId);
         } else if (stmt.type === 'IfStatement') {
           walkStatements(stmt.consequent);
-          if (stmt.alternate) walkStatements(stmt.alternate);
+          if (stmt.alternate) {
+            if (Array.isArray(stmt.alternate)) {
+              walkStatements(stmt.alternate);
+            } else {
+              walkStatements([stmt.alternate]);
+            }
+          }
         } else if (stmt.type === 'WhileStatement') {
           walkStatements(stmt.body);
         }
@@ -274,7 +280,11 @@ export function checkSafeAssetDeletion(
 
       if (stmt.type === 'IfStatement') {
         stmt.consequent?.forEach(s => checkStmt(s, defaultFile));
-        stmt.alternate?.forEach(s => checkStmt(s, defaultFile));
+        if (Array.isArray(stmt.alternate)) {
+          stmt.alternate.forEach(s => checkStmt(s, defaultFile));
+        } else if (stmt.alternate) {
+          checkStmt(stmt.alternate, defaultFile);
+        }
       } else if (stmt.type === 'WhileStatement') {
         stmt.body?.forEach(s => checkStmt(s, defaultFile));
       }

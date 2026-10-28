@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-import React from 'react';
 import '@testing-library/jest-dom';
 import 'fake-indexeddb/auto';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -13,12 +12,20 @@ import { IndexedDBProjectRepository } from '../src/core/repositories/IndexedDBPr
 const sampleProject: Project = {
   id: 'proj-settings-test',
   title: 'Settings & Export Project',
-  createdAt: 1700000000000,
+  version: 1,
+  ownerId: 'user-1',
+  defaultLanguage: 'vi',
   updatedAt: 1700000000000,
+  characters: [],
+  assets: [],
+  variables: [],
+  uiScreens: [],
+  customScripts: [],
   displaySettings: {
     width: 1920,
     height: 1080,
     orientation: 'landscape',
+    lockAspectRatio: true,
   },
   files: [
     {
@@ -249,7 +256,7 @@ describe('Milestone 9: Project Settings & Export Wizard', () => {
 
     beforeEach(async () => {
       repo = new IndexedDBProjectRepository(`studio_m9_${Date.now()}_${Math.random()}`);
-      await repo.createProject(sampleProject);
+      await repo.updateProject(sampleProject);
     });
 
     it('opens ProjectSettingsModal from header button and persists updates', async () => {

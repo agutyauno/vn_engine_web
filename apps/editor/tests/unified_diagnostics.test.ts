@@ -276,7 +276,7 @@ describe('Unified Diagnostics Hub (Problems Tab)', () => {
 
   it('initializes with zero problems in clean state', () => {
     const ctx = createMockContext();
-    const _drawer = new BottomDrawerClass(ctx);
+    new BottomDrawerClass(ctx);
 
     const summary = domRegistry['problems-summary']!;
     expect(summary.textContent).toContain('Problems (0)');
@@ -285,7 +285,7 @@ describe('Unified Diagnostics Hub (Problems Tab)', () => {
 
   it('renders compiler errors with line/column and jumps to editor on click', () => {
     const ctx = createMockContext();
-    const _drawer = new BottomDrawerClass(ctx);
+    const drawer = new BottomDrawerClass(ctx);
 
     const errors: CompileError[] = [
       {
@@ -302,12 +302,12 @@ describe('Unified Diagnostics Hub (Problems Tab)', () => {
 
     const rows = domRegistry['problems-list']!.children;
     expect(rows.length).toBe(1);
-    expect(rows[0].textContent).toContain('[main.vns]');
-    expect(rows[0].textContent).toContain('Line 5, Col 12');
-    expect(rows[0].textContent).toContain('Syntax error');
+    expect(rows[0]!.textContent).toContain('[main.vns]');
+    expect(rows[0]!.textContent).toContain('Line 5, Col 12');
+    expect(rows[0]!.textContent).toContain('Syntax error');
 
     // Click to jump
-    rows[0].dispatchEvent({ type: 'click' });
+    rows[0]!.dispatchEvent({ type: 'click' });
     const editor = ctx.getEditorInstance()!;
     expect(editor.revealLineInCenter).toHaveBeenCalledWith(5);
     expect(editor.setPosition).toHaveBeenCalledWith({ lineNumber: 5, column: 12 });
@@ -315,7 +315,7 @@ describe('Unified Diagnostics Hub (Problems Tab)', () => {
 
   it('adds and aggregates runtime & missing asset diagnostics alongside compiler errors', () => {
     const ctx = createMockContext();
-    const _drawer = new BottomDrawerClass(ctx);
+    const drawer = new BottomDrawerClass(ctx);
 
     // 1. Add compiler error
     drawer.renderErrors([
@@ -344,16 +344,16 @@ describe('Unified Diagnostics Hub (Problems Tab)', () => {
     expect(rows.length).toBe(3);
 
     // Check categories
-    expect(rows[0].textContent).toContain('COMPILER');
-    expect(rows[1].textContent).toContain('ASSET');
-    expect(rows[1].textContent).toContain('alice.happy');
-    expect(rows[2].textContent).toContain('RUNTIME');
-    expect(rows[2].textContent).toContain("Scene 'intro'");
+    expect(rows[0]!.textContent).toContain('COMPILER');
+    expect(rows[1]!.textContent).toContain('ASSET');
+    expect(rows[1]!.textContent).toContain('alice.happy');
+    expect(rows[2]!.textContent).toContain('RUNTIME');
+    expect(rows[2]!.textContent).toContain("Scene 'intro'");
   });
 
   it('clears runtime diagnostics when clearRuntimeDiagnostics is called on recompile', () => {
     const ctx = createMockContext();
-    const _drawer = new BottomDrawerClass(ctx);
+    const drawer = new BottomDrawerClass(ctx);
 
     drawer.addRuntimeDiagnostic({
       category: 'asset',
@@ -369,6 +369,6 @@ describe('Unified Diagnostics Hub (Problems Tab)', () => {
     drawer.renderSuccess(25);
     expect(domRegistry['problems-summary']!.textContent).toContain('Problems (0)');
     expect(domRegistry['problems-list']!.children.length).toBe(1);
-    expect(domRegistry['problems-list']!.children[0].textContent).toContain('No problems detected');
+    expect(domRegistry['problems-list']!.children[0]!.textContent).toContain('No problems detected');
   });
 });

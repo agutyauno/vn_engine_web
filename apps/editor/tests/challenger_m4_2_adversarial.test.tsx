@@ -2,7 +2,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 import 'fake-indexeddb/auto';
-import React from 'react';
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
 import type { Character } from '@vn-engine/shared-types';
 import { CharacterModal, normalizeHex, isValidHex, COLOR_SWATCHES } from '../src/components/characters/CharacterModal';
@@ -461,6 +460,7 @@ describe('Adversarial Challenge: Milestone 4 (challenger_m4_2)', () => {
           width: 1920,
           height: 1080,
           orientation: 'landscape',
+          lockAspectRatio: true,
         },
       });
 
@@ -523,6 +523,12 @@ describe('Adversarial Challenge: Milestone 4 (challenger_m4_2)', () => {
 
       const project = await repo.createProject({
         title: 'Project with Existing Character',
+        displaySettings: {
+          width: 1920,
+          height: 1080,
+          orientation: 'landscape',
+          lockAspectRatio: true,
+        },
       });
 
       // Update project with character
@@ -580,6 +586,12 @@ describe('Adversarial Challenge: Milestone 4 (challenger_m4_2)', () => {
 
       const project = await repo.createProject({
         title: 'Deletion Test Project',
+        displaySettings: {
+          width: 1920,
+          height: 1080,
+          orientation: 'landscape',
+          lockAspectRatio: true,
+        },
       });
 
       await repo.updateProject({
@@ -635,6 +647,12 @@ describe('Adversarial Challenge: Milestone 4 (challenger_m4_2)', () => {
 
       const project = await repo.createProject({
         title: 'Multi Character Isolation Test',
+        displaySettings: {
+          width: 1920,
+          height: 1080,
+          orientation: 'landscape',
+          lockAspectRatio: true,
+        },
       });
 
       await repo.updateProject({
@@ -683,6 +701,12 @@ describe('Adversarial Challenge: Milestone 4 (challenger_m4_2)', () => {
     it('4.5: Supports Unicode, quotes, and symbols in Display Name and round-trips cleanly', async () => {
       const project = await repo.createProject({
         title: 'Unicode & Symbols Nameplate Test',
+        displaySettings: {
+          width: 1920,
+          height: 1080,
+          orientation: 'landscape',
+          lockAspectRatio: true,
+        },
       });
 
       render(

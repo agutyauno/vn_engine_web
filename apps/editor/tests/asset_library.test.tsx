@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-import React from 'react';
 import '@testing-library/jest-dom';
 import 'fake-indexeddb/auto';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -223,7 +222,19 @@ play music "bg_rain.mp3"
     });
 
     it('replaces asset file blob in IndexedDB while preserving exact asset ID', async () => {
-      await repo.createProject(sampleProject);
+      const created = await repo.createProject({
+        title: sampleProject.title,
+        displaySettings: {
+          width: 1920,
+          height: 1080,
+          orientation: 'landscape',
+          lockAspectRatio: true,
+        },
+      });
+      await repo.updateProject({
+        ...created,
+        assets: sampleProject.assets,
+      });
 
       const targetAsset = sampleProject.assets.find((a) => a.id === 'ast-audio-rain')!;
       const originalId = targetAsset.id; // 'ast-audio-rain'

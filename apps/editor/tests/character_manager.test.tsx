@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import '@testing-library/jest-dom/vitest';
-import React from 'react';
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
 import type { Character, Project } from '@vn-engine/shared-types';
 import type { ProjectRepository } from '../src/core/contracts/repository';
@@ -512,13 +511,16 @@ describe('Milestone 4: Character & Sprite Manager', () => {
         id: 'proj-test',
         title: 'VN Story',
         version: 1,
-        createdAt: Date.now(),
+        ownerId: 'user-1',
+        defaultLanguage: 'vi',
         updatedAt: Date.now(),
         files: [{ id: 'f-1', name: 'main.vns', content: 'say "Hi"', order: 0, version: 1 }],
         characters: [],
         assets: [],
         variables: [],
-        displaySettings: { width: 1920, height: 1080, orientation: 'landscape' },
+        uiScreens: [],
+        customScripts: [],
+        displaySettings: { width: 1920, height: 1080, orientation: 'landscape', lockAspectRatio: true },
       };
 
       render(

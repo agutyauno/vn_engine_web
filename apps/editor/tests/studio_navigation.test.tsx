@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import '@testing-library/jest-dom/vitest';
-import React from 'react';
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
 import type { Project, ScriptFile } from '@vn-engine/shared-types';
 import type { ProjectRepository } from '../src/core/contracts/repository';
@@ -27,16 +26,20 @@ describe('Studio Shell & Navigation (Milestone 3 TDD)', () => {
     id: 'proj-123',
     title: 'Echoes of the Sea',
     version: 1,
-    createdAt: Date.now(),
+    ownerId: 'user-1',
+    defaultLanguage: 'vi',
     updatedAt: Date.now(),
     files: mockFiles,
     characters: [],
     assets: [],
     variables: [],
+    uiScreens: [],
+    customScripts: [],
     displaySettings: {
       width: 1920,
       height: 1080,
       orientation: 'landscape',
+      lockAspectRatio: true,
     },
   };
 

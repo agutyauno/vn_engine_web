@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-import React from 'react';
 import '@testing-library/jest-dom';
 import 'fake-indexeddb/auto';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -16,13 +15,18 @@ import { StudioWorkspacePage } from '../src/components/studio/StudioWorkspacePag
 const sampleProject: Project = {
   id: 'proj-drawer-test',
   title: 'Diagnostics Drawer Project',
-  createdAt: Date.now(),
+  version: 1,
+  ownerId: 'user-1',
+  defaultLanguage: 'vi',
   updatedAt: Date.now(),
+  variables: [],
+  uiScreens: [],
+  customScripts: [],
   displaySettings: {
     width: 1920,
     height: 1080,
     orientation: 'landscape',
-    aspectRatio: '16:9',
+    lockAspectRatio: true,
   },
   files: [
     {
@@ -55,8 +59,8 @@ const sampleProject: Project = {
     {
       id: 'ast-school',
       name: 'bg_school.png',
-      category: 'backgrounds',
-      path: 'assets/bg_school.png',
+      type: 'image',
+      storageUrl: 'assets/bg_school.png',
       sizeBytes: 1024,
     },
   ],
@@ -361,7 +365,7 @@ describe('Milestone 7: Bottom Diagnostics Drawer (Column 2 Bottom)', () => {
 
     beforeEach(async () => {
       repo = new IndexedDBProjectRepository(`studio_m7_${Date.now()}_${Math.random()}`);
-      await repo.createProject(sampleProject);
+      await repo.updateProject(sampleProject);
     });
 
     it('renders DockDrawer in Column 2 Bottom and jumps to line in Monaco when problem is clicked', async () => {

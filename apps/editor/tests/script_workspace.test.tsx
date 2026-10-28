@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-import React from 'react';
 import '@testing-library/jest-dom';
 import 'fake-indexeddb/auto';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -66,6 +65,12 @@ describe('Milestone 6: Monaco Script Workspace (Column 2 Top)', () => {
     ],
     uiScreens: [],
     customScripts: [],
+    displaySettings: {
+      width: 1920,
+      height: 1080,
+      orientation: 'landscape',
+      lockAspectRatio: true,
+    },
   };
 
   // ========================================================================
@@ -217,7 +222,7 @@ describe('Milestone 6: Monaco Script Workspace (Column 2 Top)', () => {
 
     beforeEach(async () => {
       repo = new IndexedDBProjectRepository(`studio_m6_${Date.now()}_${Math.random()}`);
-      await repo.createProject(sampleProject);
+      await repo.updateProject(sampleProject);
     });
 
     it('edits script content, displays dirty dot ● on tab, and persists on save', async () => {
