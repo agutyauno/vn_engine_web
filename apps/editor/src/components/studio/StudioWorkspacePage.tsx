@@ -18,6 +18,8 @@ import { DockProblemsTable } from './DockProblemsTable';
 import { RuntimeCheatInjector } from './RuntimeCheatInjector';
 import { ConsoleLogStream, type ConsoleLogEntry } from './ConsoleLogStream';
 import { PreviewDock } from './PreviewDock';
+import { ProjectSettingsModal } from './ProjectSettingsModal';
+import { ExportWizardModal, type ExportTarget } from './ExportWizardModal';
 import {
   generateDiagnostics,
   type EditorDiagnostic,
@@ -91,10 +93,62 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
   const [isPreviewPlaying, setIsPreviewPlaying] = useState<boolean>(false);
   const [isPreviewPopout, setIsPreviewPopout] = useState<boolean>(false);
 
+  // Settings & Export Modals (Milestone 9)
+  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  const [isExportOpen, setIsExportOpen] = useState<boolean>(false);
+
   const handleQuickPlayAction = useCallback(() => {
     setIsPreviewPlaying(true);
     onQuickPlay?.();
   }, [onQuickPlay]);
+
+  const handleOpenSettingsModal = useCallback(() => {
+    setIsSettingsOpen(true);
+    onOpenSettings?.();
+  }, [onOpenSettings]);
+
+  const handleSaveSettings = useCallback(
+    async (updated: Project) => {
+      setProject(updated);
+      setIsSettingsOpen(false);
+      setIsSaving(true);
+      try {
+        await repository.updateProject(updated);
+        setIsDirty(false);
+      } catch (err) {
+        console.error('Failed to update project settings:', err);
+        setIsDirty(true);
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [repository]
+  );
+
+  const handleOpenExportModal = useCallback(() => {
+    setIsExportOpen(true);
+    onExport?.();
+  }, [onExport]);
+
+  const handlePerformExport = useCallback(
+    (target: ExportTarget) => {
+      if (!project) return;
+      try {
+        const jsonString = JSON.stringify(project, null, 2);
+        const blob = new Blob([jsonString], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${project.title.toLowerCase().replace(/[^a-z0-9_-]/g, '_')}_${target}_release.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } catch (err) {
+        console.error('Failed to export release:', err);
+      }
+      setIsExportOpen(false);
+    },
+    [project]
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -566,8 +620,8 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
         onBack={onBackToHub}
         onBackToHub={onBackToHub}
         onQuickPlay={handleQuickPlayAction}
-        onOpenSettings={onOpenSettings}
-        onExport={onExport}
+        onOpenSettings={handleOpenSettingsModal}
+        onExport={handleOpenExportModal}
       />
 
       {/* 3-Column Director Workspace */}
@@ -580,7 +634,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
           <ActivityBar
             activeTab={activeTab}
             onSelectTab={setActiveTab}
-            onOpenSettings={onOpenSettings}
+            onOpenSettings={handleOpenSettingsModal}
           />
 
           {activeTab === 'scripts' && (
@@ -710,6 +764,22 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
           setEditingCharacter(null);
         }}
         onSave={handleSaveCharacter}
+      />
+
+      {/* Project Settings Modal Dialog */}
+      <ProjectSettingsModal
+        isOpen={isSettingsOpen}
+        project={project}
+        onClose={() => setIsSettingsOpen(false)}
+        onSave={handleSaveSettings}
+      />
+
+      {/* Export Release Wizard Modal Dialog */}
+      <ExportWizardModal
+        isOpen={isExportOpen}
+        project={project}
+        onClose={() => setIsExportOpen(false)}
+        onExport={handlePerformExport}
       />
     </div>
   );
