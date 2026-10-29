@@ -37,7 +37,7 @@ export interface ProjectStoreState {
   saveCharacter: (char: Character) => void;
   deleteCharacter: (charId: string) => void;
 
-  saveAsset: (asset: AssetRef, blob: Blob) => Promise<void>;
+  saveAsset: (asset: AssetRef, blob?: Blob) => Promise<void>;
   deleteAsset: (assetId: string) => Promise<void>;
 }
 
@@ -481,7 +481,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     const currentProject = get().project;
     if (!currentProject) return;
 
-    if (activeRepository) {
+    if (activeRepository && blob) {
       await activeRepository.saveAssetBlob(asset.id, blob);
     }
 
