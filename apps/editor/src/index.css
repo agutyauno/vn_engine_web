@@ -1,0 +1,35 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --vn-font-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    --vn-font-mono: 'JetBrains Mono', 'Fira Code', Menlo, Monaco, Consolas, monospace;
+    --vn-color-bg-base: #020617;
+    --vn-color-surface: #0f172a;
+    --vn-color-border: #1e293b;
+    --vn-color-text: #f8fafc;
+    --vn-color-text-muted: #94a3b8;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html,
+  body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background-color: var(--vn-color-bg-base);
+    color: var(--vn-color-text);
+    font-family: var(--vn-font-sans);
+  }
+
+  #root {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+  }
+}
