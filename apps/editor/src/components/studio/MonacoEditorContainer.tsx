@@ -1,6 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { Project, ScriptFile } from '@vn-engine/shared-types';
 import type * as monacoType from 'monaco-editor';
+import { useProjectStore } from '../../core/stores/projectStore';
+import { useDiagnosticsStore } from '../../core/stores/diagnosticsStore';
+import { syncMonacoMarkers } from '../../core/services/monacoMarkerBridge';
 
 export interface MonacoEditorContainerProps {
   file: ScriptFile | null;
@@ -23,7 +26,11 @@ export const MonacoEditorContainer: React.FC<MonacoEditorContainerProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<monacoType.editor.IStandaloneCodeEditor | null>(null);
+  const monacoInstanceRef = useRef<typeof monacoType | null>(null);
   const [isMonacoMounted, setIsMonacoMounted] = useState(false);
+
+  const compilerDiagnostics = useDiagnosticsStore((s) => s.compilerDiagnostics);
+  const reconciliationDiagnostics = useDiagnosticsStore((s) => s.reconciliationDiagnostics);
 
   // Initialize Monaco and language features
   useEffect(() => {
@@ -44,6 +51,8 @@ export const MonacoEditorContainer: React.FC<MonacoEditorContainerProps> = ({
       const monacoModule = await import('monaco-editor');
       const { registerVnsLanguage } = await import('../../vnsLanguage');
       const { registerVnsLanguageFeatures } = await import('../../vnsLanguageFeatures');
+
+      monacoInstanceRef.current = monacoModule;
 
       if (!vnsRegistered) {
         try {
@@ -103,7 +112,11 @@ export const MonacoEditorContainer: React.FC<MonacoEditorContainerProps> = ({
       });
 
       editor.onDidChangeModelContent(() => {
-        onChange?.(editor.getValue());
+        const val = editor.getValue();
+        if (file) {
+          useProjectStore.getState().updateFileContent(file.id, val);
+        }
+        onChange?.(val);
       });
 
       editor.onDidChangeCursorPosition((e) => {
@@ -134,6 +147,23 @@ export const MonacoEditorContainer: React.FC<MonacoEditorContainerProps> = ({
       }
     }
   }, [file?.id, file?.content]);
+
+  // Synchronize Monaco Markers from DiagnosticsStore
+  useEffect(() => {
+    if (!isMonacoMounted || !editorRef.current || !monacoInstanceRef.current || !file) {
+      return;
+    }
+    const model = editorRef.current.getModel();
+    if (!model) return;
+
+    const allDiags = [...compilerDiagnostics, ...reconciliationDiagnostics];
+    syncMonacoMarkers({
+      monacoInstance: monacoInstanceRef.current,
+      model,
+      activeFileId: file.id,
+      diagnostics: allDiags,
+    });
+  }, [isMonacoMounted, file?.id, compilerDiagnostics, reconciliationDiagnostics]);
 
   // Support cursorJumpTarget (IT-EDT-01)
   useEffect(() => {
@@ -172,7 +202,12 @@ export const MonacoEditorContainer: React.FC<MonacoEditorContainerProps> = ({
           data-testid="monaco-fallback-textarea"
           value={file.content}
           readOnly={readOnly}
-          onChange={(e) => onChange?.(e.target.value)}
+          onChange={(e) => {
+            if (file) {
+              useProjectStore.getState().updateFileContent(file.id, e.target.value);
+            }
+            onChange?.(e.target.value);
+          }}
           placeholder="// Type your VNS script here..."
           className="absolute inset-0 h-full w-full resize-none border-none bg-neutral-950 p-4 font-mono text-xs text-neutral-200 outline-none focus:ring-0"
           spellCheck={false}

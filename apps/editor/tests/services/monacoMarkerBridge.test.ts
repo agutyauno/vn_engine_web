@@ -1,10 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import type * as monaco from 'monaco-editor';
 import type { EngineDiagnostic } from '@vn-engine/shared-types';
-import {
-  syncMonacoMarkers,
-  type MonacoMarkerSyncOptions,
-} from '../../src/core/services/monacoMarkerBridge';
+import { syncMonacoMarkers } from '../../src/core/services/monacoMarkerBridge';
 
 describe('monacoMarkerBridge (Phase 2)', () => {
   let mockModel: any;
@@ -184,3 +180,4 @@ describe('monacoMarkerBridge (Phase 2)', () => {
     );
   });
 });
+

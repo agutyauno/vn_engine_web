@@ -8,13 +8,10 @@ import type {
   Instruction,
   EngineDiagnostic,
 } from '@vn-engine/shared-types';
-import {
-  useCompilerPipeline,
-  type UseCompilerPipelineOptions,
-} from '../../src/hooks/useCompilerPipeline';
+import { useCompilerPipeline } from '../../src/hooks/useCompilerPipeline';
 import { useProjectStore } from '../../src/core/stores/projectStore';
 import { useDiagnosticsStore } from '../../src/core/stores/diagnosticsStore';
-import { usePreviewStore, type HotReloadPayload } from '../../src/core/stores/livePreviewStore';
+import type { HotReloadPayload } from '../../src/core/stores/livePreviewStore';
 import type { PreviewBridge } from '../../src/core/services/previewBridge';
 import type { CompilerService, CompileOutput } from '../../src/core/services/compilerService';
 import { setupTestStore } from '../testStoreHelpers';
@@ -161,7 +158,7 @@ describe('useCompilerPipeline Hook (Phase 2)', () => {
       expect(mockPreviewBridge.hotReload).toHaveBeenCalledTimes(2);
     });
 
-    const lastCallPayload = mockPreviewBridge.hotReload.mock.calls[1][0] as HotReloadPayload;
+    const lastCallPayload = mockPreviewBridge.hotReload.mock.calls[1]![0] as HotReloadPayload;
     expect(lastCallPayload.characters).toEqual(
       expect.arrayContaining([expect.objectContaining({ id: 'bob' })])
     );
@@ -184,7 +181,7 @@ describe('useCompilerPipeline Hook (Phase 2)', () => {
       expect(mockPreviewBridge.hotReload).toHaveBeenCalledTimes(3);
     });
 
-    const assetCallPayload = mockPreviewBridge.hotReload.mock.calls[2][0] as HotReloadPayload;
+    const assetCallPayload = mockPreviewBridge.hotReload.mock.calls[2]![0] as HotReloadPayload;
     expect(assetCallPayload.assets).toEqual(
       expect.arrayContaining([expect.objectContaining({ id: 'asset-sound' })])
     );
@@ -225,3 +222,4 @@ describe('useCompilerPipeline Hook (Phase 2)', () => {
     expect(mockPreviewBridge.hotReload).not.toHaveBeenCalled();
   });
 });
+

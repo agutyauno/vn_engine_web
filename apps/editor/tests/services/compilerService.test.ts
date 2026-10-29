@@ -1,10 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import type { ScriptFile, Instruction, EngineDiagnostic } from '@vn-engine/shared-types';
-import {
-  CompilerService,
-  type CompileOutput,
-  type CompileExecutionOptions,
-} from '../../src/core/services/compilerService';
+import type { ScriptFile, Instruction } from '@vn-engine/shared-types';
+import { CompilerService } from '../../src/core/services/compilerService';
 
 class MockWorker {
   public onmessage: ((e: MessageEvent) => void) | null = null;
@@ -31,7 +27,7 @@ describe('CompilerService (Phase 2)', () => {
     {
       id: 'file-1',
       name: 'main.vns',
-      content: 'scene start:\n  say "Hello world!"\n',
+      content: 'scene start {\n  "Hello world!"\n}\n',
       order: 1,
       version: 1,
     },
@@ -81,7 +77,7 @@ describe('CompilerService (Phase 2)', () => {
       const service = new CompilerService(workerFactory);
 
       // Trigger compile #1
-      const promise1 = service.compile(validFiles);
+      void service.compile(validFiles);
       expect(service.getLatestRequestId()).toBe(1);
 
       // Trigger compile #2 before worker responds to #1
@@ -93,7 +89,7 @@ describe('CompilerService (Phase 2)', () => {
         data: {
           requestId: 1,
           success: true,
-          bytecode: [{ opcode: 'PUSH', args: [1] } as Instruction],
+          bytecode: [{ opcode: 'PUSH', args: [1] } as unknown as Instruction],
           diagnostics: [],
         },
       } as MessageEvent);
@@ -103,7 +99,7 @@ describe('CompilerService (Phase 2)', () => {
         data: {
           requestId: 2,
           success: true,
-          bytecode: [{ opcode: 'PUSH', args: [2] } as Instruction],
+          bytecode: [{ opcode: 'PUSH', args: [2] } as unknown as Instruction],
           diagnostics: [],
         },
       } as MessageEvent);
@@ -122,7 +118,7 @@ describe('CompilerService (Phase 2)', () => {
       expect(output.success).toBe(false);
       expect(output.diagnostics.length).toBeGreaterThan(0);
 
-      const errorDiag = output.diagnostics[0];
+      const errorDiag = output.diagnostics[0]!;
       expect(errorDiag).toBeDefined();
       expect(errorDiag.category).toBe('compiler');
       expect(errorDiag.severity).toBe('error');
@@ -150,7 +146,7 @@ describe('CompilerService (Phase 2)', () => {
       const compilePromise = service.compile(validFiles);
 
       expect(workers.length).toBe(1);
-      const firstWorker = workers[0];
+      const firstWorker = workers[0]!;
 
       // Fast forward past 2000ms timeout
       vi.advanceTimersByTime(2100);
@@ -160,8 +156,8 @@ describe('CompilerService (Phase 2)', () => {
       expect(firstWorker.terminate).toHaveBeenCalled();
       expect(output.success).toBe(false);
       expect(output.diagnostics.length).toBeGreaterThan(0);
-      expect(output.diagnostics[0].severity).toBe('error');
-      expect(output.diagnostics[0].message.toLowerCase()).toContain('timeout');
+      expect(output.diagnostics[0]!.severity).toBe('error');
+      expect(output.diagnostics[0]!.message.toLowerCase()).toContain('timeout');
     });
 
     it('recovers when worker triggers onerror event', async () => {
@@ -186,3 +182,4 @@ describe('CompilerService (Phase 2)', () => {
     });
   });
 });
+

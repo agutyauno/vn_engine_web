@@ -80,7 +80,7 @@ export interface PlayerLogMessage {
   log: LogEntry;
 }
 
-export type DiagnosticCategory = 'compiler' | 'asset' | 'runtime' | 'storage';
+export type DiagnosticCategory = 'compiler' | 'asset' | 'character' | 'runtime' | 'storage';
 export type DiagnosticSeverity = 'error' | 'warning' | 'info';
 
 export interface EngineDiagnostic {

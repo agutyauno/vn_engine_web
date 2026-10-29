@@ -1,23 +1,19 @@
-import type { Project } from '@vn-engine/shared-types';
+import type { Project, EngineDiagnostic } from '@vn-engine/shared-types';
 
 export type DiagnosticSeverity = 'error' | 'warning' | 'info';
-export type DiagnosticCategory = 'compiler' | 'asset' | 'character' | 'runtime';
+export type DiagnosticCategory = 'compiler' | 'asset' | 'character' | 'runtime' | 'storage';
 
-export interface EditorDiagnostic {
-  id: string;
-  category: DiagnosticCategory;
-  severity: DiagnosticSeverity;
-  message: string;
-  fileId?: string;
+export interface EditorDiagnostic extends Omit<EngineDiagnostic, 'timestamp'> {
+  timestamp?: number;
   fileName?: string;
-  line?: number;
-  col?: number;
   quickFix?: {
     type: 'create_asset' | 'create_character' | 'define_variable';
     targetId: string;
     prefillData?: Record<string, unknown>;
   };
 }
+
+export type GeneratedEditorDiagnostic = EditorDiagnostic & EngineDiagnostic;
 
 export interface ScriptReference {
   file: string;
@@ -39,13 +35,6 @@ export interface DeletionSafetyResult {
   error?: string;
 }
 
-/**
- * Scans all script files in a project to reconcile asset and character usage.
- * Identifies:
- * 1. Uncreated characters (referenced in script but not defined in project)
- * 2. Uncreated assets (referenced in script but not in asset library)
- * 3. Unused assets (stored in asset library but not referenced in any script)
- */
 export function scanActiveReconciliation(project: Project): ReconciliationReport {
   const assetRefMap: Record<string, ScriptReference[]> = {};
   const charRefMap: Record<string, ScriptReference[]> = {};
@@ -68,7 +57,6 @@ export function scanActiveReconciliation(project: Project): ReconciliationReport
     charRefMap[cleanId]!.push({ file, line, type: 'character' });
   };
 
-  // Scan line by line through each script file for maximum resilience
   for (const file of project.files || []) {
     const fileName = file.name || 'unnamed.vns';
     const lines = (file.content || '').split('\n');
@@ -78,36 +66,30 @@ export function scanActiveReconciliation(project: Project): ReconciliationReport
       const rawLine = lines[i]!;
       const trimmed = rawLine.trim();
 
-      // Skip empty lines or pure comments
       if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith('//')) {
         continue;
       }
 
-      // 1. Scene / Background: scene "bg_classroom.png" or scene bg_classroom.png
       const sceneMatch = trimmed.match(/^scene\s+["']?([^"'\s]+)["']?/i);
       if (sceneMatch && sceneMatch[1]) {
         recordAssetRef(sceneMatch[1], fileName, lineNum, 'background');
       }
 
-      // 2. Show character: show alice.happy or show bob
       const showMatch = trimmed.match(/^show\s+([a-zA-Z0-9_]+)(?:\.([a-zA-Z0-9_]+))?/i);
       if (showMatch && showMatch[1]) {
         recordCharRef(showMatch[1], fileName, lineNum);
       }
 
-      // 3. Hide character: hide alice
       const hideMatch = trimmed.match(/^hide\s+([a-zA-Z0-9_]+)/i);
       if (hideMatch && hideMatch[1]) {
         recordCharRef(hideMatch[1], fileName, lineNum);
       }
 
-      // 4. Play audio: play music "bg_rain.mp3" or play sound "sfx.wav"
       const playMatch = trimmed.match(/^play\s+(?:music|sound|voice|bgs)\s+["']?([^"'\s]+)["']?/i);
       if (playMatch && playMatch[1]) {
         recordAssetRef(playMatch[1], fileName, lineNum, 'audio');
       }
 
-      // 5. Inspect asset: inspect "item.png"
       const inspectMatch = trimmed.match(/^inspect\s+["']?([^"'\s]+)["']?/i);
       if (inspectMatch && inspectMatch[1]) {
         recordAssetRef(inspectMatch[1], fileName, lineNum, 'inspect');
@@ -115,12 +97,10 @@ export function scanActiveReconciliation(project: Project): ReconciliationReport
     }
   }
 
-  // Known character IDs in project
   const knownCharIds = new Set(
     (project.characters || []).map((c) => (c.id || '').trim().toLowerCase())
   );
 
-  // Known asset names and IDs in project
   const knownAssetKeys = new Set<string>();
   for (const asset of project.assets || []) {
     if (asset.id) {
@@ -133,7 +113,6 @@ export function scanActiveReconciliation(project: Project): ReconciliationReport
     }
   }
 
-  // 1. Calculate uncreated characters
   const uncreatedCharacters: string[] = [];
   for (const charId of Object.keys(charRefMap)) {
     if (!knownCharIds.has(charId)) {
@@ -141,7 +120,6 @@ export function scanActiveReconciliation(project: Project): ReconciliationReport
     }
   }
 
-  // 2. Calculate uncreated assets
   const uncreatedAssets: string[] = [];
   for (const assetRef of Object.keys(assetRefMap)) {
     if (!knownAssetKeys.has(assetRef) && !knownAssetKeys.has(assetRef.toLowerCase())) {
@@ -149,7 +127,6 @@ export function scanActiveReconciliation(project: Project): ReconciliationReport
     }
   }
 
-  // 3. Calculate unused assets
   const unusedAssets: string[] = [];
   for (const asset of project.assets || []) {
     const nameMatches = assetRefMap[asset.name] || assetRefMap[asset.name.toLowerCase()];
@@ -168,9 +145,6 @@ export function scanActiveReconciliation(project: Project): ReconciliationReport
   };
 }
 
-/**
- * Checks whether an asset can be safely deleted without breaking script references.
- */
 export function checkAssetDeletionSafety(
   assetIdOrName: string,
   project: Project
@@ -180,7 +154,6 @@ export function checkAssetDeletionSafety(
     return { safe: true, references: [] };
   }
 
-  // Find asset metadata to check both name and ID
   const matchedAsset = (project.assets || []).find(
     (a) => a.id === target || a.name === target || a.name.toLowerCase() === target.toLowerCase()
   );
@@ -196,7 +169,6 @@ export function checkAssetDeletionSafety(
     refsByMatchedId = report.assetReferences[matchedAsset.id] || report.assetReferences[matchedAsset.id.toLowerCase()] || [];
   }
 
-  // Merge unique references
   const allRefs = [...refsByName, ...refsByMatchedName, ...refsByMatchedId];
   const uniqueRefs: ScriptReference[] = [];
   const seen = new Set<string>();
@@ -224,29 +196,26 @@ export function checkAssetDeletionSafety(
   };
 }
 
-/**
- * Generates editor diagnostics from active reconciliation scanning.
- * Flags uncreated characters and uncreated assets as actionable warnings with QuickFix payloads.
- */
-export function generateDiagnostics(project: Project): EditorDiagnostic[] {
+export function generateDiagnostics(project: Project): GeneratedEditorDiagnostic[] {
   const report = scanActiveReconciliation(project);
-  const diagnostics: EditorDiagnostic[] = [];
+  const diagnostics: GeneratedEditorDiagnostic[] = [];
 
   const fileMap = new Map<string, string>();
   for (const f of project.files || []) {
     fileMap.set(f.name, f.id);
   }
 
-  // Uncreated Assets
   for (const assetName of report.uncreatedAssets) {
     const refs = report.assetReferences[assetName] || report.assetReferences[assetName.toLowerCase()] || [];
     if (refs.length > 0) {
       for (const ref of refs) {
         diagnostics.push({
           id: `diag-asset-${assetName}-${ref.file}-${ref.line}`,
+          timestamp: Date.now(),
           category: 'asset',
           severity: 'warning',
           message: `Uncreated asset '${assetName}' referenced in script`,
+          assetKey: assetName,
           fileName: ref.file,
           fileId: fileMap.get(ref.file),
           line: ref.line,
@@ -264,9 +233,12 @@ export function generateDiagnostics(project: Project): EditorDiagnostic[] {
     } else {
       diagnostics.push({
         id: `diag-asset-${assetName}`,
+        timestamp: Date.now(),
         category: 'asset',
         severity: 'warning',
         message: `Uncreated asset '${assetName}' referenced in script`,
+        assetKey: assetName,
+        col: 1,
         quickFix: {
           type: 'create_asset',
           targetId: assetName,
@@ -276,16 +248,17 @@ export function generateDiagnostics(project: Project): EditorDiagnostic[] {
     }
   }
 
-  // Uncreated Characters
   for (const charId of report.uncreatedCharacters) {
     const refs = report.characterReferences[charId] || report.characterReferences[charId.toLowerCase()] || [];
     if (refs.length > 0) {
       for (const ref of refs) {
         diagnostics.push({
           id: `diag-char-${charId}-${ref.file}-${ref.line}`,
+          timestamp: Date.now(),
           category: 'character',
           severity: 'warning',
           message: `Uncreated character '${charId}' referenced in script`,
+          assetKey: charId,
           fileName: ref.file,
           fileId: fileMap.get(ref.file),
           line: ref.line,
@@ -300,9 +273,12 @@ export function generateDiagnostics(project: Project): EditorDiagnostic[] {
     } else {
       diagnostics.push({
         id: `diag-char-${charId}`,
+        timestamp: Date.now(),
         category: 'character',
         severity: 'warning',
         message: `Uncreated character '${charId}' referenced in script`,
+        assetKey: charId,
+        col: 1,
         quickFix: {
           type: 'create_character',
           targetId: charId,
