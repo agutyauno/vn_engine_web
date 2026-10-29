@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isAllowedPreviewOrigin } from '../src/modules/previewBridge';
+import { isAllowedPreviewOrigin, buildPreviewUrl } from '../src/components/studio/PreviewDock';
 
 describe('PreviewBridge Origin Security', () => {
   const configuredPreviewOrigin = 'http://localhost:3000';
@@ -21,16 +21,14 @@ describe('PreviewBridge Origin Security', () => {
 });
 
 describe('PreviewBridge URL Building and Project Isolation', () => {
-  it('builds preview url with mode=preview, embedded=true, and projectId', async () => {
-    const { buildPreviewUrl } = await import('../src/modules/previewBridge');
+  it('builds preview url with mode=preview, embedded=true, and projectId', () => {
     const url = buildPreviewUrl('http://localhost:3000', 'proj_alpha');
     expect(url).toContain('mode=preview');
     expect(url).toContain('embedded=true');
     expect(url).toContain('projectId=proj_alpha');
   });
 
-  it('builds popout preview url with popout=true and projectId', async () => {
-    const { buildPreviewUrl } = await import('../src/modules/previewBridge');
+  it('builds popout preview url with popout=true and projectId', () => {
     const url = buildPreviewUrl('http://localhost:3000', 'proj_beta', { isPopout: true });
     expect(url).toContain('mode=preview');
     expect(url).toContain('popout=true');
@@ -38,4 +36,3 @@ describe('PreviewBridge URL Building and Project Isolation', () => {
     expect(url).not.toContain('embedded=true');
   });
 });
-

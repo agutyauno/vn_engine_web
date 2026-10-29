@@ -27,6 +27,56 @@ export function formatAspectRatioString(width: number, height: number): string {
   return `${width} × ${height} (${wRatio}:${hRatio})`;
 }
 
+/**
+ * Kiểm tra nguồn origin của Live Preview để đảm bảo an toàn Zero-Trust (SAD 3.6)
+ */
+export function isAllowedPreviewOrigin(
+  origin: string,
+  previewOrigin: string,
+  localOrigin: string = typeof window !== 'undefined' ? window.location.origin : '',
+): boolean {
+  const allowedOrigins = [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    previewOrigin,
+    localOrigin,
+  ];
+
+  if (allowedOrigins.includes(origin)) {
+    return true;
+  }
+
+  const userContentRegex = /^https?:\/\/([a-zA-Z0-9-]+\.)*usercontent-platform\.com(:\d+)?$/;
+  return userContentRegex.test(origin);
+}
+
+/**
+ * Xây dựng URL nhúng Live Preview với query params đầy đủ (mode=preview, projectId)
+ */
+export function buildPreviewUrl(
+  baseUrl: string,
+  projectId?: string | null,
+  options?: { isPopout?: boolean; editorOrigin?: string },
+): string {
+  const cleanBase = baseUrl ? baseUrl.replace(/\/+$/, '') : '';
+  const params = new URLSearchParams();
+  if (options?.isPopout) {
+    params.set('popout', 'true');
+  } else {
+    params.set('embedded', 'true');
+  }
+  params.set('mode', 'preview');
+  if (projectId) {
+    params.set('projectId', projectId);
+  }
+  const edOrigin =
+    options?.editorOrigin || (typeof window !== 'undefined' ? window.location.origin : '');
+  if (edOrigin) {
+    params.set('editorOrigin', edOrigin);
+  }
+  return `${cleanBase}/?${params.toString()}`;
+}
+
 export const PreviewDock: React.FC<PreviewDockProps> = ({
   projectId: _projectId,
   canvasWidth,

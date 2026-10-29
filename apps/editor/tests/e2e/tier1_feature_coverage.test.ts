@@ -14,7 +14,7 @@ import {
   scanActiveReconciliation,
   checkSafeAssetDeletion,
 } from './testHelpers';
-import { validateFileName, generateDefaultScriptName } from '../../src/modules/fileExplorer';
+import { validateFileName, generateDefaultScriptName } from '../../src/components/studio/FileExplorerPane';
 
 describe('Tier 1: Feature Coverage (Web Editor Studio Platform)', () => {
   let repo: StudioProjectRepository;

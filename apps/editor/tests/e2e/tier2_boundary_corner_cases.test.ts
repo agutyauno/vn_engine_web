@@ -13,8 +13,8 @@ import {
   scanActiveReconciliation,
   checkSafeAssetDeletion,
 } from './testHelpers';
-import { validateFileName } from '../../src/modules/fileExplorer';
-import { isAllowedPreviewOrigin } from '../../src/modules/previewBridge';
+import { validateFileName } from '../../src/components/studio/FileExplorerPane';
+import { isAllowedPreviewOrigin } from '../../src/components/studio/PreviewDock';
 
 describe('Tier 2: Boundary & Corner Cases (Web Editor Studio Platform)', () => {
   let repo: StudioProjectRepository;
