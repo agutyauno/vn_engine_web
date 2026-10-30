@@ -385,6 +385,19 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
     [duplicateFile, selectTab]
   );
 
+  // Set Entry Scene
+  const handleSetEntryScene = useCallback(
+    async (fileName: string) => {
+      updateProjectMetadata({ entryScene: fileName });
+      try {
+        await saveProject(repository);
+      } catch (err) {
+        console.error('Failed to update entry scene:', err);
+      }
+    },
+    [updateProjectMetadata, saveProject, repository]
+  );
+
   // Script Content Editing
   const handleContentChange = useCallback(
     (newContent: string) => {
@@ -674,12 +687,13 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
               <FileExplorerPane
                 files={currentProject.files}
                 activeFileId={currentActiveFileId}
-                entrySceneName="main.vns"
+                entrySceneName={currentProject.entryScene || 'main.vns'}
                 onSelectFile={handleSelectTab}
                 onCreateFile={handleCreateFile}
                 onRenameFile={handleRenameFile}
                 onDeleteFile={handleDeleteFile}
                 onDuplicateFile={handleDuplicateFile}
+                onSetEntryScene={handleSetEntryScene}
               />
             )}
 

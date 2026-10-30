@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { ScriptFile } from '@vn-engine/shared-types';
-import { PlusIcon, TrashIcon, FileTextIcon, EditIcon, CopyIcon } from '../common/Icons';
+import { PlusIcon, TrashIcon, FileTextIcon, EditIcon, CopyIcon, FlagIcon } from '../common/Icons';
 
 export interface FileExplorerPaneProps {
   files: ScriptFile[];
@@ -11,6 +11,7 @@ export interface FileExplorerPaneProps {
   onRenameFile: (fileId: string, newName: string) => void;
   onDeleteFile: (fileId: string) => void;
   onDuplicateFile?: (fileId: string) => void;
+  onSetEntryScene?: (fileName: string) => void;
 }
 
 /**
@@ -95,12 +96,13 @@ export function generateDefaultScriptName(existingNames: string[]): string {
 export const FileExplorerPane: React.FC<FileExplorerPaneProps> = ({
   files,
   activeFileId,
-  entrySceneName = 'main.vns',
+  entrySceneName,
   onSelectFile,
   onCreateFile,
   onRenameFile,
   onDeleteFile,
   onDuplicateFile,
+  onSetEntryScene,
 }) => {
   const [isCreating, setIsCreating] = useState(false);
   const [newFileName, setNewFileName] = useState('');
@@ -221,10 +223,10 @@ export const FileExplorerPane: React.FC<FileExplorerPaneProps> = ({
         )}
 
         {files.map((file) => {
+          const effectiveEntry = entrySceneName || 'main.vns';
           const isEntry =
-            file.name === entrySceneName ||
-            cleanChapterName(file.name) === cleanChapterName(entrySceneName) ||
-            file.name === 'main.vns';
+            file.name === effectiveEntry ||
+            cleanChapterName(file.name) === cleanChapterName(effectiveEntry);
           const isDeleteDisabled = isEntry || files.length <= 1;
           const isActive = file.id === activeFileId;
           const isEditing = file.id === renamingId;
@@ -286,6 +288,21 @@ export const FileExplorerPane: React.FC<FileExplorerPaneProps> = ({
 
                 {!isEditing && (
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {!isEntry && onSetEntryScene && (
+                      <button
+                        type="button"
+                        data-testid={`btn-set-entry-${file.id}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSetEntryScene(file.name);
+                        }}
+                        title="Set as Entry Scene"
+                        className="rounded p-1 text-neutral-400 hover:text-amber-400"
+                      >
+                        <FlagIcon size={12} />
+                      </button>
+                    )}
+
                     <button
                       type="button"
                       data-testid={`btn-duplicate-file-${file.id}`}

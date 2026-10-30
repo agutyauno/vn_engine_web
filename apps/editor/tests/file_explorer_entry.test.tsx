@@ -11,18 +11,21 @@ const mockFiles: ScriptFile[] = [
     name: 'main.vns',
     content: 'scene start {}\n',
     order: 0,
+    version: 1,
   },
   {
     id: 'file-prologue',
     name: 'prologue.vns',
     content: 'scene prologue {}\n',
     order: 1,
+    version: 1,
   },
   {
     id: 'file-chap1',
     name: 'chapter1.vns',
     content: 'scene ch1 {}\n',
     order: 2,
+    version: 1,
   },
 ];
 
