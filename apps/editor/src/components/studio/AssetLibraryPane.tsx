@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import type { AssetRef, Project } from '@vn-engine/shared-types';
+import type { AssetRef, AssetCategory, Project } from '@vn-engine/shared-types';
 import {
   FolderIcon,
   ImageIcon,
@@ -20,8 +20,10 @@ import { validateAssetFile } from '../../core/utils/assetValidation';
 
 export interface AssetLibraryPaneProps {
   project: Project;
+  quickFixAsset?: { id: string; category?: AssetCategory } | null;
   quickFixAssetName?: string;
-  onAddAsset?: (asset: AssetRef, fileBlob: Blob) => void;
+  onClearQuickFix?: () => void;
+  onAddAsset?: (asset: AssetRef, fileBlob?: Blob) => void;
   onReplaceAsset?: (assetId: string, newBlob: Blob, newFileName?: string) => void;
   onDeleteAsset?: (assetId: string) => void;
 }
@@ -39,7 +41,9 @@ type ConsolidatedCategory =
 
 export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
   project,
+  quickFixAsset,
   quickFixAssetName,
+  onClearQuickFix,
   onAddAsset,
   onReplaceAsset,
   onDeleteAsset,
@@ -52,6 +56,8 @@ export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
   // Create Asset Modal & Drag-and-Drop States
   const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
   const [stagedFile, setStagedFile] = useState<File | null>(null);
+  const [modalPrefillId, setModalPrefillId] = useState<string | undefined>(undefined);
+  const [modalPrefillCategory, setModalPrefillCategory] = useState<AssetCategory | undefined>(undefined);
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
@@ -194,10 +200,13 @@ export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
     }
   };
 
-  const handleSaveCreatedAsset = (asset: AssetRef, fileBlob: Blob) => {
+  const handleSaveCreatedAsset = (asset: AssetRef, fileBlob?: Blob) => {
     onAddAsset?.(asset, fileBlob);
     setIsCreateModalOpen(false);
     setStagedFile(null);
+    setModalPrefillId(undefined);
+    setModalPrefillCategory(undefined);
+    onClearQuickFix?.();
   };
 
   const handleReplaceFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -286,19 +295,24 @@ export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
       )}
 
       {/* Quick Fix Pending Notification */}
-      {quickFixAssetName && (
+      {(quickFixAsset?.id || quickFixAssetName) && (
         <div
           data-testid="quickfix-pending-badge"
           className="mx-3 mt-3 flex items-center justify-between rounded border border-amber-500/40 bg-amber-500/10 p-2 text-xs text-amber-300"
         >
           <div className="flex items-center gap-1.5 overflow-hidden">
             <AlertTriangleIcon size={14} className="shrink-0 text-amber-400" />
-            <span className="truncate">Uncreated: {quickFixAssetName}</span>
+            <span className="truncate">Uncreated: {quickFixAsset?.id || quickFixAssetName}</span>
           </div>
           <button
             type="button"
             data-testid="btn-quickfix-create-asset"
-            onClick={() => fileInputRef.current?.click()}
+            onClick={() => {
+              setModalPrefillId(quickFixAsset?.id || quickFixAssetName);
+              setModalPrefillCategory(quickFixAsset?.category || 'background');
+              setStagedFile(null);
+              setIsCreateModalOpen(true);
+            }}
             className="shrink-0 rounded bg-amber-500/20 px-2 py-0.5 text-[11px] font-medium text-amber-200 hover:bg-amber-500/30 transition"
           >
             Create
@@ -595,19 +609,32 @@ export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
       <CreateAssetModal
         isOpen={isCreateModalOpen}
         initialFile={stagedFile}
+        initialAssetId={modalPrefillId}
         initialCategory={
-          activeTab === 'backgrounds'
+          modalPrefillCategory ||
+          (activeTab === 'backgrounds'
             ? 'background'
             : activeTab === 'sprites'
             ? 'sprite'
-            : activeTab === 'audio'
+            : activeTab === 'audio' || activeTab === 'bgm'
             ? 'bgm'
-            : undefined
+            : activeTab === 'sfx'
+            ? 'sfx'
+            : activeTab === 'voice'
+            ? 'voice'
+            : activeTab === 'ui'
+            ? 'ui'
+            : activeTab === 'other'
+            ? 'other'
+            : undefined)
         }
         existingAssetIds={(project.assets || []).map((a) => a.id)}
         onClose={() => {
           setIsCreateModalOpen(false);
           setStagedFile(null);
+          setModalPrefillId(undefined);
+          setModalPrefillCategory(undefined);
+          onClearQuickFix?.();
         }}
         onSave={handleSaveCreatedAsset}
       />

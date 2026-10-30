@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import type { AssetRef, Character, Project } from '@vn-engine/shared-types';
+import type { AssetRef, AssetCategory, Character, Project } from '@vn-engine/shared-types';
 import type { ProjectRepository } from '../../core/contracts/repository';
 import { ActivityBar, type StudioTab } from './ActivityBar';
 import {
@@ -114,6 +114,10 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
   const [isCharModalOpen, setIsCharModalOpen] = useState<boolean>(false);
   const [editingCharacter, setEditingCharacter] = useState<Character | null>(null);
   const [isExportOpen, setIsExportOpen] = useState<boolean>(false);
+  const [pendingQuickFixAsset, setPendingQuickFixAsset] = useState<{
+    id: string;
+    category?: AssetCategory;
+  } | null>(null);
 
   // Pending navigation target callback for unsaved guard
   const pendingNavRef = useRef<(() => void) | null>(null);
@@ -443,10 +447,11 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
 
   // Asset Management Handlers
   const handleAddAsset = useCallback(
-    async (newAsset: AssetRef, fileBlob: Blob) => {
+    async (newAsset: AssetRef, fileBlob?: Blob) => {
       try {
         await saveAsset(newAsset, fileBlob);
         await saveProject(repository);
+        setPendingQuickFixAsset(null);
       } catch (err) {
         console.error('Failed to persist asset:', err);
       }
@@ -520,6 +525,10 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
     (diag: DiagnosticItem) => {
       const editorDiag = diag as EditorDiagnostic;
       if (editorDiag.quickFix?.type === 'create_asset') {
+        setPendingQuickFixAsset({
+          id: editorDiag.quickFix.targetId,
+          category: (editorDiag.quickFix.prefillData?.category as AssetCategory) || 'background',
+        });
         setActiveTab('assets');
       } else if (editorDiag.quickFix?.type === 'create_character') {
         handleOpenCreateCharacter(editorDiag.quickFix.targetId);
@@ -688,6 +697,9 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
               <div data-testid="pane-assets-placeholder" className="flex-1 min-w-0 w-auto h-full">
                 <AssetLibraryPane
                   project={currentProject}
+                  quickFixAsset={pendingQuickFixAsset}
+                  quickFixAssetName={pendingQuickFixAsset?.id}
+                  onClearQuickFix={() => setPendingQuickFixAsset(null)}
                   onAddAsset={handleAddAsset}
                   onReplaceAsset={handleReplaceAsset}
                   onDeleteAsset={handleDeleteAsset}
