@@ -66,7 +66,7 @@ describe('AssetLibraryPane: Category Dropdown & Direct Modal Creation', () => {
       />
     );
 
-    const categorySelect = screen.getByTestId('select-asset-category');
+    const categorySelect = screen.getByTestId('select-asset-category-filter');
     expect(categorySelect).toBeInTheDocument();
     expect(categorySelect.tagName.toLowerCase()).toBe('select');
 
@@ -92,7 +92,7 @@ describe('AssetLibraryPane: Category Dropdown & Direct Modal Creation', () => {
       />
     );
 
-    const categorySelect = screen.getByTestId('select-asset-category');
+    const categorySelect = screen.getByTestId('select-asset-category-filter');
 
     // Switch to BGM
     fireEvent.change(categorySelect, { target: { value: 'bgm' } });
@@ -134,7 +134,7 @@ describe('AssetLibraryPane: Category Dropdown & Direct Modal Creation', () => {
       />
     );
 
-    const categorySelect = screen.getByTestId('select-asset-category');
+    const categorySelect = screen.getByTestId('select-asset-category-filter');
     fireEvent.change(categorySelect, { target: { value: 'sprites' } });
 
     const addBtn = screen.getByTestId('btn-add-asset');
@@ -142,9 +142,7 @@ describe('AssetLibraryPane: Category Dropdown & Direct Modal Creation', () => {
 
     expect(screen.getByText('Thêm Tài Nguyên Mới')).toBeInTheDocument();
     // In modal, the select category should have value 'sprite'
-    const modalSelects = screen.getAllByTestId('select-asset-category');
-    // The second one is inside the modal
-    const modalCategorySelect = modalSelects[modalSelects.length - 1] as HTMLSelectElement;
+    const modalCategorySelect = screen.getByTestId('select-asset-category') as HTMLSelectElement;
     expect(modalCategorySelect.value).toBe('sprite');
   });
 });

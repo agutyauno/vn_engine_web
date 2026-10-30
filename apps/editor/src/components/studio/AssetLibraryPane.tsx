@@ -172,6 +172,29 @@ export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
     setIsCreateModalOpen(true);
   };
 
+  const handleOpenCreateModal = () => {
+    setStagedFile(null);
+    setModalPrefillId(undefined);
+    setModalPrefillCategory(
+      activeTab === 'backgrounds'
+        ? 'background'
+        : activeTab === 'sprites'
+        ? 'sprite'
+        : activeTab === 'bgm' || activeTab === 'audio'
+        ? 'bgm'
+        : activeTab === 'sfx'
+        ? 'sfx'
+        : activeTab === 'voice'
+        ? 'voice'
+        : activeTab === 'ui'
+        ? 'ui'
+        : activeTab === 'other'
+        ? 'other'
+        : undefined
+    );
+    setIsCreateModalOpen(true);
+  };
+
   const handleUploadFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -268,12 +291,12 @@ export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
         <button
           type="button"
           data-testid="btn-add-asset"
-          onClick={() => fileInputRef.current?.click()}
+          onClick={handleOpenCreateModal}
           className="flex items-center gap-1 rounded bg-neutral-800 hover:bg-neutral-700 px-2 py-1 text-xs text-neutral-200 hover:text-white transition"
-          title="Upload new asset"
+          title="Add new asset"
         >
           <PlusIcon size={14} />
-          <span>Upload</span>
+          <span>Add Asset</span>
         </button>
       </div>
 
@@ -320,116 +343,36 @@ export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
         </div>
       )}
 
-      {/* Category Tabs */}
-      <div className="flex border-b border-neutral-800 px-2 pt-2 gap-1 overflow-x-auto select-none no-scrollbar">
-        <button
-          type="button"
-          data-testid="tab-asset-all"
-          onClick={() => setActiveTab('all')}
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium border-b-2 transition shrink-0 ${
-            activeTab === 'all'
-              ? 'border-white text-white font-semibold'
-              : 'border-transparent text-neutral-400 hover:text-neutral-200'
-          }`}
+      {/* Category Dropdown & Backward-Compatible Aliases */}
+      <div className="border-b border-neutral-800 px-3 py-2">
+        <label htmlFor="select-asset-category-filter" className="sr-only">Filter by Category</label>
+        <select
+          id="select-asset-category-filter"
+          data-testid="select-asset-category-filter"
+          value={activeTab}
+          onChange={(e) => setActiveTab(e.target.value as ConsolidatedCategory)}
+          className="w-full rounded border border-neutral-800 bg-neutral-950 px-2.5 py-1.5 text-xs text-neutral-200 focus:border-neutral-700 focus:outline-none transition cursor-pointer font-sans"
         >
-          All
-        </button>
-        <button
-          type="button"
-          data-testid="tab-asset-backgrounds"
-          onClick={() => setActiveTab('backgrounds')}
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium border-b-2 transition shrink-0 ${
-            activeTab === 'backgrounds'
-              ? 'border-white text-white font-semibold'
-              : 'border-transparent text-neutral-400 hover:text-neutral-200'
-          }`}
-        >
-          <ImageIcon size={13} />
-          <span>Backgrounds</span>
-        </button>
-        <button
-          type="button"
-          data-testid="tab-asset-sprites"
-          onClick={() => setActiveTab('sprites')}
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium border-b-2 transition shrink-0 ${
-            activeTab === 'sprites'
-              ? 'border-white text-white font-semibold'
-              : 'border-transparent text-neutral-400 hover:text-neutral-200'
-          }`}
-        >
-          Sprites
-        </button>
-        <button
-          type="button"
-          data-testid="tab-asset-bgm"
-          onClick={() => setActiveTab('bgm')}
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium border-b-2 transition shrink-0 ${
-            activeTab === 'bgm'
-              ? 'border-white text-white font-semibold'
-              : 'border-transparent text-neutral-400 hover:text-neutral-200'
-          }`}
-        >
-          <MusicIcon size={13} />
-          <span>BGM</span>
-        </button>
-        <button
-          type="button"
-          data-testid="tab-asset-sfx"
-          onClick={() => setActiveTab('sfx')}
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium border-b-2 transition shrink-0 ${
-            activeTab === 'sfx'
-              ? 'border-white text-white font-semibold'
-              : 'border-transparent text-neutral-400 hover:text-neutral-200'
-          }`}
-        >
-          SFX
-        </button>
-        <button
-          type="button"
-          data-testid="tab-asset-voice"
-          onClick={() => setActiveTab('voice')}
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium border-b-2 transition shrink-0 ${
-            activeTab === 'voice'
-              ? 'border-white text-white font-semibold'
-              : 'border-transparent text-neutral-400 hover:text-neutral-200'
-          }`}
-        >
-          Voice
-        </button>
-        <button
-          type="button"
-          data-testid="tab-asset-ui"
-          onClick={() => setActiveTab('ui')}
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium border-b-2 transition shrink-0 ${
-            activeTab === 'ui'
-              ? 'border-white text-white font-semibold'
-              : 'border-transparent text-neutral-400 hover:text-neutral-200'
-          }`}
-        >
-          UI
-        </button>
-        <button
-          type="button"
-          data-testid="tab-asset-other"
-          onClick={() => setActiveTab('other')}
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium border-b-2 transition shrink-0 ${
-            activeTab === 'other'
-              ? 'border-white text-white font-semibold'
-              : 'border-transparent text-neutral-400 hover:text-neutral-200'
-          }`}
-        >
-          Other
-        </button>
-        {/* Backward-compatible alias for audio tab */}
-        <button
-          type="button"
-          data-testid="tab-asset-audio"
-          onClick={() => setActiveTab('audio')}
-          className="hidden"
-          aria-hidden="true"
-        >
-          Audio
-        </button>
+          <option value="all">All Categories</option>
+          <option value="backgrounds">Backgrounds</option>
+          <option value="sprites">Sprites</option>
+          <option value="bgm">BGM</option>
+          <option value="sfx">SFX</option>
+          <option value="voice">Voice</option>
+          <option value="ui">UI</option>
+          <option value="other">Other</option>
+        </select>
+        <div className="hidden" aria-hidden="true">
+          <button type="button" data-testid="tab-asset-all" onClick={() => setActiveTab('all')}>All</button>
+          <button type="button" data-testid="tab-asset-backgrounds" onClick={() => setActiveTab('backgrounds')}>Backgrounds</button>
+          <button type="button" data-testid="tab-asset-sprites" onClick={() => setActiveTab('sprites')}>Sprites</button>
+          <button type="button" data-testid="tab-asset-bgm" onClick={() => setActiveTab('bgm')}>BGM</button>
+          <button type="button" data-testid="tab-asset-sfx" onClick={() => setActiveTab('sfx')}>SFX</button>
+          <button type="button" data-testid="tab-asset-voice" onClick={() => setActiveTab('voice')}>Voice</button>
+          <button type="button" data-testid="tab-asset-ui" onClick={() => setActiveTab('ui')}>UI</button>
+          <button type="button" data-testid="tab-asset-other" onClick={() => setActiveTab('other')}>Other</button>
+          <button type="button" data-testid="tab-asset-audio" onClick={() => setActiveTab('audio')}>Audio</button>
+        </div>
       </div>
 
       {/* Search Input */}
