@@ -14,7 +14,9 @@ import {
   XIcon,
 } from '../common/Icons';
 import { SafeDeleteModal } from './SafeDeleteModal';
+import { CreateAssetModal } from './CreateAssetModal';
 import { checkAssetDeletionSafety } from '../../core/services/reconciliation';
+import { validateAssetFile } from '../../core/utils/assetValidation';
 
 export interface AssetLibraryPaneProps {
   project: Project;
@@ -37,6 +39,12 @@ export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAssetForDelete, setSelectedAssetForDelete] = useState<AssetRef | null>(null);
   const [targetReplaceAssetId, setTargetReplaceAssetId] = useState<string | null>(null);
+
+  // Create Asset Modal & Drag-and-Drop States
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
+  const [stagedFile, setStagedFile] = useState<File | null>(null);
+  const [isDragging, setIsDragging] = useState<boolean>(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   // Audio Audition Player State
   const [auditioningAssetId, setAuditioningAssetId] = useState<string | null>(null);
@@ -95,44 +103,73 @@ export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
     } else if (activeTab === 'audio') {
       matchesCategory = asset.type === 'audio';
     } else if (activeTab === 'backgrounds') {
-      matchesCategory = asset.type === 'image' && !asset.name.startsWith('char_');
+      matchesCategory =
+        asset.category === 'background' ||
+        (!asset.category && asset.type === 'image' && !asset.name.startsWith('char_'));
     } else if (activeTab === 'sprites') {
-      matchesCategory = asset.type === 'image' && asset.name.startsWith('char_');
+      matchesCategory =
+        asset.category === 'sprite' ||
+        (!asset.category && asset.type === 'image' && asset.name.startsWith('char_'));
     }
 
     if (!matchesCategory) return false;
 
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      return asset.name.toLowerCase().includes(q) || asset.id.toLowerCase().includes(q);
+      return (
+        asset.name.toLowerCase().includes(q) ||
+        asset.id.toLowerCase().includes(q) ||
+        (asset.category && asset.category.toLowerCase().includes(q))
+      );
     }
 
     return true;
   });
 
+  const stageIncomingFile = (file: File) => {
+    const validation = validateAssetFile(file);
+    if (!validation.valid) {
+      setUploadError(validation.error || 'Định dạng file không được hỗ trợ');
+      setTimeout(() => setUploadError(null), 5000);
+      return;
+    }
+    setUploadError(null);
+    setStagedFile(file);
+    setIsCreateModalOpen(true);
+  };
+
   const handleUploadFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    let assetType: 'image' | 'audio' = 'image';
-    if (file.type.startsWith('audio/')) {
-      assetType = 'audio';
-    }
-
-    const newAsset: AssetRef = {
-      id: `ast-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      name: file.name,
-      type: assetType,
-      storageUrl: URL.createObjectURL(file),
-      sizeBytes: file.size,
-      version: 1,
-    };
-
-    onAddAsset?.(newAsset, file);
-
+    stageIncomingFile(file);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      stageIncomingFile(file);
+    }
+  };
+
+  const handleSaveCreatedAsset = (asset: AssetRef, fileBlob: Blob) => {
+    onAddAsset?.(asset, fileBlob);
+    setIsCreateModalOpen(false);
+    setStagedFile(null);
   };
 
   const handleReplaceFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -159,7 +196,15 @@ export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
   };
 
   return (
-    <div className="flex h-full flex-col bg-neutral-900 border-r border-neutral-800 text-neutral-200 select-none">
+    <div
+      data-testid="pane-asset-library"
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      className={`relative flex h-full flex-1 min-w-0 w-full flex-col bg-neutral-900 border-r border-neutral-800 text-neutral-200 select-none transition-colors ${
+        isDragging ? 'border-sky-500 bg-sky-950/20' : ''
+      }`}
+    >
       <input
         ref={fileInputRef}
         type="file"
@@ -194,6 +239,23 @@ export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
           <span>Upload</span>
         </button>
       </div>
+
+      {/* Upload Error Banner */}
+      {uploadError && (
+        <div className="mx-3 mt-3 flex items-center justify-between rounded border border-red-500/40 bg-red-500/10 p-2 text-xs text-red-300">
+          <div className="flex items-center gap-1.5 overflow-hidden">
+            <AlertTriangleIcon size={14} className="shrink-0 text-red-400" />
+            <span className="truncate">{uploadError}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setUploadError(null)}
+            className="text-red-400 hover:text-red-200"
+          >
+            <XIcon size={14} />
+          </button>
+        </div>
+      )}
 
       {/* Quick Fix Pending Notification */}
       {quickFixAssetName && (
@@ -438,6 +500,26 @@ export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
           </div>
         </div>
       )}
+      {/* Create Asset Modal */}
+      <CreateAssetModal
+        isOpen={isCreateModalOpen}
+        initialFile={stagedFile}
+        initialCategory={
+          activeTab === 'backgrounds'
+            ? 'background'
+            : activeTab === 'sprites'
+            ? 'sprite'
+            : activeTab === 'audio'
+            ? 'bgm'
+            : undefined
+        }
+        existingAssetIds={(project.assets || []).map((a) => a.id)}
+        onClose={() => {
+          setIsCreateModalOpen(false);
+          setStagedFile(null);
+        }}
+        onSave={handleSaveCreatedAsset}
+      />
     </div>
   );
 };

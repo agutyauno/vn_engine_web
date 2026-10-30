@@ -36,7 +36,7 @@ export const CharacterManagerPane: React.FC<CharacterManagerPaneProps> = ({
   return (
     <div
       data-testid="pane-characters"
-      className="flex h-full w-64 flex-col border-r border-neutral-800 bg-neutral-900/60 select-none overflow-hidden"
+      className="flex h-full flex-1 min-w-0 w-auto flex-col border-r border-neutral-800 bg-neutral-900/60 select-none overflow-hidden"
     >
       {/* Header */}
       <div className="flex h-10 items-center justify-between border-b border-neutral-800 px-3 shrink-0">

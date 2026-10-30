@@ -6,6 +6,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { ActivityBar } from '../src/components/studio/ActivityBar';
 import { StudioWorkspacePage } from '../src/components/studio/StudioWorkspacePage';
 import { FileExplorerPane } from '../src/components/studio/FileExplorerPane';
+import { CharacterManagerPane } from '../src/components/characters/CharacterManagerPane';
 import { useEditorUIStore } from '../src/core/stores/uiStore';
 import type { ProjectRepository } from '../src/core/contracts/repository';
 import type { Project } from '@vn-engine/shared-types';
@@ -202,5 +203,21 @@ describe('Collapsible & Fluid Resizable Navigation Sidebar', () => {
     expect(assetPlaceholder.className).toContain('flex-1');
     expect(assetPlaceholder.className).toContain('min-w-0');
     expect(assetPlaceholder.className).not.toContain('w-72');
+  });
+
+  it('TC-SIDEBAR-05: CharacterManagerPane should have fluid class flex-1 min-w-0 and no hardcoded w-64', () => {
+    render(
+      <CharacterManagerPane
+        characters={[]}
+        onCreateCharacter={() => {}}
+        onEditCharacter={() => {}}
+        onDeleteCharacter={() => {}}
+      />
+    );
+
+    const charPane = screen.getByTestId('pane-characters');
+    expect(charPane.className).toContain('flex-1');
+    expect(charPane.className).toContain('min-w-0');
+    expect(charPane.className).not.toContain('w-64');
   });
 });
