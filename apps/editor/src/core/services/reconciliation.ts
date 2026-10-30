@@ -315,5 +315,17 @@ export function generateDiagnostics(project: Project): GeneratedEditorDiagnostic
     }
   }
 
+  for (const assetName of report.unusedAssets) {
+    diagnostics.push({
+      id: `diag-unused-asset-${assetName}`,
+      timestamp: Date.now(),
+      category: 'asset',
+      severity: 'info',
+      message: `Unused asset '${assetName}' is present in project assets but never referenced in scripts`,
+      assetKey: assetName,
+      col: 1,
+    });
+  }
+
   return diagnostics;
 }

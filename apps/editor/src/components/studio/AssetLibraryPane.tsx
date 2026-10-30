@@ -26,7 +26,16 @@ export interface AssetLibraryPaneProps {
   onDeleteAsset?: (assetId: string) => void;
 }
 
-type ConsolidatedCategory = 'images' | 'audio' | 'backgrounds' | 'sprites';
+type ConsolidatedCategory =
+  | 'all'
+  | 'backgrounds'
+  | 'sprites'
+  | 'audio'
+  | 'bgm'
+  | 'sfx'
+  | 'voice'
+  | 'ui'
+  | 'other';
 
 export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
   project,
@@ -35,7 +44,7 @@ export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
   onReplaceAsset,
   onDeleteAsset,
 }) => {
-  const [activeTab, setActiveTab] = useState<ConsolidatedCategory>('images');
+  const [activeTab, setActiveTab] = useState<ConsolidatedCategory>('backgrounds');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAssetForDelete, setSelectedAssetForDelete] = useState<AssetRef | null>(null);
   const [targetReplaceAssetId, setTargetReplaceAssetId] = useState<string | null>(null);
@@ -98,10 +107,8 @@ export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
   // Filter assets based on active category and search
   const filteredAssets = (project.assets || []).filter((asset) => {
     let matchesCategory = false;
-    if (activeTab === 'images') {
-      matchesCategory = asset.type === 'image';
-    } else if (activeTab === 'audio') {
-      matchesCategory = asset.type === 'audio';
+    if (activeTab === 'all') {
+      matchesCategory = true;
     } else if (activeTab === 'backgrounds') {
       matchesCategory =
         asset.category === 'background' ||
@@ -110,6 +117,27 @@ export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
       matchesCategory =
         asset.category === 'sprite' ||
         (!asset.category && asset.type === 'image' && asset.name.startsWith('char_'));
+    } else if (activeTab === 'audio') {
+      matchesCategory =
+        asset.type === 'audio' || ['bgm', 'sfx', 'voice'].includes(asset.category || '');
+    } else if (activeTab === 'bgm') {
+      matchesCategory =
+        asset.category === 'bgm' ||
+        (!asset.category && asset.type === 'audio' && (asset.name.startsWith('bgm_') || asset.name.includes('music') || asset.name.includes('theme')));
+    } else if (activeTab === 'sfx') {
+      matchesCategory =
+        asset.category === 'sfx' ||
+        (!asset.category && asset.type === 'audio' && (asset.name.startsWith('sfx_') || asset.name.startsWith('se_') || asset.name.includes('sound') || asset.name.includes('click')));
+    } else if (activeTab === 'voice') {
+      matchesCategory =
+        asset.category === 'voice' ||
+        (!asset.category && asset.type === 'audio' && (asset.name.startsWith('voice_') || asset.name.includes('voice')));
+    } else if (activeTab === 'ui') {
+      matchesCategory = asset.category === 'ui';
+    } else if (activeTab === 'other') {
+      matchesCategory =
+        asset.category === 'other' ||
+        (!['background', 'sprite', 'bgm', 'sfx', 'voice', 'ui'].includes(asset.category || '') && asset.type !== 'image' && asset.type !== 'audio');
     }
 
     if (!matchesCategory) return false;
@@ -278,52 +306,115 @@ export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="flex border-b border-neutral-800 px-2 pt-2">
+      {/* Category Tabs */}
+      <div className="flex border-b border-neutral-800 px-2 pt-2 gap-1 overflow-x-auto select-none no-scrollbar">
         <button
           type="button"
-          data-testid="tab-asset-images"
-          onClick={() => setActiveTab('images')}
-          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border-b-2 transition ${
-            activeTab === 'images' || activeTab === 'backgrounds' || activeTab === 'sprites'
-              ? 'border-white text-white'
+          data-testid="tab-asset-all"
+          onClick={() => setActiveTab('all')}
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium border-b-2 transition shrink-0 ${
+            activeTab === 'all'
+              ? 'border-white text-white font-semibold'
               : 'border-transparent text-neutral-400 hover:text-neutral-200'
           }`}
         >
-          <ImageIcon size={13} />
-          <span>Images</span>
+          All
         </button>
-        {/* Backward-compatible aliases for legacy tests */}
         <button
           type="button"
           data-testid="tab-asset-backgrounds"
           onClick={() => setActiveTab('backgrounds')}
-          className="hidden"
-          aria-hidden="true"
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium border-b-2 transition shrink-0 ${
+            activeTab === 'backgrounds'
+              ? 'border-white text-white font-semibold'
+              : 'border-transparent text-neutral-400 hover:text-neutral-200'
+          }`}
         >
-          Backgrounds
+          <ImageIcon size={13} />
+          <span>Backgrounds</span>
         </button>
         <button
           type="button"
           data-testid="tab-asset-sprites"
           onClick={() => setActiveTab('sprites')}
-          className="hidden"
-          aria-hidden="true"
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium border-b-2 transition shrink-0 ${
+            activeTab === 'sprites'
+              ? 'border-white text-white font-semibold'
+              : 'border-transparent text-neutral-400 hover:text-neutral-200'
+          }`}
         >
           Sprites
         </button>
         <button
           type="button"
-          data-testid="tab-asset-audio"
-          onClick={() => setActiveTab('audio')}
-          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border-b-2 transition ${
-            activeTab === 'audio'
-              ? 'border-white text-white'
+          data-testid="tab-asset-bgm"
+          onClick={() => setActiveTab('bgm')}
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium border-b-2 transition shrink-0 ${
+            activeTab === 'bgm'
+              ? 'border-white text-white font-semibold'
               : 'border-transparent text-neutral-400 hover:text-neutral-200'
           }`}
         >
           <MusicIcon size={13} />
-          <span>Audio</span>
+          <span>BGM</span>
+        </button>
+        <button
+          type="button"
+          data-testid="tab-asset-sfx"
+          onClick={() => setActiveTab('sfx')}
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium border-b-2 transition shrink-0 ${
+            activeTab === 'sfx'
+              ? 'border-white text-white font-semibold'
+              : 'border-transparent text-neutral-400 hover:text-neutral-200'
+          }`}
+        >
+          SFX
+        </button>
+        <button
+          type="button"
+          data-testid="tab-asset-voice"
+          onClick={() => setActiveTab('voice')}
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium border-b-2 transition shrink-0 ${
+            activeTab === 'voice'
+              ? 'border-white text-white font-semibold'
+              : 'border-transparent text-neutral-400 hover:text-neutral-200'
+          }`}
+        >
+          Voice
+        </button>
+        <button
+          type="button"
+          data-testid="tab-asset-ui"
+          onClick={() => setActiveTab('ui')}
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium border-b-2 transition shrink-0 ${
+            activeTab === 'ui'
+              ? 'border-white text-white font-semibold'
+              : 'border-transparent text-neutral-400 hover:text-neutral-200'
+          }`}
+        >
+          UI
+        </button>
+        <button
+          type="button"
+          data-testid="tab-asset-other"
+          onClick={() => setActiveTab('other')}
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium border-b-2 transition shrink-0 ${
+            activeTab === 'other'
+              ? 'border-white text-white font-semibold'
+              : 'border-transparent text-neutral-400 hover:text-neutral-200'
+          }`}
+        >
+          Other
+        </button>
+        {/* Backward-compatible alias for audio tab */}
+        <button
+          type="button"
+          data-testid="tab-asset-audio"
+          onClick={() => setActiveTab('audio')}
+          className="hidden"
+          aria-hidden="true"
+        >
+          Audio
         </button>
       </div>
 
