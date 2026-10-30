@@ -178,4 +178,71 @@ describe('CreateAssetModal Component', () => {
     expect(savedAsset.category).toBe('background');
     expect(savedBlob).toBeInstanceOf(Blob);
   });
+
+  // TC-MODAL-01: Honors initialAssetId and initialCategory
+  it('TC-MODAL-01: should prefill Asset ID from initialAssetId and preserve it', async () => {
+    const onSave = vi.fn();
+    render(
+      <CreateAssetModal
+        isOpen={true}
+        initialFile={null}
+        initialAssetId="bg_uncreated_hall"
+        initialCategory="background"
+        existingAssetIds={[]}
+        onClose={() => {}}
+        onSave={onSave}
+      />
+    );
+
+    const idInput = screen.getByTestId('input-asset-id');
+    expect((idInput as HTMLInputElement).value).toBe('bg_uncreated_hall');
+
+    const categorySelect = screen.getByTestId('select-asset-category');
+    expect((categorySelect as HTMLSelectElement).value).toBe('background');
+  });
+
+  // TC-MODAL-02: Remote URL / Placeholder creation without local file blob
+  it('TC-MODAL-02: should allow creating asset via remote URL or placeholder without local file', async () => {
+    const onSave = vi.fn();
+    render(
+      <CreateAssetModal
+        isOpen={true}
+        initialFile={null}
+        initialAssetId="bgm_online_theme"
+        initialCategory="bgm"
+        existingAssetIds={[]}
+        onClose={() => {}}
+        onSave={onSave}
+      />
+    );
+
+    // Switch to remote / placeholder mode
+    const modeRemoteBtn = screen.getByTestId('btn-mode-remote');
+    fireEvent.click(modeRemoteBtn);
+
+    const urlInput = screen.getByTestId('input-remote-url');
+    fireEvent.change(urlInput, {
+      target: { value: 'https://cdn.example.com/audio/theme.mp3' },
+    });
+
+    const nameInput = screen.getByTestId('input-asset-name');
+    fireEvent.change(nameInput, {
+      target: { value: 'Online BGM Theme' },
+    });
+
+    const saveBtn = screen.getByTestId('btn-save-asset');
+    expect(saveBtn).not.toBeDisabled();
+    fireEvent.click(saveBtn);
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledTimes(1);
+    });
+
+    const [savedAsset, savedBlob] = onSave.mock.calls[0] as [AssetRef, Blob | undefined];
+    expect(savedAsset.id).toBe('bgm_online_theme');
+    expect(savedAsset.name).toBe('Online BGM Theme');
+    expect(savedAsset.storageUrl).toBe('https://cdn.example.com/audio/theme.mp3');
+    expect(savedAsset.category).toBe('bgm');
+    expect(savedBlob).toBeUndefined();
+  });
 });
