@@ -381,5 +381,93 @@ describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () 
     expect(report.unusedAssets).toContain('bg_unused.png');
     expect(report.unusedAssets).not.toContain('bg_used.png');
   });
+
+  // TC-UNUSED-01: generateDiagnostics produces info diagnostic for unused assets
+  it('TC-UNUSED-01: should generate info diagnostic for unused assets in project.assets', () => {
+    const project = createMockProject({
+      files: [
+        {
+          id: 'file-1',
+          name: 'main.vns',
+          content: 'alice: "Xin chào!"\n',
+          order: 0,
+          version: 1,
+        },
+      ],
+      characters: [{ id: 'alice', name: 'Alice', sprites: {} }],
+      assets: [
+        {
+          id: 'bg_park',
+          name: 'bg_park.png',
+          type: 'image',
+          storageUrl: '/assets/bg_park.png',
+          sizeBytes: 1024,
+        },
+      ],
+    });
+
+    const diagnostics = generateDiagnostics(project);
+    const unusedDiag = diagnostics.find(
+      (d) => d.category === 'asset' && d.assetKey === 'bg_park.png'
+    );
+
+    expect(unusedDiag).toBeDefined();
+    expect(unusedDiag?.severity).toBe('info');
+    expect(unusedDiag?.message).toEqual(
+      expect.stringContaining('Unused asset')
+    );
+    expect(unusedDiag?.message).toEqual(
+      expect.stringContaining('bg_park.png')
+    );
+  });
+
+  // TC-UNUSED-02: generateDiagnostics does NOT produce unused asset diagnostic for referenced assets
+  it('TC-UNUSED-02: should NOT generate unused asset diagnostic when asset is referenced in script via background or play music', () => {
+    const project = createMockProject({
+      files: [
+        {
+          id: 'file-1',
+          name: 'main.vns',
+          content: [
+            'scene park {',
+            '  background bg_park',
+            '  play music bgm_relax',
+            '}',
+          ].join('\n'),
+          order: 0,
+          version: 1,
+        },
+      ],
+      assets: [
+        {
+          id: 'bg_park',
+          name: 'bg_park.png',
+          type: 'image',
+          storageUrl: '/assets/bg_park.png',
+          sizeBytes: 1024,
+        },
+        {
+          id: 'bgm_relax',
+          name: 'bgm_relax.mp3',
+          type: 'audio',
+          storageUrl: '/assets/bgm_relax.mp3',
+          sizeBytes: 2048,
+        },
+      ],
+    });
+
+    const diagnostics = generateDiagnostics(project);
+    const unusedDiags = diagnostics.filter(
+      (d) =>
+        d.category === 'asset' &&
+        d.severity === 'info' &&
+        (d.assetKey === 'bg_park.png' ||
+          d.assetKey === 'bgm_relax.mp3' ||
+          d.assetKey === 'bg_park' ||
+          d.assetKey === 'bgm_relax')
+    );
+
+    expect(unusedDiags).toHaveLength(0);
+  });
 });
 
