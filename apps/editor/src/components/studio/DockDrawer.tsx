@@ -26,6 +26,7 @@ export const DockDrawer: React.FC<DockDrawerProps> = ({
   // Global keyboard shortcut: Ctrl + ` (backtick)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.defaultPrevented) return;
       if (e.ctrlKey && e.key === '`') {
         e.preventDefault();
         onToggleDrawer();

@@ -8,6 +8,7 @@ import { EditorTabBar } from '../src/components/studio/EditorTabBar';
 import { MonacoEditorContainer } from '../src/components/studio/MonacoEditorContainer';
 import { StudioWorkspacePage } from '../src/components/studio/StudioWorkspacePage';
 import { IndexedDBProjectRepository } from '../src/core/repositories/IndexedDBProjectRepository';
+import { setupTestStore } from './testStoreHelpers';
 
 describe('Milestone 6: Monaco Script Workspace (Column 2 Top)', () => {
   const sampleFiles: ScriptFile[] = [
@@ -222,6 +223,7 @@ describe('Milestone 6: Monaco Script Workspace (Column 2 Top)', () => {
 
     beforeEach(async () => {
       repo = new IndexedDBProjectRepository(`studio_m6_${Date.now()}_${Math.random()}`);
+      setupTestStore();
       await repo.updateProject(sampleProject);
     });
 

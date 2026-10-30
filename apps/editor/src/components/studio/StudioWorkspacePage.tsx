@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import type { AssetRef, Character, Project, ScriptFile } from '@vn-engine/shared-types';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import type { AssetRef, Character, Project } from '@vn-engine/shared-types';
 import type { ProjectRepository } from '../../core/contracts/repository';
-import { ActivityBar, type StudioTab } from './ActivityBar';
+import { ActivityBar } from './ActivityBar';
 import {
   FileExplorerPane,
-  cleanChapterName,
   generateDefaultScriptName,
 } from './FileExplorerPane';
 import { StudioHeader } from './StudioHeader';
@@ -13,17 +12,23 @@ import { CharacterModal } from '../characters/CharacterModal';
 import { AssetLibraryPane } from './AssetLibraryPane';
 import { EditorTabBar } from './EditorTabBar';
 import { MonacoEditorContainer } from './MonacoEditorContainer';
-import { DockDrawer, type DrawerTab } from './DockDrawer';
-import { DockProblemsTable } from './DockProblemsTable';
-import { RuntimeCheatInjector } from './RuntimeCheatInjector';
-import { ConsoleLogStream, type ConsoleLogEntry } from './ConsoleLogStream';
+import { DockDrawer } from './DockDrawer';
+import { DockProblemsTable, type DiagnosticItem } from './DockProblemsTable';
 import { PreviewDock } from './PreviewDock';
 import { ProjectSettingsModal } from './ProjectSettingsModal';
 import { ExportWizardModal, type ExportTarget } from './ExportWizardModal';
-import {
-  generateDiagnostics,
-  type EditorDiagnostic,
-} from '../../core/services/reconciliation';
+import { ColumnSplitter } from './ColumnSplitter';
+import { UnsavedChangesModal } from './UnsavedChangesModal';
+import { ShortcutsHelpModal } from './ShortcutsHelpModal';
+import { useProjectStore } from '../../core/stores/projectStore';
+import { useEditorUIStore } from '../../core/stores/uiStore';
+import { useDiagnosticsStore } from '../../core/stores/diagnosticsStore';
+import { usePreviewStore } from '../../core/stores/livePreviewStore';
+import { useCompilerPipeline } from '../../hooks/useCompilerPipeline';
+import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
+import { CompilerService } from '../../core/services/compilerService';
+import { PreviewBridge } from '../../core/services/previewBridge';
+import type { EditorDiagnostic } from '../../core/services/reconciliation';
 
 export interface StudioWorkspacePageProps {
   projectId: string;
@@ -44,85 +49,475 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
   onOpenSettings,
   onExport,
 }) => {
-  const [project, setProject] = useState<Project | null>(initialProject ?? null);
-  const [loading, setLoading] = useState<boolean>(!initialProject);
+  const initializedIdRef = useRef<string | null>(null);
+  if (initialProject && initializedIdRef.current !== initialProject.id) {
+    initializedIdRef.current = initialProject.id;
+    useProjectStore.getState().initProject(initialProject, repository);
+    if (initialProject.files && initialProject.files.length > 0) {
+      useEditorUIStore.setState({
+        openFileIds: initialProject.files.map((f) => f.id),
+        activeFileId: initialProject.files[0]?.id ?? null,
+        isDrawerOpen: true,
+      });
+    }
+  }
+
+  // --- Project Store Hook Injection ---
+  const project = useProjectStore((s) => s.project);
+  const isDirty = useProjectStore((s) => s.isDirty);
+  const isSaving = useProjectStore((s) => s.isSaving);
+  const dirtyFileIds = useProjectStore((s) => s.dirtyFileIds);
+  const setProject = useProjectStore((s) => s.setProject);
+  const updateFileContent = useProjectStore((s) => s.updateFileContent);
+  const saveProject = useProjectStore((s) => s.saveProject);
+  const updateProjectMetadata = useProjectStore((s) => s.updateProjectMetadata);
+  const createFile = useProjectStore((s) => s.createFile);
+  const renameFile = useProjectStore((s) => s.renameFile);
+  const duplicateFile = useProjectStore((s) => s.duplicateFile);
+  const deleteFile = useProjectStore((s) => s.deleteFile);
+  const saveCharacter = useProjectStore((s) => s.saveCharacter);
+  const deleteCharacter = useProjectStore((s) => s.deleteCharacter);
+  const saveAsset = useProjectStore((s) => s.saveAsset);
+  const deleteAsset = useProjectStore((s) => s.deleteAsset);
+
+  // --- UI Store Hook Injection ---
+  const navWidth = useEditorUIStore((s) => s.navWidth);
+  const previewWidth = useEditorUIStore((s) => s.previewWidth);
+  const drawerHeight = useEditorUIStore((s) => s.drawerHeight);
+  const setNavWidth = useEditorUIStore((s) => s.setNavWidth);
+  const setPreviewWidth = useEditorUIStore((s) => s.setPreviewWidth);
+  const setDrawerHeight = useEditorUIStore((s) => s.setDrawerHeight);
+
+  const activeTab = useEditorUIStore((s) => s.activeTab);
+  const setActiveTab = useEditorUIStore((s) => s.setActiveTab);
+  const activeFileId = useEditorUIStore((s) => s.activeFileId);
+  const openFileIds = useEditorUIStore((s) => s.openFileIds);
+  const selectTab = useEditorUIStore((s) => s.selectTab);
+  const isDrawerOpen = useEditorUIStore((s) => s.isDrawerOpen);
+  const toggleDrawer = useEditorUIStore((s) => s.toggleDrawer);
+  const cursorJumpTarget = useEditorUIStore((s) => s.cursorJumpTarget);
+  const setCursorJumpTarget = useEditorUIStore((s) => s.setCursorJumpTarget);
+
+  const isSettingsOpen = useEditorUIStore((s) => s.isSettingsOpen);
+  const setSettingsOpen = useEditorUIStore((s) => s.setSettingsOpen);
+  const isShortcutsOpen = useEditorUIStore((s) => s.isShortcutsOpen);
+  const setShortcutsOpen = useEditorUIStore((s) => s.setShortcutsOpen);
+  const isUnsavedModalOpen = useEditorUIStore((s) => s.isUnsavedModalOpen);
+  const triggerUnsavedGuard = useEditorUIStore((s) => s.triggerUnsavedGuard);
+  const resolveUnsavedGuard = useEditorUIStore((s) => s.resolveUnsavedGuard);
+
+  // --- Diagnostics Store Hook Injection ---
+  const compilerDiagnostics = useDiagnosticsStore((s) => s.compilerDiagnostics);
+  const runtimeDiagnostics = useDiagnosticsStore((s) => s.runtimeDiagnostics);
+  const reconciliationDiagnostics = useDiagnosticsStore((s) => s.reconciliationDiagnostics);
+  const errorCount = useDiagnosticsStore((s) => s.errorCount);
+  const warningCount = useDiagnosticsStore((s) => s.warningCount);
+
+  // --- Live Preview Store Hook Injection ---
+  const isPlaying = usePreviewStore((s) => s.isPlaying);
+  const togglePlay = usePreviewStore((s) => s.togglePlay);
+  const setIsPlaying = usePreviewStore((s) => s.setIsPlaying);
+
+  // Local component states
+  const [loading, setLoading] = useState<boolean>(!initialProject && !project);
   const [error, setError] = useState<string | null>(null);
-
-  const [activeTab, setActiveTab] = useState<StudioTab>('scripts');
-  const [openFileIds, setOpenFileIds] = useState<string[]>(
-    initialProject?.files ? initialProject.files.map((f) => f.id) : []
-  );
-  const [activeFileId, setActiveFileId] = useState<string | null>(
-    initialProject?.files[0]?.id ?? null
-  );
-  const [dirtyFileIds, setDirtyFileIds] = useState<Set<string>>(new Set());
-
-  const [isDirty, setIsDirty] = useState<boolean>(false);
-  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [isPreviewPopout, setIsPreviewPopout] = useState<boolean>(false);
   const [isCharModalOpen, setIsCharModalOpen] = useState<boolean>(false);
   const [editingCharacter, setEditingCharacter] = useState<Character | null>(null);
-
-  // Diagnostics & Bottom Drawer State (Milestone 7)
-  const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(true);
-  const [drawerTab, setDrawerTab] = useState<DrawerTab>('problems');
-  const [runtimeVariables, setRuntimeVariables] = useState<Record<string, unknown>>({});
-  const [consoleLogs, setConsoleLogs] = useState<ConsoleLogEntry[]>([
-    {
-      id: 'init-log-1',
-      timestamp: Date.now(),
-      level: 'info',
-      message: 'Studio workspace initialized.',
-    },
-  ]);
-  const [cursorJumpTarget, setCursorJumpTarget] = useState<{ line: number; col: number } | null>(null);
-
-  const diagnostics = useMemo<EditorDiagnostic[]>(() => {
-    return project ? generateDiagnostics(project) : [];
-  }, [project]);
-
-  const errorCount = useMemo(
-    () => diagnostics.filter((d) => d.severity === 'error').length,
-    [diagnostics]
-  );
-  const warningCount = useMemo(
-    () => diagnostics.filter((d) => d.severity === 'warning').length,
-    [diagnostics]
-  );
-
-  // Live Preview State (Milestone 8)
-  const [isPreviewPlaying, setIsPreviewPlaying] = useState<boolean>(false);
-  const [isPreviewPopout, setIsPreviewPopout] = useState<boolean>(false);
-
-  // Settings & Export Modals (Milestone 9)
-  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [isExportOpen, setIsExportOpen] = useState<boolean>(false);
 
-  const handleQuickPlayAction = useCallback(() => {
-    setIsPreviewPlaying(true);
-    onQuickPlay?.();
-  }, [onQuickPlay]);
+  // Pending navigation target callback for unsaved guard
+  const pendingNavRef = useRef<(() => void) | null>(null);
 
+  // --- Compiler Service & Preview Bridge Instances ---
+  const compilerService = useMemo(() => new CompilerService(), []);
+  const previewBridge = useMemo(
+    () =>
+      new PreviewBridge({
+        targetWindow: () => {
+          if (typeof document === 'undefined') return null;
+          const iframe = document.querySelector<HTMLIFrameElement>(
+            'iframe[data-testid="preview-dock-iframe"]'
+          );
+          return iframe?.contentWindow || null;
+        },
+        previewOrigin: '*',
+        repository,
+      }),
+    [repository]
+  );
+
+  useEffect(() => {
+    return () => {
+      compilerService.terminate();
+      previewBridge.dispose();
+    };
+  }, [compilerService, previewBridge]);
+
+  // Mount compiler pipeline
+  useCompilerPipeline({
+    compilerService,
+    previewBridge,
+    debounceMs: 200,
+  });
+
+  // Manual save
+  const handleManualSave = useCallback(async () => {
+    try {
+      await saveProject(repository);
+    } catch (err) {
+      console.error('Failed to save project:', err);
+    }
+  }, [saveProject, repository]);
+
+  // Close tab handler with active tab fallback
+  const handleCloseTab = useCallback((fileId: string) => {
+    const open = useEditorUIStore.getState().openFileIds;
+    const index = open.indexOf(fileId);
+    const nextOpen = open.filter((id) => id !== fileId);
+    let nextActive = useEditorUIStore.getState().activeFileId;
+    if (nextActive === fileId) {
+      nextActive = nextOpen[index] || nextOpen[index - 1] || nextOpen[0] || null;
+    }
+    useEditorUIStore.setState({
+      openFileIds: nextOpen,
+      activeFileId: nextActive,
+    });
+  }, []);
+
+  // Global Keyboard Shortcuts
+  useKeyboardShortcuts({
+    onSave: handleManualSave,
+    onTogglePlay: togglePlay,
+    onToggleDrawer: toggleDrawer,
+    onOpenSettings: () => setSettingsOpen(true),
+    onCloseTab: () => {
+      if (activeFileId) {
+        handleCloseTab(activeFileId);
+      }
+    },
+    onOpenShortcuts: () => setShortcutsOpen(true),
+    enabled: true,
+  });
+
+  // Mount & Load Project
+  useEffect(() => {
+    if (initialProject) {
+      setLoading(false);
+      return;
+    }
+
+    let isMounted = true;
+    async function load() {
+      setLoading(true);
+      setError(null);
+      try {
+        const loaded = await repository.getProject(projectId);
+        if (!isMounted) return;
+        if (loaded) {
+          useProjectStore.getState().initProject(loaded, repository);
+          if (loaded.files && loaded.files.length > 0) {
+            useEditorUIStore.setState({
+              openFileIds: loaded.files.map((f) => f.id),
+              activeFileId: loaded.files[0]?.id ?? null,
+              isDrawerOpen: true,
+            });
+          }
+        } else {
+          setError(`Project not found: ${projectId}`);
+        }
+      } catch (err: unknown) {
+        if (!isMounted) return;
+        setError(err instanceof Error ? err.message : 'Failed to load project');
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }
+
+    load();
+    return () => {
+      isMounted = false;
+    };
+  }, [projectId, repository, initialProject]);
+
+  // Safe Navigation Guard
+  const handleBackToHub = useCallback(() => {
+    if (isDirty) {
+      pendingNavRef.current = () => onBackToHub?.();
+      triggerUnsavedGuard({ type: 'project-hub' });
+    } else {
+      onBackToHub?.();
+    }
+  }, [isDirty, onBackToHub, triggerUnsavedGuard]);
+
+  const handleSaveAndContinue = useCallback(async () => {
+    try {
+      await saveProject(repository);
+    } catch (err) {
+      console.error('Failed to save project:', err);
+    }
+    const nav = pendingNavRef.current;
+    pendingNavRef.current = null;
+    resolveUnsavedGuard(true);
+    nav?.();
+  }, [saveProject, repository, resolveUnsavedGuard]);
+
+  const handleDiscardAndContinue = useCallback(() => {
+    useProjectStore.setState({ isDirty: false, dirtyFileIds: [] });
+    const nav = pendingNavRef.current;
+    pendingNavRef.current = null;
+    resolveUnsavedGuard(true);
+    nav?.();
+  }, [resolveUnsavedGuard]);
+
+  const handleCancelUnsaved = useCallback(() => {
+    pendingNavRef.current = null;
+    resolveUnsavedGuard(false);
+  }, [resolveUnsavedGuard]);
+
+  // Header Title Change
+  const handleTitleChange = useCallback(
+    async (newTitle: string) => {
+      if (!project) return;
+      updateProjectMetadata({ title: newTitle });
+      try {
+        await saveProject(repository);
+      } catch (err) {
+        console.error('Failed to update project title:', err);
+      }
+    },
+    [project, updateProjectMetadata, saveProject, repository]
+  );
+
+  // Tab Selection
+  const handleSelectTab = useCallback(
+    (fileId: string) => {
+      selectTab(fileId);
+    },
+    [selectTab]
+  );
+
+  // File Creation
+  const handleCreateFile = useCallback(
+    async (normalizedName: string) => {
+      createFile(normalizedName);
+      const updatedProject = useProjectStore.getState().project;
+      if (updatedProject && updatedProject.files.length > 0) {
+        const createdFile = updatedProject.files[updatedProject.files.length - 1];
+        if (createdFile) {
+          selectTab(createdFile.id);
+        }
+      }
+      try {
+        await saveProject(repository);
+      } catch (err) {
+        console.error('Failed to create script file:', err);
+      }
+    },
+    [createFile, selectTab, saveProject, repository]
+  );
+
+  // File Renaming
+  const handleRenameFile = useCallback(
+    async (fileId: string, newName: string) => {
+      renameFile(fileId, newName);
+      try {
+        await saveProject(repository);
+      } catch (err) {
+        console.error('Failed to rename script file:', err);
+      }
+    },
+    [renameFile, saveProject, repository]
+  );
+
+  // File Deletion
+  const handleDeleteFile = useCallback(
+    async (fileId: string) => {
+      deleteFile(fileId);
+      handleCloseTab(fileId);
+      try {
+        await saveProject(repository);
+      } catch (err) {
+        console.error('Failed to delete script file:', err);
+      }
+    },
+    [deleteFile, handleCloseTab, saveProject, repository]
+  );
+
+  // File Duplication
+  const handleDuplicateFile = useCallback(
+    (fileId: string) => {
+      const prevFileIds = new Set(useProjectStore.getState().project?.files.map((f) => f.id) || []);
+      duplicateFile(fileId);
+      const newFiles = useProjectStore.getState().project?.files || [];
+      const newFile = newFiles.find((f) => !prevFileIds.has(f.id));
+      if (newFile) {
+        selectTab(newFile.id);
+      }
+    },
+    [duplicateFile, selectTab]
+  );
+
+  // Script Content Editing
+  const handleContentChange = useCallback(
+    (newContent: string) => {
+      if (!activeFileId) return;
+      updateFileContent(activeFileId, newContent);
+    },
+    [activeFileId, updateFileContent]
+  );
+
+  // Character Management Handlers
+  const handleOpenCreateCharacter = useCallback((prefillId?: string) => {
+    setEditingCharacter(
+      prefillId
+        ? {
+            id: prefillId,
+            name: '',
+            colorHex: '#38bdf8',
+            sprites: {},
+            defaultExpression: 'default',
+          }
+        : null
+    );
+    setIsCharModalOpen(true);
+  }, []);
+
+  const handleOpenEditCharacter = useCallback((char: Character) => {
+    setEditingCharacter(char);
+    setIsCharModalOpen(true);
+  }, []);
+
+  const handleSaveCharacter = useCallback(
+    async (savedChar: Character) => {
+      saveCharacter(savedChar);
+      setIsCharModalOpen(false);
+      setEditingCharacter(null);
+      try {
+        await saveProject(repository);
+      } catch (err) {
+        console.error('Failed to persist character:', err);
+      }
+    },
+    [saveCharacter, saveProject, repository]
+  );
+
+  const handleDeleteCharacter = useCallback(
+    async (characterId: string) => {
+      deleteCharacter(characterId);
+      try {
+        await saveProject(repository);
+      } catch (err) {
+        console.error('Failed to delete character:', err);
+      }
+    },
+    [deleteCharacter, saveProject, repository]
+  );
+
+  // Asset Management Handlers
+  const handleAddAsset = useCallback(
+    async (newAsset: AssetRef, fileBlob: Blob) => {
+      try {
+        await saveAsset(newAsset, fileBlob);
+        await saveProject(repository);
+      } catch (err) {
+        console.error('Failed to persist asset:', err);
+      }
+    },
+    [saveAsset, saveProject, repository]
+  );
+
+  const handleReplaceAsset = useCallback(
+    async (assetId: string, newBlob: Blob, newFileName?: string) => {
+      const current = useProjectStore.getState().project;
+      const existing = current?.assets.find((a) => a.id === assetId);
+      if (!existing) return;
+
+      const updatedAsset: AssetRef = {
+        ...existing,
+        name: newFileName || existing.name,
+        sizeBytes: newBlob.size,
+        version: (existing.version || 1) + 1,
+      };
+
+      try {
+        await saveAsset(updatedAsset, newBlob);
+        await saveProject(repository);
+      } catch (err) {
+        console.error('Failed to replace asset:', err);
+      }
+    },
+    [saveAsset, saveProject, repository]
+  );
+
+  const handleDeleteAsset = useCallback(
+    async (assetId: string) => {
+      try {
+        await deleteAsset(assetId);
+        await saveProject(repository);
+      } catch (err) {
+        console.error('Failed to delete asset:', err);
+      }
+    },
+    [deleteAsset, saveProject, repository]
+  );
+
+  // Diagnostic Click & QuickFix
+  const allDiagnostics = useMemo<DiagnosticItem[]>(() => {
+    return [
+      ...compilerDiagnostics,
+      ...reconciliationDiagnostics,
+      ...runtimeDiagnostics,
+    ];
+  }, [compilerDiagnostics, reconciliationDiagnostics, runtimeDiagnostics]);
+
+  const handleDiagnosticClick = useCallback(
+    (diag: DiagnosticItem) => {
+      let targetFileId = (diag as EditorDiagnostic).fileId;
+      const fileName = (diag as EditorDiagnostic).fileName;
+      if (!targetFileId && fileName && project) {
+        const match = project.files.find((f) => f.name === fileName);
+        if (match) targetFileId = match.id;
+      }
+      if (targetFileId) {
+        handleSelectTab(targetFileId);
+      }
+      if (diag.line) {
+        setCursorJumpTarget({ line: diag.line, col: diag.col || 1 });
+      }
+    },
+    [project, handleSelectTab, setCursorJumpTarget]
+  );
+
+  const handleQuickFix = useCallback(
+    (diag: DiagnosticItem) => {
+      const editorDiag = diag as EditorDiagnostic;
+      if (editorDiag.quickFix?.type === 'create_asset') {
+        setActiveTab('assets');
+      } else if (editorDiag.quickFix?.type === 'create_character') {
+        handleOpenCreateCharacter(editorDiag.quickFix.targetId);
+      }
+    },
+    [setActiveTab, handleOpenCreateCharacter]
+  );
+
+  // Settings & Export Handlers
   const handleOpenSettingsModal = useCallback(() => {
-    setIsSettingsOpen(true);
+    setSettingsOpen(true);
     onOpenSettings?.();
-  }, [onOpenSettings]);
+  }, [setSettingsOpen, onOpenSettings]);
 
   const handleSaveSettings = useCallback(
     async (updated: Project) => {
+      setSettingsOpen(false);
       setProject(updated);
-      setIsSettingsOpen(false);
-      setIsSaving(true);
       try {
         await repository.updateProject(updated);
-        setIsDirty(false);
       } catch (err) {
         console.error('Failed to update project settings:', err);
-        setIsDirty(true);
-      } finally {
-        setIsSaving(false);
       }
     },
-    [repository]
+    [setSettingsOpen, setProject, repository]
   );
 
   const handleOpenExportModal = useCallback(() => {
@@ -150,419 +545,10 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
     [project]
   );
 
-  useEffect(() => {
-    let isMounted = true;
-    async function load() {
-      if (initialProject) return;
-      setLoading(true);
-      setError(null);
-      try {
-        const loaded = await repository.getProject(projectId);
-        if (!isMounted) return;
-        if (loaded) {
-          setProject(loaded);
-          if (loaded.files.length > 0 && loaded.files[0]) {
-            setActiveFileId(loaded.files[0].id);
-            setOpenFileIds(loaded.files.map((f) => f.id));
-          }
-        } else {
-          setError(`Project not found: ${projectId}`);
-        }
-      } catch (err: unknown) {
-        if (!isMounted) return;
-        setError(err instanceof Error ? err.message : 'Failed to load project');
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    }
-
-    load();
-    return () => {
-      isMounted = false;
-    };
-  }, [projectId, repository, initialProject]);
-
-  const handleTitleChange = useCallback(
-    async (newTitle: string) => {
-      if (!project) return;
-      const updated: Project = {
-        ...project,
-        title: newTitle,
-        updatedAt: Date.now(),
-      };
-      setProject(updated);
-      setIsSaving(true);
-      try {
-        await repository.updateProject(updated);
-        setIsDirty(false);
-      } catch (err) {
-        console.error('Failed to update project title:', err);
-        setIsDirty(true);
-      } finally {
-        setIsSaving(false);
-      }
-    },
-    [project, repository]
-  );
-
-  const handleSelectTab = useCallback((fileId: string) => {
-    setActiveFileId(fileId);
-    setOpenFileIds((prev) => (prev.includes(fileId) ? prev : [...prev, fileId]));
-  }, []);
-
-  const handleCloseTab = useCallback(
-    (fileId: string) => {
-      setOpenFileIds((prev) => {
-        const next = prev.filter((id) => id !== fileId);
-        if (activeFileId === fileId) {
-          const nextActive = next[0] || (project?.files?.[0]?.id ?? '');
-          setActiveFileId(nextActive);
-        }
-        return next;
-      });
-    },
-    [activeFileId, project]
-  );
-
-  const handleCreateFile = useCallback(
-    async (normalizedName: string) => {
-      if (!project) return;
-      const newFile: ScriptFile = {
-        id: `file_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-        name: normalizedName,
-        content: `// ${cleanChapterName(normalizedName)}\n`,
-        order: project.files.length,
-        version: 1,
-      };
-      const updated: Project = {
-        ...project,
-        files: [...project.files, newFile],
-        updatedAt: Date.now(),
-      };
-      setProject(updated);
-      setActiveFileId(newFile.id);
-      setOpenFileIds((prev) => [...prev, newFile.id]);
-      setIsSaving(true);
-      try {
-        await repository.updateProject(updated);
-        setIsDirty(false);
-      } catch (err) {
-        console.error('Failed to create script file:', err);
-        setIsDirty(true);
-      } finally {
-        setIsSaving(false);
-      }
-    },
-    [project, repository]
-  );
-
-  const handleRenameFile = useCallback(
-    async (fileId: string, newName: string) => {
-      if (!project) return;
-      const updatedFiles = project.files.map((f) =>
-        f.id === fileId ? { ...f, name: newName, version: f.version + 1 } : f
-      );
-      const updated: Project = {
-        ...project,
-        files: updatedFiles,
-        updatedAt: Date.now(),
-      };
-      setProject(updated);
-      setIsSaving(true);
-      try {
-        await repository.updateProject(updated);
-        setIsDirty(false);
-      } catch (err) {
-        console.error('Failed to rename script file:', err);
-        setIsDirty(true);
-      } finally {
-        setIsSaving(false);
-      }
-    },
-    [project, repository]
-  );
-
-  const handleDeleteFile = useCallback(
-    async (fileId: string) => {
-      if (!project) return;
-      const updatedFiles = project.files.filter((f) => f.id !== fileId);
-      const updated: Project = {
-        ...project,
-        files: updatedFiles,
-        updatedAt: Date.now(),
-      };
-      setProject(updated);
-      setOpenFileIds((prev) => prev.filter((id) => id !== fileId));
-      if (activeFileId === fileId) {
-        setActiveFileId(updatedFiles[0]?.id ?? null);
-      }
-      setIsSaving(true);
-      try {
-        await repository.updateProject(updated);
-        setIsDirty(false);
-      } catch (err) {
-        console.error('Failed to delete script file:', err);
-        setIsDirty(true);
-      } finally {
-        setIsSaving(false);
-      }
-    },
-    [project, repository, activeFileId]
-  );
-
-  // Script content change
-  const handleContentChange = useCallback(
-    (newContent: string) => {
-      if (!project || !activeFileId) return;
-      const updatedFiles = (project.files || []).map((f) =>
-        f.id === activeFileId ? { ...f, content: newContent, version: (f.version || 1) + 1 } : f
-      );
-      const updated: Project = {
-        ...project,
-        files: updatedFiles,
-        updatedAt: Date.now(),
-      };
-      setProject(updated);
-      setDirtyFileIds((prev) => new Set([...prev, activeFileId]));
-      setIsDirty(true);
-    },
-    [project, activeFileId]
-  );
-
-  // Manual save
-  const handleManualSave = useCallback(async () => {
-    if (!project) return;
-    setIsSaving(true);
-    try {
-      await repository.updateProject(project);
-      setDirtyFileIds(new Set());
-      setIsDirty(false);
-    } catch (err) {
-      console.error('Failed to save project:', err);
-      setIsDirty(true);
-    } finally {
-      setIsSaving(false);
-    }
-  }, [project, repository]);
-
-  const handleOpenCreateCharacter = useCallback((prefillId?: string) => {
-    setEditingCharacter(
-      prefillId
-        ? {
-            id: prefillId,
-            name: '',
-            colorHex: '#38bdf8',
-            sprites: {},
-            defaultExpression: 'default',
-          }
-        : null
-    );
-    setIsCharModalOpen(true);
-  }, []);
-
-  const handleDiagnosticClick = useCallback(
-    (diag: EditorDiagnostic) => {
-      let targetFileId = diag.fileId;
-      if (!targetFileId && diag.fileName && project) {
-        const match = project.files.find((f) => f.name === diag.fileName);
-        if (match) targetFileId = match.id;
-      }
-      if (targetFileId) {
-        handleSelectTab(targetFileId);
-      }
-      if (diag.line) {
-        setCursorJumpTarget({ line: diag.line, col: diag.col || 1 });
-      }
-    },
-    [project, handleSelectTab]
-  );
-
-  const handleQuickFix = useCallback(
-    (diag: EditorDiagnostic) => {
-      if (diag.quickFix?.type === 'create_asset') {
-        setActiveTab('assets');
-      } else if (diag.quickFix?.type === 'create_character') {
-        handleOpenCreateCharacter(diag.quickFix.targetId);
-      }
-    },
-    [handleOpenCreateCharacter]
-  );
-
-  const handleInjectVariable = useCallback((key: string, value: unknown) => {
-    setRuntimeVariables((prev) => ({ ...prev, [key]: value }));
-    setConsoleLogs((prev) => [
-      ...prev,
-      {
-        id: `log-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-        timestamp: Date.now(),
-        level: 'info',
-        message: `Injected variable '${key}' = ${JSON.stringify(value)}`,
-      },
-    ]);
-  }, []);
-
-  const handleClearLogs = useCallback(() => {
-    setConsoleLogs([]);
-  }, []);
-
-  const handleOpenEditCharacter = useCallback((char: Character) => {
-    setEditingCharacter(char);
-    setIsCharModalOpen(true);
-  }, []);
-
-  const handleSaveCharacter = useCallback(
-    async (savedChar: Character) => {
-      if (!project) return;
-      const existingChars = project.characters || [];
-      const existingIndex = existingChars.findIndex((c) => c.id === savedChar.id);
-      let updatedCharacters: Character[];
-      if (existingIndex >= 0) {
-        updatedCharacters = existingChars.map((c, i) => (i === existingIndex ? savedChar : c));
-      } else {
-        updatedCharacters = [...existingChars, savedChar];
-      }
-      const updated: Project = {
-        ...project,
-        characters: updatedCharacters,
-        updatedAt: Date.now(),
-      };
-      setProject(updated);
-      setIsSaving(true);
-      try {
-        await repository.updateProject(updated);
-        setIsDirty(false);
-      } catch (err) {
-        console.error('Failed to persist character:', err);
-        setIsDirty(true);
-      } finally {
-        setIsSaving(false);
-        setIsCharModalOpen(false);
-      }
-    },
-    [project, repository]
-  );
-
-  const handleDeleteCharacter = useCallback(
-    async (characterId: string) => {
-      if (!project) return;
-      const existingChars = project.characters || [];
-      const updatedCharacters = existingChars.filter((c) => c.id !== characterId);
-      const updated: Project = {
-        ...project,
-        characters: updatedCharacters,
-        updatedAt: Date.now(),
-      };
-      setProject(updated);
-      setIsSaving(true);
-      try {
-        await repository.updateProject(updated);
-        setIsDirty(false);
-      } catch (err) {
-        console.error('Failed to delete character:', err);
-        setIsDirty(true);
-      } finally {
-        setIsSaving(false);
-      }
-    },
-    [project, repository]
-  );
-
-  const handleAddAsset = useCallback(
-    async (newAsset: AssetRef, fileBlob: Blob) => {
-      if (!project) return;
-      try {
-        await repository.saveAssetBlob(newAsset.id, fileBlob);
-      } catch (err) {
-        console.error('Failed to save asset blob:', err);
-      }
-
-      const existing = project.assets || [];
-      const updated: Project = {
-        ...project,
-        assets: [...existing, newAsset],
-        updatedAt: Date.now(),
-      };
-      setProject(updated);
-      setIsSaving(true);
-      try {
-        await repository.updateProject(updated);
-        setIsDirty(false);
-      } catch (err) {
-        console.error('Failed to update project assets:', err);
-        setIsDirty(true);
-      } finally {
-        setIsSaving(false);
-      }
-    },
-    [project, repository]
-  );
-
-  const handleReplaceAsset = useCallback(
-    async (assetId: string, newBlob: Blob, newFileName?: string) => {
-      if (!project) return;
-      try {
-        await repository.saveAssetBlob(assetId, newBlob);
-      } catch (err) {
-        console.error('Failed to replace asset blob:', err);
-      }
-
-      const existing = project.assets || [];
-      const updatedAssets = existing.map((a) => {
-        if (a.id === assetId) {
-          return {
-            ...a,
-            name: newFileName || a.name,
-            sizeBytes: newBlob.size,
-            version: (a.version || 1) + 1,
-          };
-        }
-        return a;
-      });
-
-      const updated: Project = {
-        ...project,
-        assets: updatedAssets,
-        updatedAt: Date.now(),
-      };
-      setProject(updated);
-      setIsSaving(true);
-      try {
-        await repository.updateProject(updated);
-        setIsDirty(false);
-      } catch (err) {
-        console.error('Failed to update project after replacing asset:', err);
-        setIsDirty(true);
-      } finally {
-        setIsSaving(false);
-      }
-    },
-    [project, repository]
-  );
-
-  const handleDeleteAsset = useCallback(
-    async (assetId: string) => {
-      if (!project) return;
-      const existing = project.assets || [];
-      const updatedAssets = existing.filter((a) => a.id !== assetId);
-      const updated: Project = {
-        ...project,
-        assets: updatedAssets,
-        updatedAt: Date.now(),
-      };
-      setProject(updated);
-      setIsSaving(true);
-      try {
-        await repository.updateProject(updated);
-        setIsDirty(false);
-      } catch (err) {
-        console.error('Failed to delete asset from project:', err);
-        setIsDirty(true);
-      } finally {
-        setIsSaving(false);
-      }
-    },
-    [project, repository]
-  );
+  const handleQuickPlayAction = useCallback(() => {
+    setIsPlaying(true);
+    onQuickPlay?.();
+  }, [setIsPlaying, onQuickPlay]);
 
   if (loading) {
     return (
@@ -575,7 +561,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
     );
   }
 
-  if (error || !project) {
+  if (!project && (error || !loading)) {
     return (
       <div
         data-testid="studio-error-state"
@@ -596,9 +582,10 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
     );
   }
 
-  const activeFile = project.files.find((f) => f.id === activeFileId) ?? null;
-  const canvasWidth = project.displaySettings?.width ?? 1920;
-  const canvasHeight = project.displaySettings?.height ?? 1080;
+  const activeFile = (project?.files || []).find((f) => f.id === activeFileId) ?? null;
+  const canvasWidth = project?.displaySettings?.width ?? 1920;
+  const canvasHeight = project?.displaySettings?.height ?? 1080;
+  const memoizedDirtyFileIds = new Set(dirtyFileIds);
 
   return (
     <div
@@ -606,180 +593,215 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
       className="flex h-screen w-screen flex-col bg-neutral-950 text-neutral-100 font-sans overflow-hidden select-none"
     >
       {/* Top Header */}
-      <StudioHeader
-        projectTitle={project.title}
-        title={project.title}
-        canvasWidth={canvasWidth}
-        canvasHeight={canvasHeight}
-        width={canvasWidth}
-        height={canvasHeight}
-        isDirty={isDirty}
-        isSaving={isSaving}
-        onTitleChange={handleTitleChange}
-        onSave={handleManualSave}
-        onBack={onBackToHub}
-        onBackToHub={onBackToHub}
-        onQuickPlay={handleQuickPlayAction}
-        onOpenSettings={handleOpenSettingsModal}
-        onExport={handleOpenExportModal}
-      />
+      {project && (
+        <StudioHeader
+          projectTitle={project.title}
+          title={project.title}
+          canvasWidth={canvasWidth}
+          canvasHeight={canvasHeight}
+          width={canvasWidth}
+          height={canvasHeight}
+          isDirty={isDirty}
+          isSaving={isSaving}
+          onTitleChange={handleTitleChange}
+          onSave={handleManualSave}
+          onBack={handleBackToHub}
+          onBackToHub={handleBackToHub}
+          onQuickPlay={handleQuickPlayAction}
+          onOpenSettings={handleOpenSettingsModal}
+          onExport={handleOpenExportModal}
+        />
+      )}
 
       {/* 3-Column Director Workspace */}
-      <main className="flex flex-1 min-h-0 overflow-hidden">
-        {/* Column 1: Static Navigator (Activity Bar + FileExplorer / CharacterManager / AssetLibrary) */}
-        <div
-          data-testid="col-navigation"
-          className="flex shrink-0 h-full border-r border-neutral-800 bg-neutral-900/40"
-        >
-          <ActivityBar
-            activeTab={activeTab}
-            onSelectTab={setActiveTab}
-            onOpenSettings={handleOpenSettingsModal}
-          />
-
-          {activeTab === 'scripts' && (
-            <FileExplorerPane
-              files={project.files}
-              activeFileId={activeFileId}
-              entrySceneName="main.vns"
-              onSelectFile={handleSelectTab}
-              onCreateFile={handleCreateFile}
-              onRenameFile={handleRenameFile}
-              onDeleteFile={handleDeleteFile}
-            />
-          )}
-
-          {activeTab === 'characters' && (
-            <CharacterManagerPane
-              characters={project.characters || []}
-              uncreatedIds={[]}
-              onCreateCharacter={handleOpenCreateCharacter}
-              onEditCharacter={handleOpenEditCharacter}
-              onDeleteCharacter={handleDeleteCharacter}
-            />
-          )}
-
-          {activeTab === 'assets' && (
-            <div data-testid="pane-assets-placeholder" className="w-72 shrink-0 h-full">
-              <AssetLibraryPane
-                project={project}
-                onAddAsset={handleAddAsset}
-                onReplaceAsset={handleReplaceAsset}
-                onDeleteAsset={handleDeleteAsset}
-              />
-            </div>
-          )}
-        </div>
-
-        {/* Column 2: Center Workspace (Editor Tab Bar + Monaco Script Workspace + Bottom Drawer) */}
-        <div
-          data-testid="col-workspace"
-          className="flex flex-1 flex-col min-w-0 h-full border-r border-neutral-800 bg-neutral-950"
-        >
-          {/* Header Tab Bar */}
-          <EditorTabBar
-            files={project.files || []}
-            openFileIds={openFileIds}
-            activeFileId={activeFileId || ''}
-            dirtyFileIds={dirtyFileIds}
-            onSelectTab={handleSelectTab}
-            onCloseTab={handleCloseTab}
-            onNewFile={() =>
-              handleCreateFile(
-                generateDefaultScriptName((project.files || []).map((f) => f.name))
-              )
-            }
-          />
-
-          {/* Center Monaco Script Editor */}
-          <MonacoEditorContainer
-            file={activeFile}
-            project={project}
-            cursorJumpTarget={cursorJumpTarget}
-            onChange={handleContentChange}
-          />
-
-          {/* Bottom Diagnostics & Debugger Drawer (Milestone 7) */}
-          <DockDrawer
-            isOpen={isDrawerOpen}
-            activeTab={drawerTab}
-            errorCount={errorCount}
-            warningCount={warningCount}
-            onToggleDrawer={() => setIsDrawerOpen((prev) => !prev)}
-            onSelectTab={setDrawerTab}
+      {project && (
+        <main className="flex flex-1 min-h-0 overflow-hidden">
+          {/* Column 1: Static Navigator (Activity Bar + FileExplorer / CharacterManager / AssetLibrary) */}
+          <div
+            data-testid="col-navigation"
+            className="flex shrink-0 h-full border-r border-neutral-800 bg-neutral-900/40"
+            style={{ width: `${navWidth}px` }}
           >
-            {drawerTab === 'problems' && (
+            <ActivityBar
+              activeTab={activeTab}
+              onSelectTab={setActiveTab}
+              onOpenSettings={handleOpenSettingsModal}
+            />
+
+            {activeTab === 'scripts' && (
+              <FileExplorerPane
+                files={project.files}
+                activeFileId={activeFileId}
+                entrySceneName="main.vns"
+                onSelectFile={handleSelectTab}
+                onCreateFile={handleCreateFile}
+                onRenameFile={handleRenameFile}
+                onDeleteFile={handleDeleteFile}
+                onDuplicateFile={handleDuplicateFile}
+              />
+            )}
+
+            {activeTab === 'characters' && (
+              <CharacterManagerPane
+                characters={project.characters || []}
+                uncreatedIds={[]}
+                onCreateCharacter={handleOpenCreateCharacter}
+                onEditCharacter={handleOpenEditCharacter}
+                onDeleteCharacter={handleDeleteCharacter}
+              />
+            )}
+
+            {activeTab === 'assets' && (
+              <div data-testid="pane-assets-placeholder" className="w-72 shrink-0 h-full">
+                <AssetLibraryPane
+                  project={project}
+                  onAddAsset={handleAddAsset}
+                  onReplaceAsset={handleReplaceAsset}
+                  onDeleteAsset={handleDeleteAsset}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Resizable Nav Splitter */}
+          <ColumnSplitter
+            type="nav"
+            onResize={(delta) => setNavWidth(navWidth + delta)}
+            onReset={() => setNavWidth(260)}
+          />
+
+          {/* Column 2: Center Workspace (Editor Tab Bar + Monaco Script Workspace + Bottom Drawer) */}
+          <div
+            data-testid="col-workspace"
+            className="flex flex-1 flex-col min-w-0 h-full border-r border-neutral-800 bg-neutral-950"
+          >
+            {/* Header Tab Bar */}
+            <EditorTabBar
+              files={project.files || []}
+              openFileIds={openFileIds}
+              activeFileId={activeFileId || ''}
+              dirtyFileIds={memoizedDirtyFileIds}
+              onSelectTab={handleSelectTab}
+              onCloseTab={handleCloseTab}
+              onNewFile={() =>
+                handleCreateFile(
+                  generateDefaultScriptName((project.files || []).map((f) => f.name))
+                )
+              }
+            />
+
+            {/* Center Monaco Script Editor */}
+            <MonacoEditorContainer
+              file={activeFile}
+              project={project}
+              cursorJumpTarget={cursorJumpTarget}
+              onChange={handleContentChange}
+            />
+
+            {/* Resizable Drawer Splitter */}
+            <ColumnSplitter
+              type="drawer"
+              onResize={(delta) => setDrawerHeight(drawerHeight + delta)}
+              onReset={() => setDrawerHeight(200)}
+            />
+
+            {/* Bottom Diagnostics Problems Drawer */}
+            <DockDrawer
+              isOpen={isDrawerOpen}
+              activeTab="problems"
+              errorCount={errorCount}
+              warningCount={warningCount}
+              height={drawerHeight}
+              onToggleDrawer={toggleDrawer}
+            >
               <DockProblemsTable
-                diagnostics={diagnostics}
+                diagnostics={allDiagnostics}
                 onDiagnosticClick={handleDiagnosticClick}
                 onQuickFix={handleQuickFix}
               />
-            )}
-            {drawerTab === 'cheats' && (
-              <RuntimeCheatInjector
-                variables={runtimeVariables}
-                onInjectVariable={handleInjectVariable}
-              />
-            )}
-            {drawerTab === 'console' && (
-              <ConsoleLogStream
-                logs={consoleLogs}
-                onClearLogs={handleClearLogs}
-              />
-            )}
-          </DockDrawer>
-        </div>
+            </DockDrawer>
+          </div>
 
-        {/* Column 3: Live Preview Dock (100% full-height with aspect-ratio locked container) */}
-        <div
-          data-testid="col-preview-dock"
-          className="flex w-[400px] lg:w-[480px] shrink-0 h-full flex-col bg-neutral-900/70"
-        >
-          <PreviewDock
-            projectId={project.id}
-            canvasWidth={canvasWidth}
-            canvasHeight={canvasHeight}
-            isPlaying={isPreviewPlaying}
-            isPopout={isPreviewPopout}
-            previewUrl={`http://localhost:3000/?mode=preview&projectId=${project.id}`}
-            onTogglePlay={() => setIsPreviewPlaying((prev) => !prev)}
-            onReload={() => {
-              setIsPreviewPlaying(false);
-              setTimeout(() => setIsPreviewPlaying(true), 50);
-            }}
-            onTogglePopout={() => setIsPreviewPopout((prev) => !prev)}
+          {/* Resizable Preview Splitter */}
+          <ColumnSplitter
+            type="preview"
+            onResize={(delta) => setPreviewWidth(previewWidth + delta)}
+            onReset={() => setPreviewWidth(440)}
           />
-        </div>
-      </main>
+
+          {/* Column 3: Live Preview Dock */}
+          <div
+            data-testid="col-preview-dock"
+            className="flex shrink-0 h-full flex-col bg-neutral-900/70"
+            style={{ width: `${previewWidth}px` }}
+          >
+            <PreviewDock
+              projectId={project.id}
+              canvasWidth={canvasWidth}
+              canvasHeight={canvasHeight}
+              isPlaying={isPlaying}
+              isPopout={isPreviewPopout}
+              previewUrl={`http://localhost:3000/?mode=preview&projectId=${project.id}`}
+              repository={repository}
+              onTogglePlay={togglePlay}
+              onReload={() => {
+                setIsPlaying(false);
+                setTimeout(() => setIsPlaying(true), 50);
+              }}
+              onTogglePopout={() => setIsPreviewPopout((prev) => !prev)}
+            />
+          </div>
+        </main>
+      )}
 
       {/* Character Modal Dialog */}
-      <CharacterModal
-        isOpen={isCharModalOpen}
-        initialData={editingCharacter}
-        existingIds={(project.characters || [])
-          .filter((c) => !editingCharacter || c.id !== editingCharacter.id)
-          .map((c) => c.id)}
-        onClose={() => {
-          setIsCharModalOpen(false);
-          setEditingCharacter(null);
-        }}
-        onSave={handleSaveCharacter}
-      />
+      {project && (
+        <CharacterModal
+          isOpen={isCharModalOpen}
+          initialData={editingCharacter}
+          existingIds={(project.characters || [])
+            .filter((c) => !editingCharacter || c.id !== editingCharacter.id)
+            .map((c) => c.id)}
+          onClose={() => {
+            setIsCharModalOpen(false);
+            setEditingCharacter(null);
+          }}
+          onSave={handleSaveCharacter}
+        />
+      )}
 
       {/* Project Settings Modal Dialog */}
-      <ProjectSettingsModal
-        isOpen={isSettingsOpen}
-        project={project}
-        onClose={() => setIsSettingsOpen(false)}
-        onSave={handleSaveSettings}
-      />
+      {project && (
+        <ProjectSettingsModal
+          isOpen={isSettingsOpen}
+          project={project}
+          onClose={() => setSettingsOpen(false)}
+          onSave={handleSaveSettings}
+        />
+      )}
 
       {/* Export Release Wizard Modal Dialog */}
-      <ExportWizardModal
-        isOpen={isExportOpen}
-        project={project}
-        onClose={() => setIsExportOpen(false)}
-        onExport={handlePerformExport}
+      {project && (
+        <ExportWizardModal
+          isOpen={isExportOpen}
+          project={project}
+          onClose={() => setIsExportOpen(false)}
+          onExport={handlePerformExport}
+        />
+      )}
+
+      {/* Unsaved Changes Navigation Guard Modal */}
+      <UnsavedChangesModal
+        isOpen={isUnsavedModalOpen}
+        onSaveAndContinue={handleSaveAndContinue}
+        onDiscardAndContinue={handleDiscardAndContinue}
+        onCancel={handleCancelUnsaved}
+      />
+
+      {/* Shortcuts Help Modal Dialog */}
+      <ShortcutsHelpModal
+        isOpen={isShortcutsOpen}
+        onClose={() => setShortcutsOpen(false)}
       />
     </div>
   );

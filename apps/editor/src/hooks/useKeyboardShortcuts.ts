@@ -25,6 +25,7 @@ export function useKeyboardShortcuts(options?: KeyboardShortcutOptions): void {
     if (!enabled) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.defaultPrevented) return;
       const isCtrlOrCmd = e.ctrlKey || e.metaKey;
       const active = document.activeElement;
       const isTextFocused = Boolean(

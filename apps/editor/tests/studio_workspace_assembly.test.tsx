@@ -95,6 +95,7 @@ describe('StudioWorkspacePage Assembly & Cutover (Phase 5 TDD)', () => {
   }
 
   beforeEach(() => {
+    Object.defineProperty(window, 'innerWidth', { value: 1920, configurable: true, writable: true });
     setupTestStore();
     setPointerCaptureMock = vi.fn();
     releasePointerCaptureMock = vi.fn();
