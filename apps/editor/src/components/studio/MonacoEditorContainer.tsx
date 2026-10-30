@@ -57,37 +57,10 @@ export const MonacoEditorContainer: React.FC<MonacoEditorContainerProps> = ({
       if (!vnsRegistered) {
         try {
           registerVnsLanguage();
-          registerVnsLanguageFeatures({
-            getFiles: () => {
-              const map: Record<string, string> = {};
-              for (const f of project.files || []) {
-                map[f.name] = f.content;
-              }
-              return map;
-            },
-            getScenes: () => [],
-            getCharacters: () => {
-              const map = new Map<string, { displayName?: string; sprites: Set<string> }>();
-              for (const c of project.characters || []) {
-                map.set(c.id, {
-                  displayName: c.name,
-                  sprites: new Set(Object.keys(c.sprites || {})),
-                });
-              }
-              return map;
-            },
-            getAssets: () => {
-              const bgs = new Set<string>();
-              const audio = new Set<string>();
-              for (const a of project.assets || []) {
-                if (a.type === 'audio') audio.add(a.name);
-                else bgs.add(a.name);
-              }
-              return { backgrounds: bgs, audio };
-            },
-            getVariables: () => (project.variables || []).map((v) => v.name),
-            switchActiveFile: () => {},
-          });
+          const { createVnsProjectContext } = await import('../../core/services/vnsContextProvider');
+          registerVnsLanguageFeatures(
+            createVnsProjectContext(() => useProjectStore.getState().project, project)
+          );
           vnsRegistered = true;
         } catch (err) {
           console.warn('VNS Language registration warning:', err);
