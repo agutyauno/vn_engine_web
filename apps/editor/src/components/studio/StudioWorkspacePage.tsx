@@ -49,19 +49,6 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
   onOpenSettings,
   onExport,
 }) => {
-  const initializedIdRef = useRef<string | null>(null);
-  if (initialProject && initializedIdRef.current !== initialProject.id) {
-    initializedIdRef.current = initialProject.id;
-    useProjectStore.getState().initProject(initialProject, repository);
-    if (initialProject.files && initialProject.files.length > 0) {
-      useEditorUIStore.setState({
-        openFileIds: initialProject.files.map((f) => f.id),
-        activeFileId: initialProject.files[0]?.id ?? null,
-        isDrawerOpen: true,
-      });
-    }
-  }
-
   // --- Project Store Hook Injection ---
   const project = useProjectStore((s) => s.project);
   const isDirty = useProjectStore((s) => s.isDirty);
@@ -203,6 +190,14 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
   // Mount & Load Project
   useEffect(() => {
     if (initialProject) {
+      useProjectStore.getState().initProject(initialProject, repository);
+      if (initialProject.files && initialProject.files.length > 0) {
+        useEditorUIStore.setState({
+          openFileIds: initialProject.files.map((f) => f.id),
+          activeFileId: initialProject.files[0]?.id ?? null,
+          isDrawerOpen: true,
+        });
+      }
       setLoading(false);
       return;
     }
@@ -242,13 +237,13 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
 
   // Safe Navigation Guard
   const handleBackToHub = useCallback(() => {
-    if (isDirty) {
+    if (useProjectStore.getState().isDirty) {
       pendingNavRef.current = () => onBackToHub?.();
       triggerUnsavedGuard({ type: 'project-hub' });
     } else {
       onBackToHub?.();
     }
-  }, [isDirty, onBackToHub, triggerUnsavedGuard]);
+  }, [onBackToHub, triggerUnsavedGuard]);
 
   const handleSaveAndContinue = useCallback(async () => {
     try {
@@ -361,8 +356,12 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
   // Script Content Editing
   const handleContentChange = useCallback(
     (newContent: string) => {
-      if (!activeFileId) return;
-      updateFileContent(activeFileId, newContent);
+      const fileId =
+        activeFileId ||
+        useEditorUIStore.getState().activeFileId ||
+        useProjectStore.getState().project?.files[0]?.id;
+      if (!fileId) return;
+      updateFileContent(fileId, newContent);
     },
     [activeFileId, updateFileContent]
   );
@@ -582,9 +581,15 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
     );
   }
 
-  const activeFile = (project?.files || []).find((f) => f.id === activeFileId) ?? null;
-  const canvasWidth = project?.displaySettings?.width ?? 1920;
-  const canvasHeight = project?.displaySettings?.height ?? 1080;
+  const currentProject = project ?? initialProject ?? null;
+  const currentActiveFileId =
+    activeFileId ||
+    useEditorUIStore.getState().activeFileId ||
+    (currentProject?.files && currentProject.files[0]?.id) ||
+    null;
+  const activeFile = (currentProject?.files || []).find((f) => f.id === currentActiveFileId) ?? null;
+  const canvasWidth = currentProject?.displaySettings?.width ?? 1920;
+  const canvasHeight = currentProject?.displaySettings?.height ?? 1080;
   const memoizedDirtyFileIds = new Set(dirtyFileIds);
 
   return (
@@ -593,10 +598,10 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
       className="flex h-screen w-screen flex-col bg-neutral-950 text-neutral-100 font-sans overflow-hidden select-none"
     >
       {/* Top Header */}
-      {project && (
+      {currentProject && (
         <StudioHeader
-          projectTitle={project.title}
-          title={project.title}
+          projectTitle={currentProject.title}
+          title={currentProject.title}
           canvasWidth={canvasWidth}
           canvasHeight={canvasHeight}
           width={canvasWidth}
@@ -614,7 +619,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
       )}
 
       {/* 3-Column Director Workspace */}
-      {project && (
+      {currentProject && (
         <main className="flex flex-1 min-h-0 overflow-hidden">
           {/* Column 1: Static Navigator (Activity Bar + FileExplorer / CharacterManager / AssetLibrary) */}
           <div
@@ -630,8 +635,8 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
 
             {activeTab === 'scripts' && (
               <FileExplorerPane
-                files={project.files}
-                activeFileId={activeFileId}
+                files={currentProject.files}
+                activeFileId={currentActiveFileId}
                 entrySceneName="main.vns"
                 onSelectFile={handleSelectTab}
                 onCreateFile={handleCreateFile}
@@ -643,7 +648,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
 
             {activeTab === 'characters' && (
               <CharacterManagerPane
-                characters={project.characters || []}
+                characters={currentProject.characters || []}
                 uncreatedIds={[]}
                 onCreateCharacter={handleOpenCreateCharacter}
                 onEditCharacter={handleOpenEditCharacter}
@@ -654,7 +659,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
             {activeTab === 'assets' && (
               <div data-testid="pane-assets-placeholder" className="w-72 shrink-0 h-full">
                 <AssetLibraryPane
-                  project={project}
+                  project={currentProject}
                   onAddAsset={handleAddAsset}
                   onReplaceAsset={handleReplaceAsset}
                   onDeleteAsset={handleDeleteAsset}
@@ -677,15 +682,15 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
           >
             {/* Header Tab Bar */}
             <EditorTabBar
-              files={project.files || []}
-              openFileIds={openFileIds}
-              activeFileId={activeFileId || ''}
+              files={currentProject.files || []}
+              openFileIds={openFileIds.length > 0 ? openFileIds : (currentProject.files || []).map((f) => f.id)}
+              activeFileId={currentActiveFileId || ''}
               dirtyFileIds={memoizedDirtyFileIds}
               onSelectTab={handleSelectTab}
               onCloseTab={handleCloseTab}
               onNewFile={() =>
                 handleCreateFile(
-                  generateDefaultScriptName((project.files || []).map((f) => f.name))
+                  generateDefaultScriptName((currentProject.files || []).map((f) => f.name))
                 )
               }
             />
@@ -693,7 +698,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
             {/* Center Monaco Script Editor */}
             <MonacoEditorContainer
               file={activeFile}
-              project={project}
+              project={currentProject}
               cursorJumpTarget={cursorJumpTarget}
               onChange={handleContentChange}
             />
@@ -736,12 +741,12 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
             style={{ width: `${previewWidth}px` }}
           >
             <PreviewDock
-              projectId={project.id}
+              projectId={currentProject.id}
               canvasWidth={canvasWidth}
               canvasHeight={canvasHeight}
               isPlaying={isPlaying}
               isPopout={isPreviewPopout}
-              previewUrl={`http://localhost:3000/?mode=preview&projectId=${project.id}`}
+              previewUrl={`http://localhost:3000/?mode=preview&projectId=${currentProject.id}`}
               repository={repository}
               onTogglePlay={togglePlay}
               onReload={() => {
@@ -755,11 +760,11 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
       )}
 
       {/* Character Modal Dialog */}
-      {project && (
+      {currentProject && (
         <CharacterModal
           isOpen={isCharModalOpen}
           initialData={editingCharacter}
-          existingIds={(project.characters || [])
+          existingIds={(currentProject.characters || [])
             .filter((c) => !editingCharacter || c.id !== editingCharacter.id)
             .map((c) => c.id)}
           onClose={() => {
@@ -771,20 +776,20 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
       )}
 
       {/* Project Settings Modal Dialog */}
-      {project && (
+      {currentProject && (
         <ProjectSettingsModal
           isOpen={isSettingsOpen}
-          project={project}
+          project={currentProject}
           onClose={() => setSettingsOpen(false)}
           onSave={handleSaveSettings}
         />
       )}
 
       {/* Export Release Wizard Modal Dialog */}
-      {project && (
+      {currentProject && (
         <ExportWizardModal
           isOpen={isExportOpen}
-          project={project}
+          project={currentProject}
           onClose={() => setIsExportOpen(false)}
           onExport={handlePerformExport}
         />
