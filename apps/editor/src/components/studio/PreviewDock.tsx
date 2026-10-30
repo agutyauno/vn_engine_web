@@ -1,10 +1,19 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   PlayIcon,
   PauseIcon,
   RotateCcwIcon,
   ExternalLinkIcon,
 } from '../common/Icons';
+import {
+  isAllowedPreviewOrigin,
+  buildPreviewUrl,
+  PreviewBridge,
+} from '../../core/services/previewBridge';
+import { usePreviewStore } from '../../core/stores/livePreviewStore';
+import type { ProjectRepository } from '../../core/contracts/repository';
+
+export { isAllowedPreviewOrigin, buildPreviewUrl };
 
 export interface PreviewDockProps {
   projectId: string;
@@ -14,6 +23,7 @@ export interface PreviewDockProps {
   isPlaying: boolean;
   isPopout: boolean;
   previewUrl?: string;
+  repository?: ProjectRepository;
   onTogglePlay: () => void;
   onReload: () => void;
   onTogglePopout: () => void;
@@ -27,54 +37,17 @@ export function formatAspectRatioString(width: number, height: number): string {
   return `${width} × ${height} (${wRatio}:${hRatio})`;
 }
 
-/**
- * Kiểm tra nguồn origin của Live Preview để đảm bảo an toàn Zero-Trust (SAD 3.6)
- */
-export function isAllowedPreviewOrigin(
-  origin: string,
-  previewOrigin: string,
-  localOrigin: string = typeof window !== 'undefined' ? window.location.origin : '',
-): boolean {
-  const allowedOrigins = [
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-    previewOrigin,
-    localOrigin,
-  ];
-
-  if (allowedOrigins.includes(origin)) {
-    return true;
+function getOriginFromUrl(url?: string): string {
+  if (!url || url === 'about:blank') return 'http://localhost:3000';
+  try {
+    const parsed = new URL(
+      url,
+      typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'
+    );
+    return parsed.origin;
+  } catch {
+    return 'http://localhost:3000';
   }
-
-  const userContentRegex = /^https?:\/\/([a-zA-Z0-9-]+\.)*usercontent-platform\.com(:\d+)?$/;
-  return userContentRegex.test(origin);
-}
-
-/**
- * Xây dựng URL nhúng Live Preview với query params đầy đủ (mode=preview, projectId)
- */
-export function buildPreviewUrl(
-  baseUrl: string,
-  projectId?: string | null,
-  options?: { isPopout?: boolean; editorOrigin?: string },
-): string {
-  const cleanBase = baseUrl ? baseUrl.replace(/\/+$/, '') : '';
-  const params = new URLSearchParams();
-  if (options?.isPopout) {
-    params.set('popout', 'true');
-  } else {
-    params.set('embedded', 'true');
-  }
-  params.set('mode', 'preview');
-  if (projectId) {
-    params.set('projectId', projectId);
-  }
-  const edOrigin =
-    options?.editorOrigin || (typeof window !== 'undefined' ? window.location.origin : '');
-  if (edOrigin) {
-    params.set('editorOrigin', edOrigin);
-  }
-  return `${cleanBase}/?${params.toString()}`;
 }
 
 export const PreviewDock: React.FC<PreviewDockProps> = ({
@@ -84,11 +57,39 @@ export const PreviewDock: React.FC<PreviewDockProps> = ({
   isPlaying,
   isPopout,
   previewUrl = 'about:blank',
+  repository,
   onTogglePlay,
   onReload,
   onTogglePopout,
 }) => {
   const isPortrait = canvasHeight > canvasWidth;
+  const connectionStatus = usePreviewStore((state) => state.connectionStatus);
+
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const bridgeRef = useRef<PreviewBridge | null>(null);
+
+  useEffect(() => {
+    if (isPlaying && !isPopout) {
+      const previewOrigin = getOriginFromUrl(previewUrl);
+      const bridge = new PreviewBridge({
+        targetWindow: () => iframeRef.current?.contentWindow ?? null,
+        previewOrigin,
+        repository,
+        watchdogTimeoutMs: 3000,
+      });
+      bridgeRef.current = bridge;
+
+      return () => {
+        bridge.dispose();
+        bridgeRef.current = null;
+      };
+    }
+    return undefined;
+  }, [isPlaying, isPopout, previewUrl, repository]);
+
+  const handleIframeLoad = () => {
+    bridgeRef.current?.probeReady();
+  };
 
   return (
     <div
@@ -106,14 +107,22 @@ export const PreviewDock: React.FC<PreviewDockProps> = ({
               isPopout
                 ? 'bg-amber-400'
                 : isPlaying
-                ? 'bg-emerald-400 animate-pulse'
+                ? connectionStatus === 'connected'
+                  ? 'bg-emerald-400 animate-pulse'
+                  : connectionStatus === 'disconnected'
+                  ? 'bg-red-400'
+                  : 'bg-emerald-400 animate-pulse'
                 : 'bg-neutral-600'
             }`}
             title={
               isPopout
                 ? 'Pop-out window active'
                 : isPlaying
-                ? 'Preview running'
+                ? connectionStatus === 'connected'
+                  ? 'Preview running'
+                  : connectionStatus === 'disconnected'
+                  ? 'Preview disconnected'
+                  : 'Connecting...'
                 : 'Standby'
             }
           />
@@ -240,12 +249,14 @@ export const PreviewDock: React.FC<PreviewDockProps> = ({
           ) : (
             /* Live Iframe Player */
             <iframe
+              ref={iframeRef}
               data-testid="preview-player-iframe"
               src={previewUrl}
               title="Visual Novel Live Preview"
               allow="autoplay; fullscreen"
               sandbox="allow-scripts allow-same-origin allow-forms"
               className="h-full w-full border-none bg-black"
+              onLoad={handleIframeLoad}
             />
           )}
         </div>

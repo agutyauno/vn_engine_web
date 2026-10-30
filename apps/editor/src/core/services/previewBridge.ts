@@ -1,4 +1,7 @@
+import type { EngineDiagnostic } from '@vn-engine/shared-types';
 import type { HotReloadPayload } from '../stores/livePreviewStore';
+import { usePreviewStore } from '../stores/livePreviewStore';
+import { useDiagnosticsStore } from '../stores/diagnosticsStore';
 import type { ProjectRepository } from '../contracts/repository';
 
 export interface PreviewBridgeOptions {
@@ -6,6 +9,7 @@ export interface PreviewBridgeOptions {
   previewOrigin: string;
   localOrigin?: string;
   repository?: ProjectRepository;
+  watchdogTimeoutMs?: number;
 }
 
 export interface AssetBlobResponsePayload {
@@ -16,6 +20,24 @@ export interface AssetBlobResponsePayload {
   buffer?: ArrayBuffer;
   error?: 'NOT_FOUND' | 'READ_ERROR';
 }
+
+export type InboundPreviewMessage =
+  | { type: 'PLAYER_READY' }
+  | {
+      type: 'PREVIEW_STATE_UPDATE';
+      variables?: Record<string, unknown>;
+      vars?: Record<string, unknown>;
+    }
+  | { type: 'ENGINE_DIAGNOSTIC'; diagnostic: EngineDiagnostic }
+  | { type: 'GET_ASSET_BLOB'; assetId: string; requestId?: string }
+  | { type: 'ASSET_BLOB_REQUEST'; assetId: string; requestId?: string };
+
+export type OutboundPreviewMessage =
+  | { type: 'QUERY_READY' }
+  | { type: 'PLAYER_READY_ACK' }
+  | { type: 'HOT_RELOAD_PROGRAM'; payload: HotReloadPayload }
+  | { type: 'SET_VM_VARIABLE'; name: string; value: unknown }
+  | AssetBlobResponsePayload;
 
 export function isAllowedPreviewOrigin(
   origin: string,
@@ -67,42 +89,72 @@ export function buildPreviewUrl(
 export class PreviewBridge {
   private options: PreviewBridgeOptions;
   private messageListener: ((event: MessageEvent) => void) | null = null;
+  private watchdogTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(options: PreviewBridgeOptions) {
     this.options = options;
 
     if (typeof window !== 'undefined') {
       this.messageListener = (event: MessageEvent) => {
-        this.handleMessage(event);
+        void this.handleMessage(event);
       };
       window.addEventListener('message', this.messageListener);
     }
   }
 
-  public hotReload(payload: HotReloadPayload): void {
+  public probeReady(): void {
     const target = this.options.targetWindow();
-    if (!target) return;
+    if (target) {
+      target.postMessage({ type: 'QUERY_READY' }, this.options.previewOrigin);
+    }
 
-    target.postMessage(
-      {
-        type: 'HOT_RELOAD',
-        payload,
-      },
-      this.options.previewOrigin
-    );
+    if (this.watchdogTimer) {
+      clearTimeout(this.watchdogTimer);
+      this.watchdogTimer = null;
+    }
+
+    const timeoutMs = this.options.watchdogTimeoutMs ?? 3000;
+    this.watchdogTimer = setTimeout(() => {
+      if (usePreviewStore.getState().connectionStatus !== 'connected') {
+        usePreviewStore.getState().setConnectionStatus('disconnected');
+      }
+      this.watchdogTimer = null;
+    }, timeoutMs);
+  }
+
+  public hotReload(payload: HotReloadPayload): void {
+    const isConnected = usePreviewStore.getState().connectionStatus === 'connected';
+    const target = this.options.targetWindow();
+
+    if (isConnected && target) {
+      target.postMessage(
+        {
+          type: 'HOT_RELOAD_PROGRAM',
+          payload,
+        },
+        this.options.previewOrigin
+      );
+    } else {
+      usePreviewStore.getState().setPendingProgram(payload);
+    }
   }
 
   public sendVariable(name: string, value: unknown): void {
+    const isConnected = usePreviewStore.getState().connectionStatus === 'connected';
     const target = this.options.targetWindow();
-    if (!target) return;
 
-    target.postMessage(
-      {
-        type: 'VARIABLE_OVERRIDE',
-        payload: { name, value },
-      },
-      this.options.previewOrigin
-    );
+    if (isConnected && target) {
+      target.postMessage(
+        {
+          type: 'SET_VM_VARIABLE',
+          name,
+          value,
+        },
+        this.options.previewOrigin
+      );
+    } else {
+      usePreviewStore.getState().setVariableOverride(name, value);
+    }
   }
 
   public async handleMessage(event: MessageEvent): Promise<void> {
@@ -121,35 +173,147 @@ export class PreviewBridge {
       return;
     }
 
-    if (
-      data.type === 'ASSET_BLOB_REQUEST' &&
-      typeof data.assetId === 'string' &&
-      this.options.repository
-    ) {
-      try {
-        const blob = await this.options.repository.getAssetBlob(data.assetId);
-        const target = this.options.targetWindow();
-        if (target && blob) {
-          target.postMessage(
-            {
-              type: 'ASSET_BLOB_RESPONSE',
-              assetId: data.assetId,
-              blob,
-            },
-            this.options.previewOrigin
-          );
+    switch (data.type) {
+      case 'PLAYER_READY': {
+        if (this.watchdogTimer) {
+          clearTimeout(this.watchdogTimer);
+          this.watchdogTimer = null;
         }
-      } catch (err) {
-        console.warn('PreviewBridge: Failed to fetch asset blob:', err);
+
+        const target = this.options.targetWindow();
+        if (target) {
+          target.postMessage({ type: 'PLAYER_READY_ACK' }, this.options.previewOrigin);
+        }
+
+        const previewStore = usePreviewStore.getState();
+        previewStore.setConnectionStatus('connected');
+
+        // 1. Flush pendingProgram if any
+        if (previewStore.pendingProgram) {
+          const pendingProgram = previewStore.pendingProgram;
+          if (target) {
+            target.postMessage(
+              {
+                type: 'HOT_RELOAD_PROGRAM',
+                payload: pendingProgram,
+              },
+              this.options.previewOrigin
+            );
+          }
+          previewStore.clearPendingProgram();
+        }
+
+        // 2. Flush pending variable overrides if any
+        const overrides = previewStore.pendingVariableOverrides;
+        const entries = Object.entries(overrides);
+        if (entries.length > 0) {
+          for (const [name, value] of entries) {
+            if (target) {
+              target.postMessage(
+                {
+                  type: 'SET_VM_VARIABLE',
+                  name,
+                  value,
+                },
+                this.options.previewOrigin
+              );
+            }
+          }
+          previewStore.clearVariableOverrides();
+        }
+        break;
+      }
+
+      case 'GET_ASSET_BLOB':
+      case 'ASSET_BLOB_REQUEST': {
+        const assetId = data.assetId;
+        const requestId = data.requestId;
+
+        if (typeof assetId !== 'string') {
+          return;
+        }
+
+        const target = this.options.targetWindow();
+        if (!target) return;
+
+        if (!this.options.repository) {
+          const errorResponse: AssetBlobResponsePayload = {
+            type: 'ASSET_BLOB_RESPONSE',
+            assetId,
+            error: 'NOT_FOUND',
+          };
+          if (requestId !== undefined) {
+            errorResponse.requestId = requestId;
+          }
+          target.postMessage(errorResponse, this.options.previewOrigin);
+          return;
+        }
+
+        try {
+          const blob = await this.options.repository.getAssetBlob(assetId);
+          if (!blob) {
+            const notFoundResponse: AssetBlobResponsePayload = {
+              type: 'ASSET_BLOB_RESPONSE',
+              assetId,
+              error: 'NOT_FOUND',
+            };
+            if (requestId !== undefined) {
+              notFoundResponse.requestId = requestId;
+            }
+            target.postMessage(notFoundResponse, this.options.previewOrigin);
+            return;
+          }
+
+          const buffer = await blob.arrayBuffer();
+          const successResponse: AssetBlobResponsePayload = {
+            type: 'ASSET_BLOB_RESPONSE',
+            assetId,
+            mimeType: blob.type,
+            buffer,
+          };
+          if (requestId !== undefined) {
+            successResponse.requestId = requestId;
+          }
+          target.postMessage(successResponse, this.options.previewOrigin, [buffer]);
+        } catch {
+          const errorResponse: AssetBlobResponsePayload = {
+            type: 'ASSET_BLOB_RESPONSE',
+            assetId,
+            error: 'READ_ERROR',
+          };
+          if (requestId !== undefined) {
+            errorResponse.requestId = requestId;
+          }
+          target.postMessage(errorResponse, this.options.previewOrigin);
+        }
+        break;
+      }
+
+      case 'PREVIEW_STATE_UPDATE': {
+        const vars = (data.variables ?? data.vars) as Record<string, unknown> | undefined;
+        if (vars && typeof vars === 'object') {
+          usePreviewStore.getState().syncVariables(vars);
+        }
+        break;
+      }
+
+      case 'ENGINE_DIAGNOSTIC': {
+        if (data.diagnostic && typeof data.diagnostic === 'object') {
+          useDiagnosticsStore.getState().addRuntimeDiagnostic(data.diagnostic as EngineDiagnostic);
+        }
+        break;
       }
     }
   }
 
   public dispose(): void {
+    if (this.watchdogTimer) {
+      clearTimeout(this.watchdogTimer);
+      this.watchdogTimer = null;
+    }
     if (typeof window !== 'undefined' && this.messageListener) {
       window.removeEventListener('message', this.messageListener);
       this.messageListener = null;
     }
   }
 }
-
