@@ -2,7 +2,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
-import React from 'react';
 import type { Project, AssetRef, EngineDiagnostic } from '@vn-engine/shared-types';
 import { useEditorUIStore, initialUIState } from '../src/core/stores/uiStore';
 import { AssetLibraryPane } from '../src/components/studio/AssetLibraryPane';
@@ -39,7 +38,6 @@ describe('Editor UX Enhancements (Batch 3) — Unit Tests (RED Phase)', () => {
     localStorage.clear();
     useEditorUIStore.setState({
       ...initialUIState,
-      // @ts-expect-error lastAssetCategory will be added in GREEN phase
       lastAssetCategory: 'all',
     });
   });
@@ -52,7 +50,7 @@ describe('Editor UX Enhancements (Batch 3) — Unit Tests (RED Phase)', () => {
   // TC-UX-B3-01: Asset category default & persistence
   describe('TC-UX-B3-01: Asset category default & persistence', () => {
     it('should default lastAssetCategory to "all" and persist updates to localStorage', () => {
-      const state = useEditorUIStore.getState() as any;
+      const state = useEditorUIStore.getState();
       expect(state.lastAssetCategory).toBe('all');
       expect(typeof state.setLastAssetCategory).toBe('function');
 
@@ -62,7 +60,7 @@ describe('Editor UX Enhancements (Batch 3) — Unit Tests (RED Phase)', () => {
     });
 
     it('should initialize AssetLibraryPane category filter with uiStore.lastAssetCategory and update store on category change', () => {
-      (useEditorUIStore.getState() as any).setLastAssetCategory?.('all');
+      useEditorUIStore.getState().setLastAssetCategory('all');
 
       const mockAsset: AssetRef = {
         id: 'bg_classroom',
@@ -84,7 +82,7 @@ describe('Editor UX Enhancements (Batch 3) — Unit Tests (RED Phase)', () => {
       fireEvent.change(categorySelect, { target: { value: 'bgm' } });
 
       // Expect store to reflect 'bgm' and localStorage to persist 'bgm'
-      expect((useEditorUIStore.getState() as any).lastAssetCategory).toBe('bgm');
+      expect(useEditorUIStore.getState().lastAssetCategory).toBe('bgm');
       expect(localStorage.getItem('vn_editor_last_asset_category')).toBe('bgm');
     });
   });
@@ -202,7 +200,6 @@ describe('Editor UX Enhancements (Batch 3) — Unit Tests (RED Phase)', () => {
         <CreateAssetModal
           isOpen={true}
           initialFile={null}
-          // @ts-expect-error will be added in GREEN phase
           initialAsset={existingAsset}
           isEditMode={true}
           existingAssetIds={['bgm_peaceful_day', 'sfx_bell']}
@@ -230,7 +227,7 @@ describe('Editor UX Enhancements (Batch 3) — Unit Tests (RED Phase)', () => {
       fireEvent.click(saveBtn);
 
       expect(handleSave).toHaveBeenCalledTimes(1);
-      const savedAsset = handleSave.mock.calls[0][0] as AssetRef;
+      const savedAsset = handleSave.mock.calls[0]?.[0] as AssetRef;
       expect(savedAsset.id).toBe('bgm_peaceful_day');
       expect(savedAsset.name).toBe('Peaceful Day (Orchestral)');
       expect(savedAsset.category).toBe('other');
@@ -265,7 +262,8 @@ describe('Editor UX Enhancements (Batch 3) — Unit Tests (RED Phase)', () => {
           col: 10,
           severity: 'error',
           message: 'Unexpected token at line 4',
-          category: 'syntax',
+          category: 'compiler',
+          timestamp: 1000,
         },
         {
           id: 'diag-unused-asset-bg_forest',
@@ -275,7 +273,7 @@ describe('Editor UX Enhancements (Batch 3) — Unit Tests (RED Phase)', () => {
           severity: 'info',
           message: "Unused asset 'bg_forest.png' detected in project inventory.",
           category: 'asset',
-          assetKey: 'bg_forest.png',
+          timestamp: 1001,
         },
         {
           id: 'diag-unused-asset-bgm_theme',
@@ -285,7 +283,7 @@ describe('Editor UX Enhancements (Batch 3) — Unit Tests (RED Phase)', () => {
           severity: 'info',
           message: "Unused asset 'bgm_theme.mp3' detected in project inventory.",
           category: 'asset',
-          assetKey: 'bgm_theme.mp3',
+          timestamp: 1002,
         },
       ];
 
@@ -297,7 +295,8 @@ describe('Editor UX Enhancements (Batch 3) — Unit Tests (RED Phase)', () => {
       });
 
       expect(setModelMarkersSpy).toHaveBeenCalledTimes(1);
-      const [modelArg, ownerArg, markersArg] = setModelMarkersSpy.mock.calls[0];
+      const call = setModelMarkersSpy.mock.calls[0]!;
+      const [modelArg, ownerArg, markersArg] = call;
       expect(modelArg).toBe(mockModel);
       expect(ownerArg).toBe(MONACO_MARKER_OWNER);
 
@@ -338,4 +337,3 @@ describe('Editor UX Enhancements (Batch 3) — Unit Tests (RED Phase)', () => {
     });
   });
 });
-

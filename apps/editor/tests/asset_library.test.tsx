@@ -312,7 +312,8 @@ play music "bg_rain.mp3"
       expect(screen.getByTestId('tab-asset-audio')).toBeInTheDocument();
       expect(screen.getByTestId('tab-asset-sprites')).toBeInTheDocument();
 
-      // Default tab is Backgrounds
+      // Switch to Backgrounds tab
+      fireEvent.click(screen.getByTestId('tab-asset-backgrounds'));
       expect(screen.getByText('bg_classroom.png')).toBeInTheDocument();
       expect(screen.getByText('bg_school.png')).toBeInTheDocument();
       expect(screen.queryByText('bg_rain.mp3')).not.toBeInTheDocument();

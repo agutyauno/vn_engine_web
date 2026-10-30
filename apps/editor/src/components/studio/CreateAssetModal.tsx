@@ -8,6 +8,8 @@ export interface CreateAssetModalProps {
   initialFile: File | null;
   initialAssetId?: string;
   initialCategory?: AssetCategory;
+  initialAsset?: AssetRef | null;
+  isEditMode?: boolean;
   existingAssetIds: string[];
   onClose: () => void;
   onSave: (asset: AssetRef, fileBlob?: Blob) => void;
@@ -30,30 +32,46 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
   initialFile,
   initialAssetId,
   initialCategory,
+  initialAsset,
+  isEditMode,
   existingAssetIds,
   onClose,
   onSave,
 }) => {
+  const isEdit = Boolean(isEditMode || initialAsset);
+
   const [registrationMode, setRegistrationMode] = useState<'upload' | 'remote'>(
-    initialFile ? 'upload' : initialAssetId ? 'remote' : 'upload'
+    initialFile ? 'upload' : initialAsset || initialAssetId ? 'remote' : 'upload'
   );
-  const [remoteUrl, setRemoteUrl] = useState<string>('');
+  const [remoteUrl, setRemoteUrl] = useState<string>(initialAsset?.storageUrl || '');
   const [currentFile, setCurrentFile] = useState<File | null>(initialFile);
-  const [assetId, setAssetId] = useState<string>(initialAssetId || '');
-  const [assetName, setAssetName] = useState<string>('');
-  const [category, setCategory] = useState<AssetCategory>(initialCategory || 'background');
-  const [detectedType, setDetectedType] = useState<'image' | 'audio'>('image');
-  const [previewUrl, setPreviewUrl] = useState<string>('');
+  const [assetId, setAssetId] = useState<string>(initialAsset?.id || initialAssetId || '');
+  const [assetName, setAssetName] = useState<string>(initialAsset?.name || '');
+  const [category, setCategory] = useState<AssetCategory>(
+    initialAsset?.category || initialCategory || 'background'
+  );
+  const [detectedType, setDetectedType] = useState<AssetRef['type']>(initialAsset?.type || 'image');
+  const [previewUrl, setPreviewUrl] = useState<string>(initialAsset?.storageUrl || '');
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isZoomed, setIsZoomed] = useState<boolean>(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (initialAssetId) {
+    if (initialAsset) {
+      setAssetId(initialAsset.id);
+      setAssetName(initialAsset.name);
+      setCategory(initialAsset.category || 'background');
+      setDetectedType(initialAsset.type || 'image');
+      setPreviewUrl(initialAsset.storageUrl || '');
+      setRemoteUrl(initialAsset.storageUrl || '');
+      if (initialAsset.storageUrl) {
+        setRegistrationMode('remote');
+      }
+    } else if (initialAssetId) {
       setAssetId(initialAssetId);
     }
-  }, [initialAssetId]);
+  }, [initialAsset, initialAssetId]);
 
   useEffect(() => {
     if (initialCategory) {
@@ -70,11 +88,11 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
 
   useEffect(() => {
     if (!currentFile) {
-      if (!initialAssetId) {
+      if (!initialAsset && !initialAssetId) {
         setAssetId('');
+        setAssetName('');
+        setPreviewUrl('');
       }
-      setAssetName('');
-      setPreviewUrl('');
       setValidationError(null);
       return;
     }
@@ -86,11 +104,11 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
     }
 
     setValidationError(null);
-    if (!initialAssetId && !assetId) {
+    if (!initialAsset && !initialAssetId && !assetId) {
       setAssetId(validation.suggestedId || slugifyAssetId(currentFile.name));
     }
-    setAssetName(currentFile.name);
-    setCategory(initialCategory || validation.suggestedCategory || 'background');
+    setAssetName((prev) => (prev.trim() ? prev : currentFile.name));
+    setCategory((prev) => initialCategory || (initialAsset ? prev : validation.suggestedCategory || 'background'));
     setDetectedType(validation.detectedType || 'image');
 
     const objectUrl =
@@ -105,17 +123,19 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
         URL.revokeObjectURL(objectUrl);
       }
     };
-  }, [currentFile, initialCategory, initialAssetId]);
+  }, [currentFile, initialCategory, initialAssetId, initialAsset]);
 
   if (!isOpen) return null;
 
-  const isDuplicate = existingAssetIds.includes(assetId.trim());
+  const isDuplicate =
+    existingAssetIds.includes(assetId.trim()) &&
+    (!initialAsset || assetId.trim() !== initialAsset.id);
   const isValidIdentifier = VNS_IDENTIFIER_REGEX.test(assetId.trim());
   const canSave =
     Boolean(assetId.trim()) &&
     isValidIdentifier &&
     !isDuplicate &&
-    (registrationMode === 'remote' || (Boolean(currentFile) && !validationError));
+    (isEdit || registrationMode === 'remote' || (Boolean(currentFile) && !validationError));
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -128,8 +148,7 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
     e.preventDefault();
     if (!canSave) return;
 
-    if (registrationMode === 'upload') {
-      if (!currentFile) return;
+    if (registrationMode === 'upload' && currentFile) {
       const newAsset: AssetRef = {
         id: assetId.trim(),
         name: assetName.trim() || currentFile.name,
@@ -140,17 +159,20 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
       };
       onSave(newAsset, currentFile);
     } else {
-      // Remote URL or Placeholder Stub
+      // Remote URL or Placeholder Stub or Editing existing asset
       const isAudio = category === 'bgm' || category === 'sfx' || category === 'voice';
-      const inferredType = isAudio ? 'audio' : 'image';
-      const finalUrl = remoteUrl.trim();
+      const inferredType = detectedType || (isAudio ? 'audio' : 'image');
+      const finalUrl =
+        (registrationMode === 'remote' ? remoteUrl.trim() : previewUrl) ||
+        initialAsset?.storageUrl ||
+        '';
       const newAsset: AssetRef = {
         id: assetId.trim(),
         name: assetName.trim() || assetId.trim(),
         type: inferredType,
         category,
         storageUrl: finalUrl,
-        sizeBytes: 0,
+        sizeBytes: initialAsset?.sizeBytes || 0,
       };
       onSave(newAsset, undefined);
     }
@@ -163,7 +185,9 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
         <div className="flex items-center justify-between border-b border-neutral-800 px-5 py-4">
           <div className="flex items-center gap-2">
             <ImageIcon size={18} className="text-neutral-400" />
-            <h2 className="text-sm font-semibold text-neutral-100">New Asset</h2>
+            <h2 className="text-sm font-semibold text-neutral-100">
+              {isEdit ? 'Edit Asset' : 'New Asset'}
+            </h2>
           </div>
           <button
             onClick={onClose}
@@ -180,11 +204,10 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
             type="button"
             data-testid="btn-mode-upload"
             onClick={() => setRegistrationMode('upload')}
-            className={`pb-2 px-1 font-medium border-b-2 transition ${
-              registrationMode === 'upload'
+            className={`pb-2 px-1 font-medium border-b-2 transition ${registrationMode === 'upload'
                 ? 'border-white text-white font-semibold'
                 : 'border-transparent text-neutral-400 hover:text-neutral-200'
-            }`}
+              }`}
           >
             Upload File
           </button>
@@ -192,11 +215,10 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
             type="button"
             data-testid="btn-mode-remote"
             onClick={() => setRegistrationMode('remote')}
-            className={`pb-2 px-1 font-medium border-b-2 transition ${
-              registrationMode === 'remote'
+            className={`pb-2 px-1 font-medium border-b-2 transition ${registrationMode === 'remote'
                 ? 'border-white text-white font-semibold'
                 : 'border-transparent text-neutral-400 hover:text-neutral-200'
-            }`}
+              }`}
           >
             Remote URL / Placeholder
           </button>
@@ -283,10 +305,17 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
               data-testid="input-asset-id"
               type="text"
               value={assetId}
+              disabled={isEdit}
               onChange={(e) => setAssetId(e.target.value)}
               placeholder="e.g. bg_classroom, bgm_theme"
-              className="w-full px-3 py-2 text-xs bg-neutral-950 border border-neutral-800 rounded-md text-neutral-100 placeholder-neutral-500 focus:outline-hidden focus:border-neutral-500 font-mono"
+              className={`w-full px-3 py-2 text-xs bg-neutral-950 border border-neutral-800 rounded-md text-neutral-100 placeholder-neutral-500 focus:outline-hidden focus:border-neutral-500 font-mono ${isEdit ? 'opacity-60 cursor-not-allowed' : ''
+                }`}
             />
+            {isEdit && (
+              <p className="mt-1 text-[11px] text-neutral-500">
+                Asset ID cannot be modified to protect script references.
+              </p>
+            )}
             {isDuplicate && (
               <p
                 data-testid="asset-id-duplicate-error"
@@ -351,7 +380,7 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
               disabled={!canSave}
               className="px-4 py-2 text-xs font-semibold text-white bg-neutral-100 text-neutral-900 rounded-md hover:bg-neutral-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              Save Asset
+              {isEdit ? 'Save Changes' : 'Save Asset'}
             </button>
           </div>
         </form>

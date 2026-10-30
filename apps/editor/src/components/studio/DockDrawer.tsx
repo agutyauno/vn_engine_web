@@ -41,7 +41,7 @@ export const DockDrawer: React.FC<DockDrawerProps> = ({
   return (
     <div
       data-testid="dock-drawer"
-      className="flex flex-col border-t border-neutral-800 bg-neutral-900/95 text-xs shrink-0 select-none transition-all duration-150"
+      className="flex flex-col border-t border-neutral-800 bg-neutral-900/95 text-xs shrink-0 select-none"
       style={{ height: effectiveHeight }}
     >
       {/* Drawer Header Bar */}

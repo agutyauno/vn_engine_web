@@ -11,12 +11,14 @@ import {
   AlertTriangleIcon,
   PlayIcon,
   PauseIcon,
+  RotateCcwIcon,
   XIcon,
 } from '../common/Icons';
 import { SafeDeleteModal } from './SafeDeleteModal';
 import { CreateAssetModal } from './CreateAssetModal';
 import { checkAssetDeletionSafety } from '../../core/services/reconciliation';
 import { validateAssetFile } from '../../core/utils/assetValidation';
+import { useEditorUIStore } from '../../core/stores/uiStore';
 
 export interface AssetLibraryPaneProps {
   project: Project;
@@ -24,6 +26,7 @@ export interface AssetLibraryPaneProps {
   quickFixAssetName?: string;
   onClearQuickFix?: () => void;
   onAddAsset?: (asset: AssetRef, fileBlob?: Blob) => void;
+  onUpdateAsset?: (asset: AssetRef, fileBlob?: Blob) => void;
   onReplaceAsset?: (assetId: string, newBlob: Blob, newFileName?: string) => void;
   onDeleteAsset?: (assetId: string) => void;
 }
@@ -45,10 +48,27 @@ export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
   quickFixAssetName,
   onClearQuickFix,
   onAddAsset,
+  onUpdateAsset,
   onReplaceAsset,
   onDeleteAsset,
 }) => {
-  const [activeTab, setActiveTab] = useState<ConsolidatedCategory>('backgrounds');
+  const lastAssetCategory = useEditorUIStore((s) => s.lastAssetCategory) as ConsolidatedCategory;
+  const setLastAssetCategory = useEditorUIStore((s) => s.setLastAssetCategory);
+
+  const [activeTab, setActiveTab] = useState<ConsolidatedCategory>(lastAssetCategory || 'all');
+  const [editingAsset, setEditingAsset] = useState<AssetRef | null>(null);
+
+  useEffect(() => {
+    if (lastAssetCategory) {
+      setActiveTab(lastAssetCategory as ConsolidatedCategory);
+    }
+  }, [lastAssetCategory]);
+
+  const handleCategoryFilterChange = (cat: ConsolidatedCategory) => {
+    setActiveTab(cat);
+    setLastAssetCategory(cat);
+  };
+
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAssetForDelete, setSelectedAssetForDelete] = useState<AssetRef | null>(null);
   const [targetReplaceAssetId, setTargetReplaceAssetId] = useState<string | null>(null);
@@ -350,7 +370,7 @@ export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
           id="select-asset-category-filter"
           data-testid="select-asset-category-filter"
           value={activeTab}
-          onChange={(e) => setActiveTab(e.target.value as ConsolidatedCategory)}
+          onChange={(e) => handleCategoryFilterChange(e.target.value as ConsolidatedCategory)}
           className="w-full rounded border border-neutral-800 bg-neutral-950 px-2.5 py-1.5 text-xs text-neutral-200 focus:border-neutral-700 focus:outline-none transition cursor-pointer font-sans"
         >
           <option value="all">All Categories</option>
@@ -478,12 +498,22 @@ export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
 
                   <button
                     type="button"
+                    data-testid="btn-edit-asset"
+                    onClick={() => setEditingAsset(asset)}
+                    className="rounded p-1 text-neutral-400 hover:bg-neutral-700 hover:text-white transition"
+                    title="Edit asset info"
+                  >
+                    <EditIcon size={13} />
+                  </button>
+
+                  <button
+                    type="button"
                     data-testid="btn-replace-asset"
                     onClick={() => triggerReplace(asset.id)}
                     className="rounded p-1 text-neutral-400 hover:bg-neutral-700 hover:text-white transition"
                     title="Replace file (preserves ID)"
                   >
-                    <EditIcon size={13} />
+                    <RotateCcwIcon size={13} />
                   </button>
 
                   <button
@@ -581,6 +611,21 @@ export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
         }}
         onSave={handleSaveCreatedAsset}
       />
+      {/* Edit Asset Modal */}
+      {editingAsset && (
+        <CreateAssetModal
+          isOpen={true}
+          initialFile={null}
+          initialAsset={editingAsset}
+          isEditMode={true}
+          existingAssetIds={(project.assets || []).map((a) => a.id)}
+          onClose={() => setEditingAsset(null)}
+          onSave={(updatedAsset, fileBlob) => {
+            (onUpdateAsset || onAddAsset)?.(updatedAsset, fileBlob);
+            setEditingAsset(null);
+          }}
+        />
+      )}
     </div>
   );
 };

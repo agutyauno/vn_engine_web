@@ -19,9 +19,13 @@ export function syncMonacoMarkers(options: MonacoMarkerSyncOptions): void {
   }
 
   // 1. Multi-File Scoping: Filter diagnostics for active file or global diagnostics
-  const scopedDiagnostics = diagnostics.filter(
-    (d) => !d.fileId || d.fileId === activeFileId
-  );
+  // Unused asset or inventory-level asset diagnostics without fileId must NOT create editor markers
+  const scopedDiagnostics = diagnostics.filter((d) => {
+    if (!d.fileId && (d.category === 'asset' || d.id?.startsWith('diag-unused-asset-'))) {
+      return false;
+    }
+    return !d.fileId || d.fileId === activeFileId;
+  });
 
   // 2. Map diagnostics to Monaco IMarkerData
   const markers: monaco.editor.IMarkerData[] = scopedDiagnostics.map((d) => {

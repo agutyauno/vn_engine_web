@@ -13,6 +13,7 @@ export interface EditorUIStoreState {
 
   // Workspace Navigation
   activeTab: 'scripts' | 'characters' | 'assets' | null;
+  lastAssetCategory: string; // Default: 'all'
   openFileIds: string[];
   activeFileId: string | null;
   isDrawerOpen: boolean;
@@ -33,6 +34,7 @@ export interface EditorUIStoreState {
   resetDimensions: () => void;
 
   setActiveTab: (tab: 'scripts' | 'characters' | 'assets' | null) => void;
+  setLastAssetCategory: (category: string) => void;
   selectTab: (fileId: string) => void;
   closeTab: (fileId: string) => void;
 
@@ -51,6 +53,18 @@ export interface EditorUIStoreState {
 }
 
 const STORAGE_KEY = 'vn_editor_layout_dims';
+const ASSET_CATEGORY_STORAGE_KEY = 'vn_editor_last_asset_category';
+
+function getInitialAssetCategory(): string {
+  if (typeof window === 'undefined' || !window.localStorage) {
+    return 'all';
+  }
+  try {
+    return localStorage.getItem(ASSET_CATEGORY_STORAGE_KEY) || 'all';
+  } catch {
+    return 'all';
+  }
+}
 
 function getInitialDimensions(): { navWidth: number; previewWidth: number; drawerHeight: number } {
   const defaults = { navWidth: 260, previewWidth: 440, drawerHeight: 200 };
@@ -89,6 +103,7 @@ export const initialUIState: Omit<
   | 'clampCompositeBounds'
   | 'resetDimensions'
   | 'setActiveTab'
+  | 'setLastAssetCategory'
   | 'selectTab'
   | 'closeTab'
   | 'toggleDrawer'
@@ -103,6 +118,7 @@ export const initialUIState: Omit<
   | 'resolveUnsavedGuard'
 > = {
   ...getInitialDimensions(),
+  lastAssetCategory: getInitialAssetCategory(),
   activeTab: 'scripts',
   openFileIds: [],
   activeFileId: null,
@@ -204,6 +220,17 @@ export const useEditorUIStore = create<EditorUIStoreState>((set, get) => ({
   },
 
   setActiveTab: (activeTab) => set({ activeTab }),
+
+  setLastAssetCategory: (category) => {
+    set({ lastAssetCategory: category });
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        localStorage.setItem(ASSET_CATEGORY_STORAGE_KEY, category);
+      } catch {
+        // Ignore storage errors in restricted contexts
+      }
+    }
+  },
 
   selectTab: (fileId) =>
     set((state) => {
