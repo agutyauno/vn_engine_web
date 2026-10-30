@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { PlayIcon, SettingsIcon, ChevronLeftIcon, EditIcon, SaveIcon } from '../common/Icons';
+import { ChevronLeftIcon, EditIcon, SaveIcon } from '../common/Icons';
 
 export interface StudioHeaderProps {
   projectTitle?: string;
@@ -36,17 +36,9 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
   title,
   isDirty = false,
   isSaving = false,
-  canvasWidth,
-  canvasHeight,
-  width,
-  height,
-  resolution,
   onBack,
   onBackToHub,
   onTitleChange,
-  onQuickPlay,
-  onOpenSettings,
-  onExport,
   onSave,
 }) => {
   const resolvedTitle = projectTitle ?? title ?? '';
@@ -67,8 +59,6 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
     setIsEditingTitle(false);
   };
 
-  const effectiveWidth = resolution?.width ?? canvasWidth ?? width ?? 1920;
-  const effectiveHeight = resolution?.height ?? canvasHeight ?? height ?? 1080;
   const handleBack = onBack ?? onBackToHub ?? (() => {});
 
   let saveStatusText = 'Saved to IndexedDB';
@@ -142,15 +132,8 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
         )}
       </div>
 
-      {/* Center: Resolution & Save Status */}
+      {/* Center: Save Status */}
       <div className="flex items-center gap-3">
-        <div
-          data-testid="header-resolution-badge"
-          className="rounded bg-neutral-800/80 px-2.5 py-0.5 text-[11px] font-mono text-neutral-400 border border-neutral-700/50"
-        >
-          {getAspectRatioBadge(effectiveWidth, effectiveHeight)}
-        </div>
-
         <div
           data-testid="header-save-status"
           className={`rounded-full px-2.5 py-0.5 text-[11px] font-mono border ${saveStatusClass}`}
@@ -159,7 +142,7 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
         </div>
       </div>
 
-      {/* Right: Actions */}
+      {/* Right: Manual Save Action */}
       <div className="flex items-center gap-2">
         {onSave && (
           <button
@@ -175,44 +158,6 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
           >
             <SaveIcon size={13} />
             <span>Save</span>
-          </button>
-        )}
-
-        {onQuickPlay && (
-          <button
-            type="button"
-            data-testid="btn-quick-play"
-            onClick={onQuickPlay}
-            title="Run Live Preview from active scene"
-            className="flex items-center gap-1.5 rounded bg-white px-3 py-1 text-xs font-semibold text-neutral-950 hover:bg-neutral-200 transition"
-          >
-            <PlayIcon size={11} />
-            Quick Play
-          </button>
-        )}
-
-        {onExport && (
-          <button
-            type="button"
-            data-testid="btn-export-project"
-            onClick={onExport}
-            title="Export Release Package"
-            className="flex items-center gap-1.5 rounded border border-neutral-700 bg-neutral-800 px-2.5 py-1 text-xs font-medium text-neutral-300 hover:bg-neutral-700 hover:text-white transition"
-          >
-            Export
-          </button>
-        )}
-
-        {onOpenSettings && (
-          <button
-            type="button"
-            data-testid="btn-project-settings"
-            onClick={onOpenSettings}
-            title="Project Settings"
-            aria-label="Settings"
-            className="rounded p-1.5 text-neutral-400 hover:bg-neutral-800 hover:text-white transition"
-          >
-            <SettingsIcon size={16} />
           </button>
         )}
       </div>

@@ -186,7 +186,7 @@ describe('Milestone 8: Live Preview Dock (Column 3 Full-Height)', () => {
       await repo.updateProject(landscapeProject);
     });
 
-    it('activates preview when Quick Play button is clicked in header', async () => {
+    it('activates preview when Play button is clicked in PreviewDock', async () => {
       render(
         <StudioWorkspacePage
           projectId={landscapeProject.id}
@@ -197,13 +197,13 @@ describe('Milestone 8: Live Preview Dock (Column 3 Full-Height)', () => {
 
       expect(screen.getByTestId('preview-dock')).toBeInTheDocument();
 
-      // Quick play button in StudioHeader
-      const quickPlayBtn = screen.getByTestId('btn-quick-play');
-      fireEvent.click(quickPlayBtn);
+      // Play button in PreviewDock
+      const playBtn = screen.getByTestId('btn-preview-play');
+      fireEvent.click(playBtn);
 
       await waitFor(() => {
         expect(screen.getByTestId('preview-player-iframe')).toBeInTheDocument();
-      });
     });
   });
+});
 });

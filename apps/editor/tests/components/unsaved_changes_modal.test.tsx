@@ -2,11 +2,7 @@
 import '@testing-library/jest-dom';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
-import React from 'react';
-import {
-  UnsavedChangesModal,
-  type UnsavedChangesModalProps,
-} from '../../src/components/studio/UnsavedChangesModal';
+import { UnsavedChangesModal } from '../../src/components/studio/UnsavedChangesModal';
 
 describe('UnsavedChangesModal Component (Phase 4 TDD)', () => {
   afterEach(() => {

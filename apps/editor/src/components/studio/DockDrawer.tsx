@@ -1,29 +1,24 @@
 import React, { useEffect } from 'react';
-import {
-  AlertCircleIcon,
-  SlidersIcon,
-  TerminalIcon,
-  ChevronDownIcon,
-  ChevronUpIcon,
-} from '../common/Icons';
+import { AlertCircleIcon, ChevronDownIcon, ChevronUpIcon } from '../common/Icons';
 
 export type DrawerTab = 'problems' | 'cheats' | 'console';
 
 export interface DockDrawerProps {
   isOpen: boolean;
-  activeTab: DrawerTab;
+  activeTab?: DrawerTab;
   errorCount: number;
   warningCount?: number;
+  height?: number;
   onToggleDrawer: () => void;
-  onSelectTab: (tab: DrawerTab) => void;
+  onSelectTab?: (tab: DrawerTab) => void;
   children: React.ReactNode;
 }
 
 export const DockDrawer: React.FC<DockDrawerProps> = ({
   isOpen,
-  activeTab,
   errorCount,
   warningCount = 0,
+  height = 180,
   onToggleDrawer,
   onSelectTab,
   children,
@@ -40,11 +35,13 @@ export const DockDrawer: React.FC<DockDrawerProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onToggleDrawer]);
 
+  const effectiveHeight = isOpen ? `${height}px` : '30px';
+
   return (
     <div
       data-testid="dock-drawer"
       className="flex flex-col border-t border-neutral-800 bg-neutral-900/95 text-xs shrink-0 select-none transition-all duration-150"
-      style={{ height: isOpen ? '180px' : '30px' }}
+      style={{ height: effectiveHeight }}
     >
       {/* Drawer Header Bar */}
       <div className="flex h-[30px] items-center justify-between border-b border-neutral-800 px-3 bg-neutral-950">
@@ -55,13 +52,9 @@ export const DockDrawer: React.FC<DockDrawerProps> = ({
             data-testid="tab-drawer-problems"
             onClick={() => {
               if (!isOpen) onToggleDrawer();
-              onSelectTab('problems');
+              onSelectTab?.('problems');
             }}
-            className={`flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium transition rounded-t ${
-              activeTab === 'problems' && isOpen
-                ? 'bg-neutral-900 text-white border-b-2 border-amber-500'
-                : 'text-neutral-400 hover:text-neutral-200'
-            }`}
+            className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium transition rounded-t bg-neutral-900 text-white border-b-2 border-amber-500"
           >
             <AlertCircleIcon size={12} className={errorCount > 0 ? 'text-rose-400' : 'text-neutral-500'} />
             <span>Problems</span>
@@ -81,42 +74,6 @@ export const DockDrawer: React.FC<DockDrawerProps> = ({
                 {warningCount}
               </span>
             )}
-          </button>
-
-          {/* Variables / Cheats Tab */}
-          <button
-            type="button"
-            data-testid="tab-drawer-cheats"
-            onClick={() => {
-              if (!isOpen) onToggleDrawer();
-              onSelectTab('cheats');
-            }}
-            className={`flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium transition rounded-t ${
-              activeTab === 'cheats' && isOpen
-                ? 'bg-neutral-900 text-white border-b-2 border-sky-500'
-                : 'text-neutral-400 hover:text-neutral-200'
-            }`}
-          >
-            <SlidersIcon size={12} className="text-neutral-400" />
-            <span>Variables & Cheats</span>
-          </button>
-
-          {/* Console Tab */}
-          <button
-            type="button"
-            data-testid="tab-drawer-console"
-            onClick={() => {
-              if (!isOpen) onToggleDrawer();
-              onSelectTab('console');
-            }}
-            className={`flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium transition rounded-t ${
-              activeTab === 'console' && isOpen
-                ? 'bg-neutral-900 text-white border-b-2 border-emerald-500'
-                : 'text-neutral-400 hover:text-neutral-200'
-            }`}
-          >
-            <TerminalIcon size={12} className="text-neutral-400" />
-            <span>Console</span>
           </button>
         </div>
 

@@ -146,7 +146,7 @@ describe('Milestone 9: Project Settings & Export Wizard', () => {
       );
     });
 
-    it('switches to Gameplay tab and adjusts volume sliders', () => {
+    it('switches to Gameplay tab and adjusts functional gameplay settings', () => {
       const handleSave = vi.fn();
 
       render(
@@ -160,17 +160,23 @@ describe('Milestone 9: Project Settings & Export Wizard', () => {
 
       fireEvent.click(screen.getByTestId('tab-settings-gameplay'));
 
-      const bgmSlider = screen.getByTestId('slider-settings-bgm');
-      fireEvent.change(bgmSlider, { target: { value: '75' } });
+      const speedSlider = screen.getByTestId('slider-settings-text-speed');
+      fireEvent.change(speedSlider, { target: { value: '45' } });
+
+      const delaySlider = screen.getByTestId('slider-settings-autoforward-delay');
+      fireEvent.change(delaySlider, { target: { value: '4' } });
+
+      const choiceSelect = screen.getByTestId('select-settings-unmet-choice');
+      fireEvent.change(choiceSelect, { target: { value: 'disabled' } });
 
       fireEvent.click(screen.getByTestId('btn-save-settings'));
 
       expect(handleSave).toHaveBeenCalledWith(
         expect.objectContaining({
           gameplaySettings: expect.objectContaining({
-            defaultVolumes: expect.objectContaining({
-              bgm: 75,
-            }),
+            textSpeed: 45,
+            autoForwardDelay: 4,
+            unmetChoiceDisplay: 'disabled',
           }),
         })
       );
@@ -268,7 +274,7 @@ describe('Milestone 9: Project Settings & Export Wizard', () => {
         />
       );
 
-      const settingsBtn = screen.getByTestId('btn-project-settings');
+      const settingsBtn = screen.getByTestId('activity-bar-btn-settings');
       fireEvent.click(settingsBtn);
 
       expect(screen.getByTestId('modal-project-settings')).toBeInTheDocument();
@@ -290,7 +296,7 @@ describe('Milestone 9: Project Settings & Export Wizard', () => {
       expect(loaded?.title).toBe('Brand New Title');
     });
 
-    it('opens ExportWizardModal from header Export button', async () => {
+    it('verifies StudioHeader pruned export button per Phase 4 spec', async () => {
       render(
         <StudioWorkspacePage
           projectId={sampleProject.id}
@@ -299,14 +305,7 @@ describe('Milestone 9: Project Settings & Export Wizard', () => {
         />
       );
 
-      const exportBtn = screen.getByTestId('btn-export-project');
-      fireEvent.click(exportBtn);
-
-      expect(screen.getByTestId('modal-export-wizard')).toBeInTheDocument();
-
-      // Close modal
-      fireEvent.click(screen.getByTestId('btn-close-export'));
-      expect(screen.queryByTestId('modal-export-wizard')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('btn-export-project')).not.toBeInTheDocument();
     });
   });
 });

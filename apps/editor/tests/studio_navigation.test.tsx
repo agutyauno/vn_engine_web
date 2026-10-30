@@ -295,17 +295,14 @@ describe('Studio Shell & Navigation (Milestone 3 TDD)', () => {
   describe('StudioHeader', () => {
     it('renders project title and action buttons', () => {
       const handleBack = vi.fn();
-      const handlePlay = vi.fn();
-      const handleSettings = vi.fn();
-      const handleExport = vi.fn();
+      const handleSave = vi.fn();
 
       render(
         <StudioHeader
           projectTitle="My Visual Novel"
           onBack={handleBack}
-          onQuickPlay={handlePlay}
-          onOpenSettings={handleSettings}
-          onExport={handleExport}
+          onSave={handleSave}
+          isDirty={true}
         />
       );
 
@@ -314,14 +311,8 @@ describe('Studio Shell & Navigation (Milestone 3 TDD)', () => {
       fireEvent.click(screen.getByTestId('btn-back-hub'));
       expect(handleBack).toHaveBeenCalledTimes(1);
 
-      fireEvent.click(screen.getByTestId('btn-quick-play'));
-      expect(handlePlay).toHaveBeenCalledTimes(1);
-
-      fireEvent.click(screen.getByTestId('btn-project-settings'));
-      expect(handleSettings).toHaveBeenCalledTimes(1);
-
-      fireEvent.click(screen.getByTestId('btn-export-project'));
-      expect(handleExport).toHaveBeenCalledTimes(1);
+      fireEvent.click(screen.getByTestId('btn-manual-save'));
+      expect(handleSave).toHaveBeenCalledTimes(1);
     });
 
     it('supports inline click-to-edit project title on Enter and blur', () => {
@@ -409,19 +400,6 @@ describe('Studio Shell & Navigation (Milestone 3 TDD)', () => {
       expect(getAspectRatioBadge(1920, 1080)).toBe('1920 × 1080 (16:9)');
       expect(getAspectRatioBadge(1080, 1920)).toBe('1080 × 1920 (9:16)');
       expect(getAspectRatioBadge(1024, 768)).toBe('1024 × 768 (4:3)');
-
-      render(
-        <StudioHeader
-          projectTitle="My Project"
-          canvasWidth={1080}
-          canvasHeight={1920}
-          onBack={vi.fn()}
-        />
-      );
-
-      expect(screen.getByTestId('header-resolution-badge')).toHaveTextContent(
-        '1080 × 1920 (9:16)'
-      );
     });
   });
 

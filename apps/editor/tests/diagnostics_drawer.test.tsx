@@ -133,8 +133,6 @@ describe('Milestone 7: Bottom Diagnostics Drawer (Column 2 Bottom)', () => {
 
       expect(screen.getByTestId('dock-drawer')).toBeInTheDocument();
       expect(screen.getByTestId('tab-drawer-problems')).toBeInTheDocument();
-      expect(screen.getByTestId('tab-drawer-cheats')).toBeInTheDocument();
-      expect(screen.getByTestId('tab-drawer-console')).toBeInTheDocument();
 
       // Error/warning count badge
       const errorBadge = screen.getByTestId('drawer-error-count');
@@ -142,9 +140,9 @@ describe('Milestone 7: Bottom Diagnostics Drawer (Column 2 Bottom)', () => {
       const warningBadge = screen.getByTestId('drawer-warning-count');
       expect(warningBadge).toHaveTextContent('2');
 
-      // Switches tab on click
-      fireEvent.click(screen.getByTestId('tab-drawer-cheats'));
-      expect(handleSelectTab).toHaveBeenCalledWith('cheats');
+      // Click problems tab triggers onSelectTab
+      fireEvent.click(screen.getByTestId('tab-drawer-problems'));
+      expect(handleSelectTab).toHaveBeenCalledWith('problems');
 
       // Toggle drawer collapse button
       fireEvent.click(screen.getByTestId('btn-toggle-drawer'));

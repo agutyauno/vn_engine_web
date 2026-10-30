@@ -2,11 +2,7 @@
 import '@testing-library/jest-dom';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
-import React from 'react';
-import {
-  ColumnSplitter,
-  type ColumnSplitterProps,
-} from '../../src/components/studio/ColumnSplitter';
+import { ColumnSplitter } from '../../src/components/studio/ColumnSplitter';
 
 describe('ColumnSplitter Component (Phase 4 TDD)', () => {
   let setPointerCaptureMock: ReturnType<typeof vi.fn>;

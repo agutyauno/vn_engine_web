@@ -2,15 +2,8 @@
 import '@testing-library/jest-dom';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, renderHook } from '@testing-library/react';
-import React from 'react';
-import {
-  ShortcutsHelpModal,
-  type ShortcutsHelpModalProps,
-} from '../../src/components/studio/ShortcutsHelpModal';
-import {
-  useKeyboardShortcuts,
-  type KeyboardShortcutOptions,
-} from '../../src/hooks/useKeyboardShortcuts';
+import { ShortcutsHelpModal } from '../../src/components/studio/ShortcutsHelpModal';
+import { useKeyboardShortcuts } from '../../src/hooks/useKeyboardShortcuts';
 
 describe('Shortcuts & Navigation Hooks (Phase 4 TDD)', () => {
   afterEach(() => {
