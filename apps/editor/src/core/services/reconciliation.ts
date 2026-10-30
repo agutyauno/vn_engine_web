@@ -70,26 +70,53 @@ export function scanActiveReconciliation(project: Project): ReconciliationReport
         continue;
       }
 
-      const sceneMatch = trimmed.match(/^scene\s+["']?([^"'\s]+)["']?/i);
-      if (sceneMatch && sceneMatch[1]) {
-        recordAssetRef(sceneMatch[1], fileName, lineNum, 'background');
+      // DSL 1.1.0: background <asset_id> (with optional args/transition)
+      const bgMatch = trimmed.match(/^background\s+([a-zA-Z0-9_]+)(?:\s*\(|\s+transition:|\s*$)/i);
+      if (bgMatch && bgMatch[1]) {
+        recordAssetRef(bgMatch[1], fileName, lineNum, 'background');
       }
 
+      // Legacy support: scene "bg_filename.ext" (quoted with file extension, not scene block declaration)
+      const legacySceneMatch = trimmed.match(/^scene\s+["']([^"']+\.[a-zA-Z0-9]+)["']/i);
+      if (legacySceneMatch && legacySceneMatch[1]) {
+        recordAssetRef(legacySceneMatch[1], fileName, lineNum, 'background');
+      }
+
+      // Show character: show <char_id>.<expression> or show <char_id>
       const showMatch = trimmed.match(/^show\s+([a-zA-Z0-9_]+)(?:\.([a-zA-Z0-9_]+))?/i);
       if (showMatch && showMatch[1]) {
         recordCharRef(showMatch[1], fileName, lineNum);
       }
 
+      // Hide character: hide <char_id>
       const hideMatch = trimmed.match(/^hide\s+([a-zA-Z0-9_]+)/i);
       if (hideMatch && hideMatch[1]) {
         recordCharRef(hideMatch[1], fileName, lineNum);
       }
 
+      // Dialogue line: <char_id>: "..." or <char_id> as "...": "..."
+      const dialogueMatch = trimmed.match(/^([a-zA-Z0-9_]+)(?:\s+as\s+"[^"]*")?\s*:\s*"/i);
+      if (dialogueMatch && dialogueMatch[1]) {
+        if (dialogueMatch[1].toLowerCase() !== 'narrator') {
+          recordCharRef(dialogueMatch[1], fileName, lineNum);
+        }
+      }
+
+      // Reveal statement: reveal <char_id> as "..."
+      const revealMatch = trimmed.match(/^reveal\s+([a-zA-Z0-9_]+)\s+as\s+"/i);
+      if (revealMatch && revealMatch[1]) {
+        if (revealMatch[1].toLowerCase() !== 'narrator') {
+          recordCharRef(revealMatch[1], fileName, lineNum);
+        }
+      }
+
+      // Audio statements: play music/sound/voice/bgs <asset_id>
       const playMatch = trimmed.match(/^play\s+(?:music|sound|voice|bgs)\s+["']?([^"'\s]+)["']?/i);
       if (playMatch && playMatch[1]) {
         recordAssetRef(playMatch[1], fileName, lineNum, 'audio');
       }
 
+      // Inspect statements
       const inspectMatch = trimmed.match(/^inspect\s+["']?([^"'\s]+)["']?/i);
       if (inspectMatch && inspectMatch[1]) {
         recordAssetRef(inspectMatch[1], fileName, lineNum, 'inspect');

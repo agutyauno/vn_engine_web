@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { AssetRef, Character, Project } from '@vn-engine/shared-types';
 import type { ProjectRepository } from '../../core/contracts/repository';
-import { ActivityBar } from './ActivityBar';
+import { ActivityBar, type StudioTab } from './ActivityBar';
 import {
   FileExplorerPane,
   generateDefaultScriptName,
@@ -39,6 +39,8 @@ export interface StudioWorkspacePageProps {
   onOpenSettings?: () => void;
   onExport?: () => void;
 }
+
+let lastLoadedProjectId: string | null = null;
 
 export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
   projectId,
@@ -172,11 +174,30 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
     });
   }, []);
 
+  const previousTabRef = useRef<StudioTab>('scripts');
+
+  useEffect(() => {
+    if (activeTab !== null) {
+      previousTabRef.current = activeTab;
+    }
+  }, [activeTab]);
+
+  const handleToggleSidebar = useCallback(() => {
+    const currentTab = useEditorUIStore.getState().activeTab;
+    if (currentTab !== null) {
+      previousTabRef.current = currentTab;
+      setActiveTab(null);
+    } else {
+      setActiveTab(previousTabRef.current || 'scripts');
+    }
+  }, [setActiveTab]);
+
   // Global Keyboard Shortcuts
   useKeyboardShortcuts({
     onSave: handleManualSave,
     onTogglePlay: togglePlay,
     onToggleDrawer: toggleDrawer,
+    onToggleSidebar: handleToggleSidebar,
     onOpenSettings: () => setSettingsOpen(true),
     onCloseTab: () => {
       if (activeFileId) {
@@ -189,6 +210,13 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
 
   // Mount & Load Project
   useEffect(() => {
+    if (lastLoadedProjectId !== projectId) {
+      lastLoadedProjectId = projectId;
+      if (useEditorUIStore.getState().activeTab !== null) {
+        useEditorUIStore.setState({ activeTab: 'scripts' });
+      }
+    }
+
     if (initialProject) {
       useProjectStore.getState().initProject(initialProject, repository);
       if (initialProject.files && initialProject.files.length > 0) {
@@ -625,7 +653,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
           <div
             data-testid="col-navigation"
             className="flex shrink-0 h-full border-r border-neutral-800 bg-neutral-900/40"
-            style={{ width: `${navWidth}px` }}
+            style={{ width: `${activeTab === null ? 48 : navWidth}px` }}
           >
             <ActivityBar
               activeTab={activeTab}
@@ -657,7 +685,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
             )}
 
             {activeTab === 'assets' && (
-              <div data-testid="pane-assets-placeholder" className="w-72 shrink-0 h-full">
+              <div data-testid="pane-assets-placeholder" className="flex-1 min-w-0 w-auto h-full">
                 <AssetLibraryPane
                   project={currentProject}
                   onAddAsset={handleAddAsset}
@@ -669,11 +697,13 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
           </div>
 
           {/* Resizable Nav Splitter */}
-          <ColumnSplitter
-            type="nav"
-            onResize={(delta) => setNavWidth(navWidth + delta)}
-            onReset={() => setNavWidth(260)}
-          />
+          {activeTab !== null && (
+            <ColumnSplitter
+              type="nav"
+              onResize={(delta) => setNavWidth(navWidth + delta)}
+              onReset={() => setNavWidth(260)}
+            />
+          )}
 
           {/* Column 2: Center Workspace (Editor Tab Bar + Monaco Script Workspace + Bottom Drawer) */}
           <div

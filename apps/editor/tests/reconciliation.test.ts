@@ -382,3 +382,4 @@ describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () 
     expect(report.unusedAssets).not.toContain('bg_used.png');
   });
 });
+

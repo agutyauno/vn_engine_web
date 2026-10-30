@@ -6,7 +6,7 @@ export type StudioTab = 'scripts' | 'characters' | 'assets';
 
 export interface ActivityBarProps {
   activeTab: StudioTab | null;
-  onSelectTab: (tab: StudioTab) => void;
+  onSelectTab: (tab: StudioTab | null) => void;
   onOpenSettings?: () => void;
 }
 
@@ -19,6 +19,14 @@ export const ActivityBar: React.FC<ActivityBarProps> = ({ activeTab, onSelectTab
     }
   };
 
+  const handleTabClick = (tab: StudioTab) => {
+    if (activeTab === tab) {
+      onSelectTab(null);
+    } else {
+      onSelectTab(tab);
+    }
+  };
+
   return (
     <aside
       data-testid="activity-bar"
@@ -28,7 +36,7 @@ export const ActivityBar: React.FC<ActivityBarProps> = ({ activeTab, onSelectTab
         <button
           type="button"
           data-testid="tab-scripts"
-          onClick={() => onSelectTab('scripts')}
+          onClick={() => handleTabClick('scripts')}
           title="Scripts & Scenes"
           aria-label="Scripts"
           className={`relative my-1 flex h-10 w-10 items-center justify-center rounded transition-colors ${
@@ -46,7 +54,7 @@ export const ActivityBar: React.FC<ActivityBarProps> = ({ activeTab, onSelectTab
         <button
           type="button"
           data-testid="tab-characters"
-          onClick={() => onSelectTab('characters')}
+          onClick={() => handleTabClick('characters')}
           title="Characters & Expressions"
           aria-label="Characters"
           className={`relative my-1 flex h-10 w-10 items-center justify-center rounded transition-colors ${
@@ -64,7 +72,7 @@ export const ActivityBar: React.FC<ActivityBarProps> = ({ activeTab, onSelectTab
         <button
           type="button"
           data-testid="tab-assets"
-          onClick={() => onSelectTab('assets')}
+          onClick={() => handleTabClick('assets')}
           title="Asset Library (Audio, Backgrounds, CG)"
           aria-label="Assets"
           className={`relative my-1 flex h-10 w-10 items-center justify-center rounded transition-colors ${

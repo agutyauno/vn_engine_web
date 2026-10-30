@@ -12,7 +12,7 @@ export interface EditorUIStoreState {
   drawerHeight: number; // Default: 200px (Range: 120px - 480px)
 
   // Workspace Navigation
-  activeTab: 'scripts' | 'characters' | 'assets';
+  activeTab: 'scripts' | 'characters' | 'assets' | null;
   openFileIds: string[];
   activeFileId: string | null;
   isDrawerOpen: boolean;
@@ -32,7 +32,7 @@ export interface EditorUIStoreState {
   clampCompositeBounds: () => void;
   resetDimensions: () => void;
 
-  setActiveTab: (tab: 'scripts' | 'characters' | 'assets') => void;
+  setActiveTab: (tab: 'scripts' | 'characters' | 'assets' | null) => void;
   selectTab: (fileId: string) => void;
   closeTab: (fileId: string) => void;
 

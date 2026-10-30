@@ -156,7 +156,7 @@ export const FileExplorerPane: React.FC<FileExplorerPaneProps> = ({
   return (
     <div
       data-testid="pane-file-explorer"
-      className="flex h-full w-64 flex-col border-r border-neutral-800 bg-neutral-900/60 text-neutral-300 select-none shrink-0"
+      className="flex h-full flex-1 min-w-0 w-auto flex-col border-r border-neutral-800 bg-neutral-900/60 text-neutral-300 select-none"
     >
       {/* Pane Header */}
       <div className="flex h-10 items-center justify-between border-b border-neutral-800 px-3">

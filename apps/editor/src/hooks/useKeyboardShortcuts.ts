@@ -4,6 +4,7 @@ export interface KeyboardShortcutOptions {
   onSave?: () => void;
   onTogglePlay?: () => void;
   onToggleDrawer?: () => void;
+  onToggleSidebar?: () => void;
   onOpenSettings?: () => void;
   onCloseTab?: () => void;
   onOpenShortcuts?: () => void;
@@ -15,6 +16,7 @@ export function useKeyboardShortcuts(options?: KeyboardShortcutOptions): void {
     onSave,
     onTogglePlay,
     onToggleDrawer,
+    onToggleSidebar,
     onOpenSettings,
     onCloseTab,
     onOpenShortcuts,
@@ -48,28 +50,39 @@ export function useKeyboardShortcuts(options?: KeyboardShortcutOptions): void {
         return;
       }
 
-      // 3. Ctrl + ` or Ctrl + B (Toggle Drawer)
-      if (isCtrlOrCmd && (e.key === '`' || e.key === 'b' || e.key === 'B')) {
+      // 3. Ctrl + ` (Toggle Drawer)
+      if (isCtrlOrCmd && e.key === '`') {
         e.preventDefault();
         onToggleDrawer?.();
         return;
       }
 
-      // 4. Ctrl + , (Open Settings)
+      // 4. Ctrl + B / Cmd + B (Toggle Sidebar Navigation if provided, else Drawer)
+      if (isCtrlOrCmd && (e.key === 'b' || e.key === 'B')) {
+        e.preventDefault();
+        if (onToggleSidebar) {
+          onToggleSidebar();
+        } else if (onToggleDrawer) {
+          onToggleDrawer();
+        }
+        return;
+      }
+
+      // 5. Ctrl + , (Open Settings)
       if (isCtrlOrCmd && e.key === ',') {
         e.preventDefault();
         onOpenSettings?.();
         return;
       }
 
-      // 5. Ctrl + F4 or Alt + W (Close Tab)
+      // 6. Ctrl + F4 or Alt + W (Close Tab)
       if ((isCtrlOrCmd && e.key === 'F4') || (e.altKey && (e.key === 'w' || e.key === 'W'))) {
         e.preventDefault();
         onCloseTab?.();
         return;
       }
 
-      // 6. ? or Ctrl + / (Open Shortcuts Help)
+      // 7. ? or Ctrl + / (Open Shortcuts Help)
       if (isCtrlOrCmd && e.key === '/') {
         e.preventDefault();
         onOpenShortcuts?.();
@@ -86,6 +99,5 @@ export function useKeyboardShortcuts(options?: KeyboardShortcutOptions): void {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [enabled, onSave, onTogglePlay, onToggleDrawer, onOpenSettings, onCloseTab, onOpenShortcuts]);
+  }, [enabled, onSave, onTogglePlay, onToggleDrawer, onToggleSidebar, onOpenSettings, onCloseTab, onOpenShortcuts]);
 }
-

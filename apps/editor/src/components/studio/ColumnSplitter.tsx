@@ -101,6 +101,7 @@ export const ColumnSplitter: React.FC<ColumnSplitterProps> = ({
   return (
     <div
       ref={splitterRef}
+      data-testid={`column-splitter-${type}`}
       role="separator"
       tabIndex={0}
       aria-orientation={orientation}

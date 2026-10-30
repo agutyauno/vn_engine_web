@@ -1,7 +1,6 @@
 // apps/editor/tests/asset_modal.test.tsx
 // @vitest-environment jsdom
 import '@testing-library/jest-dom';
-import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import {
