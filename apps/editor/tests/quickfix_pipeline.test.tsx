@@ -48,7 +48,7 @@ describe('Asset QuickFix Pipeline Integration', () => {
     fireEvent.click(createBtn);
 
     // Verify CreateAssetModal is opened
-    expect(screen.getByText('Thêm Tài Nguyên Mới')).toBeInTheDocument();
+    expect(screen.getByText('New Asset')).toBeInTheDocument();
 
     // Verify prefilled ID in input-asset-id
     const idInput = screen.getByTestId('input-asset-id');

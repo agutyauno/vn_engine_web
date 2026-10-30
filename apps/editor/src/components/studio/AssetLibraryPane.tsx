@@ -163,7 +163,7 @@ export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
   const stageIncomingFile = (file: File) => {
     const validation = validateAssetFile(file);
     if (!validation.valid) {
-      setUploadError(validation.error || 'Định dạng file không được hỗ trợ');
+      setUploadError(validation.error || 'Unsupported file format');
       setTimeout(() => setUploadError(null), 5000);
       return;
     }

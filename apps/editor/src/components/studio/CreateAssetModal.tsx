@@ -14,13 +14,13 @@ export interface CreateAssetModalProps {
 }
 
 const CATEGORY_OPTIONS: { value: AssetCategory; label: string }[] = [
-  { value: 'background', label: 'Hình nền (Background)' },
-  { value: 'sprite', label: 'Nhân vật (Sprite)' },
-  { value: 'bgm', label: 'Nhạc nền (BGM)' },
-  { value: 'sfx', label: 'Hiệu ứng âm thanh (SFX)' },
-  { value: 'voice', label: 'Lồng tiếng (Voice)' },
-  { value: 'ui', label: 'Giao diện (UI)' },
-  { value: 'other', label: 'Khác (Other)' },
+  { value: 'background', label: 'Background' },
+  { value: 'sprite', label: 'Sprite' },
+  { value: 'bgm', label: 'BGM' },
+  { value: 'sfx', label: 'SFX' },
+  { value: 'voice', label: 'Voice' },
+  { value: 'ui', label: 'UI' },
+  { value: 'other', label: 'Other' },
 ];
 
 const VNS_IDENTIFIER_REGEX = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
@@ -163,12 +163,12 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
         <div className="flex items-center justify-between border-b border-neutral-800 px-5 py-4">
           <div className="flex items-center gap-2">
             <ImageIcon size={18} className="text-neutral-400" />
-            <h2 className="text-sm font-semibold text-neutral-100">Thêm Tài Nguyên Mới</h2>
+            <h2 className="text-sm font-semibold text-neutral-100">New Asset</h2>
           </div>
           <button
             onClick={onClose}
             className="text-neutral-400 hover:text-neutral-200 transition-colors p-1 rounded-md"
-            aria-label="Đóng"
+            aria-label="Close"
           >
             <CloseIcon size={16} />
           </button>
@@ -186,7 +186,7 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
                 : 'border-transparent text-neutral-400 hover:text-neutral-200'
             }`}
           >
-            Tải tệp từ máy
+            Upload File
           </button>
           <button
             type="button"
@@ -198,7 +198,7 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
                 : 'border-transparent text-neutral-400 hover:text-neutral-200'
             }`}
           >
-            URL ngoài / Giữ chỗ
+            Remote URL / Placeholder
           </button>
         </div>
 
@@ -208,7 +208,7 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
             <>
               {/* File Picker / Replacement */}
               <div className="flex items-center justify-between text-xs text-neutral-400 border border-neutral-800 rounded-md p-3 bg-neutral-950">
-                <span className="truncate max-w-xs">{currentFile?.name || 'Chưa chọn tệp'}</span>
+                <span className="truncate max-w-xs">{currentFile?.name || 'No file selected'}</span>
                 <input
                   type="file"
                   ref={fileInputRef}
@@ -220,7 +220,7 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
                   onClick={() => fileInputRef.current?.click()}
                   className="px-2.5 py-1 text-xs font-medium text-neutral-300 bg-neutral-800 hover:bg-neutral-700 rounded transition-colors"
                 >
-                  Đổi file
+                  Change File
                 </button>
               </div>
 
@@ -253,7 +253,7 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
                     />
                   </div>
                 ) : (
-                  <span className="text-xs text-neutral-500">Không có bản xem trước</span>
+                  <span className="text-xs text-neutral-500">No preview available</span>
                 )}
               </div>
             </>
@@ -261,14 +261,14 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
             /* Remote URL / Placeholder Input */
             <div>
               <label className="block text-xs font-medium text-neutral-300 mb-1">
-                Đường dẫn tệp (Storage / CDN URL) <span className="text-neutral-500 font-normal">(để trống nếu tạo giữ chỗ)</span>
+                Storage or CDN URL <span className="text-neutral-500 font-normal">(leave blank for placeholder)</span>
               </label>
               <input
                 data-testid="input-remote-url"
                 type="text"
                 value={remoteUrl}
                 onChange={(e) => setRemoteUrl(e.target.value)}
-                placeholder="https://cdn.example.com/asset.png hoặc để trống làm placeholder"
+                placeholder="https://cdn.example.com/asset.png or leave empty as placeholder"
                 className="w-full px-3 py-2 text-xs bg-neutral-950 border border-neutral-800 rounded-md text-neutral-100 placeholder-neutral-500 focus:outline-hidden focus:border-neutral-500 font-mono"
               />
             </div>
@@ -277,7 +277,7 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
           {/* Asset ID */}
           <div>
             <label className="block text-xs font-medium text-neutral-300 mb-1">
-              Asset ID (định danh script) <span className="text-red-400">*</span>
+              Asset ID <span className="text-red-400">*</span>
             </label>
             <input
               data-testid="input-asset-id"
@@ -292,12 +292,12 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
                 data-testid="asset-id-duplicate-error"
                 className="mt-1 text-xs text-red-400"
               >
-                Asset ID này đã tồn tại trong dự án.
+                This Asset ID already exists in the project.
               </p>
             )}
             {!isValidIdentifier && assetId.trim().length > 0 && !isDuplicate && (
               <p className="mt-1 text-xs text-amber-400">
-                Asset ID phải bắt đầu bằng chữ cái hoặc dấu gạch dưới, chỉ chứa chữ cái, số và dấu gạch dưới.
+                Asset ID must start with a letter or underscore and contain only alphanumeric characters and underscores.
               </p>
             )}
           </div>
@@ -305,14 +305,14 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
           {/* Asset Name */}
           <div>
             <label className="block text-xs font-medium text-neutral-300 mb-1">
-              Tên hiển thị (Asset Name)
+              Asset Name
             </label>
             <input
               data-testid="input-asset-name"
               type="text"
               value={assetName}
               onChange={(e) => setAssetName(e.target.value)}
-              placeholder="Tên hiển thị hoặc tên tệp"
+              placeholder="Display name or file name"
               className="w-full px-3 py-2 text-xs bg-neutral-950 border border-neutral-800 rounded-md text-neutral-100 placeholder-neutral-500 focus:outline-hidden focus:border-neutral-500"
             />
           </div>
@@ -320,7 +320,7 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
           {/* Category */}
           <div>
             <label className="block text-xs font-medium text-neutral-300 mb-1">
-              Phân loại (Category)
+              Category
             </label>
             <select
               data-testid="select-asset-category"
@@ -343,7 +343,7 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
               onClick={onClose}
               className="px-4 py-2 text-xs font-medium text-neutral-400 hover:text-neutral-200 transition-colors"
             >
-              Hủy
+              Cancel
             </button>
             <button
               data-testid="btn-save-asset"
@@ -351,7 +351,7 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
               disabled={!canSave}
               className="px-4 py-2 text-xs font-semibold text-white bg-neutral-100 text-neutral-900 rounded-md hover:bg-neutral-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              Lưu tài nguyên
+              Save Asset
             </button>
           </div>
         </form>
@@ -376,7 +376,7 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
             <button
               onClick={() => setIsZoomed(false)}
               className="absolute -top-3 -right-3 p-1.5 bg-neutral-800 text-neutral-200 rounded-full hover:bg-neutral-700 transition-colors shadow-lg"
-              aria-label="Đóng phóng to"
+              aria-label="Close preview"
             >
               <CloseIcon size={16} />
             </button>

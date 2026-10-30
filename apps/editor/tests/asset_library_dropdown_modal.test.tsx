@@ -114,13 +114,13 @@ describe('AssetLibraryPane: Category Dropdown & Direct Modal Creation', () => {
     );
 
     // Modal should not be open initially
-    expect(screen.queryByText('Thêm Tài Nguyên Mới')).not.toBeInTheDocument();
+    expect(screen.queryByText('New Asset')).not.toBeInTheDocument();
 
     const addBtn = screen.getByTestId('btn-add-asset');
     fireEvent.click(addBtn);
 
     // Modal should now be visible
-    expect(screen.getByText('Thêm Tài Nguyên Mới')).toBeInTheDocument();
+    expect(screen.getByText('New Asset')).toBeInTheDocument();
     expect(screen.getByTestId('btn-save-asset')).toBeInTheDocument();
   });
 
@@ -140,7 +140,7 @@ describe('AssetLibraryPane: Category Dropdown & Direct Modal Creation', () => {
     const addBtn = screen.getByTestId('btn-add-asset');
     fireEvent.click(addBtn);
 
-    expect(screen.getByText('Thêm Tài Nguyên Mới')).toBeInTheDocument();
+    expect(screen.getByText('New Asset')).toBeInTheDocument();
     // In modal, the select category should have value 'sprite'
     const modalCategorySelect = screen.getByTestId('select-asset-category') as HTMLSelectElement;
     expect(modalCategorySelect.value).toBe('sprite');

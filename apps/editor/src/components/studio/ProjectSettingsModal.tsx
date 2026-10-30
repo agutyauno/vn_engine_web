@@ -234,7 +234,7 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({
                     >
                       <span className="text-xs font-semibold text-white">1080p Full HD</span>
                       <span className="text-[10px] text-neutral-400 font-mono">
-                        1920 × 1080 (16:9 Landscape)
+                        1920 × 1080 · 16:9 Landscape
                       </span>
                     </button>
 
@@ -250,7 +250,7 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({
                     >
                       <span className="text-xs font-semibold text-white">720p HD</span>
                       <span className="text-[10px] text-neutral-400 font-mono">
-                        1280 × 720 (16:9 Landscape)
+                        1280 × 720 · 16:9 Landscape
                       </span>
                     </button>
 
@@ -266,7 +266,7 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({
                     >
                       <span className="text-xs font-semibold text-white">Mobile Portrait</span>
                       <span className="text-[10px] text-neutral-400 font-mono">
-                        1080 × 1920 (9:16 Portrait)
+                        1080 × 1920 · 9:16 Portrait
                       </span>
                     </button>
 
@@ -282,7 +282,7 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({
                     >
                       <span className="text-xs font-semibold text-white">Retro 4:3</span>
                       <span className="text-[10px] text-neutral-400 font-mono">
-                        1024 × 768 (4:3 Landscape)
+                        1024 × 768 · 4:3 Landscape
                       </span>
                     </button>
                   </div>
@@ -435,8 +435,8 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({
                     }
                     className="w-full rounded border border-neutral-700 bg-neutral-950 px-3 py-1.5 text-xs text-white focus:outline-none"
                   >
-                    <option value="hidden">Hidden (Do not render options whose condition is false)</option>
-                    <option value="disabled">Disabled (Render greyed out option with lock indicator)</option>
+                    <option value="hidden">Hidden</option>
+                    <option value="disabled">Disabled</option>
                   </select>
                 </div>
 
@@ -465,7 +465,7 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({
                     className="w-full accent-neutral-300"
                   />
                   <span className="text-[10px] text-neutral-500 mt-0.5 block font-mono">
-                    Speed per character typed (5ms = Instant, 100ms = Slow).
+                    Speed per character typed: 5ms to 100ms.
                   </span>
                 </div>
 
