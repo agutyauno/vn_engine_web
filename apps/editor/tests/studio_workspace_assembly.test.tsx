@@ -405,8 +405,8 @@ describe('StudioWorkspacePage Assembly & Cutover (Phase 5 TDD)', () => {
     expect(screen.getByTestId('modal-shortcuts-help')).toBeInTheDocument();
   });
 
-  // TC-ASSEMBLY-12: Script Duplication via Explorer
-  it('TC-ASSEMBLY-12: duplicates script file via explorer, assigns unique ID, and opens new tab', () => {
+  // TC-ASSEMBLY-12: Script Duplication Eliminated from Explorer
+  it('TC-ASSEMBLY-12: does not render duplicate file button on script files in explorer', () => {
     const mockRepo = createMockRepository(sampleProject);
     render(
       <StudioWorkspacePage
@@ -416,22 +416,8 @@ describe('StudioWorkspacePage Assembly & Cutover (Phase 5 TDD)', () => {
       />
     );
 
-    const initialFilesCount = useProjectStore.getState().project?.files.length ?? 0;
-    expect(initialFilesCount).toBe(2);
-
-    // Click duplicate button on file-1
-    const dupBtn = screen.getByTestId('btn-duplicate-file-file-1');
-    fireEvent.click(dupBtn);
-
-    const updatedFiles = useProjectStore.getState().project?.files || [];
-    expect(updatedFiles.length).toBe(3);
-
-    const duplicated = updatedFiles.find((f) => f.id !== 'file-1' && f.id !== 'file-2');
-    expect(duplicated).toBeDefined();
-    expect(duplicated?.name).toContain('(Copy 1)');
-    expect(useEditorUIStore.getState().activeFileId).toBe(duplicated?.id);
-    expect(useEditorUIStore.getState().openFileIds).toContain(duplicated?.id);
-    expect(screen.getByTestId(`editor-tab-${duplicated?.id}`)).toBeInTheDocument();
+    expect(screen.queryByTestId('btn-duplicate-file-file-1')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('btn-duplicate-file-file-2')).not.toBeInTheDocument();
   });
 
   // TC-ASSEMBLY-13: Clean Navigation with Zero Dirty State

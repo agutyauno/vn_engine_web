@@ -183,18 +183,9 @@ describe('projectStore', () => {
     expect(state.project?.files.find((f) => f.id === 'file-ch1')?.name).toBe('prologue.vns');
   });
 
-  it('duplicates file with incremental Copy suffix and scene label copy suffix', () => {
-    const project = createMockProject();
-    useProjectStore.getState().initProject(project, mockRepo);
-
-    useProjectStore.getState().duplicateFile('file-ch1');
-
-    const state = useProjectStore.getState();
-    const copyFile = state.project?.files.find((f) => f.name.includes('Copy'));
-    expect(copyFile).toBeDefined();
-    expect(copyFile?.name).toBe('chapter1 (Copy 1).vns');
-    expect(copyFile?.id).not.toBe('file-ch1');
-    expect(copyFile?.content).toContain('scene ch1_copy:');
+  it('does not expose duplicateFile on project store (eliminated feature)', () => {
+    const state = useProjectStore.getState() as any;
+    expect(state.duplicateFile).toBeUndefined();
   });
 
   it('deletes file but strictly protects main.vns from deletion', () => {

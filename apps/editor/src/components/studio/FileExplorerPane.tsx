@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { ScriptFile } from '@vn-engine/shared-types';
-import { PlusIcon, TrashIcon, FileTextIcon, EditIcon, CopyIcon, FlagIcon } from '../common/Icons';
+import { PlusIcon, TrashIcon, FileTextIcon, EditIcon, FlagIcon } from '../common/Icons';
 
 export interface FileExplorerPaneProps {
   files: ScriptFile[];
@@ -10,7 +10,6 @@ export interface FileExplorerPaneProps {
   onCreateFile: (name: string) => void;
   onRenameFile: (fileId: string, newName: string) => void;
   onDeleteFile: (fileId: string) => void;
-  onDuplicateFile?: (fileId: string) => void;
   onSetEntryScene?: (fileName: string) => void;
 }
 
@@ -101,7 +100,6 @@ export const FileExplorerPane: React.FC<FileExplorerPaneProps> = ({
   onCreateFile,
   onRenameFile,
   onDeleteFile,
-  onDuplicateFile,
   onSetEntryScene,
 }) => {
   const [isCreating, setIsCreating] = useState(false);
@@ -302,19 +300,6 @@ export const FileExplorerPane: React.FC<FileExplorerPaneProps> = ({
                         <FlagIcon size={12} />
                       </button>
                     )}
-
-                    <button
-                      type="button"
-                      data-testid={`btn-duplicate-file-${file.id}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDuplicateFile?.(file.id);
-                      }}
-                      title="Duplicate Script"
-                      className="rounded p-1 text-neutral-400 hover:text-white"
-                    >
-                      <CopyIcon size={12} />
-                    </button>
 
                     <button
                       type="button"

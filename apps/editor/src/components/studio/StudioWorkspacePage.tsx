@@ -62,7 +62,6 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
   const updateProjectMetadata = useProjectStore((s) => s.updateProjectMetadata);
   const createFile = useProjectStore((s) => s.createFile);
   const renameFile = useProjectStore((s) => s.renameFile);
-  const duplicateFile = useProjectStore((s) => s.duplicateFile);
   const deleteFile = useProjectStore((s) => s.deleteFile);
   const saveCharacter = useProjectStore((s) => s.saveCharacter);
   const deleteCharacter = useProjectStore((s) => s.deleteCharacter);
@@ -369,20 +368,6 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
       }
     },
     [deleteFile, handleCloseTab, saveProject, repository]
-  );
-
-  // File Duplication
-  const handleDuplicateFile = useCallback(
-    (fileId: string) => {
-      const prevFileIds = new Set(useProjectStore.getState().project?.files.map((f) => f.id) || []);
-      duplicateFile(fileId);
-      const newFiles = useProjectStore.getState().project?.files || [];
-      const newFile = newFiles.find((f) => !prevFileIds.has(f.id));
-      if (newFile) {
-        selectTab(newFile.id);
-      }
-    },
-    [duplicateFile, selectTab]
   );
 
   // Set Entry Scene
@@ -692,7 +677,6 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
                 onCreateFile={handleCreateFile}
                 onRenameFile={handleRenameFile}
                 onDeleteFile={handleDeleteFile}
-                onDuplicateFile={handleDuplicateFile}
                 onSetEntryScene={handleSetEntryScene}
               />
             )}

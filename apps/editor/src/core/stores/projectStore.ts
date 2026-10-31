@@ -31,7 +31,6 @@ export interface ProjectStoreState {
 
   createFile: (name: string) => void;
   renameFile: (fileId: string, newName: string) => void;
-  duplicateFile: (fileId: string) => void;
   deleteFile: (fileId: string) => void;
 
   saveCharacter: (char: Character) => void;
@@ -54,7 +53,6 @@ export const initialProjectState: Omit<
   | 'updateEditorSettings'
   | 'createFile'
   | 'renameFile'
-  | 'duplicateFile'
   | 'deleteFile'
   | 'saveCharacter'
   | 'deleteCharacter'
@@ -356,61 +354,6 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
         updatedAt: Date.now(),
       },
       dirtyFileIds,
-      isDirty: true,
-    });
-  },
-
-  duplicateFile: (fileId) => {
-    const currentProject = get().project;
-    if (!currentProject) return;
-
-    const targetIndex = currentProject.files.findIndex((f) => f.id === fileId);
-    if (targetIndex === -1) return;
-
-    const targetFile = currentProject.files[targetIndex];
-    if (!targetFile) return;
-
-    // Determine base name without extension and without existing (Copy N)
-    const rawName = targetFile.name.replace(/\.vns$/i, '');
-    const cleanBaseName = rawName.replace(/\s+\(Copy\s+\d+\)$/i, '');
-
-    // Find next incremental copy index
-    let copyIndex = 1;
-    let candidateName = `${cleanBaseName} (Copy ${copyIndex}).vns`;
-    while (
-      currentProject.files.some(
-        (f) => f.name.toLowerCase() === candidateName.toLowerCase()
-      )
-    ) {
-      copyIndex++;
-      candidateName = `${cleanBaseName} (Copy ${copyIndex}).vns`;
-    }
-
-    // Append copy suffix to scene declarations to avoid duplicate scene compiler errors
-    const duplicatedContent = targetFile.content.replace(
-      /scene\s+([a-zA-Z0-9_]+):/g,
-      'scene $1_copy:'
-    );
-
-    const newFileId = generateUUID();
-    const duplicatedFile = {
-      id: newFileId,
-      name: candidateName,
-      content: duplicatedContent,
-      order: (targetFile.order ?? 0) + 1,
-      version: 1,
-    };
-
-    const updatedFiles = [...currentProject.files];
-    updatedFiles.splice(targetIndex + 1, 0, duplicatedFile);
-
-    set({
-      project: {
-        ...currentProject,
-        files: updatedFiles,
-        updatedAt: Date.now(),
-      },
-      dirtyFileIds: [...get().dirtyFileIds, newFileId],
       isDirty: true,
     });
   },
