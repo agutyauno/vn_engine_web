@@ -201,14 +201,14 @@ describe('CreateAssetModal Component', () => {
     expect((categorySelect as HTMLSelectElement).value).toBe('background');
   });
 
-  // TC-MODAL-02: Remote URL / Placeholder creation without local file blob
-  it('TC-MODAL-02: should allow creating asset via remote URL or placeholder without local file', async () => {
+  // TC-MODAL-02: Unified single-mode local asset dialog (no remote url tabs)
+  it('TC-MODAL-02: should render as a unified single-mode dialog without remote tabs, requiring a valid local file to save new assets', async () => {
     const onSave = vi.fn();
     render(
       <CreateAssetModal
         isOpen={true}
         initialFile={null}
-        initialAssetId="bgm_online_theme"
+        initialAssetId="bgm_local_theme"
         initialCategory="bgm"
         existingAssetIds={[]}
         onClose={() => {}}
@@ -216,22 +216,30 @@ describe('CreateAssetModal Component', () => {
       />
     );
 
-    // Switch to remote / placeholder mode
-    const modeRemoteBtn = screen.getByTestId('btn-mode-remote');
-    fireEvent.click(modeRemoteBtn);
+    // 1. Khẳng định không còn tồn tại các tab chuyển chế độ hay input remote url
+    expect(screen.queryByTestId('btn-mode-remote')).toBeNull();
+    expect(screen.queryByTestId('btn-mode-upload')).toBeNull();
+    expect(screen.queryByTestId('input-remote-url')).toBeNull();
 
-    const urlInput = screen.getByTestId('input-remote-url');
-    fireEvent.change(urlInput, {
-      target: { value: 'https://cdn.example.com/audio/theme.mp3' },
-    });
-
-    const nameInput = screen.getByTestId('input-asset-name');
-    fireEvent.change(nameInput, {
-      target: { value: 'Online BGM Theme' },
-    });
-
+    // 2. Ban đầu chưa chọn file thì nút Save bị disabled
     const saveBtn = screen.getByTestId('btn-save-asset');
-    expect(saveBtn).not.toBeDisabled();
+    expect(saveBtn).toBeDisabled();
+
+    // 3. Khẳng định có vùng dropzone để chọn file
+    const dropzone = screen.getByTestId('asset-dropzone');
+    expect(dropzone).toBeInTheDocument();
+
+    // 4. Chọn một file âm thanh hợp lệ
+    const mockAudioFile = new File(['audio-binary'], 'bgm_theme.mp3', { type: 'audio/mpeg' });
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    expect(fileInput).not.toBeNull();
+    fireEvent.change(fileInput, { target: { files: [mockAudioFile] } });
+
+    // 5. Sau khi có file hợp lệ, nút Save được kích hoạt
+    await waitFor(() => {
+      expect(saveBtn).not.toBeDisabled();
+    });
+
     fireEvent.click(saveBtn);
 
     await waitFor(() => {
@@ -239,10 +247,9 @@ describe('CreateAssetModal Component', () => {
     });
 
     const [savedAsset, savedBlob] = onSave.mock.calls[0] as [AssetRef, Blob | undefined];
-    expect(savedAsset.id).toBe('bgm_online_theme');
-    expect(savedAsset.name).toBe('Online BGM Theme');
-    expect(savedAsset.storageUrl).toBe('https://cdn.example.com/audio/theme.mp3');
+    expect(savedAsset.id).toBe('bgm_local_theme');
+    expect(savedAsset.name).toBe('bgm_theme.mp3');
     expect(savedAsset.category).toBe('bgm');
-    expect(savedBlob).toBeUndefined();
+    expect(savedBlob).toBeInstanceOf(Blob);
   });
 });
