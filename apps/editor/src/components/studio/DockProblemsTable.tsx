@@ -94,6 +94,18 @@ export const DockProblemsTable: React.FC<DockProblemsTableProps> = ({
         >
           Warnings ({diagnostics.filter((d) => d.severity === 'warning').length})
         </button>
+        <button
+          type="button"
+          data-testid="btn-filter-info"
+          onClick={() => handleFilterClick('info')}
+          className={`rounded px-2 py-0.5 text-[11px] transition ${
+            currentFilter === 'info'
+              ? 'bg-sky-950 text-sky-300 border border-sky-800'
+              : 'text-neutral-400 hover:text-sky-300'
+          }`}
+        >
+          Info ({diagnostics.filter((d) => d.severity === 'info').length})
+        </button>
       </div>
 
       <div className="flex-1 overflow-auto">

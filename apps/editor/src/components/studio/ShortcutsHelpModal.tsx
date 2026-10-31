@@ -24,7 +24,8 @@ const SHORTCUT_GROUPS: { group: string; items: ShortcutItem[] }[] = [
   {
     group: 'Editor & Layout',
     items: [
-      { keys: ['Ctrl + `', 'Ctrl + B'], description: 'Toggle bottom Problems & Diagnostics drawer' },
+      { keys: ['Ctrl + B'], description: 'Toggle navigation sidebar' },
+      { keys: ['Ctrl + `'], description: 'Toggle bottom Problems & Diagnostics drawer' },
       { keys: ['Ctrl + F4', 'Alt + W'], description: 'Close current active script tab' },
     ],
   },

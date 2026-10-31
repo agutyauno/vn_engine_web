@@ -28,7 +28,7 @@ import { useCompilerPipeline } from '../../hooks/useCompilerPipeline';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { CompilerService } from '../../core/services/compilerService';
 import { PreviewBridge } from '../../core/services/previewBridge';
-import type { EditorDiagnostic } from '../../core/services/reconciliation';
+import { scanActiveReconciliation, type EditorDiagnostic } from '../../core/services/reconciliation';
 
 export interface StudioWorkspacePageProps {
   projectId: string;
@@ -584,6 +584,12 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
     onQuickPlay?.();
   }, [setIsPlaying, onQuickPlay]);
 
+  const currentProject = project ?? initialProject ?? null;
+  const uncreatedCharacterIds = useMemo(() => {
+    if (!currentProject) return [];
+    return scanActiveReconciliation(currentProject).uncreatedCharacters;
+  }, [currentProject]);
+
   if (loading) {
     return (
       <div
@@ -616,7 +622,6 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
     );
   }
 
-  const currentProject = project ?? initialProject ?? null;
   const currentActiveFileId =
     activeFileId ||
     useEditorUIStore.getState().activeFileId ||
@@ -666,6 +671,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
               activeTab={activeTab}
               onSelectTab={setActiveTab}
               onOpenSettings={handleOpenSettingsModal}
+              onOpenShortcuts={() => setShortcutsOpen(true)}
             />
 
             {activeTab === 'scripts' && (
@@ -684,7 +690,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
             {activeTab === 'characters' && (
               <CharacterManagerPane
                 characters={currentProject.characters || []}
-                uncreatedIds={[]}
+                uncreatedIds={uncreatedCharacterIds}
                 onCreateCharacter={handleOpenCreateCharacter}
                 onEditCharacter={handleOpenEditCharacter}
                 onDeleteCharacter={handleDeleteCharacter}

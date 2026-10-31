@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileTextIcon, UserIcon, ImageIcon, SettingsIcon } from '../common/Icons';
+import { FileTextIcon, UserIcon, ImageIcon, SettingsIcon, HelpCircleIcon } from '../common/Icons';
 import { useEditorUIStore } from '../../core/stores/uiStore';
 
 export type StudioTab = 'scripts' | 'characters' | 'assets';
@@ -8,9 +8,23 @@ export interface ActivityBarProps {
   activeTab: StudioTab | null;
   onSelectTab: (tab: StudioTab | null) => void;
   onOpenSettings?: () => void;
+  onOpenShortcuts?: () => void;
 }
 
-export const ActivityBar: React.FC<ActivityBarProps> = ({ activeTab, onSelectTab, onOpenSettings }) => {
+export const ActivityBar: React.FC<ActivityBarProps> = ({
+  activeTab,
+  onSelectTab,
+  onOpenSettings,
+  onOpenShortcuts,
+}) => {
+  const handleShortcutsClick = () => {
+    if (onOpenShortcuts) {
+      onOpenShortcuts();
+    } else {
+      useEditorUIStore.getState().toggleShortcuts();
+    }
+  };
+
   const handleSettingsClick = () => {
     if (onOpenSettings) {
       onOpenSettings();
@@ -88,16 +102,29 @@ export const ActivityBar: React.FC<ActivityBarProps> = ({ activeTab, onSelectTab
         </button>
       </div>
 
-      <button
-        type="button"
-        data-testid="activity-bar-btn-settings"
-        onClick={handleSettingsClick}
-        title="Project Settings"
-        aria-label="Settings"
-        className="flex h-10 w-10 items-center justify-center rounded text-neutral-400 hover:bg-neutral-900 hover:text-neutral-200 transition-colors"
-      >
-        <SettingsIcon size={18} />
-      </button>
+      <div className="flex flex-col items-center gap-1">
+        <button
+          type="button"
+          data-testid="activity-bar-btn-shortcuts"
+          onClick={handleShortcutsClick}
+          title="Keyboard Shortcuts (?)"
+          aria-label="Keyboard Shortcuts"
+          className="flex h-10 w-10 items-center justify-center rounded text-neutral-400 hover:bg-neutral-900 hover:text-neutral-200 transition-colors"
+        >
+          <HelpCircleIcon size={18} />
+        </button>
+
+        <button
+          type="button"
+          data-testid="activity-bar-btn-settings"
+          onClick={handleSettingsClick}
+          title="Project Settings"
+          aria-label="Settings"
+          className="flex h-10 w-10 items-center justify-center rounded text-neutral-400 hover:bg-neutral-900 hover:text-neutral-200 transition-colors"
+        >
+          <SettingsIcon size={18} />
+        </button>
+      </div>
     </aside>
   );
 };

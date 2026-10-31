@@ -1,7 +1,6 @@
 /**
  * @vitest-environment jsdom
  */
-import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
@@ -59,7 +58,6 @@ describe('TASK-studio-polish-batch4: Studio Editor Refinements & UX Polish (Batc
       <ActivityBar
         activeTab="scripts"
         onSelectTab={handleSelectTab}
-        // @ts-expect-error onOpenShortcuts will be added in GREEN phase
         onOpenShortcuts={handleOpenShortcuts}
       />
     );
@@ -241,3 +239,4 @@ describe('TASK-studio-polish-batch4: Studio Editor Refinements & UX Polish (Batc
     expect(screen.getByTestId('problem-row-info-2')).toBeInTheDocument();
   });
 });
+

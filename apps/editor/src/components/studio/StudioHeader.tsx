@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeftIcon, EditIcon, SaveIcon } from '../common/Icons';
+import { ChevronLeftIcon, EditIcon, SaveIcon, DownloadIcon } from '../common/Icons';
 
 export interface StudioHeaderProps {
   projectTitle?: string;
@@ -39,6 +39,7 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
   onBack,
   onBackToHub,
   onTitleChange,
+  onExport,
   onSave,
 }) => {
   const resolvedTitle = projectTitle ?? title ?? '';
@@ -142,8 +143,20 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
         </div>
       </div>
 
-      {/* Right: Manual Save Action */}
+      {/* Right: Actions */}
       <div className="flex items-center gap-2">
+        {onExport && (
+          <button
+            type="button"
+            data-testid="btn-header-export"
+            onClick={onExport}
+            title="Export project bundle"
+            className="flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium text-neutral-400 hover:bg-neutral-800 hover:text-white transition"
+          >
+            <DownloadIcon size={13} />
+            <span>Export</span>
+          </button>
+        )}
         {onSave && (
           <button
             type="button"
