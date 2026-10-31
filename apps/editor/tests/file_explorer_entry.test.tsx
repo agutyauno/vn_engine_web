@@ -82,4 +82,24 @@ describe('FileExplorerPane: Configurable Entry Scene', () => {
     const deleteMainBtn = screen.getByTestId('btn-delete-file-file-main');
     expect(deleteMainBtn).not.toBeDisabled();
   });
+
+  it('TC-NO-DUP: does not render duplicate button and duplicateFile is eliminated', () => {
+    render(
+      <FileExplorerPane
+        files={mockFiles}
+        activeFileId="file-main"
+        entrySceneName="main.vns"
+        onSelectFile={vi.fn()}
+        onCreateFile={vi.fn()}
+        onRenameFile={vi.fn()}
+        onDeleteFile={vi.fn()}
+        onSetEntryScene={vi.fn()}
+      />
+    );
+
+    // Verify duplicate file buttons are completely absent
+    expect(screen.queryByTestId('btn-duplicate-file-file-main')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('btn-duplicate-file-file-prologue')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('btn-duplicate-file-file-chap1')).not.toBeInTheDocument();
+  });
 });
