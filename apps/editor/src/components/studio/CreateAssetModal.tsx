@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { AssetRef, AssetCategory } from '@vn-engine/shared-types';
 import { validateAssetFile, slugifyAssetId } from '../../core/utils/assetValidation';
-import { CloseIcon, ImageIcon } from '../common/Icons';
+import { CloseIcon, ImageIcon, FolderIcon } from '../common/Icons';
 
 export interface CreateAssetModalProps {
   isOpen: boolean;
@@ -40,10 +40,6 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
 }) => {
   const isEdit = Boolean(isEditMode || initialAsset);
 
-  const [registrationMode, setRegistrationMode] = useState<'upload' | 'remote'>(
-    initialFile ? 'upload' : initialAsset || initialAssetId ? 'remote' : 'upload'
-  );
-  const [remoteUrl, setRemoteUrl] = useState<string>(initialAsset?.storageUrl || '');
   const [currentFile, setCurrentFile] = useState<File | null>(initialFile);
   const [assetId, setAssetId] = useState<string>(initialAsset?.id || initialAssetId || '');
   const [assetName, setAssetName] = useState<string>(initialAsset?.name || '');
@@ -54,6 +50,7 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
   const [previewUrl, setPreviewUrl] = useState<string>(initialAsset?.storageUrl || '');
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isZoomed, setIsZoomed] = useState<boolean>(false);
+  const [isDragging, setIsDragging] = useState<boolean>(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -64,10 +61,6 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
       setCategory(initialAsset.category || 'background');
       setDetectedType(initialAsset.type || 'image');
       setPreviewUrl(initialAsset.storageUrl || '');
-      setRemoteUrl(initialAsset.storageUrl || '');
-      if (initialAsset.storageUrl) {
-        setRegistrationMode('remote');
-      }
     } else if (initialAssetId) {
       setAssetId(initialAssetId);
     }
@@ -81,9 +74,6 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
 
   useEffect(() => {
     setCurrentFile(initialFile);
-    if (initialFile) {
-      setRegistrationMode('upload');
-    }
   }, [initialFile]);
 
   useEffect(() => {
@@ -135,7 +125,7 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
     Boolean(assetId.trim()) &&
     isValidIdentifier &&
     !isDuplicate &&
-    (isEdit || registrationMode === 'remote' || (Boolean(currentFile) && !validationError));
+    (isEdit ? (Boolean(previewUrl) || Boolean(currentFile)) : (Boolean(currentFile) && !validationError));
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -148,7 +138,7 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
     e.preventDefault();
     if (!canSave) return;
 
-    if (registrationMode === 'upload' && currentFile) {
+    if (currentFile) {
       const newAsset: AssetRef = {
         id: assetId.trim(),
         name: assetName.trim() || currentFile.name,
@@ -158,21 +148,14 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
         sizeBytes: currentFile.size,
       };
       onSave(newAsset, currentFile);
-    } else {
-      // Remote URL or Placeholder Stub or Editing existing asset
-      const isAudio = category === 'bgm' || category === 'sfx' || category === 'voice';
-      const inferredType = detectedType || (isAudio ? 'audio' : 'image');
-      const finalUrl =
-        (registrationMode === 'remote' ? remoteUrl.trim() : previewUrl) ||
-        initialAsset?.storageUrl ||
-        '';
+    } else if (isEdit && initialAsset) {
       const newAsset: AssetRef = {
         id: assetId.trim(),
-        name: assetName.trim() || assetId.trim(),
-        type: inferredType,
+        name: assetName.trim() || initialAsset.name,
+        type: detectedType || initialAsset.type || 'image',
         category,
-        storageUrl: finalUrl,
-        sizeBytes: initialAsset?.sizeBytes || 0,
+        storageUrl: initialAsset.storageUrl || previewUrl,
+        sizeBytes: initialAsset.sizeBytes || 0,
       };
       onSave(newAsset, undefined);
     }
@@ -198,41 +181,18 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
           </button>
         </div>
 
-        {/* Mode Selector Tabs */}
-        <div className="flex border-b border-neutral-800 bg-neutral-950 px-5 pt-2 gap-3 text-xs">
-          <button
-            type="button"
-            data-testid="btn-mode-upload"
-            onClick={() => setRegistrationMode('upload')}
-            className={`pb-2 px-1 font-medium border-b-2 transition ${registrationMode === 'upload'
-                ? 'border-white text-white font-semibold'
-                : 'border-transparent text-neutral-400 hover:text-neutral-200'
-              }`}
-          >
-            Upload File
-          </button>
-          <button
-            type="button"
-            data-testid="btn-mode-remote"
-            onClick={() => setRegistrationMode('remote')}
-            className={`pb-2 px-1 font-medium border-b-2 transition ${registrationMode === 'remote'
-                ? 'border-white text-white font-semibold'
-                : 'border-transparent text-neutral-400 hover:text-neutral-200'
-              }`}
-          >
-            Remote URL / Placeholder
-          </button>
-        </div>
-
-        {/* Form Body */}
+        {/* Form Body (Single-Mode File Dialog) */}
         <form onSubmit={handleSave} className="flex-1 overflow-y-auto p-5 space-y-4">
-          {registrationMode === 'upload' ? (
+          {currentFile || previewUrl ? (
             <>
-              {/* File Picker / Replacement */}
+              {/* File Info Bar with Change File Button */}
               <div className="flex items-center justify-between text-xs text-neutral-400 border border-neutral-800 rounded-md p-3 bg-neutral-950">
-                <span className="truncate max-w-xs">{currentFile?.name || 'No file selected'}</span>
+                <span className="truncate max-w-xs">
+                  {currentFile?.name || initialAsset?.name || 'File attached'}
+                </span>
                 <input
                   type="file"
+                  data-testid="input-file-picker"
                   ref={fileInputRef}
                   onChange={handleFileChange}
                   className="hidden"
@@ -280,19 +240,49 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
               </div>
             </>
           ) : (
-            /* Remote URL / Placeholder Input */
+            /* Dropzone when no file selected yet */
             <div>
-              <label className="block text-xs font-medium text-neutral-300 mb-1">
-                Storage or CDN URL <span className="text-neutral-500 font-normal">(leave blank for placeholder)</span>
-              </label>
               <input
-                data-testid="input-remote-url"
-                type="text"
-                value={remoteUrl}
-                onChange={(e) => setRemoteUrl(e.target.value)}
-                placeholder="https://cdn.example.com/asset.png or leave empty as placeholder"
-                className="w-full px-3 py-2 text-xs bg-neutral-950 border border-neutral-800 rounded-md text-neutral-100 placeholder-neutral-500 focus:outline-hidden focus:border-neutral-500 font-mono"
+                type="file"
+                data-testid="input-file-picker"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                className="hidden"
               />
+              <div
+                data-testid="asset-dropzone"
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDragging(true);
+                }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setIsDragging(false);
+                  const file = e.dataTransfer.files?.[0];
+                  if (file) setCurrentFile(file);
+                }}
+                className={`flex flex-col items-center justify-center gap-2 p-6 rounded-md border-2 border-dashed cursor-pointer transition ${
+                  isDragging
+                    ? 'border-white bg-neutral-800/60'
+                    : 'border-neutral-700 hover:border-neutral-500 bg-neutral-950/60'
+                }`}
+              >
+                <FolderIcon size={28} className="text-neutral-400" />
+                <span className="text-xs font-medium text-neutral-200">
+                  Click to browse or drag & drop file here
+                </span>
+                <span className="text-[11px] text-neutral-500">
+                  Supported: PNG, JPG, WebP, AVIF, MP3, WAV, OGG, FLAC (Max 50MB)
+                </span>
+              </div>
+
+              {validationError && (
+                <div className="mt-2 text-xs text-red-400 bg-red-950/40 border border-red-800/60 p-2.5 rounded">
+                  {validationError}
+                </div>
+              )}
             </div>
           )}
 
@@ -308,8 +298,9 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
               disabled={isEdit}
               onChange={(e) => setAssetId(e.target.value)}
               placeholder="e.g. bg_classroom, bgm_theme"
-              className={`w-full px-3 py-2 text-xs bg-neutral-950 border border-neutral-800 rounded-md text-neutral-100 placeholder-neutral-500 focus:outline-hidden focus:border-neutral-500 font-mono ${isEdit ? 'opacity-60 cursor-not-allowed' : ''
-                }`}
+              className={`w-full px-3 py-2 text-xs bg-neutral-950 border border-neutral-800 rounded-md text-neutral-100 placeholder-neutral-500 focus:outline-hidden focus:border-neutral-500 font-mono ${
+                isEdit ? 'opacity-60 cursor-not-allowed' : ''
+              }`}
             />
             {isEdit && (
               <p className="mt-1 text-[11px] text-neutral-500">
