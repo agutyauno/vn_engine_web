@@ -1132,3 +1132,372 @@ body.is-embedded .public-footer {
 
 
 
+
+
+/* ================================================================
+   8. PREACT RUNTIME COMPONENT STYLES (REBUILD ARCHITECTURE)
+   ================================================================ */
+
+#ui-root {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+#game-stage,
+.game-stage {
+  flex: 1;
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+  background-color: var(--vn-bg-viewport);
+}
+
+#pixi-canvas-container,
+.pixi-canvas-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+#gameplay-overlay,
+.gameplay-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 10;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  transition: opacity var(--vn-transition-normal);
+}
+
+.gameplay-overlay.clean-art-mode {
+  opacity: 0;
+  pointer-events: none;
+}
+
+#dialogue-group,
+.dialogue-group {
+  pointer-events: auto;
+  margin: 0 4% 14px 4%;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.control-bar-btn {
+  background: var(--vn-btn-bg);
+  color: var(--vn-btn-text);
+  border: var(--vn-border-width) solid var(--vn-btn-border);
+  padding: 5px 11px;
+  font-size: 12px;
+  font-family: var(--vn-font-mono);
+  border-radius: var(--vn-radius-button);
+  cursor: pointer;
+  transition: background-color var(--vn-transition-fast), color var(--vn-transition-fast), border-color var(--vn-transition-fast);
+  outline: none;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.control-bar-btn:hover:not(:disabled) {
+  background: var(--vn-btn-hover-bg);
+  color: var(--vn-btn-hover-text);
+  border-color: var(--vn-btn-border-hover);
+}
+
+.control-bar-btn:active:not(:disabled) {
+  background: var(--vn-btn-active-bg);
+  color: #000000;
+}
+
+.control-bar-btn:disabled {
+  opacity: 0.35;
+  border-color: var(--vn-choice-disabled-border);
+  color: var(--vn-choice-disabled-text);
+  cursor: not-allowed;
+}
+
+.control-bar-btn.active {
+  background: #ffffff;
+  color: #000000;
+  border-color: #ffffff;
+  font-weight: 700;
+}
+
+.choice-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  background: rgba(0, 0, 0, 0.82);
+  z-index: 20;
+}
+
+.choice-buttons-list {
+  width: 85%;
+  max-width: 580px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.choice-button {
+  width: 100%;
+  background: var(--vn-choice-bg);
+  color: var(--vn-choice-text);
+  border: var(--vn-border-width) solid var(--vn-choice-border);
+  border-radius: var(--vn-radius-base);
+  padding: 14px 24px;
+  font-size: 16px;
+  font-weight: 500;
+  font-family: var(--vn-font-body);
+  text-align: center;
+  cursor: pointer;
+  transition: background-color var(--vn-transition-fast), color var(--vn-transition-fast), border-color var(--vn-transition-fast);
+  letter-spacing: 0.3px;
+  outline: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.choice-button:hover:not(:disabled),
+.choice-button.selected:not(:disabled) {
+  background: var(--vn-choice-hover-bg);
+  color: var(--vn-choice-hover-text);
+  border-color: var(--vn-choice-border);
+  font-weight: 700;
+}
+
+.choice-button:disabled,
+.choice-button.disabled {
+  opacity: 0.35;
+  background: var(--vn-choice-disabled-bg);
+  border-color: var(--vn-choice-disabled-border);
+  color: var(--vn-choice-disabled-text);
+  cursor: not-allowed;
+}
+
+.emergency-rollback-btn {
+  margin-top: 16px;
+  background: #7f1d1d;
+  color: #fef2f2;
+  border: 1px solid #ef4444;
+  padding: 10px 24px;
+  font-family: var(--vn-font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: all 0.2s ease;
+}
+
+.emergency-rollback-btn:hover {
+  background: #991b1b;
+  border-color: #f87171;
+}
+
+.modal-saveload-backdrop,
+.modal-game-settings,
+.modal-desync-backdrop,
+.inspect-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.85);
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+}
+
+.modal-saveload-window,
+.modal-desync-window {
+  width: 80%;
+  max-width: 880px;
+  max-height: 85%;
+  background: var(--vn-panel-bg);
+  border: var(--vn-border-width) solid var(--vn-border-primary);
+  border-radius: var(--vn-radius-base);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 20px;
+  color: var(--vn-text-primary);
+}
+
+.save-slots-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-top: 16px;
+  overflow-y: auto;
+}
+
+.save-slot-card {
+  border: 1px solid var(--vn-border-secondary);
+  background: rgba(20, 20, 20, 0.8);
+  padding: 12px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 120px;
+}
+
+.save-slot-card:hover {
+  border-color: var(--vn-border-primary);
+}
+
+.save-slot-card.empty {
+  opacity: 0.6;
+}
+
+.modal-backlog-drawer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 450px;
+  max-width: 90%;
+  height: 100%;
+  background: var(--vn-panel-bg);
+  border-left: var(--vn-border-width) solid var(--vn-border-primary);
+  z-index: 35;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  pointer-events: auto;
+  color: var(--vn-text-primary);
+}
+
+.backlog-header,
+.modal-header,
+.modal-settings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--vn-border-secondary);
+  padding-bottom: 8px;
+}
+
+.btn-close-modal,
+.btn-close-backlog,
+.btn-close-settings {
+  background: transparent;
+  border: none;
+  color: var(--vn-text-primary);
+  cursor: pointer;
+}
+
+.backlog-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.backlog-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 8px;
+}
+
+.backlog-speaker {
+  font-weight: bold;
+  font-size: 13px;
+}
+
+.backlog-text {
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.btn-replay-voice {
+  align-self: flex-start;
+  background: transparent;
+  border: 1px solid var(--vn-border-secondary);
+  color: var(--vn-text-secondary);
+  cursor: pointer;
+  padding: 2px 6px;
+  margin-top: 4px;
+}
+
+.btn-replay-voice:hover {
+  color: var(--vn-text-primary);
+  border-color: var(--vn-border-primary);
+}
+
+.settings-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px 0;
+}
+
+.setting-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.desync-details {
+  margin: 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-family: var(--vn-font-mono);
+  font-size: 13px;
+}
+
+.desync-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.desync-actions button {
+  background: var(--vn-btn-bg);
+  color: var(--vn-btn-text);
+  border: 1px solid var(--vn-btn-border);
+  padding: 8px 16px;
+  font-family: var(--vn-font-mono);
+  cursor: pointer;
+}
+
+.desync-actions button:hover {
+  background: var(--vn-btn-hover-bg);
+  color: var(--vn-btn-hover-text);
+}

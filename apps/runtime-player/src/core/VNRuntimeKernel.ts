@@ -10,13 +10,14 @@ import type {
   PlayerViewState,
   SaveSlotData,
   BacklogEntry,
+  VNRuntimeKernelOptions,
 } from './contracts';
 import { stripControlTags } from './typewriter';
 
 export class VNRuntimeKernel {
   private vm: VisualNovelVM;
   private adapters: KernelAdapters;
-  private options?: { projectId?: string };
+  private options?: VNRuntimeKernelOptions;
   private state: PlayerViewState;
   private subscribers: Set<(state: PlayerViewState) => void> = new Set();
   private seenDialogues: Set<string> = new Set();
@@ -31,7 +32,7 @@ export class VNRuntimeKernel {
   constructor(
     program: Instruction[],
     adapters?: KernelAdapters,
-    options?: { projectId?: string },
+    options?: VNRuntimeKernelOptions,
   ) {
     this.adapters = adapters ?? {};
     this.options = options;
@@ -52,8 +53,10 @@ export class VNRuntimeKernel {
     const initialSlots = this.adapters.storage?.getSlots?.() ?? defaultSlots;
     const initialQuickSave = this.adapters.storage?.getQuickSave?.() ?? null;
 
+    const initialMode = options?.initialMode ?? 'TITLE';
+
     this.state = {
-      mode: 'TITLE',
+      mode: initialMode,
       playbackMode: 'NORMAL',
       isControlsHidden: false,
       isCleanArtMode: false,
@@ -586,6 +589,17 @@ export class VNRuntimeKernel {
       this.state.desyncData = undefined;
       this.pendingRestoreSnapshot = null;
       this.pendingDesyncSlot = null;
+      this.emit();
+    }
+  }
+
+  public setVariable(name: string, value: unknown, scope?: 'global' | 'local'): void {
+    if (
+      typeof value === 'string' ||
+      typeof value === 'number' ||
+      typeof value === 'boolean'
+    ) {
+      this.vm.setVariable(name, value, scope);
       this.emit();
     }
   }

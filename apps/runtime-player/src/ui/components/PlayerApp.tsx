@@ -37,3 +37,4 @@ export function PlayerApp(): JSX.Element {
     </main>
   );
 }
+

@@ -20,3 +20,4 @@ export function DialogueGroup(): JSX.Element {
     </div>
   );
 }
+

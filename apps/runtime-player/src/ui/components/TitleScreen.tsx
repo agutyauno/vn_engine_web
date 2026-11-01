@@ -39,3 +39,4 @@ export function TitleScreen(): JSX.Element {
     </div>
   );
 }
+

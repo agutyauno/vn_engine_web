@@ -108,3 +108,4 @@ export function ControlBar(): JSX.Element {
     </div>
   );
 }
+

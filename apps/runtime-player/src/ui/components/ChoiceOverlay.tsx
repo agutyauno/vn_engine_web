@@ -41,3 +41,4 @@ export function ChoiceOverlay(): JSX.Element | null {
     </div>
   );
 }
+

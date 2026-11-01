@@ -194,3 +194,4 @@ export function HistoryIcon({ size = 24, className }: IconProps): JSX.Element {
     </svg>
   );
 }
+

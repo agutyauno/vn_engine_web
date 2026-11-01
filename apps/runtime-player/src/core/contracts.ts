@@ -154,3 +154,8 @@ export interface PlayerUIContract {
   state: PlayerViewState;
   actions: PlayerUIActions;
 }
+
+export interface VNRuntimeKernelOptions {
+  initialMode?: PlayerMode;
+  projectId?: string;
+}

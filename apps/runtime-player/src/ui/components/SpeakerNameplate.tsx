@@ -20,3 +20,4 @@ export function SpeakerNameplate({ speakerName, speakerColorHex }: SpeakerNamepl
     </div>
   );
 }
+

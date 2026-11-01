@@ -71,3 +71,4 @@ export function GameSettingsModal(): JSX.Element {
     </div>
   );
 }
+
