@@ -125,10 +125,10 @@ export const ProjectHubView: React.FC<ProjectHubViewProps> = ({ repository, onOp
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded border border-neutral-700 bg-neutral-800 text-white font-bold">
-              VN
+              TF
             </div>
             <div>
-              <h1 className="text-base font-bold tracking-tight text-white">Visual Novel Studio</h1>
+              <h1 className="text-base font-bold tracking-tight text-white">TaleForge Studio</h1>
               <p className="text-xs text-neutral-400">Project Management & Workspace Hub</p>
             </div>
           </div>

@@ -2,7 +2,7 @@
   "name": "vn-engine-web",
   "private": true,
   "version": "0.1.0",
-  "description": "Web-based Visual Novel Engine & Publishing Platform",
+  "description": "TaleForge — Web-based Visual Novel Engine & Publishing Platform",
   "packageManager": "pnpm@12.4.2",
   "scripts": {
     "build": "pnpm -r --workspace-concurrency=1 run build",

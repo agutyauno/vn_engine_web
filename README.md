@@ -1,4 +1,4 @@
-# VN Engine Web
+# TaleForge — Web Visual Novel Engine & Studio Platform
 
 > **Nền tảng sáng tác, mô phỏng và phát hành Visual Novel thế hệ mới hoàn toàn trên trình duyệt Web.**
 
@@ -11,7 +11,7 @@
 
 ## 📖 Giới Thiệu Dự Án
 
-**VN Engine Web** là một nền tảng mã nguồn mở hiện đại, cung cấp giải pháp toàn diện từ khâu viết kịch bản, quản lý tài nguyên (hình ảnh, âm thanh, biểu cảm), chạy thử nghiệm (Live Preview) cho đến phát hành trò chơi Visual Novel:
+**TaleForge** là một nền tảng mã nguồn mở hiện đại, cung cấp giải pháp toàn diện từ khâu viết kịch bản, quản lý tài nguyên (hình ảnh, âm thanh, biểu cảm), chạy thử nghiệm (Live Preview) cho đến phát hành trò chơi Visual Novel:
 
 - **Không cần cài đặt phức tạp**: Mọi thao tác biên kịch, dàn dựng và trải nghiệm đều chạy trực tiếp trên nền tảng Web tiêu chuẩn.
 - **Ngôn ngữ kịch bản trực quan (VNS DSL)**: Cú pháp ngắn gọn, dễ đọc, phù hợp cho cả nhà văn, biên kịch lẫn lập trình viên.
