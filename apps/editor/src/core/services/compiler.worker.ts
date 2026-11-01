@@ -11,6 +11,7 @@ export interface CompilerWorkerRequest {
   files: ScriptFile[];
   options?: {
     characters?: Character[];
+    assets?: Array<{ id: string; name?: string; type?: string; category?: string }>;
   };
 }
 
@@ -29,6 +30,7 @@ self.onmessage = (event: MessageEvent<CompilerWorkerRequest>) => {
   try {
     const result = compiler.compile(files, {
       characters: options?.characters,
+      assets: options?.assets,
     });
 
     if (result.success && result.program) {
@@ -45,6 +47,7 @@ self.onmessage = (event: MessageEvent<CompilerWorkerRequest>) => {
         timestamp: Date.now(),
         category: 'compiler',
         severity: 'error',
+        code: err.code,
         message: err.message,
         fileId: err.loc?.fileId,
         line: err.loc?.line,

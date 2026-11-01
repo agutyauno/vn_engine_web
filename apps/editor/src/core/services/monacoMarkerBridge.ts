@@ -50,6 +50,7 @@ export function syncMonacoMarkers(options: MonacoMarkerSyncOptions): void {
 
     return {
       severity,
+      code: d.code,
       message: d.message,
       startLineNumber: lineNumber,
       startColumn,

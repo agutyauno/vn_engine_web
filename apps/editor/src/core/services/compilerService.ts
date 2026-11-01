@@ -12,6 +12,7 @@ import type {
 
 export interface CompileExecutionOptions {
   characters?: Character[];
+  assets?: Array<{ id: string; name?: string; type?: string; category?: string }>;
   forceSync?: boolean;
 }
 
@@ -67,6 +68,7 @@ export class CompilerService {
     const compiler = new Compiler();
     const result = compiler.compile(files, {
       characters: options?.characters,
+      assets: options?.assets,
     });
 
     if (result.success && result.program) {
@@ -83,6 +85,7 @@ export class CompilerService {
       timestamp: Date.now(),
       category: 'compiler',
       severity: 'error',
+      code: err.code,
       message: err.message,
       fileId: err.loc?.fileId,
       line: err.loc?.line,
@@ -240,6 +243,7 @@ export class CompilerService {
         files,
         options: {
           characters: options?.characters,
+          assets: options?.assets,
         },
       };
 

@@ -162,9 +162,16 @@ export const DockProblemsTable: React.FC<DockProblemsTableProps> = ({
 
                   {/* Description */}
                   <td className="py-1.5 px-3 text-neutral-200">
-                    <span className="font-sans text-xs group-hover:text-white transition-colors">
-                      {diag.message}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      {'code' in diag && diag.code && (
+                        <span className="shrink-0 rounded bg-neutral-800 px-1.5 py-0.5 text-[10px] font-mono text-neutral-400 border border-neutral-700">
+                          {diag.code}
+                        </span>
+                      )}
+                      <span className="font-sans text-xs group-hover:text-white transition-colors">
+                        {diag.message}
+                      </span>
+                    </div>
                   </td>
 
                   {/* Source File & Line */}

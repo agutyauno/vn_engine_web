@@ -6,11 +6,18 @@
 import * as monaco from 'monaco-editor';
 import { formatVns } from '@vn-engine/dsl-compiler';
 
+export interface SceneItem {
+  name: string;
+  file: string;
+  line: number;
+}
+
 export interface VnsProjectContext {
   getFiles: () => Record<string, string>;
-  getScenes: () => string[];
+  getScenes: () => SceneItem[] | string[];
   getCharacters: () => Map<string, { displayName?: string; sprites: Set<string> }>;
-  getAssets: () => { backgrounds: Set<string>; audio: Set<string> };
+  getAssets: () => { backgrounds: Set<string>; audio: Set<string>; voices?: Set<string> };
+  getAssetDetails?: () => Map<string, { category?: string; type: string; sizeBytes?: number }>;
   getVariables: () => string[];
   switchActiveFile: (fileName: string) => void;
 }
@@ -18,7 +25,7 @@ export interface VnsProjectContext {
 export function registerVnsLanguageFeatures(context: VnsProjectContext): void {
   // 1. AUTOCOMPLETE PROVIDER
   monaco.languages.registerCompletionItemProvider('vns', {
-    triggerCharacters: [' ', '.', ':', '~', '"'],
+    triggerCharacters: [' ', '.', ':', '~', '"', '{'],
     provideCompletionItems: (model, position) => {
       const lineContent = model.getLineContent(position.lineNumber);
       const textUntilPosition = lineContent.substring(0, position.column - 1);
@@ -33,14 +40,20 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): void {
       const suggestions: monaco.languages.CompletionItem[] = [];
 
       // A. Gợi ý Scene sau goto hoặc call
-      if (/\b(goto|call)\s+[a-zA-Z0-9_]*$/.test(textUntilPosition)) {
+      if (/\b(goto|call)\s+[a-zA-Z0-9_.]*$/.test(textUntilPosition)) {
         const scenes = context.getScenes();
-        for (const sc of scenes) {
+        for (const item of scenes) {
+          const scName = typeof item === 'string' ? item : item.name;
+          const scDoc =
+            typeof item === 'string'
+              ? `Jump execution flow to scene "${scName}"`
+              : `Jump execution flow to scene "${scName}"\n\nDeclared in: ${item.file} (line ${item.line})`;
+
           suggestions.push({
-            label: sc,
+            label: scName,
             kind: monaco.languages.CompletionItemKind.Function,
-            documentation: `Jump execution flow to scene "${sc}"`,
-            insertText: sc,
+            documentation: scDoc,
+            insertText: scName,
             range,
           });
         }
@@ -266,19 +279,75 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): void {
         return { suggestions };
       }
 
-      // E. Gợi ý Âm thanh sau play music / play sound
-      if (/\bplay\s+(music|sound)\s+[a-zA-Z0-9_]*$/.test(textUntilPosition)) {
+      // E. Gợi ý Âm thanh sau play music / play sound / play voice
+      if (/\bplay\s+(music|sound|voice)\s+[a-zA-Z0-9_]*$/.test(textUntilPosition)) {
         const assets = context.getAssets();
-        for (const aud of assets.audio) {
+        const isVoice = /\bplay\s+voice\s+[a-zA-Z0-9_]*$/.test(textUntilPosition);
+        const targetSet = isVoice ? (assets.voices || new Set()) : assets.audio;
+        for (const aud of targetSet) {
           suggestions.push({
             label: aud,
             kind: monaco.languages.CompletionItemKind.File,
-            documentation: `Audio asset: ${aud}`,
+            documentation: `${isVoice ? 'Voice' : 'Audio'} asset: ${aud}`,
             insertText: aud,
             range,
           });
         }
         return { suggestions };
+      }
+
+      // E1. Scoped dialogue string interpolation ({var} and typewriter tags)
+      const braceMatch = textUntilPosition.match(/\{([a-zA-Z0-9_:]*)$/);
+      if (braceMatch) {
+        // Chỉ kích hoạt khi con trỏ ở trong chuỗi thoại hoặc prompt input
+        const isDialogueOrInput =
+          /^[ \t]*[a-zA-Z_][a-zA-Z0-9_]*(?:\s+as\s+"[^"]*")?:\s*"[^"]*$/.test(textUntilPosition) ||
+          /^[ \t]*"[^"]*$/.test(textUntilPosition) ||
+          /^[ \t]*input\s+[a-zA-Z_][a-zA-Z0-9_]*\s+"[^"]*$/.test(textUntilPosition);
+
+        if (isDialogueOrInput) {
+          const braceRange: monaco.IRange = {
+            startLineNumber: position.lineNumber,
+            endLineNumber: position.lineNumber,
+            startColumn: position.column - braceMatch[0].length,
+            endColumn: position.column,
+          };
+
+          // Gợi ý biến kịch bản
+          const vars = context.getVariables();
+          for (const v of vars) {
+            suggestions.push({
+              label: `{${v}}`,
+              kind: monaco.languages.CompletionItemKind.Variable,
+              detail: `Variable: ${v}`,
+              documentation: `Interpolate variable "${v}" into dialogue`,
+              insertText: `{${v}}`,
+              sortText: `00_${v}`,
+              range: braceRange,
+            });
+          }
+
+          // Gợi ý typewriter control tags
+          const typewriterTags = [
+            { tag: '{pause:0.5s}', doc: 'Pause typewriter rendering for 0.5 seconds' },
+            { tag: '{speed:fast}', doc: 'Change typewriter text rendering speed ("slow" | "normal" | "fast")' },
+            { tag: '{color:#38bdf8}', doc: 'Colorize subsequent dialogue text' },
+          ];
+
+          for (const t of typewriterTags) {
+            suggestions.push({
+              label: t.tag,
+              kind: monaco.languages.CompletionItemKind.Snippet,
+              detail: 'Typewriter Tag',
+              documentation: t.doc,
+              insertText: t.tag,
+              sortText: `01_${t.tag}`,
+              range: braceRange,
+            });
+          }
+
+          return { suggestions };
+        }
       }
 
       // F. Gợi ý Biến trạng thái sau ~
@@ -537,9 +606,24 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): void {
           snippet: 'play sound "${1:sfx_asset}" volume: ${2:0.8}',
         },
         {
+          label: 'play voice',
+          doc: 'Play character voice audio: play voice "voice_id" volume: 1.0',
+          snippet: 'play voice "${1:voice_asset}" volume: ${2:1.0}',
+        },
+        {
           label: 'stop',
           doc: 'Stop audio channel: stop music fade_out: 1.0s',
           snippet: 'stop ${1:music} fade_out: ${2:1.0s}',
+        },
+        {
+          label: 'stop voice',
+          doc: 'Stop active voice channel playback: stop voice',
+          snippet: 'stop voice',
+        },
+        {
+          label: 'input',
+          doc: 'Prompt player text input: input var "Prompt question" default: "value"',
+          snippet: 'input ${1:variable} "${2:Prompt question}" default: "${3:value}"',
         },
         {
           label: 'goto',
@@ -674,6 +758,113 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): void {
           text: formattedText,
         },
       ];
+    },
+  });
+
+  // 4. HOVER PROVIDER (Zero-Trust Markdown Hover Cards)
+  monaco.languages.registerHoverProvider('vns', {
+    provideHover: (model, position) => {
+      const lineContent = model.getLineContent(position.lineNumber);
+      if (!lineContent) return null;
+
+      const col = Math.max(0, position.column - 1);
+      const isWordChar = (c: string) => /[a-zA-Z0-9_]/.test(c);
+
+      let start = col;
+      let end = col;
+
+      if (!isWordChar(lineContent[col] || '')) {
+        const w = model.getWordAtPosition ? model.getWordAtPosition(position) : null;
+        if (!w || !w.word) return null;
+        start = w.startColumn - 1;
+        end = w.endColumn - 1;
+      } else {
+        while (start > 0 && isWordChar(lineContent[start - 1]!)) {
+          start--;
+        }
+        while (end < lineContent.length && isWordChar(lineContent[end]!)) {
+          end++;
+        }
+      }
+
+      const token = lineContent.substring(start, end);
+      if (!token) return null;
+
+      const wordRange: monaco.IRange = {
+        startLineNumber: position.lineNumber,
+        endLineNumber: position.lineNumber,
+        startColumn: start + 1,
+        endColumn: end + 1,
+      };
+
+      // A. Character Hover
+      const chars = context.getCharacters();
+      if (chars.has(token)) {
+        const charInfo = chars.get(token)!;
+        const spritesList = Array.from(charInfo.sprites || []).join(', ');
+        const mdParts = [
+          `**Character: ${token}**`,
+          charInfo.displayName ? `**Display Name:** ${charInfo.displayName}` : null,
+          spritesList ? `**Sprites:** ${spritesList}` : null,
+        ].filter(Boolean);
+
+        return {
+          range: wordRange,
+          contents: [
+            {
+              value: mdParts.join('\n\n'),
+              isTrusted: false,
+              supportHtml: false,
+            },
+          ],
+        };
+      }
+
+      // B. Asset Details Hover
+      const assetDetails = context.getAssetDetails ? context.getAssetDetails() : null;
+      if (assetDetails && assetDetails.has(token)) {
+        const detail = assetDetails.get(token)!;
+        const mdParts = [
+          `**Asset: ${token}**`,
+          detail.category ? `**Category:** ${detail.category}` : null,
+          detail.type ? `**Type:** ${detail.type}` : null,
+          detail.sizeBytes !== undefined
+            ? `**Size:** ${(detail.sizeBytes / 1024).toFixed(1)} KB (${detail.sizeBytes} bytes)`
+            : null,
+        ].filter(Boolean);
+
+        return {
+          range: wordRange,
+          contents: [
+            {
+              value: mdParts.join('\n\n'),
+              isTrusted: false,
+              supportHtml: false,
+            },
+          ],
+        };
+      }
+
+      // C. Scene Location Hover
+      if (new RegExp(`\\b(goto|call)\\s+${token}\\b`).test(lineContent)) {
+        const scenes = context.getScenes();
+        for (const sc of scenes) {
+          if (typeof sc !== 'string' && sc.name === token) {
+            return {
+              range: wordRange,
+              contents: [
+                {
+                  value: `**Scene:** ${sc.name}\n\n**File:** ${sc.file}\n**Line:** ${sc.line}`,
+                  isTrusted: false,
+                  supportHtml: false,
+                },
+              ],
+            };
+          }
+        }
+      }
+
+      return null;
     },
   });
 }
