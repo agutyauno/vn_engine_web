@@ -1,7 +1,10 @@
+// @vitest-environment jsdom
 // apps/editor/tests/monaco_completion.test.ts
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import * as monaco from 'monaco-editor';
 import type { Project, AssetRef } from '@vn-engine/shared-types';
 import { createVnsProjectContext } from '../src/core/services/vnsContextProvider';
+import { registerVnsLanguageFeatures } from '../src/vnsLanguageFeatures';
 
 function createMockProject(options?: {
   assets?: AssetRef[];
@@ -103,5 +106,245 @@ describe('Monaco VNS Completion & Dynamic Store Binding', () => {
     // Live query through context provider MUST reflect new data without restarting
     expect(context.getAssets().backgrounds.has('bg_courtyard')).toBe(true);
     expect(context.getCharacters().has('bob')).toBe(true);
+  });
+});
+
+// Helper tạo mock Monaco text model
+function createMockModel(content: string): monaco.editor.ITextModel {
+  const lines = content.split('\n');
+  return {
+    getLineContent: (lineNumber: number) => lines[lineNumber - 1] ?? '',
+    getWordUntilPosition: (position: monaco.Position) => {
+      const line = lines[position.lineNumber - 1] ?? '';
+      const text = line.substring(0, position.column - 1);
+      const match = text.match(/[a-zA-Z0-9_]+$/);
+      return {
+        word: match ? match[0] : '',
+        startColumn: match ? position.column - match[0].length : position.column,
+        endColumn: position.column,
+      };
+    },
+    getWordAtPosition: (position: monaco.Position) => {
+      const line = lines[position.lineNumber - 1] ?? '';
+      const text = line.substring(0, position.column);
+      const match = text.match(/[a-zA-Z0-9_]+$/);
+      return match
+        ? {
+            word: match[0],
+            startColumn: position.column - match[0].length + 1,
+            endColumn: position.column + 1,
+          }
+        : null;
+    },
+    getValue: () => content,
+  } as unknown as monaco.editor.ITextModel;
+}
+
+describe('Monaco DSL 1.1.0 Features, Scoped Interpolation & Hover Provider (TDD RED)', () => {
+  let capturedCompletionProvider: monaco.languages.CompletionItemProvider | null = null;
+  let capturedHoverProvider: monaco.languages.HoverProvider | null = null;
+
+  beforeEach(() => {
+    capturedCompletionProvider = null;
+    capturedHoverProvider = null;
+
+    vi.spyOn(monaco.languages, 'registerCompletionItemProvider').mockImplementation(
+      (_lang: any, provider: any) => {
+        capturedCompletionProvider = provider;
+        return { dispose: () => {} };
+      }
+    );
+
+    vi.spyOn(monaco.languages, 'registerHoverProvider' as any).mockImplementation(
+      (_lang: any, provider: any) => {
+        capturedHoverProvider = provider;
+        return { dispose: () => {} };
+      }
+    );
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // TC-MC-01: Jump suggestions with source doc
+  it('TC-MC-01: Jump suggestions display source file name and declaration line number in documentation', () => {
+    const mockContext: any = {
+      getFiles: () => ({}),
+      getScenes: () => [
+        { name: 'intro', file: 'prologue.vns', line: 12 },
+      ],
+      getCharacters: () => new Map(),
+      getAssets: () => ({ backgrounds: new Set(), audio: new Set(), voices: new Set() }),
+      getAssetDetails: () => new Map(),
+      getVariables: () => [],
+      switchActiveFile: () => {},
+    };
+
+    registerVnsLanguageFeatures(mockContext);
+    expect(capturedCompletionProvider).not.toBeNull();
+
+    const model = createMockModel('goto ');
+    const pos = { lineNumber: 1, column: 6 } as monaco.Position;
+    const result = capturedCompletionProvider!.provideCompletionItems(model, pos, {} as any, {} as any) as any;
+
+    const introSuggestion = (result?.suggestions || []).find((s: any) => s.label === 'intro');
+    expect(introSuggestion).toBeDefined();
+    expect(introSuggestion.documentation).toContain('prologue.vns');
+    expect(introSuggestion.documentation).toContain('12');
+  });
+
+  // TC-MC-02: DSL 1.1.0 input snippet
+  it('TC-MC-02: Suggests DSL 1.1.0 input snippet when typing input keyword', () => {
+    const mockContext: any = {
+      getFiles: () => ({}),
+      getScenes: () => [],
+      getCharacters: () => new Map(),
+      getAssets: () => ({ backgrounds: new Set(), audio: new Set(), voices: new Set() }),
+      getAssetDetails: () => new Map(),
+      getVariables: () => [],
+      switchActiveFile: () => {},
+    };
+
+    registerVnsLanguageFeatures(mockContext);
+    const model = createMockModel('input');
+    const pos = { lineNumber: 1, column: 6 } as monaco.Position;
+    const result = capturedCompletionProvider!.provideCompletionItems(model, pos, {} as any, {} as any) as any;
+
+    const inputSnippet = (result?.suggestions || []).find((s: any) => s.label === 'input');
+    expect(inputSnippet).toBeDefined();
+    expect(inputSnippet.insertText).toContain('input ${1:variable} "${2:Prompt question}" default: "${3:value}"');
+  });
+
+  // TC-MC-03: DSL 1.1.0 play voice snippet
+  it('TC-MC-03: Suggests voice assets from context.getAssets().voices after play voice', () => {
+    const mockContext: any = {
+      getFiles: () => ({}),
+      getScenes: () => [],
+      getCharacters: () => new Map(),
+      getAssets: () => ({
+        backgrounds: new Set(),
+        audio: new Set(),
+        voices: new Set(['voice_alice_hello']),
+      }),
+      getAssetDetails: () => new Map(),
+      getVariables: () => [],
+      switchActiveFile: () => {},
+    };
+
+    registerVnsLanguageFeatures(mockContext);
+    const model = createMockModel('play voice ');
+    const pos = { lineNumber: 1, column: 12 } as monaco.Position;
+    const result = capturedCompletionProvider!.provideCompletionItems(model, pos, {} as any, {} as any) as any;
+
+    const voiceItem = (result?.suggestions || []).find((s: any) => s.label === 'voice_alice_hello');
+    expect(voiceItem).toBeDefined();
+  });
+
+  // TC-MC-04: Scoped dialogue string interpolation
+  it('TC-MC-04: Suggests variables and typewriter tags when typing { inside dialogue string', () => {
+    const mockContext: any = {
+      getFiles: () => ({}),
+      getScenes: () => [],
+      getCharacters: () => new Map(),
+      getAssets: () => ({ backgrounds: new Set(), audio: new Set(), voices: new Set() }),
+      getAssetDetails: () => new Map(),
+      getVariables: () => ['playerName', 'playerScore'],
+      switchActiveFile: () => {},
+    };
+
+    registerVnsLanguageFeatures(mockContext);
+    const model = createMockModel('alice: "Xin chao {');
+    const pos = { lineNumber: 1, column: 19 } as monaco.Position;
+    const result = capturedCompletionProvider!.provideCompletionItems(model, pos, {} as any, {} as any) as any;
+
+    const labels = (result?.suggestions || []).map((s: any) => s.label);
+    expect(labels).toContain('{playerName}');
+    expect(labels).toContain('{pause:0.5s}');
+    expect(labels).toContain('{speed:fast}');
+    expect(labels).toContain('{color:#38bdf8}');
+  });
+
+  // TC-MC-05: Non-dialogue brace exclusion
+  it('TC-MC-05: Does not suggest typewriter tags when typing { outside dialogue string', () => {
+    const mockContext: any = {
+      getFiles: () => ({}),
+      getScenes: () => [],
+      getCharacters: () => new Map(),
+      getAssets: () => ({ backgrounds: new Set(), audio: new Set(), voices: new Set() }),
+      getAssetDetails: () => new Map(),
+      getVariables: () => ['playerName'],
+      switchActiveFile: () => {},
+    };
+
+    registerVnsLanguageFeatures(mockContext);
+    const model = createMockModel('background "bg_{');
+    const pos = { lineNumber: 1, column: 17 } as monaco.Position;
+    const result = capturedCompletionProvider!.provideCompletionItems(model, pos, {} as any, {} as any) as any;
+
+    const labels = (result?.suggestions || []).map((s: any) => s.label);
+    expect(labels).not.toContain('{pause:0.5s}');
+    expect(labels).not.toContain('{speed:fast}');
+  });
+
+  // TC-MC-06: Monaco Hover Provider Zero-Trust
+  it('TC-MC-06: Hover provider returns zero-trust Markdown card with character details', () => {
+    const mockContext: any = {
+      getFiles: () => ({}),
+      getScenes: () => [],
+      getCharacters: () =>
+        new Map([
+          ['alice', { displayName: 'Alice Wonderland', sprites: new Set(['happy', 'sad']) }],
+        ]),
+      getAssets: () => ({ backgrounds: new Set(), audio: new Set(), voices: new Set() }),
+      getAssetDetails: () => new Map(),
+      getVariables: () => [],
+      switchActiveFile: () => {},
+    };
+
+    registerVnsLanguageFeatures(mockContext);
+    expect(capturedHoverProvider).not.toBeNull();
+
+    const model = createMockModel('alice: "Hello!"');
+    const pos = { lineNumber: 1, column: 3 } as monaco.Position;
+    const hover = capturedHoverProvider!.provideHover(model, pos, {} as any) as any;
+
+    expect(hover).toBeDefined();
+    expect(hover.contents).toBeDefined();
+    expect(hover.contents.length).toBeGreaterThan(0);
+    const card = hover.contents[0];
+    expect(card.value).toContain('Alice Wonderland');
+    expect(card.value).toContain('happy');
+    expect(card.isTrusted).toBe(false);
+    expect(card.supportHtml).toBe(false);
+  });
+
+  // TC-MC-07: Monaco Hover Asset details
+  it('TC-MC-07: Hover provider displays asset details metadata including category, type, and size', () => {
+    const mockContext: any = {
+      getFiles: () => ({}),
+      getScenes: () => [],
+      getCharacters: () => new Map(),
+      getAssets: () => ({ backgrounds: new Set(), audio: new Set(), voices: new Set() }),
+      getAssetDetails: () =>
+        new Map([
+          ['bg_classroom', { category: 'background', type: 'image', sizeBytes: 20480 }],
+        ]),
+      getVariables: () => [],
+      switchActiveFile: () => {},
+    };
+
+    registerVnsLanguageFeatures(mockContext);
+    expect(capturedHoverProvider).not.toBeNull();
+
+    const model = createMockModel('background bg_classroom');
+    const pos = { lineNumber: 1, column: 15 } as monaco.Position;
+    const hover = capturedHoverProvider!.provideHover(model, pos, {} as any) as any;
+
+    expect(hover).toBeDefined();
+    const card = hover.contents[0];
+    expect(card.value).toContain('bg_classroom');
+    expect(card.value).toContain('background');
+    expect(card.value).toContain('image');
   });
 });
