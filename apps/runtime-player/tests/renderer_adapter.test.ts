@@ -80,11 +80,10 @@ describe('RendererAdapter', () => {
       const hideInstr: Instruction = {
         type: 'HIDE',
         character: 'alice',
-        duration: 0.3,
       };
 
       await adapter.applySideEffect(hideInstr);
-      expect(mockGameRenderer.hideCharacter).toHaveBeenCalledWith('alice', 0.3);
+      expect(mockGameRenderer.hideCharacter).toHaveBeenCalledWith('alice');
     });
 
     it('should ignore HIDE_DIALOGUE and non-visual instructions without throwing', async () => {
@@ -171,3 +170,4 @@ describe('RendererAdapter', () => {
     });
   });
 });
+

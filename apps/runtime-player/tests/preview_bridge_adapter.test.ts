@@ -241,7 +241,7 @@ describe('PreviewBridgeAdapter', () => {
 
       const diag: EngineDiagnostic = {
         id: 'diag_1',
-        category: 'script',
+        category: 'compiler',
         severity: 'warning',
         message: 'Unused label',
         timestamp: Date.now(),
@@ -269,3 +269,4 @@ describe('PreviewBridgeAdapter', () => {
     });
   });
 });
+

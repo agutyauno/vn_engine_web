@@ -114,7 +114,7 @@ export class Typewriter {
   private element: HTMLElement;
   private tokens: TypewriterToken[] = [];
   private tokenIndex: number = 0;
-  private timerId: number | null = null;
+  private timerId: ReturnType<typeof setTimeout> | null = null;
   private baseSpeedMs: number = 24;
   private currentSpeedMs: number = 24;
   private _isTyping: boolean = false;
