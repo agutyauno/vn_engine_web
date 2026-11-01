@@ -30,7 +30,7 @@ describe('DiagnosticBus Service Tests', () => {
     });
 
     expect(subscriber).toHaveBeenCalledTimes(1);
-    const diag: EngineDiagnostic = subscriber.mock.calls[0][0];
+    const diag: EngineDiagnostic = subscriber.mock.calls[0]![0];
     expect(diag.id).toMatch(/^diag_\d+_/);
     expect(diag.timestamp).toBeGreaterThan(0);
     expect(diag.category).toBe('asset');
