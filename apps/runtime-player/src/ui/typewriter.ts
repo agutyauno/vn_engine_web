@@ -157,6 +157,10 @@ export class Typewriter {
 
   private tick = (): void => {
     if (!this._isTyping) return;
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      this._isTyping = false;
+      return;
+    }
 
     if (this.tokenIndex < this.tokens.length) {
       const token = this.tokens[this.tokenIndex]!;
@@ -164,7 +168,7 @@ export class Typewriter {
 
       if (token.type === 'pause') {
         // Tạm dừng nhịp gõ
-        this.timerId = window.setTimeout(this.tick, token.durationMs);
+        this.timerId = globalThis.setTimeout(this.tick, token.durationMs);
       } else if (token.type === 'speed') {
         // Cập nhật tốc độ gõ
         this.currentSpeedMs = token.speedMs;
@@ -180,7 +184,7 @@ export class Typewriter {
           this.element.appendChild(this.activeSpan);
         }
         this.activeSpan.textContent += token.char;
-        this.timerId = window.setTimeout(this.tick, this.currentSpeedMs);
+        this.timerId = globalThis.setTimeout(this.tick, this.currentSpeedMs);
       }
     } else {
       this._isTyping = false;

@@ -1,15 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type {
-  Instruction,
-  DialogueInstruction,
-  ChoiceInstruction,
-  PlayInstruction,
-} from '@vn-engine/shared-types';
+import type { Instruction } from '@vn-engine/shared-types';
 import { VNRuntimeKernel } from '../src/core/VNRuntimeKernel';
 import { parseTypewriterSegments, stripControlTags } from '../src/core/typewriter';
 import type {
   KernelAdapters,
-  PlayerViewState,
   SaveSlotData,
 } from '../src/core/contracts';
 
