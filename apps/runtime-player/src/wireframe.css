@@ -340,14 +340,16 @@ body.is-embedded #game-root {
 /* HỘP THOẠI CHÍNH (DIALOGUE BOX) */
 .dialogue-box {
   background: var(--vn-panel-bg);
-  border: var(--vn-border-width) solid #000000;
+  border: var(--vn-border-width) solid rgba(255, 255, 255, 0.28);
   border-radius: var(--vn-radius-base);
   padding: 20px 26px 16px 26px;
   min-height: 110px;
   position: relative;
   cursor: pointer;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-  transition: border-color var(--vn-transition-fast);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: border-color var(--vn-transition-fast), box-shadow var(--vn-transition-fast);
 }
 
 .dialogue-box.hidden {
@@ -356,6 +358,7 @@ body.is-embedded #game-root {
 
 .dialogue-box:hover {
   border-color: var(--vn-border-active);
+  box-shadow: 0 6px 28px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 /* NỘI DUNG VĂN BẢN THOẠI (TYPEWRITER TEXT) */
@@ -376,17 +379,24 @@ body.is-embedded #game-root {
   right: 18px;
   bottom: 12px;
   font-family: var(--vn-font-mono);
-  font-size: 12px;
-  letter-spacing: 1px;
-  color: var(--vn-text-muted);
+  font-size: 14px;
+  line-height: 1;
+  color: #ffffff;
   user-select: none;
-  animation: indicatorPulse 1.2s infinite ease-in-out;
+  animation: indicatorBounce 1s infinite ease-in-out;
   transition: opacity var(--vn-transition-fast);
+  cursor: pointer;
 }
 
-@keyframes indicatorPulse {
-  0%, 100% { opacity: 0.35; transform: translateX(0); }
-  50% { opacity: 1; transform: translateX(3px); }
+@keyframes indicatorBounce {
+  0%, 100% {
+    opacity: 0.35;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(4px);
+  }
 }
 
 /* ================================================================
@@ -1139,23 +1149,41 @@ body.is-embedded .public-footer {
    ================================================================ */
 
 #ui-root {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-
-#game-stage,
-.game-stage {
-  flex: 1;
-  width: 100%;
+  width: 100vw;
   height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
-  position: relative;
   background-color: var(--vn-bg-viewport);
+  overflow: hidden;
+}
+
+#game-stage,
+.game-stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  max-width: 177.78vh;
+  max-height: 56.25vw;
+  aspect-ratio: 16 / 9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background-color: #000000;
+  box-shadow: 0 0 50px rgba(0, 0, 0, 0.9);
+}
+
+html.is-embedded #ui-root,
+body.is-embedded #ui-root {
+  width: 100%;
+  height: 100%;
+}
+
+html.is-embedded #game-stage,
+body.is-embedded #game-stage {
+  max-width: 100%;
+  max-height: 100%;
 }
 
 #pixi-canvas-container,

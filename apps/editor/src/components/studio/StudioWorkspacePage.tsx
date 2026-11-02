@@ -27,7 +27,7 @@ import { usePreviewStore } from '../../core/stores/livePreviewStore';
 import { useCompilerPipeline } from '../../hooks/useCompilerPipeline';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { CompilerService } from '../../core/services/compilerService';
-import { PreviewBridge } from '../../core/services/previewBridge';
+import { PreviewBridge, buildPreviewUrl } from '../../core/services/previewBridge';
 import { scanActiveReconciliation, type EditorDiagnostic } from '../../core/services/reconciliation';
 
 export interface StudioWorkspacePageProps {
@@ -129,7 +129,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
         targetWindow: () => {
           if (typeof document === 'undefined') return null;
           const iframe = document.querySelector<HTMLIFrameElement>(
-            'iframe[data-testid="preview-dock-iframe"]'
+            'iframe[data-testid="preview-player-iframe"]'
           );
           return iframe?.contentWindow || null;
         },
@@ -792,7 +792,11 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
               canvasHeight={canvasHeight}
               isPlaying={isPlaying}
               isPopout={isPreviewPopout}
-              previewUrl={`http://localhost:3000/?mode=preview&projectId=${currentProject.id}`}
+              previewUrl={buildPreviewUrl('http://localhost:3000', currentProject.id, {
+                isPopout: isPreviewPopout,
+                editorOrigin: typeof window !== 'undefined' ? window.location.origin : undefined,
+              })}
+              previewBridge={previewBridge}
               repository={repository}
               onTogglePlay={togglePlay}
               onReload={() => {

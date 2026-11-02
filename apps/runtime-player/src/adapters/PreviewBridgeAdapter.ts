@@ -4,7 +4,7 @@
 // Throttling 60ms cho State Updates, Origin Sanitization & Diagnostic Forwarding
 // ============================================================================
 
-import type { Instruction, EngineDiagnostic } from '@vn-engine/shared-types';
+import type { Instruction, EngineDiagnostic, Character, AssetRef } from '@vn-engine/shared-types';
 
 export function isAllowedEditorOrigin(
   origin: string,
@@ -20,7 +20,12 @@ export function isAllowedEditorOrigin(
   if (localOrigin && origin === localOrigin) {
     return true;
   }
-  if (origin === 'http://localhost:3000' || origin === 'http://127.0.0.1:3000') {
+  if (
+    origin === 'http://localhost:3000' ||
+    origin === 'http://127.0.0.1:3000' ||
+    origin === 'http://localhost:3001' ||
+    origin === 'http://127.0.0.1:3001'
+  ) {
     return true;
   }
   const userContentRegex = /^https?:\/\/([a-zA-Z0-9-]+\.)*usercontent-platform\.com(:\d+)?$/;
@@ -31,7 +36,16 @@ export interface PreviewBridgeOptions {
   targetWindow?: () => Window | null;
   editorOrigin?: string;
   localOrigin?: string;
-  onHotReload?: (program: Instruction[], options?: { scene?: string; line?: number }) => void;
+  onHotReload?: (
+    program: Instruction[],
+    options?: {
+      scene?: string;
+      line?: number;
+      projectId?: string;
+      characters?: Character[];
+      assets?: AssetRef[];
+    }
+  ) => void;
   onSetVariable?: (name: string, value: unknown) => void;
 }
 
@@ -81,20 +95,42 @@ export class PreviewBridgeAdapter {
     }
 
     switch (data.type) {
+      case 'QUERY_READY': {
+        this.postToEditor({
+          type: 'PLAYER_READY',
+          capabilities: {
+            liveReload: true,
+            variableWatch: true,
+          },
+        });
+        break;
+      }
       case 'PLAYER_READY_ACK': {
         this.connected = true;
         break;
       }
       case 'HOT_RELOAD_PROGRAM': {
-        const payload = data.payload;
+        const payload = data.payload ?? data;
         const program = (payload?.program ?? data.program) as Instruction[] | undefined;
         const scene = (payload?.scene ?? data.scene) as string | undefined;
         const line = (payload?.line ?? data.line) as number | undefined;
+        const projectId = (payload?.projectId ?? data.projectId) as string | undefined;
+        const characters = (payload?.characters ?? data.characters) as Character[] | undefined;
+        const assets = (payload?.assets ?? data.assets) as AssetRef[] | undefined;
 
         if (program) {
-          const opts: { scene?: string; line?: number } = {};
+          const opts: {
+            scene?: string;
+            line?: number;
+            projectId?: string;
+            characters?: Character[];
+            assets?: AssetRef[];
+          } = {};
           if (scene !== undefined) opts.scene = scene;
           if (line !== undefined) opts.line = line;
+          if (projectId !== undefined) opts.projectId = projectId;
+          if (characters !== undefined) opts.characters = characters;
+          if (assets !== undefined) opts.assets = assets;
           this.options.onHotReload?.(program, Object.keys(opts).length > 0 ? opts : undefined);
         }
         break;

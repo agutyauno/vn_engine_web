@@ -26,6 +26,8 @@ describe('PreviewBridgeAdapter', () => {
     it('should accept standard localhost development origins', () => {
       expect(isAllowedEditorOrigin('http://localhost:3000')).toBe(true);
       expect(isAllowedEditorOrigin('http://127.0.0.1:3000')).toBe(true);
+      expect(isAllowedEditorOrigin('http://localhost:3001')).toBe(true);
+      expect(isAllowedEditorOrigin('http://127.0.0.1:3001')).toBe(true);
     });
 
     it('should accept wildcard preview origin if explicitly enabled', () => {
@@ -87,6 +89,34 @@ describe('PreviewBridgeAdapter', () => {
       expect(adapter.isConnected()).toBe(true);
     });
 
+    it('should respond to QUERY_READY probe with PLAYER_READY message', () => {
+      const adapter = new PreviewBridgeAdapter({
+        targetWindow: () => mockTargetWindow,
+        editorOrigin: 'http://localhost:3001',
+      });
+
+      adapter.init();
+      postedMessages = [];
+
+      adapter.handleMessage(
+        new MessageEvent('message', {
+          origin: 'http://localhost:3001',
+          data: { type: 'QUERY_READY' },
+        }),
+      );
+
+      expect(mockTargetWindow.postMessage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'PLAYER_READY',
+          capabilities: {
+            liveReload: true,
+            variableWatch: true,
+          },
+        }),
+        'http://localhost:3001',
+      );
+    });
+
     it('should ignore incoming messages from unauthorized origins', () => {
       const onHotReload = vi.fn();
       const adapter = new PreviewBridgeAdapter({
@@ -139,6 +169,42 @@ describe('PreviewBridgeAdapter', () => {
       );
 
       expect(onHotReload).toHaveBeenCalledWith(testProgram, { scene: 'main', line: 1 });
+    });
+
+    it('should parse characters, assets, and projectId from HOT_RELOAD_PROGRAM payload', () => {
+      const onHotReload = vi.fn();
+      const adapter = new PreviewBridgeAdapter({
+        targetWindow: () => mockTargetWindow,
+        editorOrigin: 'http://localhost:3001',
+        onHotReload,
+      });
+
+      adapter.init();
+
+      const testProgram: Instruction[] = [{ type: 'SCENE', name: 'main' }];
+      const testChars = [{ id: 'hero', name: 'Hero' }];
+      const testAssets = [{ id: 'bg1', name: 'Background', storageUrl: 'blob:bg1' }];
+
+      adapter.handleMessage(
+        new MessageEvent('message', {
+          origin: 'http://localhost:3001',
+          data: {
+            type: 'HOT_RELOAD_PROGRAM',
+            payload: {
+              program: testProgram,
+              projectId: 'proj_test',
+              characters: testChars,
+              assets: testAssets,
+            },
+          },
+        }),
+      );
+
+      expect(onHotReload).toHaveBeenCalledWith(testProgram, {
+        projectId: 'proj_test',
+        characters: testChars,
+        assets: testAssets,
+      });
     });
 
     it('should support flat format: e.data.program', () => {

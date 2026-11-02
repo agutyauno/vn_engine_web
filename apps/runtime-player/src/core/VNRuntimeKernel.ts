@@ -593,6 +593,10 @@ export class VNRuntimeKernel {
     }
   }
 
+  public getVariables(): Record<string, unknown> {
+    return { ...this.vm.getState().variables };
+  }
+
   public setVariable(name: string, value: unknown, scope?: 'global' | 'local'): void {
     if (
       typeof value === 'string' ||

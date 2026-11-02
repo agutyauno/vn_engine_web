@@ -461,5 +461,9 @@ describe('VNRuntimeKernel Core', () => {
     // Toast
     kernel.showToast('Game Saved!');
     expect(kernel.getState().activeToast?.message).toBe('Game Saved!');
+
+    // Variable manipulation & sync (ADR-025, Studio Preview)
+    kernel.setVariable('affinity', 10);
+    expect(kernel.getVariables()['affinity']).toBe(10);
   });
 });

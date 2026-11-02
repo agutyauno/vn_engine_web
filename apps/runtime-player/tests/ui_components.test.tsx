@@ -592,6 +592,62 @@ describe('DialogueGroup, DialogueBox, and SpeakerNameplate', () => {
     expect(actions.completeDialogue).toHaveBeenCalledTimes(1);
   });
 
+  it('DialogueBox advances dialogue on click when text is complete', () => {
+    const actions = createMockActions();
+    const { container } = render(
+      <PlayerUIProvider state={createMockState()} actions={actions}>
+        <DialogueBox rawText="Done typing!" isComplete={true} />
+      </PlayerUIProvider>,
+    );
+
+    const dialogueBox = container.querySelector('#dialogue-box');
+    expect(dialogueBox).not.toBeNull();
+    fireEvent.click(dialogueBox!);
+    expect(actions.advance).toHaveBeenCalledTimes(1);
+  });
+
+  it('GameplayOverlay handles global keyboard shortcuts (Space/Enter, rollback, toggles)', () => {
+    const actions = createMockActions();
+    const state = createMockState({
+      mode: 'GAMEPLAY',
+      dialogue: {
+        isVisible: true,
+        speakerName: undefined,
+        rawText: 'Hello world',
+        isComplete: true,
+        canAdvance: true,
+        isSeen: true,
+      },
+    });
+
+    render(
+      <PlayerUIProvider state={state} actions={actions}>
+        <GameplayOverlay />
+      </PlayerUIProvider>,
+    );
+
+    fireEvent.keyDown(window, { key: ' ' });
+    expect(actions.advance).toHaveBeenCalledTimes(1);
+
+    fireEvent.keyDown(window, { key: 'ArrowLeft' });
+    expect(actions.rollback).toHaveBeenCalledTimes(1);
+
+    fireEvent.keyDown(window, { key: 'a' });
+    expect(actions.toggleAuto).toHaveBeenCalledTimes(1);
+
+    fireEvent.keyDown(window, { key: 's' });
+    expect(actions.toggleSkip).toHaveBeenCalledTimes(1);
+
+    fireEvent.keyDown(window, { key: 'l' });
+    expect(actions.openModal).toHaveBeenCalledWith('backlog');
+
+    fireEvent.keyDown(window, { key: 'h' });
+    expect(actions.toggleCleanArt).toHaveBeenCalledTimes(1);
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(actions.openModal).toHaveBeenCalledWith('settings');
+  });
+
   it('DialogueGroup integrates SpeakerNameplate, DialogueBox, and ControlBar in #dialogue-group', () => {
     const state = createMockState({
       dialogue: {

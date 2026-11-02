@@ -14,6 +14,12 @@ import type { PlayerMode } from './core/contracts';
 import { RendererAdapter } from './adapters/RendererAdapter';
 import { AudioAdapter } from './adapters/AudioAdapter';
 import { StorageAdapter } from './adapters/StorageAdapter';
+import {
+  AssetResolverAdapter,
+  type ProjectData,
+  type ProjectDataCharacter,
+  type ProjectDataAsset,
+} from './adapters/AssetResolverAdapter';
 import { PreviewBridgeAdapter, isAllowedEditorOrigin } from './adapters/PreviewBridgeAdapter';
 import { PlayerUIProvider } from './ui/context/PlayerUIContext';
 import { PlayerApp } from './ui/components/PlayerApp';
@@ -34,20 +40,45 @@ window.addEventListener('DOMContentLoaded', async () => {
     document.body.classList.add('is-embedded');
   }
 
-  // 1. Khởi tạo Platform Adapters
+  // 1. Quản lý Project Data và Asset Resolver
+  let currentProjectData: ProjectData = {
+    id: projectId,
+    characters: [],
+    assets: [],
+  };
+
+  let bridge: PreviewBridgeAdapter;
+
+  const assetResolver = new AssetResolverAdapter(
+    () => currentProjectData,
+    {
+      report: (diag) => {
+        if (bridge && typeof bridge.sendDiagnostic === 'function') {
+          bridge.sendDiagnostic(diag as any);
+        }
+      },
+    },
+  );
+
+  // 2. Khởi tạo Platform Adapters
   const gameRenderer = new GameRenderer();
   await gameRenderer.init();
-  const rendererAdapter = new RendererAdapter(gameRenderer);
+  const rendererAdapter = new RendererAdapter(gameRenderer, {
+    assetGraphicResolver: assetResolver.getAssetGraphicResolver(),
+    isPropChecker: (id: string) => assetResolver.checkIsProp(id),
+  });
 
   const audioManager = new AudioManager();
-  const audioAdapter = new AudioAdapter(audioManager);
+  const audioAdapter = new AudioAdapter(audioManager, {
+    assetResolver: assetResolver.getAssetAudioResolver(),
+  });
 
   const storageAdapter = new StorageAdapter({
     projectId,
     isPreview: isEmbedded || isModePreview,
   });
 
-  // 2. Biên dịch kịch bản mặc định nếu không phải chế độ Live Preview
+  // 3. Biên dịch kịch bản mặc định nếu không phải chế độ Live Preview
   let program: Instruction[] = [];
   if (!isEmbedded && !isModePreview) {
     try {
@@ -62,7 +93,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  // 3. Khởi tạo VNRuntimeKernel
+  // 4. Khởi tạo VNRuntimeKernel
   const initialMode: PlayerMode = (isEmbedded || isModePreview) ? 'STANDBY' : 'TITLE';
   const kernel = new VNRuntimeKernel(
     program,
@@ -79,7 +110,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   (window as unknown as { vnKernel: VNRuntimeKernel }).vnKernel = kernel;
 
-  // 4. Kết nối PreviewBridgeAdapter với Web Studio Editor
+  // 5. Kết nối PreviewBridgeAdapter với Web Studio Editor
   let targetEditorOrigin = '*';
   const editorOriginParam = urlParams.get('editorOrigin');
   if (editorOriginParam && isAllowedEditorOrigin(editorOriginParam)) {
@@ -95,9 +126,18 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  const bridge = new PreviewBridgeAdapter({
+  bridge = new PreviewBridgeAdapter({
     editorOrigin: targetEditorOrigin,
     onHotReload: async (newProgram, opts) => {
+      if (opts?.characters || opts?.assets) {
+        currentProjectData = {
+          ...currentProjectData,
+          id: opts.projectId || currentProjectData.id,
+          characters: (opts.characters as unknown as ProjectDataCharacter[]) || currentProjectData.characters,
+          assets: (opts.assets as unknown as ProjectDataAsset[]) || currentProjectData.assets,
+        };
+        assetResolver.resetWarnedAssets();
+      }
       await kernel.loadProgram(newProgram, opts);
       if (kernel.getState().mode === 'STANDBY') {
         await kernel.startNewGame();
@@ -109,7 +149,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   });
   bridge.init();
 
-  // 5. Gắn canvas PixiJS khi chuyển sang GAMEPLAY mode
+  // 6. Gắn canvas PixiJS khi chuyển sang GAMEPLAY mode
   const attachCanvasToStage = () => {
     const container = document.getElementById('pixi-canvas-container');
     if (container && gameRenderer.app.canvas && !container.contains(gameRenderer.app.canvas)) {
@@ -123,6 +163,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     if (state.mode === 'GAMEPLAY') {
       requestAnimationFrame(attachCanvasToStage);
     }
+    bridge.sendStateUpdate(kernel.getVariables());
   });
 
   // 6. Mount Preact UI Root vào #ui-root

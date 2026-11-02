@@ -24,6 +24,7 @@ export interface PreviewDockProps {
   isPopout: boolean;
   previewUrl?: string;
   repository?: ProjectRepository;
+  previewBridge?: PreviewBridge;
   onTogglePlay: () => void;
   onReload: () => void;
   onTogglePopout: () => void;
@@ -58,6 +59,7 @@ export const PreviewDock: React.FC<PreviewDockProps> = ({
   isPopout,
   previewUrl = 'about:blank',
   repository,
+  previewBridge,
   onTogglePlay,
   onReload,
   onTogglePopout,
@@ -69,6 +71,11 @@ export const PreviewDock: React.FC<PreviewDockProps> = ({
   const bridgeRef = useRef<PreviewBridge | null>(null);
 
   useEffect(() => {
+    if (previewBridge) {
+      bridgeRef.current = previewBridge;
+      return undefined;
+    }
+
     if (isPlaying && !isPopout) {
       const previewOrigin = getOriginFromUrl(previewUrl);
       const bridge = new PreviewBridge({
@@ -85,10 +92,11 @@ export const PreviewDock: React.FC<PreviewDockProps> = ({
       };
     }
     return undefined;
-  }, [isPlaying, isPopout, previewUrl, repository]);
+  }, [isPlaying, isPopout, previewUrl, repository, previewBridge]);
 
   const handleIframeLoad = () => {
-    bridgeRef.current?.probeReady();
+    const activeBridge = previewBridge || bridgeRef.current;
+    activeBridge?.probeReady();
   };
 
   return (
