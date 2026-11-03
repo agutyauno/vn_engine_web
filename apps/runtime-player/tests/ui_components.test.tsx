@@ -39,6 +39,7 @@ import {
   EyeOffIcon,
   HistoryIcon,
 } from '../src/ui/components/common/Icons';
+import * as IconsModule from '../src/ui/components/common/Icons';
 
 function createMockState(overrides: Partial<PlayerViewState> = {}): PlayerViewState {
   return {
@@ -1002,6 +1003,205 @@ describe('Icons (Clean Monochrome Iconography)', () => {
       expect(svg?.getAttribute('stroke')).toBe('currentColor');
       expect(svg?.getAttribute('width')).toBe('20');
       expect(svg?.getAttribute('height')).toBe('20');
+      cleanup();
+    }
+  });
+});
+
+describe('Phase 2: Minimalist ADV Presentation & Viewport Scaling (RED Gate)', () => {
+  afterEach(() => {
+    cleanup();
+  });
+
+  it('TEST-ADV-01 (Dialogue Group ADV Layout): verifies DOM hierarchy with SpeakerNameplate above, DialogueBox in middle, and ControlBar below', () => {
+    const state = createMockState({
+      dialogue: {
+        isVisible: true,
+        speakerName: 'Alice',
+        speakerColorHex: '#38bdf8',
+        rawText: 'Welcome to TaleForge ADV mode!',
+        isComplete: true,
+        canAdvance: true,
+        isSeen: true,
+      },
+    });
+    const actions = createMockActions();
+
+    const { container } = render(
+      <PlayerUIProvider state={state} actions={actions}>
+        <DialogueGroup />
+      </PlayerUIProvider>,
+    );
+
+    const group = container.querySelector('#dialogue-group');
+    expect(group).not.toBeNull();
+
+    const speakerNameplate = group?.querySelector('#speaker-nameplate');
+    const dialogueBox = group?.querySelector('#dialogue-box');
+    const controlBar = group?.querySelector('#control-bar');
+
+    expect(speakerNameplate).not.toBeNull();
+    expect(dialogueBox).not.toBeNull();
+    expect(controlBar).not.toBeNull();
+
+    // Verify DOM order: SpeakerNameplate is first child, DialogueBox is middle, ControlBar is last child
+    const children = Array.from(group!.children);
+    expect(children[0]).toBe(speakerNameplate);
+    expect(children[1]).toBe(dialogueBox);
+    expect(children[2]).toBe(controlBar);
+
+    // Verify document position order
+    expect(
+      (speakerNameplate!.compareDocumentPosition(dialogueBox!) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0,
+    ).toBe(true);
+    expect(
+      (dialogueBox!.compareDocumentPosition(controlBar!) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0,
+    ).toBe(true);
+  });
+
+  it('TEST-ADV-02 (ControlBar ADV & Hide UI): renders full suite of monochrome icon-only buttons with accessible labels and toggles hide UI', () => {
+    // 1. Check all 8 required action buttons are present as icon-only monochrome buttons
+    const stateVisible = createMockState({ isControlsHidden: false });
+    const actions = createMockActions();
+
+    const { container, unmount } = render(
+      <PlayerUIProvider state={stateVisible} actions={actions}>
+        <ControlBar />
+      </PlayerUIProvider>,
+    );
+
+    const controlBar = container.querySelector('#control-bar');
+    expect(controlBar).not.toBeNull();
+    expect(controlBar?.classList.contains('hidden')).toBe(false);
+    expect((controlBar as HTMLElement).style.display).not.toBe('none');
+
+    const buttons = Array.from(container.querySelectorAll<HTMLButtonElement>('#control-bar button'));
+    expect(buttons.length).toBeGreaterThanOrEqual(8);
+
+    // ADV requirement: buttons must be icon-only (monochrome SVG, no visible text spans)
+    for (const btn of buttons) {
+      const svg = btn.querySelector('svg');
+      expect(svg).not.toBeNull();
+      expect(svg?.getAttribute('stroke')).toBe('currentColor');
+      // No text spans inside buttons in minimalist ADV presentation
+      expect(btn.querySelector('span')).toBeNull();
+      expect(btn.textContent?.trim()).toBe('');
+      // Accessible aria-label and title must be present
+      expect(btn.getAttribute('aria-label')).toBeTruthy();
+      expect(btn.getAttribute('title')).toBeTruthy();
+    }
+
+    // Verify all 8 core actions exist by aria-label or title (Back, Auto, Skip, Log, Save, Load, Settings, Hide UI)
+    const hasButton = (keyword: string) =>
+      buttons.some((btn) => {
+        const label = (btn.getAttribute('aria-label') || '').toLowerCase();
+        const title = (btn.getAttribute('title') || '').toLowerCase();
+        return label.includes(keyword.toLowerCase()) || title.includes(keyword.toLowerCase());
+      });
+
+    expect(hasButton('back')).toBe(true);
+    expect(hasButton('auto')).toBe(true);
+    expect(hasButton('skip')).toBe(true);
+    expect(hasButton('log') || hasButton('backlog')).toBe(true);
+    expect(hasButton('save')).toBe(true);
+    expect(hasButton('load')).toBe(true);
+    expect(hasButton('settings')).toBe(true);
+    expect(hasButton('hide')).toBe(true);
+
+    unmount();
+
+    // 2. When isControlsHidden is true, ControlBar automatically hides
+    const stateHidden = createMockState({ isControlsHidden: true });
+    const { container: hiddenContainer } = render(
+      <PlayerUIProvider state={stateHidden} actions={actions}>
+        <ControlBar />
+      </PlayerUIProvider>,
+    );
+
+    const hiddenBar = hiddenContainer.querySelector('#control-bar');
+    expect(hiddenBar).not.toBeNull();
+    const isHidden =
+      hiddenBar?.classList.contains('hidden') ||
+      (hiddenBar as HTMLElement).style.display === 'none' ||
+      (hiddenBar as HTMLElement).style.opacity === '0';
+    expect(isHidden).toBe(true);
+  });
+
+  it('TEST-ADV-03 (TitleScreen Asymmetric Layout): renders asymmetric left menu column containing Title, Start Game, Load Game, and Settings', () => {
+    const actions = createMockActions();
+
+    const { container } = render(
+      <PlayerUIProvider state={createMockState({ mode: 'TITLE' })} actions={actions}>
+        <TitleScreen />
+      </PlayerUIProvider>,
+    );
+
+    // Expect left menu column (.title-menu-column or #title-menu-column)
+    const leftColumn = container.querySelector('.title-menu-column, #title-menu-column');
+    expect(leftColumn).not.toBeNull();
+
+    // Check game title heading inside left column
+    const titleEl = leftColumn?.querySelector('h1, .title-screen-heading, .title-game-name');
+    expect(titleEl).not.toBeNull();
+    expect(titleEl?.textContent?.trim().length).toBeGreaterThan(0);
+
+    // Check Start Game button
+    const startBtn = leftColumn?.querySelector<HTMLButtonElement>(
+      '#btn-new-game, #btn-start-game, button[aria-label*="Start"], button[aria-label*="New Game"]',
+    );
+    expect(startBtn).not.toBeNull();
+
+    // Check Load Game button
+    const loadBtn = leftColumn?.querySelector<HTMLButtonElement>(
+      '#btn-load-game, button[aria-label*="Load"]',
+    );
+    expect(loadBtn).not.toBeNull();
+
+    // Check Settings button
+    const settingsBtn = leftColumn?.querySelector<HTMLButtonElement>(
+      '#btn-settings, button[aria-label*="Settings"]',
+    );
+    expect(settingsBtn).not.toBeNull();
+
+    // Verify clicks dispatch corresponding actions
+    fireEvent.click(startBtn!);
+    expect(actions.startNewGame).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(loadBtn!);
+    expect(actions.openModal).toHaveBeenCalledWith('load');
+
+    fireEvent.click(settingsBtn!);
+    expect(actions.openModal).toHaveBeenCalledWith('settings');
+  });
+
+  it('TEST-ICONS-01 (Clean Monochrome Icons): Icons.tsx exports FolderIcon and BookOpenIcon/HistoryIcon conforming to stroke="currentColor"', () => {
+    // Dynamically inspect Icons module exports
+    const iconsRecord = IconsModule as Record<string, any>;
+
+    // FolderIcon must be exported for Load button
+    expect(iconsRecord.FolderIcon).toBeDefined();
+    expect(typeof iconsRecord.FolderIcon).toBe('function');
+
+    // Either BookOpenIcon or HistoryIcon must be exported for Log button
+    const LogIconComp = iconsRecord.BookOpenIcon || iconsRecord.HistoryIcon;
+    expect(LogIconComp).toBeDefined();
+    expect(typeof LogIconComp).toBe('function');
+
+    // Render FolderIcon and verify monochrome vector attributes
+    if (typeof iconsRecord.FolderIcon === 'function') {
+      const { container } = render(<iconsRecord.FolderIcon size={16} />);
+      const svg = container.querySelector('svg');
+      expect(svg).not.toBeNull();
+      expect(svg?.getAttribute('stroke')).toBe('currentColor');
+      cleanup();
+    }
+
+    // Render Log icon and verify monochrome vector attributes
+    if (typeof LogIconComp === 'function') {
+      const { container } = render(<LogIconComp size={16} />);
+      const svg = container.querySelector('svg');
+      expect(svg).not.toBeNull();
+      expect(svg?.getAttribute('stroke')).toBe('currentColor');
       cleanup();
     }
   });
