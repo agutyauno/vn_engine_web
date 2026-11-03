@@ -199,4 +199,97 @@ describe('AudioAdapter', () => {
       );
     });
   });
+
+  describe('TEST-AUD-01: Phase 3 Audio Channel Aliasing & Routing', () => {
+    it('aliases "bgm" -> "music" and "sfx" -> "sound" in applySideEffect PLAY', () => {
+      const adapter = new AudioAdapter(mockAudioManager, { assetResolver: mockAssetResolver });
+
+      const bgmInstr: PlayInstruction = {
+        type: 'PLAY',
+        channel: 'bgm',
+        assetId: 'bgm_theme',
+        volume: 0.9,
+        loop: true,
+      };
+      adapter.applySideEffect(bgmInstr);
+      expect(mockAudioManager.play).toHaveBeenCalledWith(
+        'music',
+        'bgm_theme',
+        'https://cdn.example.com/theme.mp3',
+        expect.objectContaining({ volume: 0.9, loop: true }),
+      );
+
+      const sfxInstr: PlayInstruction = {
+        type: 'PLAY',
+        channel: 'sfx',
+        assetId: 'se_click',
+        volume: 0.7,
+        loop: false,
+      };
+      adapter.applySideEffect(sfxInstr);
+      expect(mockAudioManager.play).toHaveBeenCalledWith(
+        'sound',
+        'se_click',
+        'https://cdn.example.com/click.wav',
+        expect.objectContaining({ volume: 0.7, loop: false }),
+      );
+    });
+
+    it('aliases "bgm" -> "music" and "sfx" -> "sound" in applySideEffect STOP', () => {
+      const adapter = new AudioAdapter(mockAudioManager, { assetResolver: mockAssetResolver });
+
+      const stopBgm: StopInstruction = {
+        type: 'STOP',
+        channel: 'bgm',
+        fadeOut: 1.0,
+      };
+      adapter.applySideEffect(stopBgm);
+      expect(mockAudioManager.stop).toHaveBeenCalledWith(
+        'music',
+        expect.objectContaining({ fadeOut: 1.0 }),
+      );
+
+      const stopSfx: StopInstruction = {
+        type: 'STOP',
+        channel: 'sfx',
+      };
+      adapter.applySideEffect(stopSfx);
+      expect(mockAudioManager.stop).toHaveBeenCalledWith(
+        'sound',
+        expect.anything(),
+      );
+    });
+
+    it('aliases "bgm" -> "music" and "sfx" -> "sound" in setVolume', () => {
+      const adapter = new AudioAdapter(mockAudioManager, { assetResolver: mockAssetResolver });
+
+      adapter.setVolume('bgm', 0.85);
+      expect(mockAudioManager.setChannelVolume).toHaveBeenCalledWith('music', 0.85);
+
+      adapter.setVolume('sfx', 0.65);
+      expect(mockAudioManager.setChannelVolume).toHaveBeenCalledWith('sound', 0.65);
+    });
+
+    it('canonicalizes channels in syncStateCatchUp before delegating to AudioManager', () => {
+      const adapter = new AudioAdapter(mockAudioManager, { assetResolver: mockAssetResolver });
+      const rawMap = new Map<string, PlayInstruction>([
+        ['bgm', { type: 'PLAY', channel: 'bgm', assetId: 'bgm_theme', loop: true }],
+        ['sfx', { type: 'PLAY', channel: 'sfx', assetId: 'se_click', loop: false }],
+      ]);
+
+      adapter.syncStateCatchUp(rawMap);
+      expect(mockAudioManager.syncStateCatchUp).toHaveBeenCalledWith(
+        expect.any(Map),
+        expect.any(Function),
+      );
+
+      const passedMap = (mockAudioManager.syncStateCatchUp as any).mock.calls[0][0] as Map<string, PlayInstruction>;
+      expect(passedMap.has('music')).toBe(true);
+      expect(passedMap.has('sound')).toBe(true);
+      expect(passedMap.has('bgm')).toBe(false);
+      expect(passedMap.has('sfx')).toBe(false);
+      expect(passedMap.get('music')?.channel).toBe('music');
+      expect(passedMap.get('sound')?.channel).toBe('sound');
+    });
+  });
 });

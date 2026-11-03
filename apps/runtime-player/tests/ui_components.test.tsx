@@ -1206,3 +1206,431 @@ describe('Phase 2: Minimalist ADV Presentation & Viewport Scaling (RED Gate)', (
     }
   });
 });
+
+describe('Phase 3: Player Ergonomics, Shortcuts, Modals & Navigation (RED Gate)', () => {
+  afterEach(() => {
+    cleanup();
+  });
+
+  describe('TEST-NAV-01: Global Keyboard Shortcuts & Event Handling', () => {
+    it('handles Space, Enter, and ArrowRight for dialogue typewriter completion and advance', () => {
+      const actions = createMockActions();
+
+      // Case 1: Dialogue text is still typing (isComplete = false)
+      const typingState = createMockState({
+        dialogue: {
+          isVisible: true,
+          speakerName: 'Alice',
+          rawText: 'Still typing...',
+          isComplete: false,
+          canAdvance: true,
+          isSeen: false,
+        },
+      });
+
+      const { unmount } = render(
+        <PlayerUIProvider state={typingState} actions={actions}>
+          <GameplayOverlay />
+        </PlayerUIProvider>,
+      );
+
+      fireEvent.keyDown(window, { key: ' ' });
+      expect(actions.completeDialogue).toHaveBeenCalledTimes(1);
+
+      fireEvent.keyDown(window, { key: 'Enter' });
+      expect(actions.completeDialogue).toHaveBeenCalledTimes(2);
+
+      fireEvent.keyDown(window, { key: 'ArrowRight' });
+      expect(actions.completeDialogue).toHaveBeenCalledTimes(3);
+
+      unmount();
+
+      // Case 2: Dialogue text is fully displayed (isComplete = true)
+      const completeState = createMockState({
+        dialogue: {
+          isVisible: true,
+          speakerName: 'Alice',
+          rawText: 'Finished sentence.',
+          isComplete: true,
+          canAdvance: true,
+          isSeen: true,
+        },
+      });
+
+      render(
+        <PlayerUIProvider state={completeState} actions={actions}>
+          <GameplayOverlay />
+        </PlayerUIProvider>,
+      );
+
+      fireEvent.keyDown(window, { key: ' ' });
+      expect(actions.advance).toHaveBeenCalledTimes(1);
+
+      fireEvent.keyDown(window, { key: 'Enter' });
+      expect(actions.advance).toHaveBeenCalledTimes(2);
+
+      fireEvent.keyDown(window, { key: 'ArrowRight' });
+      expect(actions.advance).toHaveBeenCalledTimes(3);
+    });
+
+    it('handles ArrowLeft for rollback, A for Auto, S and Tab for Skip', () => {
+      const actions = createMockActions();
+      const state = createMockState();
+
+      render(
+        <PlayerUIProvider state={state} actions={actions}>
+          <GameplayOverlay />
+        </PlayerUIProvider>,
+      );
+
+      fireEvent.keyDown(window, { key: 'ArrowLeft' });
+      expect(actions.rollback).toHaveBeenCalledTimes(1);
+
+      fireEvent.keyDown(window, { key: 'a' });
+      expect(actions.toggleAuto).toHaveBeenCalledTimes(1);
+      fireEvent.keyDown(window, { key: 'A' });
+      expect(actions.toggleAuto).toHaveBeenCalledTimes(2);
+
+      fireEvent.keyDown(window, { key: 's' });
+      expect(actions.toggleSkip).toHaveBeenCalledTimes(1);
+      fireEvent.keyDown(window, { key: 'S' });
+      expect(actions.toggleSkip).toHaveBeenCalledTimes(2);
+      fireEvent.keyDown(window, { key: 'Tab' });
+      expect(actions.toggleSkip).toHaveBeenCalledTimes(3);
+    });
+
+    it('toggles Backlog drawer with L / l and Settings modal with Escape', () => {
+      const actions = createMockActions();
+
+      const closedState = createMockState({ activeModal: 'none' });
+      const { unmount } = render(
+        <PlayerUIProvider state={closedState} actions={actions}>
+          <GameplayOverlay />
+        </PlayerUIProvider>,
+      );
+
+      fireEvent.keyDown(window, { key: 'l' });
+      expect(actions.openModal).toHaveBeenCalledWith('backlog');
+
+      fireEvent.keyDown(window, { key: 'Escape' });
+      expect(actions.openModal).toHaveBeenCalledWith('settings');
+
+      unmount();
+
+      const backlogState = createMockState({ activeModal: 'backlog' });
+      const { unmount: unmountBacklog } = render(
+        <PlayerUIProvider state={backlogState} actions={actions}>
+          <GameplayOverlay />
+        </PlayerUIProvider>,
+      );
+
+      fireEvent.keyDown(window, { key: 'l' });
+      expect(actions.closeModal).toHaveBeenCalledTimes(1);
+
+      unmountBacklog();
+
+      const settingsState = createMockState({ activeModal: 'settings' });
+      render(
+        <PlayerUIProvider state={settingsState} actions={actions}>
+          <GameplayOverlay />
+        </PlayerUIProvider>,
+      );
+
+      fireEvent.keyDown(window, { key: 'Escape' });
+      expect(actions.closeModal).toHaveBeenCalledTimes(2);
+    });
+
+    it('toggles Hide Controls on H / h and on right-click contextmenu', () => {
+      const actions = createMockActions();
+      const state = createMockState();
+
+      const { container } = render(
+        <PlayerUIProvider state={state} actions={actions}>
+          <GameplayOverlay />
+        </PlayerUIProvider>,
+      );
+
+      fireEvent.keyDown(window, { key: 'h' });
+      expect(actions.toggleHideControls).toHaveBeenCalledTimes(1);
+
+      fireEvent.keyDown(window, { key: 'H' });
+      expect(actions.toggleHideControls).toHaveBeenCalledTimes(2);
+
+      const overlay = container.querySelector('#gameplay-overlay')!;
+      const contextMenuEvt = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+      overlay.dispatchEvent(contextMenuEvt);
+      expect(contextMenuEvt.defaultPrevented).toBe(true);
+      expect(actions.toggleHideControls).toHaveBeenCalledTimes(3);
+    });
+  });
+
+  describe('TEST-NAV-02: Dialogue Box Suppression during Active Choices', () => {
+    it('suppresses #dialogue-group when activeChoices.length > 0', () => {
+      const stateWithChoices = createMockState({
+        dialogue: {
+          isVisible: true,
+          speakerName: 'Narrator',
+          rawText: 'What will you do?',
+          isComplete: true,
+          canAdvance: false,
+          isSeen: true,
+        },
+        activeChoices: [
+          { text: 'Option A', targetScene: 'scene_a', isSatisfied: true },
+          { text: 'Option B', targetScene: 'scene_b', isSatisfied: true },
+        ],
+      });
+      const actions = createMockActions();
+
+      const { container } = render(
+        <PlayerUIProvider state={stateWithChoices} actions={actions}>
+          <GameplayOverlay />
+        </PlayerUIProvider>,
+      );
+
+      const dialogueGroup = container.querySelector('#dialogue-group');
+      const isSuppressed =
+        !dialogueGroup ||
+        dialogueGroup.classList.contains('hidden') ||
+        (dialogueGroup as HTMLElement).style.display === 'none';
+
+      expect(isSuppressed).toBe(true);
+    });
+  });
+
+  describe('TEST-CHOICE-01: Choice Keyboard Navigation & Number Badges', () => {
+    const mockChoices = [
+      { text: 'Explore the castle', targetScene: 'castle', isSatisfied: true },
+      { text: 'Visit the tavern', targetScene: 'tavern', isSatisfied: true },
+      { text: 'Locked dungeon', targetScene: 'dungeon', isSatisfied: false },
+    ];
+
+    it('renders numerical badges [1], [2], [3] for choices', () => {
+      const state = createMockState({ activeChoices: mockChoices, isControlsHidden: false });
+      const actions = createMockActions();
+
+      const { container } = render(
+        <PlayerUIProvider state={state} actions={actions}>
+          <ChoiceOverlay />
+        </PlayerUIProvider>,
+      );
+
+      const badges = container.querySelectorAll('.choice-badge, .choice-index');
+      expect(badges.length).toBe(3);
+      expect(badges[0].textContent).toContain('1');
+      expect(badges[1].textContent).toContain('2');
+      expect(badges[2].textContent).toContain('3');
+    });
+
+    it('hides numerical badges when isControlsHidden is true', () => {
+      const stateHidden = createMockState({ activeChoices: mockChoices, isControlsHidden: true });
+      const actions = createMockActions();
+
+      const { container } = render(
+        <PlayerUIProvider state={stateHidden} actions={actions}>
+          <ChoiceOverlay />
+        </PlayerUIProvider>,
+      );
+
+      const badges = container.querySelectorAll('.choice-badge, .choice-index');
+      const areBadgesHidden =
+        badges.length === 0 ||
+        Array.from(badges).every(
+          (b) =>
+            b.classList.contains('hidden') ||
+            (b as HTMLElement).style.display === 'none' ||
+            container.querySelector('.tool-ui-hidden') !== null,
+        );
+      expect(areBadgesHidden).toBe(true);
+    });
+
+    it('supports direct numerical shortcut selection 1-9 for satisfied choices', () => {
+      const state = createMockState({ activeChoices: mockChoices });
+      const actions = createMockActions();
+
+      render(
+        <PlayerUIProvider state={state} actions={actions}>
+          <ChoiceOverlay />
+        </PlayerUIProvider>,
+      );
+
+      fireEvent.keyDown(window, { key: '1' });
+      expect(actions.selectChoice).toHaveBeenCalledWith(0);
+
+      fireEvent.keyDown(window, { key: '2' });
+      expect(actions.selectChoice).toHaveBeenCalledWith(1);
+
+      fireEvent.keyDown(window, { key: '3' });
+      expect(actions.selectChoice).not.toHaveBeenCalledWith(2);
+    });
+
+    it('cycles focus with ArrowUp / ArrowDown and confirms with Enter', () => {
+      const state = createMockState({ activeChoices: mockChoices });
+      const actions = createMockActions();
+
+      const { container } = render(
+        <PlayerUIProvider state={state} actions={actions}>
+          <ChoiceOverlay />
+        </PlayerUIProvider>,
+      );
+
+      fireEvent.keyDown(window, { key: 'ArrowDown' });
+      const buttons = container.querySelectorAll('.choice-button');
+      expect(buttons[1].classList.contains('focused') || buttons[1].classList.contains('selected')).toBe(true);
+
+      fireEvent.keyDown(window, { key: 'Enter' });
+      expect(actions.selectChoice).toHaveBeenCalledWith(1);
+    });
+  });
+
+  describe('TEST-MODAL-01: Contextual Save/Load Single-Click Without Tabs', () => {
+    const mockSaveSlot: SaveSlotData = {
+      slotIndex: 1,
+      timestamp: Date.now(),
+      thumbnailDataUrl: 'data:image/jpeg;base64,mock',
+      currentScene: 'chapter_1',
+      previewText: 'Saved game preview',
+      speakerName: 'Alice',
+      dialogueCounter: 10,
+      serializedState: '{}',
+    };
+
+    it('operates strictly in "save" mode without tabs and saves immediately on card click', () => {
+      const state = createMockState({ saveSlots: [mockSaveSlot, null, null, null, null, null] });
+      const actions = createMockActions();
+
+      const { container } = render(
+        <PlayerUIProvider state={state} actions={actions}>
+          <SaveLoadModal mode="save" />
+        </PlayerUIProvider>,
+      );
+
+      expect(container.querySelector('h2')?.textContent).toContain('Save');
+      expect(container.querySelectorAll('.tab, .modal-tab, .saveload-mode-bar [role="tab"]').length).toBe(0);
+
+      const cards = container.querySelectorAll('.save-slot-card');
+      fireEvent.click(cards[0]);
+      expect(actions.saveSlot).toHaveBeenCalledWith(1);
+
+      fireEvent.click(cards[1]);
+      expect(actions.saveSlot).toHaveBeenCalledWith(2);
+    });
+
+    it('operates strictly in "load" mode without tabs and loads only occupied slots', () => {
+      const state = createMockState({ saveSlots: [mockSaveSlot, null, null, null, null, null] });
+      const actions = createMockActions();
+
+      const { container } = render(
+        <PlayerUIProvider state={state} actions={actions}>
+          <SaveLoadModal mode="load" />
+        </PlayerUIProvider>,
+      );
+
+      expect(container.querySelector('h2')?.textContent).toContain('Load');
+      expect(container.querySelectorAll('.tab, .modal-tab, .saveload-mode-bar [role="tab"]').length).toBe(0);
+
+      const cards = container.querySelectorAll('.save-slot-card');
+      fireEvent.click(cards[0]);
+      expect(actions.loadSlot).toHaveBeenCalledWith(1);
+
+      fireEvent.click(cards[1]);
+      expect(actions.loadSlot).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('TEST-MODAL-02: Backlog Drawer Without Timestamps', () => {
+    const mockBacklog: BacklogEntry[] = [
+      {
+        id: 'entry_1',
+        speakerName: 'Alice',
+        text: 'The kingdom is in danger.',
+        voiceAssetId: 'v_alice_01',
+        timestamp: 1700000000000,
+      },
+      {
+        id: 'entry_2',
+        speakerName: 'Bob',
+        text: 'We must prepare at once.',
+        timestamp: 1700000005000,
+      },
+    ];
+
+    it('renders dialogue entries without timestamps and displays voice replay button for voiced lines', () => {
+      const state = createMockState({ backlog: mockBacklog });
+      const actions = createMockActions();
+
+      const { container } = render(
+        <PlayerUIProvider state={state} actions={actions}>
+          <BacklogDrawer />
+        </PlayerUIProvider>,
+      );
+
+      expect(container.querySelectorAll('.backlog-timestamp, .backlog-date, .backlog-time').length).toBe(0);
+
+      const entries = container.querySelectorAll('.backlog-entry');
+      expect(entries.length).toBe(2);
+      expect(entries[0].textContent).not.toMatch(/\d{1,2}:\d{2}/);
+      expect(entries[0].textContent).toContain('Alice');
+      expect(entries[0].textContent).toContain('The kingdom is in danger.');
+
+      const voiceBtn = entries[0].querySelector('.btn-replay-voice');
+      expect(voiceBtn).not.toBeNull();
+      fireEvent.click(voiceBtn!);
+      expect(actions.replayVoice).toHaveBeenCalledWith('v_alice_01');
+
+      expect(entries[1].querySelector('.btn-replay-voice')).toBeNull();
+    });
+  });
+
+  describe('TEST-MODAL-03: Settings 4 Audio Sliders & Fullscreen, No Resolution Picker', () => {
+    it('renders 4 independent audio sliders (Master, Music, SFX, Voice) and dispatches setAudioVolume', () => {
+      const actions = createMockActions();
+      const state = createMockState();
+
+      const { container } = render(
+        <PlayerUIProvider state={state} actions={actions}>
+          <GameSettingsModal />
+        </PlayerUIProvider>,
+      );
+
+      const masterSlider = container.querySelector<HTMLInputElement>('#slider-volume-master');
+      expect(masterSlider).not.toBeNull();
+      fireEvent.change(masterSlider!, { target: { value: '0.6' } });
+      expect(actions.setAudioVolume).toHaveBeenCalledWith('master', 0.6);
+
+      const musicSlider = container.querySelector<HTMLInputElement>('#slider-volume-music');
+      expect(musicSlider).not.toBeNull();
+      fireEvent.change(musicSlider!, { target: { value: '0.75' } });
+      expect(actions.setAudioVolume).toHaveBeenCalledWith('music', 0.75);
+
+      const sfxSlider = container.querySelector<HTMLInputElement>('#slider-volume-sfx, #slider-volume-sound');
+      expect(sfxSlider).not.toBeNull();
+      fireEvent.change(sfxSlider!, { target: { value: '0.5' } });
+      expect(actions.setAudioVolume).toHaveBeenCalledWith('sound', 0.5);
+
+      const voiceSlider = container.querySelector<HTMLInputElement>('#slider-volume-voice');
+      expect(voiceSlider).not.toBeNull();
+      fireEvent.change(voiceSlider!, { target: { value: '0.9' } });
+      expect(actions.setAudioVolume).toHaveBeenCalledWith('voice', 0.9);
+    });
+
+    it('renders Fullscreen toggle button and contains strictly NO resolution picker', () => {
+      const actions = createMockActions();
+      const state = createMockState();
+
+      const { container } = render(
+        <PlayerUIProvider state={state} actions={actions}>
+          <GameSettingsModal />
+        </PlayerUIProvider>,
+      );
+
+      const fullscreenBtn = container.querySelector(
+        '#btn-toggle-fullscreen, button[aria-label*="Fullscreen"], button[title*="Fullscreen"]',
+      );
+      expect(fullscreenBtn).not.toBeNull();
+
+      expect(container.querySelector('#select-resolution, .resolution-picker, select[name*="resolution"]')).toBeNull();
+      expect(container.textContent).not.toMatch(/1920x1080|1280x720|Screen Resolution/i);
+    });
+  });
+});
