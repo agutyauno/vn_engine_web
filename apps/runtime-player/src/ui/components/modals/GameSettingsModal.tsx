@@ -6,9 +6,22 @@ export function GameSettingsModal(): JSX.Element {
   const { audio, settings } = usePlayerState();
   const actions = usePlayerActions();
 
-  const musicVol = audio.channelVolumes.music ?? 1.0;
-  const textSpeed = settings.textSpeed;
-  const autoDelay = settings.autoDelayMs;
+  const masterVol = audio?.masterVolume ?? 1.0;
+  const musicVol = audio?.channelVolumes?.music ?? 0.8;
+  const soundVol = audio?.channelVolumes?.sound ?? 0.8;
+  const voiceVol = audio?.channelVolumes?.voice ?? 1.0;
+  const textSpeed = settings?.textSpeed ?? 40;
+  const autoDelay = settings?.autoDelayMs ?? 1500;
+
+  const toggleFullscreen = () => {
+    if (typeof document !== 'undefined') {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen?.().catch(() => {});
+      } else {
+        document.exitFullscreen?.().catch(() => {});
+      }
+    }
+  };
 
   return (
     <div id="modal-game-settings" className="modal-game-settings">
@@ -26,6 +39,20 @@ export function GameSettingsModal(): JSX.Element {
       </div>
       <div className="settings-controls">
         <div className="setting-row">
+          <label htmlFor="slider-volume-master">Master Volume</label>
+          <input
+            id="slider-volume-master"
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={masterVol}
+            onChange={(e) =>
+              actions.setAudioVolume('master', parseFloat((e.target as HTMLInputElement).value))
+            }
+          />
+        </div>
+        <div className="setting-row">
           <label htmlFor="slider-volume-music">Music Volume</label>
           <input
             id="slider-volume-music"
@@ -36,6 +63,34 @@ export function GameSettingsModal(): JSX.Element {
             value={musicVol}
             onChange={(e) =>
               actions.setAudioVolume('music', parseFloat((e.target as HTMLInputElement).value))
+            }
+          />
+        </div>
+        <div className="setting-row">
+          <label htmlFor="slider-volume-sound">SFX Volume</label>
+          <input
+            id="slider-volume-sound"
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={soundVol}
+            onChange={(e) =>
+              actions.setAudioVolume('sound', parseFloat((e.target as HTMLInputElement).value))
+            }
+          />
+        </div>
+        <div className="setting-row">
+          <label htmlFor="slider-volume-voice">Voice Volume</label>
+          <input
+            id="slider-volume-voice"
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={voiceVol}
+            onChange={(e) =>
+              actions.setAudioVolume('voice', parseFloat((e.target as HTMLInputElement).value))
             }
           />
         </div>
@@ -67,8 +122,18 @@ export function GameSettingsModal(): JSX.Element {
             }
           />
         </div>
+        <div className="setting-row">
+          <button
+            id="btn-toggle-fullscreen"
+            className="settings-fullscreen-btn"
+            onClick={toggleFullscreen}
+            aria-label="Toggle Fullscreen"
+            title="Toggle Fullscreen"
+          >
+            Toggle Fullscreen
+          </button>
+        </div>
       </div>
     </div>
   );
 }
-

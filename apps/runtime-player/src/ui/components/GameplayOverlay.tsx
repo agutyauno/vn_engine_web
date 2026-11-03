@@ -39,6 +39,12 @@ export function GameplayOverlay(): JSX.Element {
         if (e.key === 'Escape') {
           e.preventDefault();
           actions.closeModal();
+          return;
+        }
+        if ((e.key === 'l' || e.key === 'L') && activeModal === 'backlog') {
+          e.preventDefault();
+          actions.closeModal();
+          return;
         }
         return;
       }
@@ -53,7 +59,8 @@ export function GameplayOverlay(): JSX.Element {
 
       switch (e.key) {
         case ' ':
-        case 'Enter': {
+        case 'Enter':
+        case 'ArrowRight': {
           e.preventDefault();
           if (!isDialogueComplete) {
             actions.completeDialogue();
@@ -75,7 +82,8 @@ export function GameplayOverlay(): JSX.Element {
           break;
         }
         case 's':
-        case 'S': {
+        case 'S':
+        case 'Tab': {
           e.preventDefault();
           actions.toggleSkip();
           break;
@@ -89,7 +97,8 @@ export function GameplayOverlay(): JSX.Element {
         case 'h':
         case 'H': {
           e.preventDefault();
-          actions.toggleCleanArt();
+          actions.toggleHideControls();
+          actions.toggleCleanArt?.();
           break;
         }
         case 'Escape': {
@@ -104,16 +113,25 @@ export function GameplayOverlay(): JSX.Element {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isCleanArtMode, state?.activeModal, state?.activeChoices?.length, state?.dialogue?.isComplete, actions]);
+  }, [
+    isCleanArtMode,
+    state?.activeModal,
+    state?.activeChoices?.length,
+    state?.dialogue?.isComplete,
+    actions,
+  ]);
 
   return (
     <div
       id="gameplay-overlay"
       className={`gameplay-overlay ${isCleanArtMode ? 'clean-art-mode' : ''}`}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        actions.toggleHideControls();
+      }}
     >
       <ChoiceOverlay />
       <DialogueGroup />
     </div>
   );
 }
-

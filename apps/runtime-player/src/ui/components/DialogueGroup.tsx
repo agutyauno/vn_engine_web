@@ -5,9 +5,15 @@ import { DialogueBox } from './DialogueBox';
 import { ControlBar } from './ControlBar';
 
 export function DialogueGroup(): JSX.Element {
-  const { dialogue } = usePlayerState();
+  const { dialogue, activeChoices } = usePlayerState();
+  const hasChoices = Boolean(activeChoices && activeChoices.length > 0);
+
   return (
-    <div id="dialogue-group" className="dialogue-group">
+    <div
+      id="dialogue-group"
+      className={`dialogue-group ${hasChoices ? 'hidden' : ''}`}
+      style={hasChoices ? { display: 'none' } : undefined}
+    >
       <SpeakerNameplate
         speakerName={dialogue.speakerName}
         speakerColorHex={dialogue.speakerColorHex}
@@ -20,4 +26,3 @@ export function DialogueGroup(): JSX.Element {
     </div>
   );
 }
-

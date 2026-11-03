@@ -30,18 +30,16 @@ export function PlayerApp(): JSX.Element {
 
     updateScale();
 
+    let cleanup: (() => void) | undefined;
     if (typeof ResizeObserver !== 'undefined' && containerRef.current?.parentElement) {
       const ro = new ResizeObserver(() => updateScale());
       ro.observe(containerRef.current.parentElement);
-      return () => ro.disconnect();
-    }
-
-    if (typeof window !== 'undefined') {
+      cleanup = () => ro.disconnect();
+    } else if (typeof window !== 'undefined') {
       window.addEventListener('resize', updateScale);
-      return () => window.removeEventListener('resize', updateScale);
+      cleanup = () => window.removeEventListener('resize', updateScale);
     }
-
-    return undefined;
+    return cleanup;
   }, []);
 
   return (

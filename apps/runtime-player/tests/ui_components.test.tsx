@@ -1417,9 +1417,9 @@ describe('Phase 3: Player Ergonomics, Shortcuts, Modals & Navigation (RED Gate)'
 
       const badges = container.querySelectorAll('.choice-badge, .choice-index');
       expect(badges.length).toBe(3);
-      expect(badges[0].textContent).toContain('1');
-      expect(badges[1].textContent).toContain('2');
-      expect(badges[2].textContent).toContain('3');
+      expect(badges[0]!.textContent).toContain('1');
+      expect(badges[1]!.textContent).toContain('2');
+      expect(badges[2]!.textContent).toContain('3');
     });
 
     it('hides numerical badges when isControlsHidden is true', () => {
@@ -1476,7 +1476,7 @@ describe('Phase 3: Player Ergonomics, Shortcuts, Modals & Navigation (RED Gate)'
 
       fireEvent.keyDown(window, { key: 'ArrowDown' });
       const buttons = container.querySelectorAll('.choice-button');
-      expect(buttons[1].classList.contains('focused') || buttons[1].classList.contains('selected')).toBe(true);
+      expect(buttons[1]!.classList.contains('focused') || buttons[1]!.classList.contains('selected')).toBe(true);
 
       fireEvent.keyDown(window, { key: 'Enter' });
       expect(actions.selectChoice).toHaveBeenCalledWith(1);
@@ -1509,10 +1509,10 @@ describe('Phase 3: Player Ergonomics, Shortcuts, Modals & Navigation (RED Gate)'
       expect(container.querySelectorAll('.tab, .modal-tab, .saveload-mode-bar [role="tab"]').length).toBe(0);
 
       const cards = container.querySelectorAll('.save-slot-card');
-      fireEvent.click(cards[0]);
+      fireEvent.click(cards[0]!);
       expect(actions.saveSlot).toHaveBeenCalledWith(1);
 
-      fireEvent.click(cards[1]);
+      fireEvent.click(cards[1]!);
       expect(actions.saveSlot).toHaveBeenCalledWith(2);
     });
 
@@ -1530,10 +1530,10 @@ describe('Phase 3: Player Ergonomics, Shortcuts, Modals & Navigation (RED Gate)'
       expect(container.querySelectorAll('.tab, .modal-tab, .saveload-mode-bar [role="tab"]').length).toBe(0);
 
       const cards = container.querySelectorAll('.save-slot-card');
-      fireEvent.click(cards[0]);
+      fireEvent.click(cards[0]!);
       expect(actions.loadSlot).toHaveBeenCalledWith(1);
 
-      fireEvent.click(cards[1]);
+      fireEvent.click(cards[1]!);
       expect(actions.loadSlot).toHaveBeenCalledTimes(1);
     });
   });
@@ -1569,16 +1569,16 @@ describe('Phase 3: Player Ergonomics, Shortcuts, Modals & Navigation (RED Gate)'
 
       const entries = container.querySelectorAll('.backlog-entry');
       expect(entries.length).toBe(2);
-      expect(entries[0].textContent).not.toMatch(/\d{1,2}:\d{2}/);
-      expect(entries[0].textContent).toContain('Alice');
-      expect(entries[0].textContent).toContain('The kingdom is in danger.');
+      expect(entries[0]!.textContent).not.toMatch(/\d{1,2}:\d{2}/);
+      expect(entries[0]!.textContent).toContain('Alice');
+      expect(entries[0]!.textContent).toContain('The kingdom is in danger.');
 
-      const voiceBtn = entries[0].querySelector('.btn-replay-voice');
+      const voiceBtn = entries[0]!.querySelector('.btn-replay-voice');
       expect(voiceBtn).not.toBeNull();
       fireEvent.click(voiceBtn!);
       expect(actions.replayVoice).toHaveBeenCalledWith('v_alice_01');
 
-      expect(entries[1].querySelector('.btn-replay-voice')).toBeNull();
+      expect(entries[1]!.querySelector('.btn-replay-voice')).toBeNull();
     });
   });
 

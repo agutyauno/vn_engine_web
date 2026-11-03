@@ -1347,11 +1347,44 @@ body.is-embedded #game-stage {
 }
 
 .choice-button:hover:not(:disabled),
-.choice-button.selected:not(:disabled) {
+.choice-button.selected:not(:disabled),
+.choice-button.focused:not(:disabled) {
   background: var(--vn-choice-hover-bg);
   color: var(--vn-choice-hover-text);
   border-color: var(--vn-choice-border);
   font-weight: 700;
+}
+
+.choice-badge {
+  font-family: var(--vn-font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  margin-right: 8px;
+  color: var(--vn-text-muted);
+}
+
+.choice-button:hover .choice-badge,
+.choice-button.selected .choice-badge,
+.choice-button.focused .choice-badge {
+  color: var(--vn-choice-hover-text);
+}
+
+.settings-fullscreen-btn {
+  background: var(--vn-btn-bg);
+  color: var(--vn-btn-text);
+  border: var(--vn-border-width) solid var(--vn-btn-border);
+  padding: 8px 16px;
+  font-family: var(--vn-font-mono);
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: var(--vn-radius-button);
+  transition: all var(--vn-transition-fast);
+}
+
+.settings-fullscreen-btn:hover {
+  background: var(--vn-btn-hover-bg);
+  color: var(--vn-btn-hover-text);
+  border-color: var(--vn-btn-border-hover);
 }
 
 .choice-button:disabled,
