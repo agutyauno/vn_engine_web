@@ -169,5 +169,34 @@ describe('AudioAdapter', () => {
       );
     });
   });
-});
 
+  describe('Phase 1: Audio Lifecycle & Player Settings Contracts (TASK-player-ui-and-scaler)', () => {
+    it('TEST-AUD-02: should terminate all active channels and fade outs on stopAll()', () => {
+      const adapter = new AudioAdapter(mockAudioManager, { assetResolver: mockAssetResolver });
+
+      (adapter as any).stopAll();
+
+      expect(mockAudioManager.stopAll).toHaveBeenCalledTimes(1);
+    });
+
+    it('should verify DEFAULT_PLAYER_SETTINGS structure and default values per contract', async () => {
+      // Dynamic import to cleanly verify contract export without module resolution crash
+      const contracts = await import('../src/core/contracts');
+
+      expect((contracts as any).DEFAULT_PLAYER_SETTINGS).toBeDefined();
+      const settings = (contracts as any).DEFAULT_PLAYER_SETTINGS;
+
+      expect(settings).toEqual(
+        expect.objectContaining({
+          masterVolume: 1.0,
+          musicVolume: 0.8,
+          sfxVolume: 0.8,
+          voiceVolume: 1.0,
+          textSpeed: 40,
+          autoDelay: 1500,
+          stageScaleMode: 'auto',
+        }),
+      );
+    });
+  });
+});

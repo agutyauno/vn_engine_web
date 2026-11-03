@@ -141,12 +141,14 @@ describe('RendererAdapter', () => {
     it('should return a blank 16:9 SVG placeholder data URL when SecurityError is thrown (tainted canvas)', async () => {
       const taintedRenderer = {
         ...mockGameRenderer,
-        captureThumbnail: vi.fn().mockRejectedValue(
-          new DOMException(
-            'Failed to execute toDataURL on HTMLCanvasElement: Tainted canvases may not be exported.',
-            'SecurityError',
+        captureThumbnail: vi
+          .fn()
+          .mockRejectedValue(
+            new DOMException(
+              'Failed to execute toDataURL on HTMLCanvasElement: Tainted canvases may not be exported.',
+              'SecurityError',
+            ),
           ),
-        ),
       } as unknown as GameRenderer;
 
       const adapter = new RendererAdapter(taintedRenderer);
@@ -169,5 +171,65 @@ describe('RendererAdapter', () => {
       expect(thumb).toContain('data:image/svg+xml');
     });
   });
-});
 
+  describe('Phase 1: Diagnostic Telemetry & Asset Error Correlation (TASK-player-ui-and-scaler)', () => {
+    it('TEST-DIAG-01: should correlate async asset load failure via pendingAssetLocations and dispatch ERR_ASSET_LOAD_FAILED to DiagnosticBus', async () => {
+      const mockDiagnosticBus = {
+        report: vi.fn(),
+      };
+      const adapter = new RendererAdapter(mockGameRenderer, {
+        diagnosticBus: mockDiagnosticBus as any,
+      } as any);
+
+      const showInstr: ShowInstruction = {
+        type: 'SHOW',
+        character: 'alice',
+        sprite: 'happy',
+        loc: { fileId: 'scenes/act1.vns', line: 120, col: 4 },
+      } as any;
+
+      await adapter.applySideEffect(showInstr);
+
+      // Trigger asset load failure callback on adapter
+      (adapter as any).handleAssetError('alice_happy', new Error('HTTP 404 Not Found'));
+
+      expect(mockDiagnosticBus.report).toHaveBeenCalledWith(
+        expect.objectContaining({
+          category: 'asset',
+          code: 'ERR_ASSET_LOAD_FAILED',
+          severity: 'error',
+          fileId: 'scenes/act1.vns',
+          line: 120,
+          col: 4,
+          message: expect.stringContaining('alice_happy'),
+        }),
+      );
+    });
+
+    it('TEST-DIAG-02: should report ERR_MISSING_GRAPHIC to DiagnosticBus when asset key does not exist in registry', () => {
+      const mockDiagnosticBus = {
+        report: vi.fn(),
+      };
+      const adapter = new RendererAdapter(mockGameRenderer, {
+        diagnosticBus: mockDiagnosticBus as any,
+      } as any);
+
+      (adapter as any).handleMissingGraphic('missing_bg_garden', {
+        fileId: 'scenes/prologue.vns',
+        line: 15,
+        col: 1,
+      });
+
+      expect(mockDiagnosticBus.report).toHaveBeenCalledWith(
+        expect.objectContaining({
+          category: 'asset',
+          code: 'ERR_MISSING_GRAPHIC',
+          severity: 'error',
+          fileId: 'scenes/prologue.vns',
+          line: 15,
+          col: 1,
+        }),
+      );
+    });
+  });
+});
