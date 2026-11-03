@@ -10,6 +10,38 @@ import type { CatchUpVisualState } from '@vn-engine/renderer';
 export type PlayerMode = 'TITLE' | 'GAMEPLAY' | 'INSPECT' | 'STANDBY' | 'HALTED';
 export type TextPlaybackMode = 'NORMAL' | 'AUTO' | 'SKIP';
 
+export interface PlayerSettingsData {
+  masterVolume: number;
+  musicVolume: number;
+  sfxVolume: number;
+  voiceVolume: number;
+  textSpeed: number;
+  autoDelay: number;
+  stageScaleMode: 'auto' | 'native';
+}
+
+export const DEFAULT_PLAYER_SETTINGS: PlayerSettingsData = {
+  masterVolume: 1.0,
+  musicVolume: 0.8,
+  sfxVolume: 0.8,
+  voiceVolume: 1.0,
+  textSpeed: 40,
+  autoDelay: 1500,
+  stageScaleMode: 'auto',
+};
+
+export interface AudioAdapterContract {
+  playMusic?(track: string, options?: { loop?: boolean; volume?: number }): Promise<void>;
+  stopMusic?(fadeDurationMs?: number): Promise<void>;
+  playSound?(effect: string, options?: { volume?: number }): Promise<void>;
+  playVoice(voiceFile: string): void | Promise<void>;
+  stopVoice(): void;
+  stopAll(): void;
+  setVolume(channel: 'master' | 'music' | 'sound' | 'voice' | string, volume: number): void;
+  applySideEffect(effect: Instruction): void;
+  syncStateCatchUp(effects: Map<string, PlayInstruction>): void;
+}
+
 export type StepResult =
   | { type: 'SUSPEND_DIALOGUE'; instruction: DialogueInstruction }
   | { type: 'SUSPEND_CHOICE'; instruction: ChoiceInstruction }
@@ -108,6 +140,7 @@ export interface KernelAdapters {
     applySideEffect: (instr: Instruction) => void;
     syncStateCatchUp: (activeAudio: Map<string, PlayInstruction>) => void;
     stopVoice: () => void;
+    stopAll?: () => void;
     setVolume?: (channel: string, volume: number) => void;
     setMute?: (muted: boolean) => void;
     playVoice?: (assetId: string) => void;

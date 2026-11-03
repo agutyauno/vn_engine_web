@@ -14,6 +14,7 @@ export interface RendererOptions {
   height?: number; // Mặc định 1080
   backgroundColor?: number; // Mặc định trắng 0xffffff (Swiss White Grid style)
   antialias?: boolean;
+  placeholderMode?: 'procedural' | 'transparent';
 }
 
 export type AssetGraphicResolver = (assetId: string) => string | undefined;

@@ -5,20 +5,60 @@
 // ============================================================================
 
 import type { GameRenderer, CatchUpVisualState, AssetGraphicResolver } from '@vn-engine/renderer';
-import type { Instruction, BackgroundInstruction, ShowInstruction, HideInstruction } from '@vn-engine/shared-types';
+import type {
+  Instruction,
+  BackgroundInstruction,
+  ShowInstruction,
+  HideInstruction,
+  SourceLocation,
+} from '@vn-engine/shared-types';
+import type { DiagnosticBus } from '../services/diagnosticBus';
 
 export interface RendererAdapterOptions {
   isPropChecker?: (id: string) => boolean;
   assetGraphicResolver?: AssetGraphicResolver;
+  diagnosticBus?: DiagnosticBus;
 }
 
 export class RendererAdapter {
   private gameRenderer: GameRenderer;
   private options: RendererAdapterOptions;
+  private pendingAssetLocations = new Map<string, SourceLocation>();
 
   constructor(gameRenderer: GameRenderer, options?: RendererAdapterOptions) {
     this.gameRenderer = gameRenderer;
     this.options = options ?? {};
+  }
+
+  public handleAssetError(assetId: string, err: unknown): void {
+    const loc = this.pendingAssetLocations.get(assetId);
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    this.options.diagnosticBus?.report({
+      category: 'asset',
+      code: 'ERR_ASSET_LOAD_FAILED',
+      severity: 'error',
+      message: `Failed to load asset "${assetId}": ${errorMessage}`,
+      assetId,
+      assetKey: assetId,
+      fileId: loc?.fileId,
+      line: loc?.line,
+      col: loc?.col,
+    });
+  }
+
+  public handleMissingGraphic(assetKey: string, loc?: SourceLocation): void {
+    const resolvedLoc = loc ?? this.pendingAssetLocations.get(assetKey);
+    this.options.diagnosticBus?.report({
+      category: 'asset',
+      code: 'ERR_MISSING_GRAPHIC',
+      severity: 'error',
+      message: `Graphic asset "${assetKey}" is missing in asset registry.`,
+      assetId: assetKey,
+      assetKey,
+      fileId: resolvedLoc?.fileId,
+      line: resolvedLoc?.line,
+      col: resolvedLoc?.col,
+    });
   }
 
   public async applySideEffect(instr: Instruction): Promise<void> {
@@ -28,12 +68,24 @@ export class RendererAdapter {
     switch (instr.type) {
       case 'BACKGROUND': {
         const bgInstr = instr as BackgroundInstruction;
+        if (bgInstr.loc) {
+          this.pendingAssetLocations.set(bgInstr.assetId, bgInstr.loc);
+        }
         await this.gameRenderer.setBackground(bgInstr, bgInstr.transition, resolver);
         break;
       }
       case 'SHOW': {
         const showInstr = instr as ShowInstruction;
-        const isProp = this.options.isPropChecker ? this.options.isPropChecker(showInstr.character) : false;
+        if (showInstr.loc) {
+          this.pendingAssetLocations.set(
+            `${showInstr.character}_${showInstr.sprite}`,
+            showInstr.loc,
+          );
+          this.pendingAssetLocations.set(showInstr.character, showInstr.loc);
+        }
+        const isProp = this.options.isPropChecker
+          ? this.options.isPropChecker(showInstr.character)
+          : false;
         await this.gameRenderer.showCharacter(showInstr, resolver, isProp);
         break;
       }

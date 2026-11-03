@@ -58,7 +58,9 @@ export class AudioAdapter {
   public applySideEffect(instr: Instruction): void {
     if (instr.type === 'PLAY') {
       const playInstr = instr as PlayInstruction;
-      const url = this.options.assetResolver ? this.options.assetResolver(playInstr.assetId) : playInstr.assetId;
+      const url = this.options.assetResolver
+        ? this.options.assetResolver(playInstr.assetId)
+        : playInstr.assetId;
       if (url) {
         this.audioManager.play(playInstr.channel, playInstr.assetId, url, {
           volume: playInstr.volume,
@@ -77,5 +79,12 @@ export class AudioAdapter {
   public syncStateCatchUp(activeAudio: Map<string, PlayInstruction>): void {
     const resolver = this.options.assetResolver ?? ((key: string) => key);
     this.audioManager.syncStateCatchUp(activeAudio, resolver);
+  }
+
+  /**
+   * Dừng toàn bộ các kênh âm thanh và hủy các quá trình fade
+   */
+  public stopAll(): void {
+    this.audioManager.stopAll();
   }
 }

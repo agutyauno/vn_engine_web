@@ -1,15 +1,23 @@
-import type { DiagnosticCategory, DiagnosticSeverity, EngineDiagnostic } from '@vn-engine/shared-types';
+import type {
+  DiagnosticCategory,
+  DiagnosticSeverity,
+  EngineDiagnostic,
+} from '@vn-engine/shared-types';
 
-export type DiagnosticReportInput =
-  | {
-      category: DiagnosticCategory;
-      severity?: DiagnosticSeverity;
-      code: string;
-      message: string;
-      assetKey?: string;
-      details?: unknown;
-    }
-  | EngineDiagnostic;
+export interface DiagnosticReportDetail {
+  category: DiagnosticCategory | 'asset' | 'script' | 'vm' | 'renderer';
+  severity?: DiagnosticSeverity;
+  code: string;
+  message: string;
+  assetKey?: string;
+  assetId?: string;
+  fileId?: string;
+  line?: number;
+  col?: number;
+  details?: unknown;
+}
+
+export type DiagnosticReportInput = DiagnosticReportDetail | EngineDiagnostic;
 
 export interface DiagnosticBus {
   report(diag: DiagnosticReportInput): void;
