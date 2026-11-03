@@ -5,6 +5,7 @@ import {
   AutoIcon,
   SkipIcon,
   SaveIcon,
+  FolderIcon,
   HistoryIcon,
   EyeOffIcon,
   SettingsIcon,
@@ -31,7 +32,6 @@ export function ControlBar(): JSX.Element {
         title="Rollback (Back)"
       >
         <BackIcon size={16} />
-        <span>Back</span>
       </button>
       <button
         id="btn-auto"
@@ -42,7 +42,6 @@ export function ControlBar(): JSX.Element {
         title="Auto Forward"
       >
         <AutoIcon size={16} />
-        <span>Auto</span>
       </button>
       <button
         id="btn-skip"
@@ -53,27 +52,24 @@ export function ControlBar(): JSX.Element {
         title="Skip"
       >
         <SkipIcon size={16} />
-        <span>Skip</span>
       </button>
       <button
         id="btn-qsave"
         className="control-bar-btn"
         onClick={() => void actions.quickSave()}
-        aria-label="Quick Save"
-        title="Quick Save"
+        aria-label="Save Game (Quick Save)"
+        title="Save Game"
       >
         <SaveIcon size={16} />
-        <span>Q.Save</span>
       </button>
       <button
         id="btn-qload"
         className="control-bar-btn"
         onClick={() => void actions.quickLoad()}
-        aria-label="Quick Load"
-        title="Quick Load"
+        aria-label="Load Game (Quick Load)"
+        title="Load Game"
       >
-        <SaveIcon size={16} />
-        <span>Q.Load</span>
+        <FolderIcon size={16} />
       </button>
       <button
         id="btn-log"
@@ -83,7 +79,6 @@ export function ControlBar(): JSX.Element {
         title="Backlog"
       >
         <HistoryIcon size={16} />
-        <span>Log</span>
       </button>
       <button
         id="btn-hide-ui"
@@ -93,19 +88,16 @@ export function ControlBar(): JSX.Element {
         title="Hide UI"
       >
         <EyeOffIcon size={16} />
-        <span>Hide</span>
       </button>
       <button
         id="btn-menu"
         className="control-bar-btn"
         onClick={() => actions.openModal('settings')}
         aria-label="Open Settings Menu"
-        title="Menu"
+        title="Settings"
       >
         <SettingsIcon size={16} />
-        <span>Menu</span>
       </button>
     </div>
   );
 }
-

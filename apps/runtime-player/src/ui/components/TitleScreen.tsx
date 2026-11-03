@@ -6,7 +6,7 @@ export function TitleScreen(): JSX.Element {
 
   return (
     <div id="title-screen" className="title-screen-container">
-      <div className="title-screen-box">
+      <div id="title-menu-column" className="title-menu-column title-screen-box">
         <h1 className="title-screen-heading">Visual Novel</h1>
         <div className="title-screen-subheading">Web Engine Interactive Story</div>
         <div className="title-screen-menu">
@@ -39,4 +39,3 @@ export function TitleScreen(): JSX.Element {
     </div>
   );
 }
-

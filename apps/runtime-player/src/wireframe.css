@@ -202,8 +202,9 @@ body.is-embedded #game-root {
   inset: 0;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
+  padding-left: 100px;
   background: radial-gradient(circle at center, #0f172a 0%, #020617 100%);
   z-index: 25;
   pointer-events: auto;
@@ -219,16 +220,17 @@ body.is-embedded #game-root {
   display: none !important;
 }
 
+.title-menu-column,
 .title-screen-box {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  padding: 40px 60px;
+  align-items: flex-start;
+  padding: 40px 48px;
   background: var(--vn-bg-dialogue, rgba(10, 15, 29, 0.85));
   border: 1px solid var(--vn-border, #334155);
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
   border-radius: 4px;
-  min-width: 380px;
+  width: 420px;
   max-width: 90%;
   animation: titleFadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -1158,20 +1160,30 @@ body.is-embedded .public-footer {
   overflow: hidden;
 }
 
+.player-viewport-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background-color: var(--vn-bg-viewport);
+}
+
 #game-stage,
 .game-stage {
   position: relative;
-  width: 100%;
-  height: 100%;
-  max-width: 177.78vh;
-  max-height: 56.25vw;
-  aspect-ratio: 16 / 9;
+  width: 1920px;
+  height: 1080px;
+  min-width: 1920px;
+  min-height: 1080px;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
   background-color: #000000;
   box-shadow: 0 0 50px rgba(0, 0, 0, 0.9);
+  transform-origin: center center;
 }
 
 html.is-embedded #ui-root,
@@ -1182,8 +1194,8 @@ body.is-embedded #ui-root {
 
 html.is-embedded #game-stage,
 body.is-embedded #game-stage {
-  max-width: 100%;
-  max-height: 100%;
+  max-width: none;
+  max-height: none;
 }
 
 #pixi-canvas-container,
@@ -1219,11 +1231,31 @@ body.is-embedded #game-stage {
 #dialogue-group,
 .dialogue-group {
   pointer-events: auto;
-  margin: 0 4% 14px 4%;
-  position: relative;
+  position: absolute;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 1520px;
+  max-width: 1520px;
   display: flex;
   flex-direction: column;
+  z-index: 20;
   transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+#control-bar,
+.control-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+}
+
+.control-bar.hidden {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .control-bar-btn {
