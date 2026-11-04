@@ -24,20 +24,29 @@ export function GameSettingsModal(): JSX.Element {
   };
 
   return (
-    <div id="modal-game-settings" className="modal-game-settings">
-      <div className="modal-settings-header">
-        <h2>Game Settings</h2>
-        <button
-          id="btn-close-settings"
-          className="btn-close-settings"
-          onClick={() => actions.closeModal()}
-          aria-label="Close settings"
-          title="Close"
-        >
-          <CloseIcon size={20} />
-        </button>
-      </div>
-      <div className="settings-controls">
+    <div
+      id="modal-game-settings"
+      className="modal-game-settings"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          actions.closeModal();
+        }
+      }}
+    >
+      <div className="modal-settings-window">
+        <div className="modal-settings-header">
+          <h2>Game Settings</h2>
+          <button
+            id="btn-close-settings"
+            className="btn-close-settings"
+            onClick={() => actions.closeModal()}
+            aria-label="Close settings"
+            title="Close"
+          >
+            <CloseIcon size={20} />
+          </button>
+        </div>
+        <div className="settings-controls">
         <div className="setting-row">
           <label htmlFor="slider-volume-master">Master Volume</label>
           <input
@@ -135,5 +144,6 @@ export function GameSettingsModal(): JSX.Element {
         </div>
       </div>
     </div>
-  );
+  </div>
+);
 }

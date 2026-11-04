@@ -12,7 +12,15 @@ export function SaveLoadModal({ mode }: SaveLoadModalProps): JSX.Element {
   const slots = Array.from({ length: 6 }, (_, i) => state.saveSlots[i] ?? null);
 
   return (
-    <div id="modal-saveload" className="modal-saveload-backdrop">
+    <div
+      id="modal-saveload"
+      className="modal-saveload-backdrop"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          actions.closeModal();
+        }
+      }}
+    >
       <div className="modal-saveload-window">
         <div className="modal-header">
           <h2>{mode === 'save' ? 'Save Game' : 'Load Game'}</h2>

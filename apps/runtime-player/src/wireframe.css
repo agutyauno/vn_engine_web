@@ -1418,6 +1418,8 @@ body.is-embedded #game-stage {
 .modal-saveload-backdrop,
 .modal-game-settings,
 .modal-desync-backdrop,
+.modal-backlog-backdrop,
+.modal-backlog-drawer,
 .inspect-overlay {
   position: absolute;
   top: 0;
@@ -1433,7 +1435,9 @@ body.is-embedded #game-stage {
 }
 
 .modal-saveload-window,
-.modal-desync-window {
+.modal-desync-window,
+.modal-settings-window,
+.modal-backlog-window {
   width: 80%;
   max-width: 880px;
   max-height: 85%;
@@ -1445,6 +1449,10 @@ body.is-embedded #game-stage {
   overflow: hidden;
   padding: 20px;
   color: var(--vn-text-primary);
+}
+
+.modal-backlog-window {
+  height: 80%;
 }
 
 .save-slots-grid {
@@ -1472,23 +1480,6 @@ body.is-embedded #game-stage {
 
 .save-slot-card.empty {
   opacity: 0.6;
-}
-
-.modal-backlog-drawer {
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 450px;
-  max-width: 90%;
-  height: 100%;
-  background: var(--vn-panel-bg);
-  border-left: var(--vn-border-width) solid var(--vn-border-primary);
-  z-index: 35;
-  display: flex;
-  flex-direction: column;
-  padding: 20px;
-  pointer-events: auto;
-  color: var(--vn-text-primary);
 }
 
 .backlog-header,
