@@ -14,7 +14,6 @@ import { EditorTabBar } from './EditorTabBar';
 import { MonacoEditorContainer } from './MonacoEditorContainer';
 import { DockDrawer } from './DockDrawer';
 import { DockProblemsTable, type DiagnosticItem } from './DockProblemsTable';
-import { PreviewDock } from './PreviewDock';
 import { ProjectSettingsModal } from './ProjectSettingsModal';
 import { ExportWizardModal, type ExportTarget } from './ExportWizardModal';
 import { ColumnSplitter } from './ColumnSplitter';
@@ -36,6 +35,7 @@ export interface StudioWorkspacePageProps {
   initialProject?: Project;
   onBackToHub?: () => void;
   onQuickPlay?: () => void;
+  onRunFromCursor?: () => void;
   onOpenSettings?: () => void;
   onExport?: () => void;
 }
@@ -48,6 +48,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
   initialProject,
   onBackToHub,
   onQuickPlay,
+  onRunFromCursor,
   onOpenSettings,
   onExport,
 }) => {
@@ -70,10 +71,8 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
 
   // --- UI Store Hook Injection ---
   const navWidth = useEditorUIStore((s) => s.navWidth);
-  const previewWidth = useEditorUIStore((s) => s.previewWidth);
   const drawerHeight = useEditorUIStore((s) => s.drawerHeight);
   const setNavWidth = useEditorUIStore((s) => s.setNavWidth);
-  const setPreviewWidth = useEditorUIStore((s) => s.setPreviewWidth);
   const setDrawerHeight = useEditorUIStore((s) => s.setDrawerHeight);
 
   const activeTab = useEditorUIStore((s) => s.activeTab);
@@ -102,14 +101,16 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
   const warningCount = useDiagnosticsStore((s) => s.warningCount);
 
   // --- Live Preview Store Hook Injection ---
-  const isPlaying = usePreviewStore((s) => s.isPlaying);
-  const togglePlay = usePreviewStore((s) => s.togglePlay);
   const setIsPlaying = usePreviewStore((s) => s.setIsPlaying);
+  const connectionStatus = usePreviewStore((s) => s.connectionStatus);
+
+  const currentProject = project ?? initialProject ?? null;
 
   // Local component states
   const [loading, setLoading] = useState<boolean>(!initialProject && !project);
   const [error, setError] = useState<string | null>(null);
-  const [isPreviewPopout, setIsPreviewPopout] = useState<boolean>(false);
+  const [currentCursorLine, setCurrentCursorLine] = useState<number>(1);
+  const [selectedScene, setSelectedScene] = useState<string | undefined>(undefined);
   const [isCharModalOpen, setIsCharModalOpen] = useState<boolean>(false);
   const [editingCharacter, setEditingCharacter] = useState<Character | null>(null);
   const [isExportOpen, setIsExportOpen] = useState<boolean>(false);
@@ -117,6 +118,23 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
     id: string;
     category?: AssetCategory;
   } | null>(null);
+
+  // Pop-out Window Reference
+  const popoutWindowRef = useRef<Window | null>(null);
+
+  // Available Scenes extracted from script files
+  const availableScenes = useMemo(() => {
+    if (!currentProject?.files) return [];
+    const sceneSet = new Set<string>();
+    for (const f of currentProject.files) {
+      const lines = (f.content || '').split('\n');
+      for (const line of lines) {
+        const match = line.trim().match(/^scene\s+([a-zA-Z0-9_]+)/i);
+        if (match && match[1]) sceneSet.add(match[1]);
+      }
+    }
+    return Array.from(sceneSet);
+  }, [currentProject?.files]);
 
   // Pending navigation target callback for unsaved guard
   const pendingNavRef = useRef<(() => void) | null>(null);
@@ -127,11 +145,16 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
     () =>
       new PreviewBridge({
         targetWindow: () => {
-          if (typeof document === 'undefined') return null;
-          const iframe = document.querySelector<HTMLIFrameElement>(
-            'iframe[data-testid="preview-player-iframe"]'
-          );
-          return iframe?.contentWindow || null;
+          if (popoutWindowRef.current && !popoutWindowRef.current.closed) {
+            return popoutWindowRef.current;
+          }
+          if (typeof document !== 'undefined') {
+            const iframe = document.querySelector<HTMLIFrameElement>(
+              'iframe[data-testid="preview-player-iframe"]'
+            );
+            if (iframe?.contentWindow) return iframe.contentWindow;
+          }
+          return null;
         },
         previewOrigin: '*',
         repository,
@@ -195,10 +218,58 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
     }
   }, [setActiveTab]);
 
+  // Pop-out Preview Launcher & Hot Reload Handlers
+  const openOrFocusPopout = useCallback(
+    (targetOptions?: { scene?: string; line?: number }) => {
+      if (!currentProject) return;
+      const url = buildPreviewUrl('http://localhost:3000', currentProject.id, {
+        isPopout: true,
+        editorOrigin: typeof window !== 'undefined' ? window.location.origin : undefined,
+      });
+      if (typeof window !== 'undefined') {
+        if (!popoutWindowRef.current || popoutWindowRef.current.closed) {
+          popoutWindowRef.current = window.open(
+            url,
+            'VN_Preview_Popout',
+            'width=1280,height=720,menubar=no,toolbar=no,location=no,status=no'
+          );
+        } else {
+          popoutWindowRef.current.focus?.();
+        }
+      }
+      setIsPlaying(true);
+      previewBridge.probeReady();
+      const activeProgram = compilerService.getLatestProgram?.() || [];
+      if (activeProgram.length > 0) {
+        previewBridge.hotReload({
+          program: activeProgram,
+          scene: targetOptions?.scene,
+          line: targetOptions?.line,
+          projectId: currentProject.id,
+          characters: currentProject.characters,
+          assets: currentProject.assets,
+          preserveState: targetOptions?.line !== undefined,
+        });
+      }
+    },
+    [currentProject, compilerService, previewBridge, setIsPlaying]
+  );
+
+  const handleQuickPlayAction = useCallback(() => {
+    openOrFocusPopout({ scene: selectedScene });
+    onQuickPlay?.();
+  }, [openOrFocusPopout, selectedScene, onQuickPlay]);
+
+  const handleRunFromCursorAction = useCallback(() => {
+    openOrFocusPopout({ line: currentCursorLine, scene: selectedScene });
+    onRunFromCursor?.();
+  }, [openOrFocusPopout, currentCursorLine, selectedScene, onRunFromCursor]);
+
   // Global Keyboard Shortcuts
   useKeyboardShortcuts({
     onSave: handleManualSave,
-    onTogglePlay: togglePlay,
+    onTogglePlay: handleQuickPlayAction,
+    onRunFromCursor: handleRunFromCursorAction,
     onToggleDrawer: toggleDrawer,
     onToggleSidebar: handleToggleSidebar,
     onOpenSettings: () => setSettingsOpen(true),
@@ -579,12 +650,6 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
     [project]
   );
 
-  const handleQuickPlayAction = useCallback(() => {
-    setIsPlaying(true);
-    onQuickPlay?.();
-  }, [setIsPlaying, onQuickPlay]);
-
-  const currentProject = project ?? initialProject ?? null;
   const uncreatedCharacterIds = useMemo(() => {
     if (!currentProject) return [];
     return scanActiveReconciliation(currentProject).uncreatedCharacters;
@@ -648,11 +713,16 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
           height={canvasHeight}
           isDirty={isDirty}
           isSaving={isSaving}
+          scenes={availableScenes}
+          selectedScene={selectedScene}
+          connectionStatus={connectionStatus}
           onTitleChange={handleTitleChange}
           onSave={handleManualSave}
           onBack={handleBackToHub}
           onBackToHub={handleBackToHub}
           onQuickPlay={handleQuickPlayAction}
+          onRunFromCursor={handleRunFromCursorAction}
+          onSelectScene={setSelectedScene}
           onOpenSettings={handleOpenSettingsModal}
           onExport={handleOpenExportModal}
         />
@@ -724,7 +794,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
           {/* Column 2: Center Workspace (Editor Tab Bar + Monaco Script Workspace + Bottom Drawer) */}
           <div
             data-testid="col-workspace"
-            className="flex flex-1 flex-col min-w-0 h-full border-r border-neutral-800 bg-neutral-950"
+            className="flex flex-1 flex-col min-w-0 h-full bg-neutral-950"
           >
             {/* Header Tab Bar */}
             <EditorTabBar
@@ -747,6 +817,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
               project={currentProject}
               cursorJumpTarget={cursorJumpTarget}
               onChange={handleContentChange}
+              onCursorChange={(line) => setCurrentCursorLine(line)}
             />
 
             {/* Resizable Drawer Splitter */}
@@ -771,40 +842,6 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
                 onQuickFix={handleQuickFix}
               />
             </DockDrawer>
-          </div>
-
-          {/* Resizable Preview Splitter */}
-          <ColumnSplitter
-            type="preview"
-            onResize={(delta) => setPreviewWidth(previewWidth + delta)}
-            onReset={() => setPreviewWidth(440)}
-          />
-
-          {/* Column 3: Live Preview Dock */}
-          <div
-            data-testid="col-preview-dock"
-            className="flex shrink-0 h-full flex-col bg-neutral-900/70"
-            style={{ width: `${previewWidth}px` }}
-          >
-            <PreviewDock
-              projectId={currentProject.id}
-              canvasWidth={canvasWidth}
-              canvasHeight={canvasHeight}
-              isPlaying={isPlaying}
-              isPopout={isPreviewPopout}
-              previewUrl={buildPreviewUrl('http://localhost:3000', currentProject.id, {
-                isPopout: isPreviewPopout,
-                editorOrigin: typeof window !== 'undefined' ? window.location.origin : undefined,
-              })}
-              previewBridge={previewBridge}
-              repository={repository}
-              onTogglePlay={togglePlay}
-              onReload={() => {
-                setIsPlaying(false);
-                setTimeout(() => setIsPlaying(true), 50);
-              }}
-              onTogglePopout={() => setIsPreviewPopout((prev) => !prev)}
-            />
           </div>
         </main>
       )}

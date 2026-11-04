@@ -435,8 +435,8 @@ describe('Studio Shell & Navigation (Milestone 3 TDD)', () => {
       expect(screen.getByTestId('studio-workspace-page')).toBeInTheDocument();
       expect(screen.getByTestId('col-navigation')).toBeInTheDocument();
       expect(screen.getByTestId('col-workspace')).toBeInTheDocument();
-      expect(screen.getByTestId('col-preview-dock')).toBeInTheDocument();
-      expect(screen.getByTestId('preview-dock-container')).toBeInTheDocument();
+      expect(screen.queryByTestId('col-preview-dock')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('preview-dock-container')).not.toBeInTheDocument();
     });
 
     it('loads project from repository on mount when initialProject is not supplied', async () => {

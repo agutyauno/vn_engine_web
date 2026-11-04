@@ -33,6 +33,7 @@ export class CompilerService {
   private worker: Worker | null = null;
   private workerFactory?: () => Worker;
   private pendingRequests = new Map<number, PendingCompileRequest>();
+  private latestProgram: Instruction[] | null = null;
 
   constructor(workerFactory?: () => Worker) {
     this.workerFactory = workerFactory;
@@ -40,6 +41,10 @@ export class CompilerService {
 
   public getLatestRequestId(): number {
     return this.latestRequestId;
+  }
+
+  public getLatestProgram(): Instruction[] | null {
+    return this.latestProgram;
   }
 
   public async compile(
@@ -72,6 +77,7 @@ export class CompilerService {
     });
 
     if (result.success && result.program) {
+      this.latestProgram = result.program;
       return {
         requestId,
         success: true,
@@ -146,6 +152,9 @@ export class CompilerService {
     if (pending) {
       clearTimeout(pending.timeoutId);
       this.pendingRequests.delete(data.requestId);
+      if (data.success && data.bytecode) {
+        this.latestProgram = data.bytecode;
+      }
       pending.resolve({
         requestId: data.requestId,
         success: data.success,

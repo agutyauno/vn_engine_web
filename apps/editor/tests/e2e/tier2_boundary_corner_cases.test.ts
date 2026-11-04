@@ -14,7 +14,7 @@ import {
   checkSafeAssetDeletion,
 } from './testHelpers';
 import { validateFileName } from '../../src/components/studio/FileExplorerPane';
-import { isAllowedPreviewOrigin } from '../../src/components/studio/PreviewDock';
+import { isAllowedPreviewOrigin } from '../../src/core/services/previewBridge';
 
 describe('Tier 2: Boundary & Corner Cases (Web Editor Studio Platform)', () => {
   let repo: StudioProjectRepository;

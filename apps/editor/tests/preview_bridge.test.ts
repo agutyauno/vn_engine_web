@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isAllowedPreviewOrigin, buildPreviewUrl } from '../src/components/studio/PreviewDock';
+import { isAllowedPreviewOrigin, buildPreviewUrl } from '../src/core/services/previewBridge';
 
 describe('PreviewBridge Origin Security', () => {
   const configuredPreviewOrigin = 'http://localhost:3000';

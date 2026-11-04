@@ -6,6 +6,9 @@ export interface HotReloadPayload {
   projectId: string;
   characters: Character[];
   assets: AssetRef[];
+  scene?: string;
+  line?: number;
+  preserveState?: boolean;
 }
 
 export interface LivePreviewStoreState {

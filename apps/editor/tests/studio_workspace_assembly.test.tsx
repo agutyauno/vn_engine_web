@@ -78,13 +78,7 @@ describe('StudioWorkspacePage Assembly & Cutover (Phase 5 TDD)', () => {
     return vertical[0] as HTMLElement;
   }
 
-  function getPreviewSplitter(): HTMLElement {
-    const vertical = screen.getAllByRole('separator').filter(
-      (el) => el.getAttribute('aria-orientation') === 'vertical'
-    );
-    if (vertical.length < 2) throw new Error('No second vertical separator found for preview');
-    return vertical[1] as HTMLElement;
-  }
+
 
   function getDrawerSplitter(): HTMLElement {
     const horizontal = screen.getAllByRole('separator').find(
@@ -160,8 +154,8 @@ describe('StudioWorkspacePage Assembly & Cutover (Phase 5 TDD)', () => {
     expect(colNav).toHaveStyle({ width: '260px' });
   });
 
-  // TC-ASSEMBLY-03: Preview Splitter Drag & Double-Click Reset
-  it('TC-ASSEMBLY-03: drags preview splitter to resize preview width and resets on double-click (440px)', () => {
+  // TC-ASSEMBLY-03: Decoupled Full-Width Center Workspace
+  it('TC-ASSEMBLY-03: renders full-width center workspace without preview dock column', () => {
     const mockRepo = createMockRepository(sampleProject);
     render(
       <StudioWorkspacePage
@@ -171,23 +165,10 @@ describe('StudioWorkspacePage Assembly & Cutover (Phase 5 TDD)', () => {
       />
     );
 
-    const colPreview = screen.getByTestId('col-preview-dock');
-    expect(useEditorUIStore.getState().previewWidth).toBe(440);
-
-    const previewSplitter = getPreviewSplitter();
-
-    // Drag preview splitter left by 50px (expanding preview width from 440 to 490)
-    fireEvent.pointerDown(previewSplitter, { clientX: 800, clientY: 100, pointerId: 1 });
-    fireEvent.pointerMove(window, { clientX: 750, clientY: 100, pointerId: 1 });
-    fireEvent.pointerUp(window, { clientX: 750, clientY: 100, pointerId: 1 });
-
-    expect(useEditorUIStore.getState().previewWidth).toBe(490);
-    expect(colPreview).toHaveStyle({ width: '490px' });
-
-    // Double-click to reset to 440px
-    fireEvent.doubleClick(previewSplitter);
-    expect(useEditorUIStore.getState().previewWidth).toBe(440);
-    expect(colPreview).toHaveStyle({ width: '440px' });
+    expect(screen.queryByTestId('col-preview-dock')).not.toBeInTheDocument();
+    expect(screen.getByTestId('col-workspace')).toBeInTheDocument();
+    expect(screen.getByTestId('btn-header-play')).toBeInTheDocument();
+    expect(screen.getByTestId('btn-header-run-cursor')).toBeInTheDocument();
   });
 
   // TC-ASSEMBLY-04: Drawer Splitter Drag & Double-Click Reset
