@@ -610,14 +610,35 @@ export class VNRuntimeKernel {
 
   public async loadProgram(
     program: Instruction[],
-    options?: { scene?: string; line?: number },
+    options?: { scene?: string; line?: number; preserveState?: boolean },
   ): Promise<void> {
-    this.vm = new VisualNovelVM(program);
-    if (options?.scene) {
-      this.vm.jumpToScene(options.scene, { seedCatchUp: true });
-    } else if (options?.line !== undefined) {
+    const isCurrentlyGameplay = this.state.mode === 'GAMEPLAY';
+    const shouldPreserve = options?.preserveState ?? isCurrentlyGameplay;
+    const preservedVars = shouldPreserve ? this.getVariables() : {};
+
+    this.vm = new VisualNovelVM(program, {
+      variables: preservedVars as Record<string, string | number | boolean>,
+    });
+
+    if (options?.line !== undefined) {
       this.vm.jumpToLine(options.line, undefined, { seedCatchUp: true });
+    } else if (options?.scene) {
+      this.vm.jumpToScene(options.scene, { seedCatchUp: true });
     }
-    this.emit();
+
+    if (this.state.mode === 'STANDBY') {
+      await this.startNewGame();
+      return;
+    }
+
+    if (this.state.mode === 'GAMEPLAY') {
+      this.applyCatchUpSync();
+      if (options?.line !== undefined || options?.scene) {
+        await this.runForward();
+      }
+      this.emit();
+    } else {
+      this.emit();
+    }
   }
 }

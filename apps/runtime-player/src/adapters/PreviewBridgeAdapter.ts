@@ -32,19 +32,22 @@ export function isAllowedEditorOrigin(
   return userContentRegex.test(origin);
 }
 
+export interface HotReloadOptions {
+  scene?: string;
+  line?: number;
+  preserveState?: boolean;
+  projectId?: string;
+  characters?: Character[];
+  assets?: AssetRef[];
+}
+
 export interface PreviewBridgeOptions {
   targetWindow?: () => Window | null;
   editorOrigin?: string;
   localOrigin?: string;
   onHotReload?: (
     program: Instruction[],
-    options?: {
-      scene?: string;
-      line?: number;
-      projectId?: string;
-      characters?: Character[];
-      assets?: AssetRef[];
-    }
+    options?: HotReloadOptions
   ) => void;
   onSetVariable?: (name: string, value: unknown) => void;
 }
@@ -114,20 +117,16 @@ export class PreviewBridgeAdapter {
         const program = (payload?.program ?? data.program) as Instruction[] | undefined;
         const scene = (payload?.scene ?? data.scene) as string | undefined;
         const line = (payload?.line ?? data.line) as number | undefined;
+        const preserveState = (payload?.preserveState ?? data.preserveState) as boolean | undefined;
         const projectId = (payload?.projectId ?? data.projectId) as string | undefined;
         const characters = (payload?.characters ?? data.characters) as Character[] | undefined;
         const assets = (payload?.assets ?? data.assets) as AssetRef[] | undefined;
 
         if (program) {
-          const opts: {
-            scene?: string;
-            line?: number;
-            projectId?: string;
-            characters?: Character[];
-            assets?: AssetRef[];
-          } = {};
+          const opts: HotReloadOptions = {};
           if (scene !== undefined) opts.scene = scene;
           if (line !== undefined) opts.line = line;
+          if (preserveState !== undefined) opts.preserveState = preserveState;
           if (projectId !== undefined) opts.projectId = projectId;
           if (characters !== undefined) opts.characters = characters;
           if (assets !== undefined) opts.assets = assets;
