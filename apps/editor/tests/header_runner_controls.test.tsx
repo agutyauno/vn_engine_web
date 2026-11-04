@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, renderHook, cleanup } from '@testing-library/react';
-import React from 'react';
 import { StudioHeader, type StudioHeaderProps } from '../src/components/studio/StudioHeader';
 import { useKeyboardShortcuts, type KeyboardShortcutOptions } from '../src/hooks/useKeyboardShortcuts';
 
@@ -382,3 +381,4 @@ describe('Editor Header Runner Controls & Shortcuts (TASK-decouple-preview-and-h
     });
   });
 });
+

@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 export interface KeyboardShortcutOptions {
   onSave?: () => void;
   onTogglePlay?: () => void;
+  onRunFromCursor?: () => void;
   onToggleDrawer?: () => void;
   onToggleSidebar?: () => void;
   onOpenSettings?: () => void;
@@ -15,6 +16,7 @@ export function useKeyboardShortcuts(options?: KeyboardShortcutOptions): void {
   const {
     onSave,
     onTogglePlay,
+    onRunFromCursor,
     onToggleDrawer,
     onToggleSidebar,
     onOpenSettings,
@@ -43,8 +45,15 @@ export function useKeyboardShortcuts(options?: KeyboardShortcutOptions): void {
         return;
       }
 
-      // 2. Ctrl + Enter or F5 (Toggle Play)
-      if ((isCtrlOrCmd && e.key === 'Enter') || e.key === 'F5') {
+      // Alt + F5 (Run from Cursor) - chỉ kích hoạt khi Alt + F5 thuần tuý, không có Ctrl/Cmd
+      if (e.altKey && !isCtrlOrCmd && e.key === 'F5') {
+        e.preventDefault();
+        onRunFromCursor?.();
+        return;
+      }
+
+      // 2. Ctrl + Enter or F5 (without Alt) (Toggle Play)
+      if ((isCtrlOrCmd && e.key === 'Enter') || (!e.altKey && e.key === 'F5')) {
         e.preventDefault();
         onTogglePlay?.();
         return;
@@ -99,5 +108,5 @@ export function useKeyboardShortcuts(options?: KeyboardShortcutOptions): void {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [enabled, onSave, onTogglePlay, onToggleDrawer, onToggleSidebar, onOpenSettings, onCloseTab, onOpenShortcuts]);
+  }, [enabled, onSave, onTogglePlay, onRunFromCursor, onToggleDrawer, onToggleSidebar, onOpenSettings, onCloseTab, onOpenShortcuts]);
 }
