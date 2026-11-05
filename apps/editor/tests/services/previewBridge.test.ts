@@ -289,6 +289,64 @@ describe('PreviewBridge (Phase 3 Two-Way Live Preview Bus)', () => {
       );
       expect(usePreviewStore.getState().pendingVariableOverrides).toEqual({});
     });
+
+    it('TC-SYN-05: flushes to event.source directly upon PLAYER_READY even if targetWindow() returns null', async () => {
+      const activeBridge = createBridge({
+        targetWindow: () => null,
+      });
+
+      activeBridge.hotReload(samplePayload1);
+      expect(usePreviewStore.getState().pendingProgram).toEqual(samplePayload1);
+
+      const mockSourceWindow = { postMessage: vi.fn() };
+      const readyEvent = new MessageEvent('message', {
+        origin: TEST_PREVIEW_ORIGIN,
+        data: { type: 'PLAYER_READY' },
+        source: mockSourceWindow as unknown as MessageEventSource,
+      });
+
+      await activeBridge.handleMessage(readyEvent);
+
+      expect(mockSourceWindow.postMessage).toHaveBeenCalledWith(
+        { type: 'PLAYER_READY_ACK' },
+        TEST_PREVIEW_ORIGIN
+      );
+      expect(mockSourceWindow.postMessage).toHaveBeenCalledWith(
+        {
+          type: 'HOT_RELOAD_PROGRAM',
+          payload: samplePayload1,
+        },
+        TEST_PREVIEW_ORIGIN
+      );
+      expect(usePreviewStore.getState().pendingProgram).toBeNull();
+    });
+
+    it('TC-SYN-06: falls back to getProgramPayload() when pendingProgram is null upon PLAYER_READY', async () => {
+      const getProgramPayload = vi.fn().mockReturnValue(samplePayload2);
+      const activeBridge = createBridge({
+        getProgramPayload,
+      });
+
+      expect(usePreviewStore.getState().pendingProgram).toBeNull();
+
+      const mockSourceWindow = { postMessage: vi.fn() };
+      const readyEvent = new MessageEvent('message', {
+        origin: TEST_PREVIEW_ORIGIN,
+        data: { type: 'PLAYER_READY' },
+        source: mockSourceWindow as unknown as MessageEventSource,
+      });
+
+      await activeBridge.handleMessage(readyEvent);
+
+      expect(getProgramPayload).toHaveBeenCalled();
+      expect(mockSourceWindow.postMessage).toHaveBeenCalledWith(
+        {
+          type: 'HOT_RELOAD_PROGRAM',
+          payload: samplePayload2,
+        },
+        TEST_PREVIEW_ORIGIN
+      );
+    });
   });
 
   // ==========================================

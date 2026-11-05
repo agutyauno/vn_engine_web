@@ -6,6 +6,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import type { Project } from '@vn-engine/shared-types';
 import { StudioWorkspacePage } from '../src/components/studio/StudioWorkspacePage';
 import { IndexedDBProjectRepository } from '../src/core/repositories/IndexedDBProjectRepository';
+import { usePreviewStore } from '../src/core/stores/livePreviewStore';
 
 const testProject: Project = {
   id: 'proj-runner-test',
@@ -121,5 +122,25 @@ describe('Decoupled Studio Preview Runner (TASK-decouple-preview-and-hotreload)'
       'VN_Preview_Popout',
       expect.any(String)
     );
+  });
+
+  it('TC-RUN-01: resets connectionStatus to standby when opening a new popout window', () => {
+    // Simulate connectionStatus had previously been connected
+    usePreviewStore.getState().setConnectionStatus('connected');
+    expect(usePreviewStore.getState().connectionStatus).toBe('connected');
+
+    render(
+      <StudioWorkspacePage
+        projectId={testProject.id}
+        repository={repo}
+        initialProject={testProject}
+      />
+    );
+
+    const playBtn = screen.getByTestId('btn-header-play');
+    fireEvent.click(playBtn);
+
+    // Opening a new popout must reset connectionStatus to standby for handshake
+    expect(usePreviewStore.getState().connectionStatus).toBe('standby');
   });
 });
