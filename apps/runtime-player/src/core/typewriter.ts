@@ -12,6 +12,15 @@ export function stripControlTags(rawText: string): string {
 }
 
 /**
+ * Strips rhythm tags ({pause:...}, {wait:...}, {speed:...}) from raw text,
+ * preserving color tags ({color:...}, {/color}) for Backlog storage and rendering.
+ */
+export function stripRhythmTags(rawText: string): string {
+  if (!rawText) return '';
+  return rawText.replace(/\{\s*(?:pause|wait|speed)\s*:[^}]*\}/gi, '');
+}
+
+/**
  * Parses raw dialogue text containing control tags ({pause: 0.5s}, {wait: 300ms}, {speed: slow}, {color: #hex}, {/color})
  * into an array of TypewriterSegments for the Typewriter reveal animation.
  */
@@ -135,7 +144,7 @@ export function parseBacklogSegments(rawText: string): BacklogTextSegment[] {
   if (!rawText) return [];
 
   // Strip rhythm tags ({pause:...}, {wait:...}, {speed:...})
-  const textWithoutRhythm = rawText.replace(/\{\s*(?:pause|wait|speed)\s*:[^}]*\}/gi, '');
+  const textWithoutRhythm = stripRhythmTags(rawText);
   if (!textWithoutRhythm) return [];
 
   const segments: BacklogTextSegment[] = [];

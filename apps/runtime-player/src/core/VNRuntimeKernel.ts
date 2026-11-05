@@ -14,7 +14,7 @@ import type {
   VNRuntimeKernelOptions,
   LoadProgramOptions,
 } from './contracts';
-import { stripControlTags } from './typewriter';
+import { stripControlTags, stripRhythmTags } from './typewriter';
 
 export class VNRuntimeKernel {
   private vm: VisualNovelVM;
@@ -307,7 +307,7 @@ export class VNRuntimeKernel {
       id: `backlog_${Date.now()}_${this.state.backlog.length}`,
       speakerName,
       speakerColorHex,
-      text: stripControlTags(instruction.text),
+      text: stripRhythmTags(instruction.text),
       voiceAssetId: this.pendingVoiceAssetId ?? undefined,
       timestamp: Date.now(),
     };

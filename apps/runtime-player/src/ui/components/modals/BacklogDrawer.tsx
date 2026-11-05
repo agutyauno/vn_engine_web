@@ -1,6 +1,7 @@
 import type { JSX } from 'preact';
 import { usePlayerState, usePlayerActions } from '../../context/PlayerUIContext';
 import { CloseIcon, VolumeIcon } from '../common/Icons';
+import { parseBacklogSegments } from '../../../core/typewriter';
 
 export function BacklogDrawer(): JSX.Element {
   const { backlog } = usePlayerState();
@@ -40,7 +41,17 @@ export function BacklogDrawer(): JSX.Element {
                   {entry.speakerName}
                 </span>
               )}
-              <span className="backlog-text">{entry.text}</span>
+              <span className="backlog-text">
+                {parseBacklogSegments(entry.text).map((seg, sIdx) =>
+                  seg.color ? (
+                    <span key={sIdx} style={{ color: seg.color }}>
+                      {seg.text}
+                    </span>
+                  ) : (
+                    seg.text
+                  )
+                )}
+              </span>
               {entry.voiceAssetId && (
                 <button
                   type="button"
