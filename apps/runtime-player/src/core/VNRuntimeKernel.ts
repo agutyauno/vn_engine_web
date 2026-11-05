@@ -3,6 +3,7 @@ import type {
   DialogueInstruction,
   ChoiceInstruction,
   PlayInstruction,
+  Character,
 } from '@vn-engine/shared-types';
 import { VisualNovelVM } from '@vn-engine/core-vm';
 import type {
@@ -11,6 +12,7 @@ import type {
   SaveSlotData,
   BacklogEntry,
   VNRuntimeKernelOptions,
+  LoadProgramOptions,
 } from './contracts';
 import { stripControlTags } from './typewriter';
 
@@ -18,6 +20,7 @@ export class VNRuntimeKernel {
   private vm: VisualNovelVM;
   private adapters: KernelAdapters;
   private options?: VNRuntimeKernelOptions;
+  private charactersMap: Map<string, Character> = new Map();
   private state: PlayerViewState;
   private subscribers: Set<(state: PlayerViewState) => void> = new Set();
   private seenDialogues: Set<string> = new Set();
@@ -36,6 +39,9 @@ export class VNRuntimeKernel {
   ) {
     this.adapters = adapters ?? {};
     this.options = options;
+    if (options?.characters) {
+      this.registerCharacters(options.characters);
+    }
     this.vm = new VisualNovelVM(program);
 
     if (this.adapters.storage?.getSeenDialogues) {
@@ -258,6 +264,18 @@ export class VNRuntimeKernel {
     }
   }
 
+  private registerCharacters(characters: Character[]): void {
+    for (const char of characters) {
+      this.charactersMap.set(char.id, char);
+    }
+  }
+
+  private resolveSpeakerColor(characterId?: string | null): string | undefined {
+    if (!characterId) return undefined;
+    const char = this.charactersMap.get(characterId);
+    return char?.colorHex;
+  }
+
   private handleDialogue(instruction: DialogueInstruction): void {
     const dialogueKey = this.vm.getCurrentDialogueKey();
     const isSeen = dialogueKey ? this.seenDialogues.has(dialogueKey) : false;
@@ -273,12 +291,13 @@ export class VNRuntimeKernel {
 
     const speakerName =
       instruction.displayNameOverride ?? (instruction.character ?? undefined);
+    const speakerColorHex = this.resolveSpeakerColor(instruction.character);
 
     this.state.dialogue = {
       isVisible: true,
       rawText: instruction.text,
       speakerName,
-      speakerColorHex: undefined,
+      speakerColorHex,
       isComplete: false,
       canAdvance: true,
       isSeen,
@@ -287,6 +306,7 @@ export class VNRuntimeKernel {
     const backlogEntry: BacklogEntry = {
       id: `backlog_${Date.now()}_${this.state.backlog.length}`,
       speakerName,
+      speakerColorHex,
       text: stripControlTags(instruction.text),
       voiceAssetId: this.pendingVoiceAssetId ?? undefined,
       timestamp: Date.now(),
@@ -341,7 +361,7 @@ export class VNRuntimeKernel {
         speakerName:
           catchUp.currentDialogue.displayNameOverride ??
           (catchUp.currentDialogue.character ?? undefined),
-        speakerColorHex: undefined,
+        speakerColorHex: this.resolveSpeakerColor(catchUp.currentDialogue.character),
         isComplete: true,
         canAdvance: true,
         isSeen: true,
@@ -610,8 +630,12 @@ export class VNRuntimeKernel {
 
   public async loadProgram(
     program: Instruction[],
-    options?: { scene?: string; line?: number; preserveState?: boolean },
+    options?: LoadProgramOptions,
   ): Promise<void> {
+    if (options?.characters) {
+      this.registerCharacters(options.characters);
+    }
+
     const isCurrentlyGameplay = this.state.mode === 'GAMEPLAY';
     const shouldPreserve = options?.preserveState ?? isCurrentlyGameplay;
     const preservedVars = shouldPreserve ? this.getVariables() : {};

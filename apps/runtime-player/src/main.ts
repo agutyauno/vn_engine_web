@@ -7,7 +7,7 @@ import { render, h } from 'preact';
 import { compileString } from '@vn-engine/dsl-compiler';
 import { GameRenderer } from '@vn-engine/renderer';
 import { AudioManager } from '@vn-engine/audio';
-import type { Instruction } from '@vn-engine/shared-types';
+import type { Instruction, Character } from '@vn-engine/shared-types';
 
 import { VNRuntimeKernel } from './core/VNRuntimeKernel';
 import type { PlayerMode } from './core/contracts';
@@ -26,6 +26,11 @@ import { PlayerApp } from './ui/components/PlayerApp';
 
 import scenarioSource from './scenario.vns?raw';
 
+const defaultStandaloneCharacters: Character[] = [
+  { id: 'alice', name: 'Alice', colorHex: '#38bdf8', sprites: {} },
+  { id: 'bob', name: 'Bob', colorHex: '#f43f5e', sprites: {} },
+];
+
 window.addEventListener('DOMContentLoaded', async () => {
   const urlParams = new URLSearchParams(window.location.search);
   const isPopout = urlParams.get('popout') === 'true' || window.name === 'VN_Preview_Popout';
@@ -43,7 +48,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   // 1. Quản lý Project Data và Asset Resolver
   let currentProjectData: ProjectData = {
     id: projectId,
-    characters: [],
+    characters: (!isEmbedded && !isModePreview) ? (defaultStandaloneCharacters as unknown as ProjectDataCharacter[]) : [],
     assets: [],
   };
 
@@ -105,6 +110,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     {
       initialMode,
       projectId,
+      characters: (!isEmbedded && !isModePreview) ? defaultStandaloneCharacters : undefined,
     },
   );
 

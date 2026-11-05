@@ -4,6 +4,7 @@ import type {
   WaitInstruction,
   Instruction,
   PlayInstruction,
+  Character,
 } from '@vn-engine/shared-types';
 import type { CatchUpVisualState } from '@vn-engine/renderer';
 
@@ -82,6 +83,11 @@ export interface TypewriterSegment {
   color?: string;
   pauseAfterMs?: number;
   speedMultiplier?: number;
+}
+
+export interface BacklogTextSegment {
+  text: string;
+  color?: string;
 }
 
 export interface DesyncModalData {
@@ -191,4 +197,14 @@ export interface PlayerUIContract {
 export interface VNRuntimeKernelOptions {
   initialMode?: PlayerMode;
   projectId?: string;
+  characters?: Character[];
+}
+
+export interface LoadProgramOptions {
+  scene?: string;
+  line?: number;
+  preserveState?: boolean;
+  projectId?: string;
+  characters?: Character[];
+  assets?: unknown[];
 }
