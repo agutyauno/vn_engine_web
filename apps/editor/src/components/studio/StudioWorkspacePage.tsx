@@ -158,6 +158,19 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
         },
         previewOrigin: '*',
         repository,
+        getProgramPayload: () => {
+          const activeProgram = compilerService.getLatestProgram?.();
+          const proj = useProjectStore.getState().project;
+          if (activeProgram && activeProgram.length > 0 && proj) {
+            return {
+              program: activeProgram,
+              projectId: proj.id,
+              characters: proj.characters,
+              assets: proj.assets,
+            };
+          }
+          return null;
+        },
       }),
     [repository]
   );
@@ -220,26 +233,45 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
 
   // Pop-out Preview Launcher & Hot Reload Handlers
   const openOrFocusPopout = useCallback(
-    (targetOptions?: { scene?: string; line?: number }) => {
+    async (targetOptions?: { scene?: string; line?: number }) => {
       if (!currentProject) return;
       const url = buildPreviewUrl('http://localhost:3000', currentProject.id, {
         isPopout: true,
         editorOrigin: typeof window !== 'undefined' ? window.location.origin : undefined,
       });
+
+      const isNewWindow = !popoutWindowRef.current || popoutWindowRef.current.closed;
       if (typeof window !== 'undefined') {
-        if (!popoutWindowRef.current || popoutWindowRef.current.closed) {
+        if (isNewWindow) {
+          usePreviewStore.getState().setConnectionStatus('standby');
           popoutWindowRef.current = window.open(
             url,
             'VN_Preview_Popout',
             'width=1280,height=720,menubar=no,toolbar=no,location=no,status=no'
           );
         } else {
-          popoutWindowRef.current.focus?.();
+          popoutWindowRef.current?.focus?.();
         }
       }
       setIsPlaying(true);
       previewBridge.probeReady();
-      const activeProgram = compilerService.getLatestProgram?.() || [];
+
+      let activeProgram = compilerService.getLatestProgram?.() || [];
+      if (activeProgram.length === 0 && currentProject.files && currentProject.files.length > 0) {
+        try {
+          const compileResult = await compilerService.compile(currentProject.files, {
+            characters: currentProject.characters,
+            assets: currentProject.assets,
+            forceSync: true,
+          });
+          if (compileResult.success && compileResult.bytecode) {
+            activeProgram = compileResult.bytecode;
+          }
+        } catch (err) {
+          console.error('[openOrFocusPopout] On-demand compilation error:', err);
+        }
+      }
+
       if (activeProgram.length > 0) {
         previewBridge.hotReload({
           program: activeProgram,

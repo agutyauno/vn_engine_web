@@ -10,6 +10,7 @@ export interface PreviewBridgeOptions {
   localOrigin?: string;
   repository?: ProjectRepository;
   watchdogTimeoutMs?: number;
+  getProgramPayload?: () => HotReloadPayload | null;
 }
 
 export interface AssetBlobResponsePayload {
@@ -180,7 +181,8 @@ export class PreviewBridge {
           this.watchdogTimer = null;
         }
 
-        const target = this.options.targetWindow();
+        const sender = (event.source as Window) || null;
+        const target = sender || this.options.targetWindow();
         if (target) {
           target.postMessage({ type: 'PLAYER_READY_ACK' }, this.options.previewOrigin);
         }
@@ -188,20 +190,18 @@ export class PreviewBridge {
         const previewStore = usePreviewStore.getState();
         previewStore.setConnectionStatus('connected');
 
-        // 1. Flush pendingProgram if any
-        if (previewStore.pendingProgram) {
-          const pendingProgram = previewStore.pendingProgram;
-          if (target) {
-            target.postMessage(
-              {
-                type: 'HOT_RELOAD_PROGRAM',
-                payload: pendingProgram,
-              },
-              this.options.previewOrigin
-            );
-          }
-          previewStore.clearPendingProgram();
+        // 1. Flush pendingProgram or fallback to getProgramPayload
+        const programToSend = previewStore.pendingProgram || this.options.getProgramPayload?.() || null;
+        if (programToSend && target) {
+          target.postMessage(
+            {
+              type: 'HOT_RELOAD_PROGRAM',
+              payload: programToSend,
+            },
+            this.options.previewOrigin
+          );
         }
+        previewStore.clearPendingProgram();
 
         // 2. Flush pending variable overrides if any
         const overrides = previewStore.pendingVariableOverrides;

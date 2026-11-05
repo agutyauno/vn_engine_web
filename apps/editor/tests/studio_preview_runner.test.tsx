@@ -2,11 +2,12 @@
 import '@testing-library/jest-dom';
 import 'fake-indexeddb/auto';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import type { Project } from '@vn-engine/shared-types';
 import { StudioWorkspacePage } from '../src/components/studio/StudioWorkspacePage';
 import { IndexedDBProjectRepository } from '../src/core/repositories/IndexedDBProjectRepository';
 import { usePreviewStore } from '../src/core/stores/livePreviewStore';
+import { useProjectStore } from '../src/core/stores/projectStore';
 
 const testProject: Project = {
   id: 'proj-runner-test',
@@ -30,7 +31,7 @@ const testProject: Project = {
     {
       id: 'file-1',
       name: 'main.vns',
-      content: 'scene intro\n"Teacher" "Good morning!"\nscene climax\n"Alice" "Here we are!"\n',
+      content: 'scene intro {\n  "Good morning!"\n}\nscene climax {\n  "Here we are!"\n}\n',
       order: 0,
       version: 1,
     },
@@ -142,5 +143,32 @@ describe('Decoupled Studio Preview Runner (TASK-decouple-preview-and-hotreload)'
 
     // Opening a new popout must reset connectionStatus to standby for handshake
     expect(usePreviewStore.getState().connectionStatus).toBe('standby');
+  });
+
+  it('TC-RUN-02: compiles on-demand and stages pendingProgram when activeProgram is not yet compiled', async () => {
+    usePreviewStore.getState().setPendingProgram(null);
+    expect(usePreviewStore.getState().pendingProgram).toBeNull();
+
+    render(
+      <StudioWorkspacePage
+        projectId={testProject.id}
+        repository={repo}
+        initialProject={testProject}
+      />
+    );
+
+    // Wait for project initialization in store
+    await waitFor(() => {
+      expect(useProjectStore.getState().project).not.toBeNull();
+    });
+
+    const playBtn = screen.getByTestId('btn-header-play');
+    fireEvent.click(playBtn);
+
+    await waitFor(() => {
+      const pending = usePreviewStore.getState().pendingProgram;
+      expect(pending).not.toBeNull();
+      expect(pending?.projectId).toBe(testProject.id);
+    });
   });
 });
