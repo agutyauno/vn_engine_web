@@ -1,5 +1,6 @@
-import { Compiler } from '@vn-engine/dsl-compiler';
+import { Compiler, type ScriptReferences } from '@vn-engine/dsl-compiler';
 import type { ScriptFile, Character, Instruction, EngineDiagnostic } from '@vn-engine/shared-types';
+import { computeReconciliationDiagnostics } from './reconciliation';
 
 export interface CompilerWorkerRequest {
   requestId: number;
@@ -15,14 +16,22 @@ export interface CompilerWorkerResponse {
   success: boolean;
   bytecode?: Instruction[];
   diagnostics: EngineDiagnostic[];
+  reconciliationDiagnostics?: EngineDiagnostic[];
 }
 
 const compiler = new Compiler();
+const fileReferencesCache = new Map<string, ScriptReferences>();
 
 self.onmessage = (event: MessageEvent<CompilerWorkerRequest>) => {
   const { requestId, files, options } = event.data;
 
   try {
+    const reconciliationDiagnostics = computeReconciliationDiagnostics(
+      files,
+      options,
+      fileReferencesCache,
+    );
+
     const result = compiler.compile(files, {
       characters: options?.characters,
       assets: options?.assets,
@@ -34,6 +43,7 @@ self.onmessage = (event: MessageEvent<CompilerWorkerRequest>) => {
         success: true,
         bytecode: result.program,
         diagnostics: [],
+        reconciliationDiagnostics,
       };
       self.postMessage(response);
     } else {
@@ -56,6 +66,7 @@ self.onmessage = (event: MessageEvent<CompilerWorkerRequest>) => {
         success: false,
         bytecode: undefined,
         diagnostics,
+        reconciliationDiagnostics,
       };
       self.postMessage(response);
     }
@@ -74,6 +85,7 @@ self.onmessage = (event: MessageEvent<CompilerWorkerRequest>) => {
           message: errorMessage,
         },
       ],
+      reconciliationDiagnostics: [],
     };
     self.postMessage(response);
   }

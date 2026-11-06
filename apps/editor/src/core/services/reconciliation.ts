@@ -1,4 +1,11 @@
-import type { Project, EngineDiagnostic } from '@vn-engine/shared-types';
+import type { Project, EngineDiagnostic, ScriptFile, Character, ProgramAST } from '@vn-engine/shared-types';
+import {
+  VNSLexer,
+  parserInstance,
+  VNSAstBuilder,
+  extractScriptReferences,
+  type ScriptReferences,
+} from '@vn-engine/dsl-compiler';
 
 export type DiagnosticSeverity = 'error' | 'warning' | 'info';
 export type DiagnosticCategory = 'compiler' | 'asset' | 'character' | 'runtime' | 'storage';
@@ -327,6 +334,203 @@ export function generateDiagnostics(project: Project): GeneratedEditorDiagnostic
       assetKey: assetName,
       col: 1,
     });
+  }
+
+  return diagnostics;
+}
+
+/**
+ * Thực hiện AST reconciliation với cơ chế Error-State Retention (Quyết định 3):
+ * - Phân tích AST từng file kịch bản và trích xuất tham chiếu nhân vật/asset.
+ * - Nếu file hiện tại gặp lỗi cú pháp (chưa có AST mới), lưu giữ lại references đã cache trước đó của file đó.
+ * - Xóa sạch cache của các file đã bị xóa khỏi project.
+ * - So khớp references với character/asset registry để sinh cảnh báo uncreated (kèm quickFix) và unused assets.
+ */
+export function computeReconciliationDiagnostics(
+  files: ScriptFile[],
+  options: {
+    characters?: Character[];
+    assets?: Array<{ id: string; name?: string; type?: string; category?: string }>;
+  } | undefined,
+  cache: Map<string, ScriptReferences>,
+): GeneratedEditorDiagnostic[] {
+  const currentFileKeys = new Set(files.map(f => f.id || f.name));
+  for (const key of cache.keys()) {
+    if (!currentFileKeys.has(key)) {
+      cache.delete(key);
+    }
+  }
+
+  const fileMap = new Map<string, string>();
+  const fileNameMap = new Map<string, string>();
+
+  for (const file of files) {
+    const key = file.id || file.name;
+    if (file.name) {
+      fileMap.set(file.name, file.id);
+      fileNameMap.set(file.name, file.name);
+    }
+    if (file.id) {
+      fileMap.set(file.id, file.id);
+      fileNameMap.set(file.id, file.name || file.id);
+    }
+
+    try {
+      const lexResult = VNSLexer.tokenize(file.content);
+      if (lexResult.errors.length === 0) {
+        parserInstance.input = lexResult.tokens;
+        const cst = parserInstance.program();
+        if (parserInstance.errors.length === 0) {
+          const builder = new VNSAstBuilder(file.id || file.name);
+          const fileAst = builder.visit(cst) as ProgramAST;
+          if (fileAst) {
+            const refs = extractScriptReferences(fileAst);
+            cache.set(key, refs);
+          }
+        }
+      }
+    } catch {
+      // Bị lỗi cú pháp: Error-State Retention bảo toàn references trước đó trong cache
+    }
+  }
+
+  const assetRefMap: Record<string, ScriptReference[]> = {};
+  const charRefMap: Record<string, ScriptReference[]> = {};
+
+  for (const [fileKey, fileRefs] of cache.entries()) {
+    const fileName = fileNameMap.get(fileKey) || fileKey;
+
+    for (const charRef of fileRefs.characters) {
+      const cleanId = (charRef.characterId || '').trim().toLowerCase();
+      if (!cleanId) continue;
+      if (!charRefMap[cleanId]) {
+        charRefMap[cleanId] = [];
+      }
+      charRefMap[cleanId]!.push({
+        file: fileName,
+        line: charRef.loc?.line ?? 1,
+        type: 'character',
+      });
+    }
+
+    for (const assetRef of fileRefs.assets) {
+      const cleanKey = (assetRef.assetKey || '').trim();
+      if (!cleanKey) continue;
+      if (!assetRefMap[cleanKey]) {
+        assetRefMap[cleanKey] = [];
+      }
+      assetRefMap[cleanKey]!.push({
+        file: fileName,
+        line: assetRef.loc?.line ?? 1,
+        type: assetRef.category ?? 'background',
+      });
+    }
+  }
+
+  const knownCharIds = new Set(
+    (options?.characters || []).map(c => (c.id || '').trim().toLowerCase()),
+  );
+
+  const knownAssetKeys = new Set<string>();
+  for (const asset of options?.assets || []) {
+    if (asset.id) {
+      knownAssetKeys.add(asset.id.trim());
+      knownAssetKeys.add(asset.id.trim().toLowerCase());
+    }
+    if (asset.name) {
+      knownAssetKeys.add(asset.name.trim());
+      knownAssetKeys.add(asset.name.trim().toLowerCase());
+    }
+  }
+
+  const diagnostics: GeneratedEditorDiagnostic[] = [];
+
+  // Uncreated Assets
+  for (const assetRef of Object.keys(assetRefMap)) {
+    if (!knownAssetKeys.has(assetRef) && !knownAssetKeys.has(assetRef.toLowerCase())) {
+      const refs = assetRefMap[assetRef] || [];
+      const seenLocs = new Set<string>();
+      for (const ref of refs) {
+        const locKey = `${ref.file}:${ref.line}`;
+        if (seenLocs.has(locKey)) continue;
+        seenLocs.add(locKey);
+
+        diagnostics.push({
+          id: `diag-asset-${assetRef}-${ref.file}-${ref.line}`,
+          timestamp: Date.now(),
+          category: 'asset',
+          severity: 'warning',
+          message: `Uncreated asset '${assetRef}' referenced in script`,
+          assetKey: assetRef,
+          fileName: ref.file,
+          fileId: fileMap.get(ref.file),
+          line: ref.line,
+          col: 1,
+          quickFix: {
+            type: 'create_asset',
+            targetId: assetRef,
+            prefillData: {
+              name: assetRef,
+              category: ref.type === 'audio' ? 'audio' : 'backgrounds',
+            },
+          },
+        });
+      }
+    }
+  }
+
+  // Uncreated Characters
+  for (const charId of Object.keys(charRefMap)) {
+    if (!knownCharIds.has(charId)) {
+      const refs = charRefMap[charId] || [];
+      const seenLocs = new Set<string>();
+      for (const ref of refs) {
+        const locKey = `${ref.file}:${ref.line}`;
+        if (seenLocs.has(locKey)) continue;
+        seenLocs.add(locKey);
+
+        diagnostics.push({
+          id: `diag-char-${charId}-${ref.file}-${ref.line}`,
+          timestamp: Date.now(),
+          category: 'character',
+          severity: 'warning',
+          message: `Uncreated character '${charId}' referenced in script`,
+          assetKey: charId,
+          fileName: ref.file,
+          fileId: fileMap.get(ref.file),
+          line: ref.line,
+          col: 1,
+          quickFix: {
+            type: 'create_character',
+            targetId: charId,
+            prefillData: { id: charId, name: charId },
+          },
+        });
+      }
+    }
+  }
+
+  // Unused Assets
+  for (const asset of options?.assets || []) {
+    const assetName = asset.name || asset.id;
+    const nameMatches = asset.name
+      ? assetRefMap[asset.name] || assetRefMap[asset.name.toLowerCase()]
+      : undefined;
+    const idMatches = asset.id
+      ? assetRefMap[asset.id] || assetRefMap[asset.id.toLowerCase()]
+      : undefined;
+
+    if ((!nameMatches || nameMatches.length === 0) && (!idMatches || idMatches.length === 0)) {
+      diagnostics.push({
+        id: `diag-unused-asset-${assetName}`,
+        timestamp: Date.now(),
+        category: 'asset',
+        severity: 'info',
+        message: `Unused asset '${assetName}' is present in project assets but never referenced in scripts`,
+        assetKey: assetName,
+        col: 1,
+      });
+    }
   }
 
   return diagnostics;

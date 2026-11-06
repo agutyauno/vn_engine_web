@@ -9,3 +9,4 @@ export * from './codegen';
 export * from './compiler';
 export * from './error_formatter';
 export * from './formatter';
+export * from './references';

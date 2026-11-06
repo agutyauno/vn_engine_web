@@ -1,6 +1,7 @@
-import { Compiler } from '@vn-engine/dsl-compiler';
+import { Compiler, type ScriptReferences } from '@vn-engine/dsl-compiler';
 import type { ScriptFile, Character, Instruction, EngineDiagnostic } from '@vn-engine/shared-types';
 import type { CompilerWorkerRequest, CompilerWorkerResponse } from './compiler.worker';
+import { computeReconciliationDiagnostics } from './reconciliation';
 
 export interface CompileExecutionOptions {
   characters?: Character[];
@@ -13,6 +14,7 @@ export interface CompileOutput {
   success: boolean;
   bytecode?: Instruction[];
   diagnostics: EngineDiagnostic[];
+  reconciliationDiagnostics?: EngineDiagnostic[];
 }
 
 interface PendingCompileRequest {
@@ -26,6 +28,7 @@ export class CompilerService {
   private workerFactory?: () => Worker;
   private pendingRequests = new Map<number, PendingCompileRequest>();
   private latestProgram: Instruction[] | null = null;
+  private syncFileReferencesCache = new Map<string, ScriptReferences>();
 
   constructor(workerFactory?: () => Worker) {
     this.workerFactory = workerFactory;
@@ -62,6 +65,12 @@ export class CompilerService {
     files: ScriptFile[],
     options?: CompileExecutionOptions,
   ): CompileOutput {
+    const reconciliationDiagnostics = computeReconciliationDiagnostics(
+      files,
+      options,
+      this.syncFileReferencesCache,
+    );
+
     const compiler = new Compiler();
     const result = compiler.compile(files, {
       characters: options?.characters,
@@ -75,6 +84,7 @@ export class CompilerService {
         success: true,
         bytecode: result.program,
         diagnostics: [],
+        reconciliationDiagnostics,
       };
     }
 
@@ -97,6 +107,7 @@ export class CompilerService {
       success: false,
       bytecode: undefined,
       diagnostics,
+      reconciliationDiagnostics,
     };
   }
 
@@ -154,6 +165,7 @@ export class CompilerService {
         success: data.success,
         bytecode: data.bytecode,
         diagnostics: data.diagnostics || [],
+        reconciliationDiagnostics: data.reconciliationDiagnostics || [],
       });
     }
   }
@@ -192,6 +204,7 @@ export class CompilerService {
             message: errorMsg,
           },
         ],
+        reconciliationDiagnostics: [],
       });
     }
     this.pendingRequests.clear();
@@ -238,6 +251,7 @@ export class CompilerService {
                     'Compilation timeout: execution exceeded 2000ms limit (Watchdog terminated worker)',
                 },
               ],
+              reconciliationDiagnostics: [],
             });
           }
         }
