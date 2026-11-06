@@ -760,4 +760,133 @@ describe('Monaco DSL 1.1.0 Features, Scoped Interpolation & Hover Provider (TDD 
         docOrDetail.toLowerCase().includes('alice'),
     ).toBe(true);
   });
+
+  // =========================================================================
+  // Phase 4: Audio Stop Channels & Unified Ranking (TDD RED)
+  // =========================================================================
+
+  // TC-AUTO-STOP-01: Audio Stop Channels Completion
+  it('TC-AUTO-STOP-01: Suggests audio channels (music, sound, voice, all) with fade_out parameters when typing stop keyword', () => {
+    const mockContext: VnsProjectContext = {
+      getFiles: () => ({}),
+      getScenes: () => [],
+      getCharacters: () => new Map(),
+      getAssets: () => ({ backgrounds: new Set(), audio: new Set(), voices: new Set() }),
+      getAssetDetails: () => new Map(),
+      getVariables: () => [],
+      switchActiveFile: () => {},
+    };
+
+    registerVnsLanguageFeatures(mockContext);
+    expect(capturedCompletionProvider).not.toBeNull();
+
+    // Model: 'stop ' (dòng 1, cột 6)
+    const model = createMockModel('stop ');
+    const pos = { lineNumber: 1, column: 6 } as monaco.Position;
+    const result = capturedCompletionProvider!.provideCompletionItems(
+      model,
+      pos,
+      dummyContext,
+      dummyToken,
+    ) as monaco.languages.CompletionList;
+
+    const suggestions = result?.suggestions || [];
+    const getLabel = (s: monaco.languages.CompletionItem) =>
+      typeof s.label === 'string' ? s.label : s.label.label;
+
+    const musicItem = suggestions.find(s => getLabel(s) === 'music');
+    const soundItem = suggestions.find(s => getLabel(s) === 'sound');
+    const voiceItem = suggestions.find(s => getLabel(s) === 'voice');
+    const allItem = suggestions.find(s => getLabel(s) === 'all');
+
+    expect(musicItem).toBeDefined();
+    expect(soundItem).toBeDefined();
+    expect(voiceItem).toBeDefined();
+    expect(allItem).toBeDefined();
+
+    // Kiểm tra sortText của mỗi kênh đều khớp /^00_/ (Direct Context Target)
+    expect(musicItem?.sortText).toMatch(/^00_/);
+    expect(soundItem?.sortText).toMatch(/^00_/);
+    expect(voiceItem?.sortText).toMatch(/^00_/);
+    expect(allItem?.sortText).toMatch(/^00_/);
+
+    // Kiểm tra insertText của music và all chứa fade_out:
+    expect(musicItem?.insertText).toContain('fade_out:');
+    expect(allItem?.insertText).toContain('fade_out:');
+  });
+
+  // TC-AUTO-RANKING-01: Unified SortText Hierarchy
+  it('TC-AUTO-RANKING-01: Enforces unified sortText ranking hierarchy across statements, dialogue, media, and control flow', () => {
+    const mockContext: VnsProjectContext = {
+      getFiles: () => ({}),
+      getScenes: () => [],
+      getCharacters: () =>
+        new Map([
+          [
+            'alice',
+            {
+              displayName: 'Alice Wonderland',
+              sprites: new Set(['happy']),
+            },
+          ],
+        ]),
+      getAssets: () => ({ backgrounds: new Set(), audio: new Set(), voices: new Set() }),
+      getAssetDetails: () => new Map(),
+      getVariables: () => [],
+      switchActiveFile: () => {},
+    };
+
+    registerVnsLanguageFeatures(mockContext);
+    expect(capturedCompletionProvider).not.toBeNull();
+
+    // Model với dòng trống "" (dòng 1, cột 1) và context có nhân vật alice
+    const model = createMockModel('');
+    const pos = { lineNumber: 1, column: 1 } as monaco.Position;
+    const result = capturedCompletionProvider!.provideCompletionItems(
+      model,
+      pos,
+      dummyContext,
+      dummyToken,
+    ) as monaco.languages.CompletionList;
+
+    const suggestions = result?.suggestions || [];
+    const getLabel = (s: monaco.languages.CompletionItem) =>
+      typeof s.label === 'string' ? s.label : s.label.label;
+
+    // 01_...: Primary statements (scene, show, background, choice, hide)
+    const sceneItem = suggestions.find(s => getLabel(s) === 'scene');
+    const showItem = suggestions.find(s => getLabel(s) === 'show');
+    expect(sceneItem).toBeDefined();
+    expect(sceneItem?.sortText).toMatch(/^01_/);
+    if (showItem) {
+      expect(showItem.sortText).toMatch(/^01_/);
+    }
+
+    // 02_...: Character dialogue lines (alice: "...", narrator: "...")
+    const aliceDialogueItem = suggestions.find(s => getLabel(s) === 'alice: "..."');
+    const narratorDialogueItem = suggestions.find(s => getLabel(s) === 'narrator: "..."');
+    expect(aliceDialogueItem).toBeDefined();
+    expect(aliceDialogueItem?.sortText).toMatch(/^02_/);
+    expect(narratorDialogueItem).toBeDefined();
+    expect(narratorDialogueItem?.sortText).toMatch(/^02_/);
+
+    // 03_...: Media and audio commands (play music, stop, input, wait, inspect)
+    const playMusicItem = suggestions.find(s => getLabel(s) === 'play music');
+    const stopItem = suggestions.find(s => getLabel(s) === 'stop');
+    const inputItem = suggestions.find(s => getLabel(s) === 'input');
+    expect(playMusicItem).toBeDefined();
+    expect(playMusicItem?.sortText).toMatch(/^03_/);
+    expect(stopItem).toBeDefined();
+    expect(stopItem?.sortText).toMatch(/^03_/);
+    expect(inputItem).toBeDefined();
+    expect(inputItem?.sortText).toMatch(/^03_/);
+
+    // 04_...: Control flow & general keywords (if, while, else, define, reveal, return, end)
+    const ifItem = suggestions.find(s => getLabel(s) === 'if');
+    const whileItem = suggestions.find(s => getLabel(s) === 'while');
+    expect(ifItem).toBeDefined();
+    expect(ifItem?.sortText).toMatch(/^04_/);
+    expect(whileItem).toBeDefined();
+    expect(whileItem?.sortText).toMatch(/^04_/);
+  });
 });
