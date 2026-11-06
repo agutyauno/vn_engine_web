@@ -558,4 +558,98 @@ describe('Monaco DSL 1.1.0 Features, Scoped Interpolation & Hover Provider (TDD 
     expect(labelsAssign).toContain('true');
     expect(labelsAssign).toContain('false');
   });
+
+  // =========================================================================
+  // Phase 2: Sub-scenes Relative & Canonical Completion (TDD RED)
+  // =========================================================================
+
+  // TC-AUTO-SUBSCENE-01: Relative Subscene Jump
+  it('TC-AUTO-SUBSCENE-01: Suggests relative subscene targets starting with dot when typing goto . or call .', () => {
+    const mockContext: VnsProjectContext = {
+      getFiles: () => ({}),
+      getScenes: () => [{ name: 'chapter1.intro', file: 'act1.vns', line: 15 }],
+      getCharacters: () => new Map(),
+      getAssets: () => ({ backgrounds: new Set(), audio: new Set(), voices: new Set() }),
+      getAssetDetails: () => new Map(),
+      getVariables: () => [],
+      switchActiveFile: () => {},
+    };
+
+    registerVnsLanguageFeatures(mockContext);
+    expect(capturedCompletionProvider).not.toBeNull();
+
+    // Trường hợp 1: Model 'goto .' (dòng 1, cột 7)
+    const modelGoto = createMockModel('goto .');
+    const posGoto = { lineNumber: 1, column: 7 } as monaco.Position;
+    const resultGoto = capturedCompletionProvider!.provideCompletionItems(
+      modelGoto,
+      posGoto,
+      dummyContext,
+      dummyToken,
+    ) as monaco.languages.CompletionList;
+
+    const gotoSuggestions = resultGoto?.suggestions || [];
+    const subsceneItem = gotoSuggestions.find(
+      s => s.label === '.intro' || s.insertText === '.intro',
+    );
+    expect(subsceneItem).toBeDefined();
+    expect(subsceneItem?.insertText).toBe('.intro');
+    expect(subsceneItem?.sortText).toMatch(/^00_/);
+
+    // Trường hợp 2: Model 'call .' (dòng 1, cột 7)
+    const modelCall = createMockModel('call .');
+    const posCall = { lineNumber: 1, column: 7 } as monaco.Position;
+    const resultCall = capturedCompletionProvider!.provideCompletionItems(
+      modelCall,
+      posCall,
+      dummyContext,
+      dummyToken,
+    ) as monaco.languages.CompletionList;
+
+    const callSuggestions = resultCall?.suggestions || [];
+    const subsceneCallItem = callSuggestions.find(
+      s => s.label === '.intro' || s.insertText === '.intro',
+    );
+    expect(subsceneCallItem).toBeDefined();
+    expect(subsceneCallItem?.insertText).toBe('.intro');
+    expect(subsceneCallItem?.sortText).toMatch(/^00_/);
+  });
+
+  // TC-AUTO-SUBSCENE-02: Subscene Definition Snippet
+  it('TC-AUTO-SUBSCENE-02: Suggests subscene declaration snippet when typing scene .', () => {
+    const mockContext: VnsProjectContext = {
+      getFiles: () => ({}),
+      getScenes: () => [],
+      getCharacters: () => new Map(),
+      getAssets: () => ({ backgrounds: new Set(), audio: new Set(), voices: new Set() }),
+      getAssetDetails: () => new Map(),
+      getVariables: () => [],
+      switchActiveFile: () => {},
+    };
+
+    registerVnsLanguageFeatures(mockContext);
+    expect(capturedCompletionProvider).not.toBeNull();
+
+    // Model 'scene .' (dòng 1, cột 8)
+    const modelScene = createMockModel('scene .');
+    const posScene = { lineNumber: 1, column: 8 } as monaco.Position;
+    const resultScene = capturedCompletionProvider!.provideCompletionItems(
+      modelScene,
+      posScene,
+      dummyContext,
+      dummyToken,
+    ) as monaco.languages.CompletionList;
+
+    const suggestions = resultScene?.suggestions || [];
+    const subsceneSnippet = suggestions.find(
+      s =>
+        (typeof s.label === 'string' && s.label.includes('scene .')) ||
+        (typeof s.label === 'object' && s.label.label.includes('scene .')) ||
+        s.insertText?.includes('scene .'),
+    );
+
+    expect(subsceneSnippet).toBeDefined();
+    expect(subsceneSnippet?.kind).toBe(monaco.languages.CompletionItemKind.Snippet);
+    expect(subsceneSnippet?.insertText).toBe('scene .${1:subname} {\n\t$0\n}');
+  });
 });
