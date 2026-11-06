@@ -22,9 +22,17 @@ export interface VnsProjectContext {
   switchActiveFile: (fileName: string) => void;
 }
 
-export function registerVnsLanguageFeatures(context: VnsProjectContext): void {
+let featureDisposables: monaco.IDisposable[] = [];
+
+export function registerVnsLanguageFeatures(context: VnsProjectContext): monaco.IDisposable {
+  // Dispose previous registrations if any (avoids duplicate provider leaks on re-register/HMR)
+  for (const d of featureDisposables) {
+    d.dispose();
+  }
+  featureDisposables = [];
+
   // 1. AUTOCOMPLETE PROVIDER
-  monaco.languages.registerCompletionItemProvider('vns', {
+  const completionDisposable = monaco.languages.registerCompletionItemProvider('vns', {
     triggerCharacters: [' ', '.', ':', '~', '"', '{'],
     provideCompletionItems: (model, position) => {
       const lineContent = model.getLineContent(position.lineNumber);
@@ -966,9 +974,10 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): void {
       return { suggestions };
     },
   });
+  featureDisposables.push(completionDisposable);
 
   // 2. GO-TO-DEFINITION PROVIDER (Ctrl + Click nhảy tới phân cảnh)
-  monaco.languages.registerDefinitionProvider('vns', {
+  const definitionDisposable = monaco.languages.registerDefinitionProvider('vns', {
     provideDefinition: (model, position) => {
       const lineContent = model.getLineContent(position.lineNumber);
       const word = model.getWordAtPosition(position);
@@ -1006,9 +1015,10 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): void {
       return null;
     },
   });
+  featureDisposables.push(definitionDisposable);
 
   // 3. DOCUMENT FORMATTING PROVIDER (Auto-Format: Shift + Alt + F)
-  monaco.languages.registerDocumentFormattingEditProvider('vns', {
+  const formattingDisposable = monaco.languages.registerDocumentFormattingEditProvider('vns', {
     provideDocumentFormattingEdits: (model, options) => {
       const originalText = model.getValue();
       const formattedText = formatVns(originalText, {
@@ -1028,9 +1038,10 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): void {
       ];
     },
   });
+  featureDisposables.push(formattingDisposable);
 
   // 4. HOVER PROVIDER (Zero-Trust Markdown Hover Cards)
-  monaco.languages.registerHoverProvider('vns', {
+  const hoverDisposable = monaco.languages.registerHoverProvider('vns', {
     provideHover: (model, position) => {
       const lineContent = model.getLineContent(position.lineNumber);
       if (!lineContent) return null;
@@ -1135,4 +1146,14 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): void {
       return null;
     },
   });
+  featureDisposables.push(hoverDisposable);
+
+  return {
+    dispose: () => {
+      for (const d of featureDisposables) {
+        d.dispose();
+      }
+      featureDisposables = [];
+    },
+  };
 }

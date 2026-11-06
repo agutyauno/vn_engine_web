@@ -11,7 +11,7 @@ Root source directory for the TaleForge Web Editor application. Houses root Reac
 - `AppRoute`: Route discriminated union (`{ view: 'hub' } | { view: 'studio', projectId: string }`)
 - `parseHashRoute(hash: string): AppRoute`: Utility parsing window location hashes (`#/projects`, `#/editor/:id`, `#/studio/:id`)
 - `registerVnsLanguage(): void`: Registers `vns` language ID, Monarch syntax tokenizer, brackets, and `vns-wireframe-dark` Monaco theme
-- `registerVnsLanguageFeatures(context: VnsProjectContext): void`: Registers Monaco auto-completion, go-to-definition, document formatting, and hover card providers
+- `registerVnsLanguageFeatures(context: VnsProjectContext): monaco.IDisposable`: Registers Monaco auto-completion, go-to-definition, document formatting, and hover card providers, automatically disposing previous registrations to prevent duplicate providers
 - Subdirectories:
   - [./components/README.md](./components/README.md): Component library and workspace UI panes
   - [./core/README.md](./core/README.md): Business logic, contracts, repositories, services, stores, and utilities
