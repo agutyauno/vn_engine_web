@@ -652,4 +652,112 @@ describe('Monaco DSL 1.1.0 Features, Scoped Interpolation & Hover Provider (TDD 
     expect(subsceneSnippet?.kind).toBe(monaco.languages.CompletionItemKind.Snippet);
     expect(subsceneSnippet?.insertText).toBe('scene .${1:subname} {\n\t$0\n}');
   });
+
+  // =========================================================================
+  // Phase 3: Comprehensive Typewriter Tags & Character Colors (TDD RED)
+  // =========================================================================
+
+  // TC-AUTO-TYPEWRITER-01: Comprehensive Typewriter Control Tags
+  it('TC-AUTO-TYPEWRITER-01: Suggests comprehensive typewriter rhythm, speed, and color control tags when typing { inside dialogue', () => {
+    const mockContext: VnsProjectContext = {
+      getFiles: () => ({}),
+      getScenes: () => [],
+      getCharacters: () => new Map(),
+      getAssets: () => ({ backgrounds: new Set(), audio: new Set(), voices: new Set() }),
+      getAssetDetails: () => new Map(),
+      getVariables: () => [],
+      switchActiveFile: () => {},
+    };
+
+    registerVnsLanguageFeatures(mockContext);
+    expect(capturedCompletionProvider).not.toBeNull();
+
+    const model = createMockModel('alice: "Hello {');
+    const pos = { lineNumber: 1, column: 16 } as monaco.Position;
+    const result = capturedCompletionProvider!.provideCompletionItems(
+      model,
+      pos,
+      dummyContext,
+      dummyToken,
+    ) as monaco.languages.CompletionList;
+
+    const suggestions = result?.suggestions || [];
+    const labels = suggestions.map(s => (typeof s.label === 'string' ? s.label : s.label.label));
+
+    const expectedTags = [
+      '{pause:300ms}',
+      '{wait:1.0s}',
+      '{speed:slow}',
+      '{speed:normal}',
+      '{speed:2.0}',
+      '{color:default}',
+      '{color:reset}',
+      '{/color}',
+    ];
+
+    for (const tag of expectedTags) {
+      expect(labels).toContain(tag);
+      const item = suggestions.find(
+        s => (typeof s.label === 'string' ? s.label : s.label.label) === tag,
+      );
+      expect(item).toBeDefined();
+      expect(item?.kind).toBe(monaco.languages.CompletionItemKind.Snippet);
+    }
+  });
+
+  // TC-AUTO-TYPEWRITER-02: Character Color Tags
+  it('TC-AUTO-TYPEWRITER-02: Suggests character specific color tag with character documentation when typing { inside dialogue', () => {
+    const mockContext: VnsProjectContext = {
+      getFiles: () => ({}),
+      getScenes: () => [],
+      getCharacters: () =>
+        new Map([
+          [
+            'alice',
+            {
+              displayName: 'Alice Carroll',
+              colorHex: '#e91e63',
+              sprites: new Set(),
+            },
+          ],
+        ]),
+      getAssets: () => ({ backgrounds: new Set(), audio: new Set(), voices: new Set() }),
+      getAssetDetails: () => new Map(),
+      getVariables: () => [],
+      switchActiveFile: () => {},
+    };
+
+    registerVnsLanguageFeatures(mockContext);
+    expect(capturedCompletionProvider).not.toBeNull();
+
+    const model = createMockModel('alice: "Story {');
+    const pos = { lineNumber: 1, column: 16 } as monaco.Position;
+    const result = capturedCompletionProvider!.provideCompletionItems(
+      model,
+      pos,
+      dummyContext,
+      dummyToken,
+    ) as monaco.languages.CompletionList;
+
+    const suggestions = result?.suggestions || [];
+    const colorTag = suggestions.find(
+      s =>
+        (typeof s.label === 'string' ? s.label : s.label.label) === '{color:#e91e63}' ||
+        s.insertText === '{color:#e91e63}',
+    );
+
+    expect(colorTag).toBeDefined();
+    expect(colorTag?.kind).toBe(monaco.languages.CompletionItemKind.Snippet);
+
+    const docOrDetail = `${colorTag?.detail ?? ''} ${
+      typeof colorTag?.documentation === 'object'
+        ? (colorTag?.documentation as monaco.IMarkdownString).value
+        : (colorTag?.documentation ?? '')
+    }`;
+
+    expect(
+      docOrDetail.toLowerCase().includes('alice carroll') ||
+        docOrDetail.toLowerCase().includes('alice'),
+    ).toBe(true);
+  });
 });
