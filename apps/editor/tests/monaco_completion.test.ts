@@ -890,3 +890,128 @@ describe('Monaco DSL 1.1.0 Features, Scoped Interpolation & Hover Provider (TDD 
     expect(whileItem?.sortText).toMatch(/^04_/);
   });
 });
+
+describe('Phase 6: Language Feature Provider Lifecycle & Disposable Management', () => {
+  const dummyContext: VnsProjectContext = {
+    getFiles: () => ({}),
+    getScenes: () => [],
+    getCharacters: () => new Map(),
+    getAssets: () => ({ backgrounds: new Set(), audio: new Set(), voices: new Set() }),
+    getAssetDetails: () => new Map(),
+    getVariables: () => [],
+    switchActiveFile: () => {},
+  };
+
+  let completionDisposables: Array<{ dispose: ReturnType<typeof vi.fn> }> = [];
+  let definitionDisposables: Array<{ dispose: ReturnType<typeof vi.fn> }> = [];
+  let formattingDisposables: Array<{ dispose: ReturnType<typeof vi.fn> }> = [];
+  let hoverDisposables: Array<{ dispose: ReturnType<typeof vi.fn> }> = [];
+
+  beforeEach(() => {
+    completionDisposables = [];
+    definitionDisposables = [];
+    formattingDisposables = [];
+    hoverDisposables = [];
+
+    vi.spyOn(monaco.languages, 'registerCompletionItemProvider').mockImplementation(() => {
+      const d = { dispose: vi.fn() };
+      completionDisposables.push(d);
+      return d as unknown as monaco.IDisposable;
+    });
+
+    vi.spyOn(monaco.languages, 'registerDefinitionProvider').mockImplementation(() => {
+      const d = { dispose: vi.fn() };
+      definitionDisposables.push(d);
+      return d as unknown as monaco.IDisposable;
+    });
+
+    vi.spyOn(monaco.languages, 'registerDocumentFormattingEditProvider').mockImplementation(() => {
+      const d = { dispose: vi.fn() };
+      formattingDisposables.push(d);
+      return d as unknown as monaco.IDisposable;
+    });
+
+    vi.spyOn(monaco.languages, 'registerHoverProvider').mockImplementation(() => {
+      const d = { dispose: vi.fn() };
+      hoverDisposables.push(d);
+      return d as unknown as monaco.IDisposable;
+    });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // TC-AUTO-DISPOSE-01: Tự động dispose các provider cũ khi register lại
+  it('TC-AUTO-DISPOSE-01: automatically disposes previously registered providers when registerVnsLanguageFeatures is called again', () => {
+    // Lần 1: đăng ký tính năng lần đầu
+    registerVnsLanguageFeatures(dummyContext);
+
+    expect(completionDisposables).toHaveLength(1);
+    expect(definitionDisposables).toHaveLength(1);
+    expect(formattingDisposables).toHaveLength(1);
+    expect(hoverDisposables).toHaveLength(1);
+
+    const firstCompletionDispose = completionDisposables[0]!.dispose;
+    const firstDefinitionDispose = definitionDisposables[0]!.dispose;
+    const firstFormattingDispose = formattingDisposables[0]!.dispose;
+    const firstHoverDispose = hoverDisposables[0]!.dispose;
+
+    expect(firstCompletionDispose).not.toHaveBeenCalled();
+    expect(firstDefinitionDispose).not.toHaveBeenCalled();
+    expect(firstFormattingDispose).not.toHaveBeenCalled();
+    expect(firstHoverDispose).not.toHaveBeenCalled();
+
+    // Lần 2: gọi lại đăng ký (ví dụ: HMR trigger hoặc React StrictMode remount)
+    registerVnsLanguageFeatures(dummyContext);
+
+    expect(completionDisposables).toHaveLength(2);
+    expect(definitionDisposables).toHaveLength(2);
+    expect(formattingDisposables).toHaveLength(2);
+    expect(hoverDisposables).toHaveLength(2);
+
+    // Toàn bộ disposable của lần 1 phải được gọi .dispose() đúng 1 lần
+    expect(firstCompletionDispose).toHaveBeenCalledTimes(1);
+    expect(firstDefinitionDispose).toHaveBeenCalledTimes(1);
+    expect(firstFormattingDispose).toHaveBeenCalledTimes(1);
+    expect(firstHoverDispose).toHaveBeenCalledTimes(1);
+
+    // Các provider mới của lần 2 vẫn đang active (chưa bị dispose)
+    const secondCompletionDispose = completionDisposables[1]!.dispose;
+    const secondDefinitionDispose = definitionDisposables[1]!.dispose;
+    const secondFormattingDispose = formattingDisposables[1]!.dispose;
+    const secondHoverDispose = hoverDisposables[1]!.dispose;
+
+    expect(secondCompletionDispose).not.toHaveBeenCalled();
+    expect(secondDefinitionDispose).not.toHaveBeenCalled();
+    expect(secondFormattingDispose).not.toHaveBeenCalled();
+    expect(secondHoverDispose).not.toHaveBeenCalled();
+  });
+
+  // TC-AUTO-DISPOSE-02: Trả về IDisposable để chủ động dọn dẹp các provider active
+  it('TC-AUTO-DISPOSE-02: returns an IDisposable handle that disposes all active providers when invoked', () => {
+    const handle = registerVnsLanguageFeatures(dummyContext) as unknown as monaco.IDisposable;
+
+    expect(handle).toBeDefined();
+    expect(typeof handle?.dispose).toBe('function');
+
+    expect(completionDisposables).toHaveLength(1);
+    expect(definitionDisposables).toHaveLength(1);
+    expect(formattingDisposables).toHaveLength(1);
+    expect(hoverDisposables).toHaveLength(1);
+
+    expect(completionDisposables[0]!.dispose).not.toHaveBeenCalled();
+    expect(definitionDisposables[0]!.dispose).not.toHaveBeenCalled();
+    expect(formattingDisposables[0]!.dispose).not.toHaveBeenCalled();
+    expect(hoverDisposables[0]!.dispose).not.toHaveBeenCalled();
+
+    // Gọi handle.dispose() để teardown chủ động
+    handle.dispose();
+
+    expect(completionDisposables[0]!.dispose).toHaveBeenCalledTimes(1);
+    expect(definitionDisposables[0]!.dispose).toHaveBeenCalledTimes(1);
+    expect(formattingDisposables[0]!.dispose).toHaveBeenCalledTimes(1);
+    expect(hoverDisposables[0]!.dispose).toHaveBeenCalledTimes(1);
+  });
+});
+
