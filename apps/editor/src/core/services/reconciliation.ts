@@ -94,21 +94,9 @@ export function scanActiveReconciliation(project: Project): ReconciliationReport
         recordCharRef(hideMatch[1], fileName, lineNum);
       }
 
-      // Dialogue line: <char_id>: "..." or <char_id> as "...": "..."
-      const dialogueMatch = trimmed.match(/^([a-zA-Z0-9_]+)(?:\s+as\s+"[^"]*")?\s*:\s*"/i);
-      if (dialogueMatch && dialogueMatch[1]) {
-        if (dialogueMatch[1].toLowerCase() !== 'narrator') {
-          recordCharRef(dialogueMatch[1], fileName, lineNum);
-        }
-      }
-
-      // Reveal statement: reveal <char_id> as "..."
-      const revealMatch = trimmed.match(/^reveal\s+([a-zA-Z0-9_]+)\s+as\s+"/i);
-      if (revealMatch && revealMatch[1]) {
-        if (revealMatch[1].toLowerCase() !== 'narrator') {
-          recordCharRef(revealMatch[1], fileName, lineNum);
-        }
-      }
+      // Dialogue lines (char: "..." or char as "...": "...") and reveal statements
+      // represent spoken dialogue or text aliases and do NOT require visual sprites in CharacterManager.
+      // Therefore, they are not recorded as character references for uncreated character warnings.
 
       // Audio statements: play music/sound/voice/bgs <asset_id>
       const playMatch = trimmed.match(/^play\s+(?:music|sound|voice|bgs)\s+["']?([^"'\s]+)["']?/i);

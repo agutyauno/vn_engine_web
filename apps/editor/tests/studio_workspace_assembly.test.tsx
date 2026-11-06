@@ -167,8 +167,8 @@ describe('StudioWorkspacePage Assembly & Cutover (Phase 5 TDD)', () => {
 
     expect(screen.queryByTestId('col-preview-dock')).not.toBeInTheDocument();
     expect(screen.getByTestId('col-workspace')).toBeInTheDocument();
-    expect(screen.getByTestId('btn-header-play')).toBeInTheDocument();
-    expect(screen.getByTestId('btn-header-run-cursor')).toBeInTheDocument();
+    expect(screen.getByTestId('btn-tabbar-play')).toBeInTheDocument();
+    expect(screen.getByTestId('btn-tabbar-run-cursor')).toBeInTheDocument();
   });
 
   // TC-ASSEMBLY-04: Drawer Splitter Drag & Double-Click Reset
@@ -323,7 +323,8 @@ describe('StudioWorkspacePage Assembly & Cutover (Phase 5 TDD)', () => {
       expect(mockRepo.updateProject).toHaveBeenCalled();
     });
     expect(useProjectStore.getState().isDirty).toBe(false);
-    expect(screen.getByTestId('header-save-status')).toHaveTextContent(/Saved/i);
+    expect(screen.queryByTestId('header-dirty-dot')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('header-save-status')).not.toBeInTheDocument();
   });
 
   // TC-ASSEMBLY-09: Global Hotkey Ctrl+` Toggles Problems Drawer

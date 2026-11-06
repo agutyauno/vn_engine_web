@@ -361,7 +361,7 @@ describe('Studio Shell & Navigation (Milestone 3 TDD)', () => {
       expect(screen.getByTestId('header-dirty-dot')).toHaveTextContent('●');
     });
 
-    it('renders save status indicator correctly based on dirty and saving state', () => {
+    it('does not render header-save-status badge and reflects unsaved state via dirty dot', () => {
       const { rerender } = render(
         <StudioHeader
           projectTitle="My Project"
@@ -371,7 +371,8 @@ describe('Studio Shell & Navigation (Milestone 3 TDD)', () => {
         />
       );
 
-      expect(screen.getByTestId('header-save-status')).toHaveTextContent('Saved to IndexedDB');
+      expect(screen.queryByTestId('header-save-status')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('header-dirty-dot')).not.toBeInTheDocument();
 
       rerender(
         <StudioHeader
@@ -382,18 +383,8 @@ describe('Studio Shell & Navigation (Milestone 3 TDD)', () => {
         />
       );
 
-      expect(screen.getByTestId('header-save-status')).toHaveTextContent('Unsaved changes');
-
-      rerender(
-        <StudioHeader
-          projectTitle="My Project"
-          isDirty={true}
-          isSaving={true}
-          onBack={vi.fn()}
-        />
-      );
-
-      expect(screen.getByTestId('header-save-status')).toHaveTextContent('Saving...');
+      expect(screen.queryByTestId('header-save-status')).not.toBeInTheDocument();
+      expect(screen.getByTestId('header-dirty-dot')).toBeInTheDocument();
     });
 
     it('formats canvas resolution badge with aspect ratio', () => {

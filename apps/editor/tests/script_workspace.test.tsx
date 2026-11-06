@@ -250,18 +250,19 @@ describe('Milestone 6: Monaco Script Workspace (Column 2 Top)', () => {
         expect(screen.getByTestId('dirty-dot-file-1')).toBeInTheDocument();
       });
 
-      // Header indicates unsaved changes
-      expect(screen.getByTestId('header-save-status')).toHaveTextContent(/Unsaved Changes/i);
+      // Header indicates unsaved changes via dirty dot
+      expect(screen.getByTestId('header-dirty-dot')).toBeInTheDocument();
 
       // Click header Save button
       const saveBtn = screen.getByTestId('btn-manual-save');
       fireEvent.click(saveBtn);
 
-      // Verify dirty dot clears and status changes to Saved
+      // Verify dirty dot clears and save badge is not rendered
       await waitFor(() => {
         expect(screen.queryByTestId('dirty-dot-file-1')).not.toBeInTheDocument();
       });
-      expect(screen.getByTestId('header-save-status')).toHaveTextContent(/Saved/i);
+      expect(screen.queryByTestId('header-dirty-dot')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('header-save-status')).not.toBeInTheDocument();
 
       // Verify persisted in IndexedDB
       const persisted = await repo.getProject(sampleProject.id);

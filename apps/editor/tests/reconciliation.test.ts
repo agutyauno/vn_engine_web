@@ -321,7 +321,7 @@ describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () 
       (d) => d.category === 'character' && d.assetKey === 'charlie'
     );
     expect(charlieDiags).toHaveLength(1);
-    expect(charlieDiags[0].severity).toBe('warning');
+    expect(charlieDiags[0]?.severity).toBe('warning');
   });
 
   // TC-RECON-HIDE: hide statement with uncreated character flags uncreated character
@@ -355,7 +355,7 @@ describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () 
       (d) => d.category === 'character' && d.assetKey === 'dave'
     );
     expect(daveDiags).toHaveLength(1);
-    expect(daveDiags[0].severity).toBe('warning');
+    expect(daveDiags[0]?.severity).toBe('warning');
   });
 
   // TC-RECON-08: narrator: "Trời mưa..." does NOT flag narrator as uncreated character

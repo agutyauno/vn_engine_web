@@ -538,7 +538,7 @@ describe('Milestone 7: Bottom Diagnostics Drawer (Column 2 Bottom)', () => {
     it('TEST-ACCORDION-04: single diagnostic (count = 1) renders without accordion toggle button and without group count badge', () => {
       render(
         <DockProblemsTable
-          diagnostics={[duplicateAssetDiagnostics[3]]} // diag-single
+          diagnostics={[duplicateAssetDiagnostics[3]!]} // diag-single
           onDiagnosticClick={vi.fn()}
         />
       );

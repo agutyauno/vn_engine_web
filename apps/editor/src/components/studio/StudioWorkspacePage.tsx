@@ -110,7 +110,6 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
   const [loading, setLoading] = useState<boolean>(!initialProject && !project);
   const [error, setError] = useState<string | null>(null);
   const [currentCursorLine, setCurrentCursorLine] = useState<number>(1);
-  const [selectedScene, setSelectedScene] = useState<string | undefined>(undefined);
   const [isCharModalOpen, setIsCharModalOpen] = useState<boolean>(false);
   const [editingCharacter, setEditingCharacter] = useState<Character | null>(null);
   const [isExportOpen, setIsExportOpen] = useState<boolean>(false);
@@ -121,20 +120,6 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
 
   // Pop-out Window Reference
   const popoutWindowRef = useRef<Window | null>(null);
-
-  // Available Scenes extracted from script files
-  const availableScenes = useMemo(() => {
-    if (!currentProject?.files) return [];
-    const sceneSet = new Set<string>();
-    for (const f of currentProject.files) {
-      const lines = (f.content || '').split('\n');
-      for (const line of lines) {
-        const match = line.trim().match(/^scene\s+([a-zA-Z0-9_]+)/i);
-        if (match && match[1]) sceneSet.add(match[1]);
-      }
-    }
-    return Array.from(sceneSet);
-  }, [currentProject?.files]);
 
   // Pending navigation target callback for unsaved guard
   const pendingNavRef = useRef<(() => void) | null>(null);
@@ -288,14 +273,14 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
   );
 
   const handleQuickPlayAction = useCallback(() => {
-    openOrFocusPopout({ scene: selectedScene });
+    openOrFocusPopout();
     onQuickPlay?.();
-  }, [openOrFocusPopout, selectedScene, onQuickPlay]);
+  }, [openOrFocusPopout, onQuickPlay]);
 
   const handleRunFromCursorAction = useCallback(() => {
-    openOrFocusPopout({ line: currentCursorLine, scene: selectedScene });
+    openOrFocusPopout({ line: currentCursorLine });
     onRunFromCursor?.();
-  }, [openOrFocusPopout, currentCursorLine, selectedScene, onRunFromCursor]);
+  }, [openOrFocusPopout, currentCursorLine, onRunFromCursor]);
 
   // Global Keyboard Shortcuts
   useKeyboardShortcuts({
@@ -745,16 +730,10 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
           height={canvasHeight}
           isDirty={isDirty}
           isSaving={isSaving}
-          scenes={availableScenes}
-          selectedScene={selectedScene}
-          connectionStatus={connectionStatus}
           onTitleChange={handleTitleChange}
           onSave={handleManualSave}
           onBack={handleBackToHub}
           onBackToHub={handleBackToHub}
-          onQuickPlay={handleQuickPlayAction}
-          onRunFromCursor={handleRunFromCursorAction}
-          onSelectScene={setSelectedScene}
           onOpenSettings={handleOpenSettingsModal}
           onExport={handleOpenExportModal}
         />
@@ -841,6 +820,9 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
                   generateDefaultScriptName((currentProject.files || []).map((f) => f.name))
                 )
               }
+              onQuickPlay={handleQuickPlayAction}
+              onRunFromCursor={handleRunFromCursorAction}
+              connectionStatus={connectionStatus}
             />
 
             {/* Center Monaco Script Editor */}

@@ -72,7 +72,7 @@ describe('Decoupled Studio Preview Runner (TASK-decouple-preview-and-hotreload)'
     expect(screen.getByTestId('col-workspace')).toBeInTheDocument();
   });
 
-  it('populates available scenes in the header dropdown', () => {
+  it('does not render scene selector dropdown in header', () => {
     render(
       <StudioWorkspacePage
         projectId={testProject.id}
@@ -81,10 +81,7 @@ describe('Decoupled Studio Preview Runner (TASK-decouple-preview-and-hotreload)'
       />
     );
 
-    const sceneSelect = screen.getByTestId('select-header-scene');
-    expect(sceneSelect).toBeInTheDocument();
-    expect(sceneSelect).toHaveTextContent('intro');
-    expect(sceneSelect).toHaveTextContent('climax');
+    expect(screen.queryByTestId('select-header-scene')).not.toBeInTheDocument();
   });
 
   it('opens popout window when Play (F5) button is clicked', () => {
@@ -96,7 +93,7 @@ describe('Decoupled Studio Preview Runner (TASK-decouple-preview-and-hotreload)'
       />
     );
 
-    const playBtn = screen.getByTestId('btn-header-play');
+    const playBtn = screen.getByTestId('btn-tabbar-play');
     fireEvent.click(playBtn);
 
     expect(openSpy).toHaveBeenCalledWith(
@@ -115,7 +112,7 @@ describe('Decoupled Studio Preview Runner (TASK-decouple-preview-and-hotreload)'
       />
     );
 
-    const runCursorBtn = screen.getByTestId('btn-header-run-cursor');
+    const runCursorBtn = screen.getByTestId('btn-tabbar-run-cursor');
     fireEvent.click(runCursorBtn);
 
     expect(openSpy).toHaveBeenCalledWith(
@@ -138,7 +135,7 @@ describe('Decoupled Studio Preview Runner (TASK-decouple-preview-and-hotreload)'
       />
     );
 
-    const playBtn = screen.getByTestId('btn-header-play');
+    const playBtn = screen.getByTestId('btn-tabbar-play');
     fireEvent.click(playBtn);
 
     // Opening a new popout must reset connectionStatus to standby for handshake
@@ -162,7 +159,7 @@ describe('Decoupled Studio Preview Runner (TASK-decouple-preview-and-hotreload)'
       expect(useProjectStore.getState().project).not.toBeNull();
     });
 
-    const playBtn = screen.getByTestId('btn-header-play');
+    const playBtn = screen.getByTestId('btn-tabbar-play');
     fireEvent.click(playBtn);
 
     await waitFor(() => {

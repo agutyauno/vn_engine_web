@@ -4,8 +4,6 @@ import {
   EditIcon,
   SaveIcon,
   DownloadIcon,
-  PlayIcon,
-  CrosshairIcon,
 } from '../common/Icons';
 
 export interface StudioHeaderProps {
@@ -47,16 +45,9 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
   projectTitle,
   title,
   isDirty = false,
-  isSaving = false,
-  scenes,
-  selectedScene,
-  connectionStatus = 'standby',
   onBack,
   onBackToHub,
   onTitleChange,
-  onQuickPlay,
-  onRunFromCursor,
-  onSelectScene,
   onExport,
   onSave,
 }) => {
@@ -79,25 +70,6 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
   };
 
   const handleBack = onBack ?? onBackToHub ?? (() => {});
-
-  let saveStatusText = 'Saved to IndexedDB';
-  let saveStatusClass = 'text-emerald-400 bg-emerald-950/40 border-emerald-800/40';
-
-  if (isSaving) {
-    saveStatusText = 'Saving...';
-    saveStatusClass = 'text-amber-400 bg-amber-950/40 border-amber-800/40';
-  } else if (isDirty) {
-    saveStatusText = 'Unsaved changes';
-    saveStatusClass = 'text-amber-400/80 bg-neutral-800 border-neutral-700/60';
-  }
-
-  const currentStatus = connectionStatus || 'standby';
-  const statusDotClass =
-    currentStatus === 'connected'
-      ? 'bg-emerald-500'
-      : currentStatus === 'disconnected'
-      ? 'bg-red-500'
-      : 'bg-neutral-500';
 
   return (
     <header className="flex h-12 w-full items-center justify-between border-b border-neutral-800 bg-neutral-900/90 px-4 text-neutral-100 select-none">
@@ -159,70 +131,8 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
         )}
       </div>
 
-      {/* Center: Runner Controls & Save Status */}
-      <div className="flex items-center gap-2">
-        <div className="flex items-center gap-1 rounded-md bg-neutral-950/70 p-0.5 border border-neutral-800">
-          {/* Play (F5) button */}
-          <button
-            type="button"
-            data-testid="btn-header-play"
-            title="Play (F5)"
-            onClick={onQuickPlay}
-            className="flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium text-emerald-400 hover:bg-emerald-950/50 hover:text-emerald-300 transition"
-          >
-            <PlayIcon size={13} />
-            <span>Play</span>
-          </button>
-
-          {/* Run from Cursor (Alt+F5) button */}
-          <button
-            type="button"
-            data-testid="btn-header-run-cursor"
-            title="Run from Cursor (Alt+F5)"
-            onClick={onRunFromCursor}
-            className="flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium text-neutral-300 hover:bg-neutral-800 hover:text-white transition"
-          >
-            <CrosshairIcon size={13} />
-            <span>Run from Cursor</span>
-          </button>
-
-          {/* Scene Dropdown */}
-          <div className="h-4 w-px bg-neutral-800 mx-0.5" />
-          <select
-            data-testid="select-header-scene"
-            value={selectedScene ?? ''}
-            onChange={(e) => onSelectScene?.(e.target.value)}
-            title="Select Scene"
-            className="bg-transparent px-2 py-1 text-xs text-neutral-300 rounded focus:outline-none focus:bg-neutral-900 border-none cursor-pointer"
-          >
-            {(scenes || []).map((s) => (
-              <option key={s} value={s} className="bg-neutral-900 text-neutral-200">
-                {s}
-              </option>
-            ))}
-          </select>
-
-          {/* Preview Connection Status Indicator */}
-          <div className="h-4 w-px bg-neutral-800 mx-0.5" />
-          <div
-            data-testid="header-preview-status"
-            data-status={currentStatus}
-            title={`Preview: ${currentStatus}`}
-            className="flex items-center gap-1.5 px-2 py-1 text-xs text-neutral-400"
-          >
-            <span className={`inline-block h-2 w-2 rounded-full ${statusDotClass}`} />
-            <span className="capitalize">{currentStatus}</span>
-          </div>
-        </div>
-
-        {/* Save Status Badge */}
-        <div
-          data-testid="header-save-status"
-          className={`rounded-full px-2.5 py-0.5 text-[11px] font-mono border ${saveStatusClass}`}
-        >
-          {saveStatusText}
-        </div>
-      </div>
+      {/* Center: Minimalist spacing */}
+      <div className="flex items-center" />
 
       {/* Right: Actions */}
       <div className="flex items-center gap-2">
@@ -243,7 +153,7 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
             type="button"
             data-testid="btn-manual-save"
             onClick={onSave}
-            title={isDirty ? "Save project (Ctrl+S)" : "All changes saved"}
+            title={isDirty ? 'Save project (Ctrl+S)' : 'All changes saved'}
             className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition ${
               isDirty
                 ? 'bg-amber-600/90 text-white hover:bg-amber-500'

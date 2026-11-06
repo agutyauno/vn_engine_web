@@ -2,8 +2,8 @@
 import '@testing-library/jest-dom';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, renderHook, cleanup } from '@testing-library/react';
-import { StudioHeader, type StudioHeaderProps } from '../src/components/studio/StudioHeader';
-import { EditorTabBar, type EditorTabBarProps } from '../src/components/studio/EditorTabBar';
+import { StudioHeader } from '../src/components/studio/StudioHeader';
+import { EditorTabBar } from '../src/components/studio/EditorTabBar';
 import { useKeyboardShortcuts, type KeyboardShortcutOptions } from '../src/hooks/useKeyboardShortcuts';
 import type { ScriptFile } from '@vn-engine/shared-types';
 
