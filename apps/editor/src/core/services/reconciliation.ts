@@ -340,6 +340,83 @@ export function generateDiagnostics(project: Project): GeneratedEditorDiagnostic
 }
 
 /**
+ * Lightweight regex fallback extractor when AST parsing fails on initial project load (e.g. legacy scripts).
+ */
+function extractReferencesViaRegex(content: string, fileId: string): ScriptReferences {
+  const characters: ScriptReferences['characters'] = [];
+  const assets: ScriptReferences['assets'] = [];
+  const lines = (content || '').split('\n');
+
+  for (let i = 0; i < lines.length; i++) {
+    const lineNum = i + 1;
+    const rawLine = lines[i]!;
+    const trimmed = rawLine.trim();
+
+    if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith('//')) {
+      continue;
+    }
+
+    const bgMatch = trimmed.match(/^background\s+([a-zA-Z0-9_]+)(?:\s*\(|\s+transition:|\s*$)/i);
+    if (bgMatch && bgMatch[1]) {
+      assets.push({
+        assetKey: bgMatch[1],
+        category: 'background',
+        expectedType: 'image',
+        loc: { fileId, line: lineNum },
+      });
+    }
+
+    const legacySceneMatch = trimmed.match(/^scene\s+["']([^"']+\.[a-zA-Z0-9]+)["']/i);
+    if (legacySceneMatch && legacySceneMatch[1]) {
+      assets.push({
+        assetKey: legacySceneMatch[1],
+        category: 'background',
+        expectedType: 'image',
+        loc: { fileId, line: lineNum },
+      });
+    }
+
+    const showMatch = trimmed.match(/^show\s+([a-zA-Z0-9_]+)(?:\.([a-zA-Z0-9_]+))?/i);
+    if (showMatch && showMatch[1]) {
+      characters.push({
+        characterId: showMatch[1],
+        loc: { fileId, line: lineNum },
+      });
+    }
+
+    const hideMatch = trimmed.match(/^hide\s+([a-zA-Z0-9_]+)/i);
+    if (hideMatch && hideMatch[1]) {
+      characters.push({
+        characterId: hideMatch[1],
+        loc: { fileId, line: lineNum },
+      });
+    }
+
+    const playMatch = trimmed.match(/^play\s+(?:music|sound|voice|bgs)\s+["']?([^"'\s]+)["']?/i);
+    if (playMatch && playMatch[1]) {
+      assets.push({
+        assetKey: playMatch[1],
+        category: 'audio',
+        expectedType: 'audio',
+        loc: { fileId, line: lineNum },
+      });
+    }
+
+    const inspectMatch = trimmed.match(/^inspect\s+["']?([^"'\s]+)["']?/i);
+    if (inspectMatch && inspectMatch[1]) {
+      assets.push({
+        assetKey: inspectMatch[1],
+        category: 'inspect',
+        expectedType: 'image',
+        loc: { fileId, line: lineNum },
+      });
+    }
+  }
+
+  return { characters, assets };
+}
+
+/**
  * Thực hiện AST reconciliation với cơ chế Error-State Retention (Quyết định 3):
  * - Phân tích AST từng file kịch bản và trích xuất tham chiếu nhân vật/asset.
  * - Nếu file hiện tại gặp lỗi cú pháp (chưa có AST mới), lưu giữ lại references đã cache trước đó của file đó.
@@ -377,6 +454,7 @@ export function computeReconciliationDiagnostics(
 
     try {
       const lexResult = VNSLexer.tokenize(file.content);
+      let parsed = false;
       if (lexResult.errors.length === 0) {
         parserInstance.input = lexResult.tokens;
         const cst = parserInstance.program();
@@ -386,11 +464,17 @@ export function computeReconciliationDiagnostics(
           if (fileAst) {
             const refs = extractScriptReferences(fileAst);
             cache.set(key, refs);
+            parsed = true;
           }
         }
       }
+      if (!parsed && !cache.has(key)) {
+        cache.set(key, extractReferencesViaRegex(file.content, file.id || file.name));
+      }
     } catch {
-      // Bị lỗi cú pháp: Error-State Retention bảo toàn references trước đó trong cache
+      if (!cache.has(key)) {
+        cache.set(key, extractReferencesViaRegex(file.content, file.id || file.name));
+      }
     }
   }
 

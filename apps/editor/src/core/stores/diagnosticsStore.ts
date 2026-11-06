@@ -10,6 +10,7 @@ export interface DiagnosticsStoreState {
 
   setCompilerDiagnostics: (diags: EngineDiagnostic[]) => void;
   setReconciliationDiagnostics: (diags: EngineDiagnostic[]) => void;
+  setAllDiagnostics: (compiler: EngineDiagnostic[], reconciliation: EngineDiagnostic[]) => void;
   addRuntimeDiagnostic: (diag: EngineDiagnostic) => void;
   clearDiagnostics: () => void;
 }
@@ -18,6 +19,7 @@ export const initialDiagnosticsState: Omit<
   DiagnosticsStoreState,
   | 'setCompilerDiagnostics'
   | 'setReconciliationDiagnostics'
+  | 'setAllDiagnostics'
   | 'addRuntimeDiagnostic'
   | 'clearDiagnostics'
 > = {
@@ -73,6 +75,16 @@ export const useDiagnosticsStore = create<DiagnosticsStoreState>(set => ({
       const counts = calculateCounts(state.compilerDiagnostics, state.runtimeDiagnostics, diags);
       return {
         reconciliationDiagnostics: diags,
+        ...counts,
+      };
+    }),
+
+  setAllDiagnostics: (compiler, reconciliation) =>
+    set(state => {
+      const counts = calculateCounts(compiler, state.runtimeDiagnostics, reconciliation);
+      return {
+        compilerDiagnostics: compiler,
+        reconciliationDiagnostics: reconciliation,
         ...counts,
       };
     }),

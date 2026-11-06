@@ -4,7 +4,6 @@ import { useProjectStore } from '../core/stores/projectStore';
 import { useDiagnosticsStore } from '../core/stores/diagnosticsStore';
 import type { PreviewBridge } from '../core/services/previewBridge';
 import type { CompilerService } from '../core/services/compilerService';
-import { generateDiagnostics } from '../core/services/reconciliation';
 
 export interface UseCompilerPipelineOptions {
   compilerService: CompilerService;
@@ -26,19 +25,18 @@ export function useCompilerPipeline(options: UseCompilerPipelineOptions): void {
 
   const runCompile = useCallback(
     async (currentProject: Project) => {
-      // 1. Reconciliation diagnostics
-      const reconciliationDiags = generateDiagnostics(currentProject);
-      useDiagnosticsStore.getState().setReconciliationDiagnostics(reconciliationDiags);
-
-      // 2. DSL Compilation
+      // 1. DSL Compilation & Worker AST Reconciliation
       const output = await compilerService.compile(currentProject.files, {
         characters: currentProject.characters,
+        assets: currentProject.assets,
       });
 
-      // 3. Update compiler diagnostics in diagnosticsStore
-      useDiagnosticsStore.getState().setCompilerDiagnostics(output.diagnostics);
+      // 2. Atomic Batch Update for Diagnostics (loại bỏ re-render kép)
+      useDiagnosticsStore
+        .getState()
+        .setAllDiagnostics(output.diagnostics, output.reconciliationDiagnostics || []);
 
-      // 4. Hot reload if compilation succeeded
+      // 3. Hot reload if compilation succeeded
       if (output.success && output.bytecode) {
         lastBytecodeRef.current = output.bytecode;
         previewBridge.hotReload({
@@ -85,21 +83,10 @@ export function useCompilerPipeline(options: UseCompilerPipelineOptions): void {
         runCompile(project);
       }, debounceMs);
     } else if (charsChanged || assetsChanged) {
-      // Re-calculate reconciliation diagnostics
-      const reconciliationDiags = generateDiagnostics(project);
-      useDiagnosticsStore.getState().setReconciliationDiagnostics(reconciliationDiags);
-
-      // Re-dispatch hotReload with cached bytecode
-      if (lastBytecodeRef.current) {
-        previewBridge.hotReload({
-          projectId: project.id,
-          program: lastBytecodeRef.current,
-          characters: project.characters,
-          assets: project.assets,
-        });
-      }
+      // Cập nhật lại diagnostics qua Worker/Sync và hot reload
+      runCompile(project);
     }
-  }, [project, debounceMs, runCompile, previewBridge]);
+  }, [project, debounceMs, runCompile]);
 
   useEffect(() => {
     return () => {

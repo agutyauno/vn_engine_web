@@ -148,3 +148,4 @@ export function extractScriptReferences(ast: ProgramAST): ScriptReferences {
 
   return { characters, assets };
 }
+
