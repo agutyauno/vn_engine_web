@@ -16,7 +16,7 @@ const mockFiles: ScriptFile[] = [
   { id: 'file-2', name: 'chapter1.vns', content: 'scene ch1 {}', order: 1, version: 1 },
 ];
 
-describe('Studio Header & TabBar Runner Controls (TASK-editor-ui-and-diagnostics-polish)', () => {
+describe('Studio Header & TabBar Runner Relocation (TASK-editor-runner-header-relocation)', () => {
   afterEach(() => {
     cleanup();
     vi.restoreAllMocks();
@@ -134,9 +134,9 @@ describe('Studio Header & TabBar Runner Controls (TASK-editor-ui-and-diagnostics
   });
 
   // =========================================================================
-  // 2. StudioHeader Minimalist Design (TEST-UI-01, TEST-UI-02, TEST-UI-03)
+  // 2. StudioHeader Runner Controls & Status Dot Removal
   // =========================================================================
-  describe('StudioHeader Minimalist Design', () => {
+  describe('StudioHeader Runner Controls (TEST-RELOC-01 to TEST-RELOC-05)', () => {
     it('TEST-UI-01: should NOT render header-save-status badge or "Saved to IndexedDB" text', () => {
       render(
         <StudioHeader
@@ -172,7 +172,83 @@ describe('Studio Header & TabBar Runner Controls (TASK-editor-ui-and-diagnostics
       expect(screen.queryByTestId('header-dirty-dot')).not.toBeInTheDocument();
     });
 
-    it('TEST-UI-03: should NOT render runner controls or scene selector in StudioHeader', () => {
+    it('TEST-RELOC-01: StudioHeader renders "Play" button with text and Play icon when onQuickPlay is provided', () => {
+      const handleQuickPlay = vi.fn();
+      render(
+        <StudioHeader
+          projectTitle="Visual Novel Polish"
+          onQuickPlay={handleQuickPlay}
+        />
+      );
+
+      const playBtn = screen.getByTestId('btn-header-play');
+      expect(playBtn).toBeInTheDocument();
+      expect(playBtn).toHaveTextContent('Play');
+      expect(playBtn).toHaveAttribute('title', expect.stringContaining('Play (F5)'));
+      const svgIcon = playBtn.querySelector('svg');
+      expect(svgIcon).toBeInTheDocument();
+    });
+
+    it('TEST-RELOC-02: StudioHeader renders "Run from Cursor" button with text and Crosshair icon when onRunFromCursor is provided', () => {
+      const handleRunFromCursor = vi.fn();
+      render(
+        <StudioHeader
+          projectTitle="Visual Novel Polish"
+          onRunFromCursor={handleRunFromCursor}
+        />
+      );
+
+      const runCursorBtn = screen.getByTestId('btn-header-run-cursor');
+      expect(runCursorBtn).toBeInTheDocument();
+      expect(runCursorBtn).toHaveTextContent('Run from Cursor');
+      expect(runCursorBtn).toHaveAttribute('title', expect.stringContaining('Run from Cursor (Alt+F5)'));
+      const svgIcon = runCursorBtn.querySelector('svg');
+      expect(svgIcon).toBeInTheDocument();
+    });
+
+    it('TEST-RELOC-03: clicking "btn-header-play" invokes onQuickPlay callback', () => {
+      const handleQuickPlay = vi.fn();
+      render(
+        <StudioHeader
+          projectTitle="Visual Novel Polish"
+          onQuickPlay={handleQuickPlay}
+        />
+      );
+
+      const playBtn = screen.getByTestId('btn-header-play');
+      fireEvent.click(playBtn);
+      expect(handleQuickPlay).toHaveBeenCalledTimes(1);
+    });
+
+    it('TEST-RELOC-04: clicking "btn-header-run-cursor" invokes onRunFromCursor callback', () => {
+      const handleRunFromCursor = vi.fn();
+      render(
+        <StudioHeader
+          projectTitle="Visual Novel Polish"
+          onRunFromCursor={handleRunFromCursor}
+        />
+      );
+
+      const runCursorBtn = screen.getByTestId('btn-header-run-cursor');
+      fireEvent.click(runCursorBtn);
+      expect(handleRunFromCursor).toHaveBeenCalledTimes(1);
+    });
+
+    it('TEST-RELOC-05: preview connection status dot is completely eliminated from header and tabbar', () => {
+      render(
+        <StudioHeader
+          projectTitle="Visual Novel Polish"
+          onQuickPlay={vi.fn()}
+          onRunFromCursor={vi.fn()}
+        />
+      );
+
+      expect(screen.queryByTestId('header-preview-status')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('tabbar-preview-status')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('select-header-scene')).not.toBeInTheDocument();
+    });
+
+    it('TEST-RELOC (Edge): does not render runner buttons if callbacks are not provided', () => {
       render(
         <StudioHeader
           projectTitle="Visual Novel Polish"
@@ -181,8 +257,6 @@ describe('Studio Header & TabBar Runner Controls (TASK-editor-ui-and-diagnostics
 
       expect(screen.queryByTestId('btn-header-play')).not.toBeInTheDocument();
       expect(screen.queryByTestId('btn-header-run-cursor')).not.toBeInTheDocument();
-      expect(screen.queryByTestId('select-header-scene')).not.toBeInTheDocument();
-      expect(screen.queryByTestId('header-preview-status')).not.toBeInTheDocument();
     });
 
     it('strictly satisfies Rule 8: zero colored OS emojis in StudioHeader DOM', () => {
@@ -190,6 +264,8 @@ describe('Studio Header & TabBar Runner Controls (TASK-editor-ui-and-diagnostics
         <StudioHeader
           projectTitle="Compliance VN"
           isDirty={true}
+          onQuickPlay={vi.fn()}
+          onRunFromCursor={vi.fn()}
         />
       );
 
@@ -199,52 +275,10 @@ describe('Studio Header & TabBar Runner Controls (TASK-editor-ui-and-diagnostics
   });
 
   // =========================================================================
-  // 3. EditorTabBar Runner Controls (TEST-UI-04, TEST-UI-05, TEST-UI-06, TEST-UI-07)
+  // 3. Clean EditorTabBar (TEST-RELOC-06)
   // =========================================================================
-  describe('EditorTabBar Runner Controls', () => {
-    it('TEST-UI-04: renders runner controls (Play, Run from Cursor) and connection status dot in EditorTabBar', () => {
-      const { rerender } = render(
-        <EditorTabBar
-          files={mockFiles}
-          openFileIds={['file-1']}
-          activeFileId="file-1"
-          dirtyFileIds={new Set()}
-          onSelectTab={vi.fn()}
-          onCloseTab={vi.fn()}
-          onQuickPlay={vi.fn()}
-          onRunFromCursor={vi.fn()}
-          connectionStatus="connected"
-        />
-      );
-
-      const playBtn = screen.getByTestId('btn-tabbar-play');
-      expect(playBtn).toBeInTheDocument();
-      expect(playBtn).toHaveAttribute('title', expect.stringContaining('Play (F5)'));
-
-      const runCursorBtn = screen.getByTestId('btn-tabbar-run-cursor');
-      expect(runCursorBtn).toBeInTheDocument();
-      expect(runCursorBtn).toHaveAttribute('title', expect.stringContaining('Run from Cursor (Alt+F5)'));
-
-      const previewStatus = screen.getByTestId('tabbar-preview-status');
-      expect(previewStatus).toBeInTheDocument();
-      expect(previewStatus).toHaveAttribute('data-status', 'connected');
-
-      rerender(
-        <EditorTabBar
-          files={mockFiles}
-          openFileIds={['file-1']}
-          activeFileId="file-1"
-          dirtyFileIds={new Set()}
-          onSelectTab={vi.fn()}
-          onCloseTab={vi.fn()}
-          connectionStatus="disconnected"
-        />
-      );
-      expect(screen.getByTestId('tabbar-preview-status')).toHaveAttribute('data-status', 'disconnected');
-    });
-
-    it('TEST-UI-05: clicking Play button triggers onQuickPlay callback', () => {
-      const handleQuickPlay = vi.fn();
+  describe('Clean EditorTabBar (TEST-RELOC-06)', () => {
+    it('TEST-RELOC-06: EditorTabBar does not render runner controls (Play, Run from Cursor) or preview dot', () => {
       render(
         <EditorTabBar
           files={mockFiles}
@@ -253,50 +287,38 @@ describe('Studio Header & TabBar Runner Controls (TASK-editor-ui-and-diagnostics
           dirtyFileIds={new Set()}
           onSelectTab={vi.fn()}
           onCloseTab={vi.fn()}
-          onQuickPlay={handleQuickPlay}
         />
       );
 
-      const playBtn = screen.getByTestId('btn-tabbar-play');
-      fireEvent.click(playBtn);
-      expect(handleQuickPlay).toHaveBeenCalledTimes(1);
+      expect(screen.queryByTestId('btn-tabbar-play')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('btn-tabbar-run-cursor')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('tabbar-preview-status')).not.toBeInTheDocument();
     });
 
-    it('TEST-UI-06: clicking Run from Cursor button triggers onRunFromCursor callback', () => {
-      const handleRunFromCursor = vi.fn();
+    it('renders script tabs and handles tab selection cleanly', () => {
+      const handleSelectTab = vi.fn();
+      const handleCloseTab = vi.fn();
+
       render(
         <EditorTabBar
           files={mockFiles}
-          openFileIds={['file-1']}
+          openFileIds={['file-1', 'file-2']}
           activeFileId="file-1"
-          dirtyFileIds={new Set()}
-          onSelectTab={vi.fn()}
-          onCloseTab={vi.fn()}
-          onRunFromCursor={handleRunFromCursor}
+          dirtyFileIds={new Set(['file-2'])}
+          onSelectTab={handleSelectTab}
+          onCloseTab={handleCloseTab}
         />
       );
 
-      const runCursorBtn = screen.getByTestId('btn-tabbar-run-cursor');
-      fireEvent.click(runCursorBtn);
-      expect(handleRunFromCursor).toHaveBeenCalledTimes(1);
-    });
+      const tab2 = screen.getByTestId('editor-tab-file-2');
+      fireEvent.click(tab2);
+      expect(handleSelectTab).toHaveBeenCalledWith('file-2');
 
-    it('TEST-UI-07 (Edge): renders runner controls gracefully even when no tabs are open', () => {
-      render(
-        <EditorTabBar
-          files={[]}
-          openFileIds={[]}
-          activeFileId=""
-          dirtyFileIds={new Set()}
-          onSelectTab={vi.fn()}
-          onCloseTab={vi.fn()}
-          onQuickPlay={vi.fn()}
-          onRunFromCursor={vi.fn()}
-        />
-      );
+      const closeTab1 = screen.getByTestId('btn-close-tab-file-1');
+      fireEvent.click(closeTab1);
+      expect(handleCloseTab).toHaveBeenCalledWith('file-1');
 
-      expect(screen.getByTestId('btn-tabbar-play')).toBeInTheDocument();
-      expect(screen.getByTestId('btn-tabbar-run-cursor')).toBeInTheDocument();
+      expect(screen.getByTestId('dirty-dot-file-2')).toBeInTheDocument();
     });
 
     it('strictly satisfies Rule 8: zero colored OS emojis in EditorTabBar DOM', () => {
@@ -308,9 +330,6 @@ describe('Studio Header & TabBar Runner Controls (TASK-editor-ui-and-diagnostics
           dirtyFileIds={new Set(['file-1'])}
           onSelectTab={vi.fn()}
           onCloseTab={vi.fn()}
-          onQuickPlay={vi.fn()}
-          onRunFromCursor={vi.fn()}
-          connectionStatus="connected"
         />
       );
 

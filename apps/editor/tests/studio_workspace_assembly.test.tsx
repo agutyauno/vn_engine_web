@@ -167,8 +167,11 @@ describe('StudioWorkspacePage Assembly & Cutover (Phase 5 TDD)', () => {
 
     expect(screen.queryByTestId('col-preview-dock')).not.toBeInTheDocument();
     expect(screen.getByTestId('col-workspace')).toBeInTheDocument();
-    expect(screen.getByTestId('btn-tabbar-play')).toBeInTheDocument();
-    expect(screen.getByTestId('btn-tabbar-run-cursor')).toBeInTheDocument();
+    expect(screen.getByTestId('btn-header-play')).toBeInTheDocument();
+    expect(screen.getByTestId('btn-header-run-cursor')).toBeInTheDocument();
+    expect(screen.queryByTestId('btn-tabbar-play')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('btn-tabbar-run-cursor')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('tabbar-preview-status')).not.toBeInTheDocument();
   });
 
   // TC-ASSEMBLY-04: Drawer Splitter Drag & Double-Click Reset
