@@ -1,14 +1,15 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import 'fake-indexeddb/auto';
-import type { Project, DialogueInstruction, SceneInstruction } from '@vn-engine/shared-types';
+import type {
+  Project,
+  DialogueInstruction,
+  SceneInstruction,
+  ChoiceInstruction,
+} from '@vn-engine/shared-types';
 import { compile } from '@vn-engine/dsl-compiler';
 import { IndexedDBProjectRepository } from '../src/core/repositories/IndexedDBProjectRepository';
 import type { CreateProjectParams } from '../src/core/contracts/repository';
 
-/**
- * Adapter compileProject thực hiện biên dịch toàn bộ script files trong Project
- * thông qua bộ biên dịch @vn-engine/dsl-compiler.
- */
 export function compileProject(project: Project) {
   const result = compile(project.files, {
     characters: project.characters,
@@ -57,10 +58,7 @@ describe('Starter Script VNS DSL Compliance (TASK-starter-script-dsl-compliance)
 
     const content = mainFile!.content;
 
-    // Phải tuân thủ cú pháp comment '#' của VNS DSL Spec 1.1.0 Mục 3.1
     expect(content).toContain('# Main visual novel script');
-
-    // Tuyệt đối không chứa comment '//' của C/JS khiến lexer nhận nhầm toán tử phép chia
     expect(content).not.toContain('//');
   });
 
@@ -69,26 +67,57 @@ describe('Starter Script VNS DSL Compliance (TASK-starter-script-dsl-compliance)
 
     const res = compileProject(project);
 
-    // Kỳ vọng: 0 lỗi cú pháp và diagnostics
     expect(res.diagnostics).toHaveLength(0);
     expect(res.success).toBe(true);
     expect(res.program).toBeDefined();
 
     const program = res.program!;
 
-    // Kỳ vọng: sinh ra ít nhất lệnh SCENE với tên 'start'
     const sceneInstr = program.find(
       (instr): instr is SceneInstruction => instr.type === 'SCENE' && instr.name === 'start'
     );
     expect(sceneInstr).toBeDefined();
     expect(sceneInstr?.name).toBe('start');
 
-    // Kỳ vọng: sinh ra lệnh DIALOGUE (narrator thoại thông điệp welcome)
     const dialogueInstr = program.find(
       (instr): instr is DialogueInstruction => instr.type === 'DIALOGUE'
     );
     expect(dialogueInstr).toBeDefined();
-    expect(dialogueInstr?.character).toBeNull(); // VNS DSL: narrator thoại tương ứng character: null
+    expect(dialogueInstr?.character).toBeNull();
     expect(dialogueInstr?.text).toContain('Welcome to Starry Journey.');
+  });
+
+  it('TC-STARTER-03: default project script contains choices, sub-scenes, and end statement', async () => {
+    const project = await repository.createProject(defaultParams);
+    const mainFile = project.files.find((f) => f.name === 'main.vns')!;
+    const content = mainFile.content;
+
+    expect(content).toContain('choice');
+    expect(content).toContain('scene .story');
+    expect(content).toContain('scene .about');
+    expect(content).toContain('end');
+
+    const res = compileProject(project);
+    expect(res.diagnostics).toHaveLength(0);
+    expect(res.success).toBe(true);
+    expect(res.program).toBeDefined();
+
+    const program = res.program!;
+
+    const choiceInstr = program.find(
+      (instr): instr is ChoiceInstruction => instr.type === 'CHOICE'
+    );
+    expect(choiceInstr).toBeDefined();
+    expect(choiceInstr?.choices.length).toBeGreaterThanOrEqual(2);
+
+    const storyScene = program.find(
+      (instr): instr is SceneInstruction => instr.type === 'SCENE' && instr.name === 'start.story'
+    );
+    expect(storyScene).toBeDefined();
+
+    const haltInstr = program.find(
+      (instr) => instr.type === 'HALT' || (instr.type as string) === 'END'
+    );
+    expect(haltInstr).toBeDefined();
   });
 });
