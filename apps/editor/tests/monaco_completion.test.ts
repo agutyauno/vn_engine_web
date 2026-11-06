@@ -384,4 +384,178 @@ describe('Monaco DSL 1.1.0 Features, Scoped Interpolation & Hover Provider (TDD 
     expect(card.value).toContain('background');
     expect(card.value).toContain('image');
   });
+
+  // =========================================================================
+  // Phase 1: Choice & Conditional Expressions Autocomplete (TDD RED)
+  // =========================================================================
+
+  // TC-AUTO-CHOICE-01: Choice item snippet when cursor in choice block
+  it('TC-AUTO-CHOICE-01: Suggests choice branch snippet when cursor is inside choice block', () => {
+    const mockContext: VnsProjectContext = {
+      getFiles: () => ({}),
+      getScenes: () => [{ name: 'scene_next', file: 'main.vns', line: 10 }],
+      getCharacters: () => new Map(),
+      getAssets: () => ({ backgrounds: new Set(), audio: new Set(), voices: new Set() }),
+      getAssetDetails: () => new Map(),
+      getVariables: () => [],
+      switchActiveFile: () => {},
+    };
+
+    registerVnsLanguageFeatures(mockContext);
+    expect(capturedCompletionProvider).not.toBeNull();
+
+    const model = createMockModel('choice {\n  \n}');
+    const pos = { lineNumber: 2, column: 3 } as monaco.Position;
+    const result = capturedCompletionProvider!.provideCompletionItems(
+      model,
+      pos,
+      dummyContext,
+      dummyToken,
+    ) as monaco.languages.CompletionList;
+
+    const suggestions = result?.suggestions || [];
+    const choiceGoto = suggestions.find(
+      s =>
+        s.label === '"Choice": goto target' || s.label === '"${1:Choice}": goto ${2:target_scene}',
+    );
+    const choiceCall = suggestions.find(
+      s =>
+        s.label === '"Choice": call target' || s.label === '"${1:Choice}": call ${2:target_scene}',
+    );
+
+    expect(choiceGoto).toBeDefined();
+    expect(choiceCall).toBeDefined();
+    expect(choiceGoto?.kind).toBe(monaco.languages.CompletionItemKind.Snippet);
+    expect(choiceCall?.kind).toBe(monaco.languages.CompletionItemKind.Snippet);
+    expect(choiceGoto?.insertText).toContain('goto');
+    expect(choiceCall?.insertText).toContain('call');
+  });
+
+  // TC-AUTO-CHOICE-02: Choice branch jump goto/call and target scenes
+  it('TC-AUTO-CHOICE-02: Suggests branch jump actions (goto/call) after option colon and target scenes after goto', () => {
+    const mockContext: VnsProjectContext = {
+      getFiles: () => ({}),
+      getScenes: () => [{ name: 'scene_good_end', file: 'endings.vns', line: 42 }],
+      getCharacters: () => new Map(),
+      getAssets: () => ({ backgrounds: new Set(), audio: new Set(), voices: new Set() }),
+      getAssetDetails: () => new Map(),
+      getVariables: () => [],
+      switchActiveFile: () => {},
+    };
+
+    registerVnsLanguageFeatures(mockContext);
+    expect(capturedCompletionProvider).not.toBeNull();
+
+    // Trường hợp 1: Model dòng '"Option 1": ' (dòng 1, cột 13)
+    const model1 = createMockModel('"Option 1": ');
+    const pos1 = { lineNumber: 1, column: 13 } as monaco.Position;
+    const result1 = capturedCompletionProvider!.provideCompletionItems(
+      model1,
+      pos1,
+      dummyContext,
+      dummyToken,
+    ) as monaco.languages.CompletionList;
+
+    const labels1 = (result1?.suggestions || []).map(s => s.label);
+    expect(labels1).toContain('goto');
+    expect(labels1).toContain('call');
+    const gotoItem = (result1?.suggestions || []).find(s => s.label === 'goto');
+    const callItem = (result1?.suggestions || []).find(s => s.label === 'call');
+    expect(gotoItem?.sortText).toMatch(/^00_/);
+    expect(callItem?.sortText).toMatch(/^00_/);
+
+    // Trường hợp 2: Model dòng '"Option 1": goto ' (dòng 1, cột 18) với context có scene scene_good_end
+    const model2 = createMockModel('"Option 1": goto ');
+    const pos2 = { lineNumber: 1, column: 18 } as monaco.Position;
+    const result2 = capturedCompletionProvider!.provideCompletionItems(
+      model2,
+      pos2,
+      dummyContext,
+      dummyToken,
+    ) as monaco.languages.CompletionList;
+
+    const sceneItem = (result2?.suggestions || []).find(s => s.label === 'scene_good_end');
+    expect(sceneItem).toBeDefined();
+    expect(sceneItem?.sortText).toMatch(/^00_/);
+  });
+
+  // TC-AUTO-COND-01: Condition variables and boolean literals in if/while
+  it('TC-AUTO-COND-01: Suggests script variables and boolean literals in if and while conditions', () => {
+    const mockContext: VnsProjectContext = {
+      getFiles: () => ({}),
+      getScenes: () => [],
+      getCharacters: () => new Map(),
+      getAssets: () => ({ backgrounds: new Set(), audio: new Set(), voices: new Set() }),
+      getAssetDetails: () => new Map(),
+      getVariables: () => ['gold', 'hasKey', 'affinity'],
+      switchActiveFile: () => {},
+    };
+
+    registerVnsLanguageFeatures(mockContext);
+    expect(capturedCompletionProvider).not.toBeNull();
+
+    // Trường hợp 1: Model 'if ' (dòng 1, cột 4)
+    const modelIf = createMockModel('if ');
+    const posIf = { lineNumber: 1, column: 4 } as monaco.Position;
+    const resultIf = capturedCompletionProvider!.provideCompletionItems(
+      modelIf,
+      posIf,
+      dummyContext,
+      dummyToken,
+    ) as monaco.languages.CompletionList;
+
+    const labelsIf = (resultIf?.suggestions || []).map(s => s.label);
+    expect(labelsIf).toContain('gold');
+    expect(labelsIf).toContain('hasKey');
+    expect(labelsIf).toContain('affinity');
+    expect(labelsIf).toContain('true');
+    expect(labelsIf).toContain('false');
+
+    // Trường hợp 2: Model 'while (' (dòng 1, cột 8)
+    const modelWhile = createMockModel('while (');
+    const posWhile = { lineNumber: 1, column: 8 } as monaco.Position;
+    const resultWhile = capturedCompletionProvider!.provideCompletionItems(
+      modelWhile,
+      posWhile,
+      dummyContext,
+      dummyToken,
+    ) as monaco.languages.CompletionList;
+
+    const labelsWhile = (resultWhile?.suggestions || []).map(s => s.label);
+    expect(labelsWhile).toContain('gold');
+    expect(labelsWhile).toContain('hasKey');
+    expect(labelsWhile).toContain('affinity');
+  });
+
+  // TC-AUTO-ASSIGN-01: Assignment RHS variables
+  it('TC-AUTO-ASSIGN-01: Suggests script variables and boolean literals on assignment right-hand side', () => {
+    const mockContext: VnsProjectContext = {
+      getFiles: () => ({}),
+      getScenes: () => [],
+      getCharacters: () => new Map(),
+      getAssets: () => ({ backgrounds: new Set(), audio: new Set(), voices: new Set() }),
+      getAssetDetails: () => new Map(),
+      getVariables: () => ['gold', 'bonus'],
+      switchActiveFile: () => {},
+    };
+
+    registerVnsLanguageFeatures(mockContext);
+    expect(capturedCompletionProvider).not.toBeNull();
+
+    // Model '~ gold = ' (dòng 1, cột 10)
+    const modelAssign = createMockModel('~ gold = ');
+    const posAssign = { lineNumber: 1, column: 10 } as monaco.Position;
+    const resultAssign = capturedCompletionProvider!.provideCompletionItems(
+      modelAssign,
+      posAssign,
+      dummyContext,
+      dummyToken,
+    ) as monaco.languages.CompletionList;
+
+    const labelsAssign = (resultAssign?.suggestions || []).map(s => s.label);
+    expect(labelsAssign).toContain('gold');
+    expect(labelsAssign).toContain('bonus');
+    expect(labelsAssign).toContain('true');
+    expect(labelsAssign).toContain('false');
+  });
 });
