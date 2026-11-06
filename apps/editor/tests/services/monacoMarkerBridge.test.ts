@@ -3,7 +3,7 @@ import type * as monaco from 'monaco-editor';
 import type { EngineDiagnostic } from '@vn-engine/shared-types';
 import { syncMonacoMarkers } from '../../src/core/services/monacoMarkerBridge';
 
-describe('monacoMarkerBridge (Phase 2)', () => {
+describe('monacoMarkerBridge', () => {
   let mockModel: monaco.editor.ITextModel;
   let mockMonaco: typeof monaco & {
     editor: {
@@ -193,5 +193,101 @@ describe('monacoMarkerBridge (Phase 2)', () => {
       expect.any(String),
       [],
     );
+  });
+
+  // ==========================================
+  // PHASE 3: TOKEN SPAN PRECISION & CLAMPING
+  // ==========================================
+
+  it('TC-MARKER-01: sets precise endColumn and endLineNumber when endCol and endLine are provided', () => {
+    const diagnostics: EngineDiagnostic[] = [
+      {
+        id: 'diag-span-1',
+        timestamp: Date.now(),
+        category: 'compiler',
+        severity: 'error',
+        message: 'Invalid token span',
+        fileId: 'file-1',
+        line: 1,
+        col: 5,
+        endLine: 1,
+        endCol: 17,
+      },
+    ];
+
+    syncMonacoMarkers({
+      monacoInstance: mockMonaco,
+      model: mockModel,
+      activeFileId: 'file-1',
+      diagnostics,
+    });
+
+    const markers = mockMonaco.editor.setModelMarkers.mock.calls[0]![2];
+    expect(markers.length).toBe(1);
+    expect(markers[0].startLineNumber).toBe(1);
+    expect(markers[0].startColumn).toBe(5);
+    expect(markers[0].endLineNumber).toBe(1);
+    expect(markers[0].endColumn).toBe(17);
+  });
+
+  it('TC-MARKER-02: falls back to maxColumn when endCol is missing (backward compatibility)', () => {
+    const diagnostics: EngineDiagnostic[] = [
+      {
+        id: 'diag-fallback-1',
+        timestamp: Date.now(),
+        category: 'compiler',
+        severity: 'error',
+        message: 'Legacy diagnostic without endCol',
+        fileId: 'file-1',
+        line: 1,
+        col: 5,
+      },
+    ];
+
+    syncMonacoMarkers({
+      monacoInstance: mockMonaco,
+      model: mockModel,
+      activeFileId: 'file-1',
+      diagnostics,
+    });
+
+    const markers = mockMonaco.editor.setModelMarkers.mock.calls[0]![2];
+    expect(markers.length).toBe(1);
+    expect(markers[0].startLineNumber).toBe(1);
+    expect(markers[0].startColumn).toBe(5);
+    expect(markers[0].endLineNumber).toBe(1);
+    expect(markers[0].endColumn).toBe(25); // getLineMaxColumn(1) is 25
+  });
+
+  it('TC-MARKER-03: clamps endCol to getLineMaxColumn when endCol exceeds line length', () => {
+    // line 2 has getLineMaxColumn = 10
+    const diagnostics: EngineDiagnostic[] = [
+      {
+        id: 'diag-clamp-1',
+        timestamp: Date.now(),
+        category: 'compiler',
+        severity: 'error',
+        message: 'Oversized token span',
+        fileId: 'file-1',
+        line: 2,
+        col: 2,
+        endLine: 2,
+        endCol: 999, // Exceeds line length 10
+      },
+    ];
+
+    syncMonacoMarkers({
+      monacoInstance: mockMonaco,
+      model: mockModel,
+      activeFileId: 'file-1',
+      diagnostics,
+    });
+
+    const markers = mockMonaco.editor.setModelMarkers.mock.calls[0]![2];
+    expect(markers.length).toBe(1);
+    expect(markers[0].startLineNumber).toBe(2);
+    expect(markers[0].startColumn).toBe(2);
+    expect(markers[0].endLineNumber).toBe(2);
+    expect(markers[0].endColumn).toBe(10); // Clamped to line 2 maxColumn
   });
 });
