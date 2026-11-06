@@ -386,6 +386,46 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): void {
         return { suggestions };
       }
 
+      // E2. Gợi ý Kênh Dừng Âm Thanh sau stop (TC-AUTO-STOP-01)
+      if (/\bstop\s+[a-zA-Z0-9_]*$/.test(textUntilPosition)) {
+        const stopChannels = [
+          {
+            label: 'music',
+            snippet: 'music fade_out: ${1:1.0s}',
+            doc: 'Stop looping background music playback with fade_out duration',
+          },
+          {
+            label: 'sound',
+            snippet: 'sound',
+            doc: 'Stop active sound effect playback immediately',
+          },
+          {
+            label: 'voice',
+            snippet: 'voice',
+            doc: 'Stop active character voice playback immediately',
+          },
+          {
+            label: 'all',
+            snippet: 'all fade_out: ${1:1.0s}',
+            doc: 'Stop all active audio channels playback with fade_out duration',
+          },
+        ];
+
+        for (const ch of stopChannels) {
+          suggestions.push({
+            label: ch.label,
+            kind: monaco.languages.CompletionItemKind.Value,
+            detail: `Audio stop channel: ${ch.label}`,
+            documentation: ch.doc,
+            insertText: ch.snippet,
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            sortText: `00_${ch.label}`,
+            range,
+          });
+        }
+        return { suggestions };
+      }
+
       // E1. Scoped dialogue string interpolation ({var} and typewriter tags)
       const braceMatch = textUntilPosition.match(/\{([a-zA-Z0-9_:.\/#]*)$/);
       if (braceMatch) {
@@ -663,7 +703,7 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): void {
           documentation: `Dialogue statement for ${charId}${info.displayName ? ` (${info.displayName})` : ''}`,
           insertText: `${charId}: "\${1:dialogue}"`,
           insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-          sortText: `01_${charId}_1`,
+          sortText: `02_${charId}_1`,
           range,
         });
 
@@ -675,7 +715,7 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): void {
           documentation: `Multiline dialogue statement with triple quotes for ${charId}`,
           insertText: `${charId}: """\n\t$0\n"""`,
           insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-          sortText: `01_${charId}_2`,
+          sortText: `02_${charId}_2`,
           range,
         });
 
@@ -687,7 +727,7 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): void {
           documentation: `Dialogue statement with alias for ${charId}`,
           insertText: `${charId} as "\${1:${info.displayName || 'Name'}}": "\${2:dialogue}"`,
           insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-          sortText: `01_${charId}_3`,
+          sortText: `02_${charId}_3`,
           range,
         });
 
@@ -700,7 +740,7 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): void {
             : `Character: ${charId}`,
           documentation: `Character ID "${charId}"`,
           insertText: charId,
-          sortText: `01_${charId}_4`,
+          sortText: `02_${charId}_4`,
           range,
         });
       }
@@ -735,7 +775,7 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): void {
         documentation: 'Anonymous dialogue statement without character name',
         insertText: '"${1:dialogue}"',
         insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-        sortText: '03_narrator_line',
+        sortText: '02_narrator_line',
         range,
       });
 
@@ -746,7 +786,7 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): void {
         documentation: 'Anonymous multiline dialogue statement enclosed in triple quotes',
         insertText: '"""\n\t$0\n"""',
         insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-        sortText: '03_narrator_multiline',
+        sortText: '02_narrator_multiline',
         range,
       });
 
@@ -874,7 +914,33 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): void {
         },
       ];
 
+      const primaryKeywords = new Set([
+        'scene',
+        'show',
+        'hide',
+        'hide dialogue',
+        'background',
+        'choice',
+      ]);
+      const mediaKeywords = new Set([
+        'play music',
+        'play sound',
+        'play voice',
+        'stop',
+        'stop voice',
+        'inspect',
+        'wait',
+        'input',
+      ]);
+
       for (const kw of keywordSnippets) {
+        const category = primaryKeywords.has(kw.label)
+          ? '01'
+          : mediaKeywords.has(kw.label)
+          ? '03'
+          : '04';
+        const sortText = `${category}_${kw.label}`;
+
         if (kw.snippet) {
           suggestions.push({
             label: kw.label,
@@ -882,7 +948,7 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): void {
             documentation: kw.doc,
             insertText: kw.snippet,
             insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-            sortText: `04_${kw.label}`,
+            sortText,
             range,
           });
         } else {
@@ -891,7 +957,7 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): void {
             kind: kw.kind ?? monaco.languages.CompletionItemKind.Keyword,
             documentation: kw.doc,
             insertText: kw.label,
-            sortText: `04_${kw.label}`,
+            sortText,
             range,
           });
         }
