@@ -110,4 +110,37 @@ describe('diagnosticsStore', () => {
     expect(state.errorCount).toBe(0);
     expect(state.warningCount).toBe(0);
   });
+
+  it('TC-STORE-01 (setAllDiagnostics Atomic Batching): updates compiler and reconciliation diagnostics atomically with proper count aggregation', () => {
+    const store = useDiagnosticsStore.getState() as unknown as {
+      setAllDiagnostics: (
+        compiler: EngineDiagnostic[],
+        reconciliation: EngineDiagnostic[],
+      ) => void;
+    };
+
+    // 1. Single atomic call with compiler error and reconciliation warning
+    store.setAllDiagnostics([sampleCompilerError], [sampleReconciliationWarning]);
+
+    let state = useDiagnosticsStore.getState();
+    expect(state.compilerDiagnostics).toHaveLength(1);
+    expect(state.compilerDiagnostics[0]).toEqual(sampleCompilerError);
+    expect(state.reconciliationDiagnostics).toHaveLength(1);
+    expect(state.reconciliationDiagnostics[0]).toEqual(sampleReconciliationWarning);
+    expect(state.errorCount).toBe(1);
+    expect(state.warningCount).toBe(1);
+
+    // 2. When runtimeDiagnostics is already present, total errorCount aggregates correctly (1 compiler + 1 runtime = 2)
+    useDiagnosticsStore.getState().addRuntimeDiagnostic(sampleRuntimeError);
+
+    // Call setAllDiagnostics again to ensure runtime diagnostics remain intact
+    store.setAllDiagnostics([sampleCompilerError], [sampleReconciliationWarning]);
+
+    state = useDiagnosticsStore.getState();
+    expect(state.compilerDiagnostics).toHaveLength(1);
+    expect(state.reconciliationDiagnostics).toHaveLength(1);
+    expect(state.runtimeDiagnostics).toHaveLength(1);
+    expect(state.errorCount).toBe(2);
+    expect(state.warningCount).toBe(1);
+  });
 });

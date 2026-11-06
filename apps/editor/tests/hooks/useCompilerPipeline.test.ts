@@ -14,6 +14,7 @@ import { useDiagnosticsStore } from '../../src/core/stores/diagnosticsStore';
 import type { HotReloadPayload } from '../../src/core/stores/livePreviewStore';
 import type { PreviewBridge } from '../../src/core/services/previewBridge';
 import type { CompilerService, CompileOutput } from '../../src/core/services/compilerService';
+import * as reconciliationModule from '../../src/core/services/reconciliation';
 import { setupTestStore } from '../testStoreHelpers';
 
 describe('useCompilerPipeline Hook (Phase 2)', () => {
@@ -220,5 +221,63 @@ describe('useCompilerPipeline Hook (Phase 2)', () => {
 
     // previewBridge.hotReload should NOT be called with invalid bytecode
     expect(mockPreviewBridge.hotReload).not.toHaveBeenCalled();
+  });
+
+  it('TC-PIPE-01 (Atomic Batching from Worker Reconciliation): updates diagnosticsStore via setAllDiagnostics with worker reconciliation without calling synchronous generateDiagnostics', async () => {
+    const generateDiagnosticsSpy = vi.spyOn(reconciliationModule, 'generateDiagnostics');
+
+    const sampleCompilerError: EngineDiagnostic = {
+      id: 'err-compile',
+      timestamp: 1000,
+      category: 'compiler',
+      severity: 'error',
+      message: 'Syntax error at token',
+      fileId: 'file-1',
+      line: 1,
+      col: 5,
+    };
+
+    const sampleWorkerReconWarning: EngineDiagnostic = {
+      id: 'warn-recon-worker',
+      timestamp: 1001,
+      category: 'character',
+      severity: 'warning',
+      message: 'Uncreated character "charlie" referenced in script',
+      fileId: 'file-1',
+      line: 2,
+      col: 1,
+    };
+
+    mockCompilerService.compile.mockResolvedValueOnce({
+      requestId: 2,
+      success: false,
+      bytecode: undefined,
+      diagnostics: [sampleCompilerError],
+      reconciliationDiagnostics: [sampleWorkerReconWarning],
+    });
+
+    const setAllDiagnosticsSpy = vi.fn();
+    (useDiagnosticsStore.getState() as unknown as {
+      setAllDiagnostics: (c: EngineDiagnostic[], r: EngineDiagnostic[]) => void;
+    }).setAllDiagnostics = setAllDiagnosticsSpy;
+
+    renderHook(() =>
+      useCompilerPipeline({
+        compilerService: mockCompilerService as unknown as CompilerService,
+        previewBridge: mockPreviewBridge as unknown as PreviewBridge,
+        debounceMs: 50,
+      }),
+    );
+
+    // 1. Hook must call setAllDiagnostics with both diagnostics slices atomically
+    await waitFor(() => {
+      expect(setAllDiagnosticsSpy).toHaveBeenCalledWith(
+        [sampleCompilerError],
+        [sampleWorkerReconWarning],
+      );
+    });
+
+    // 2. Synchronous regex scanning on main thread must NOT be called for compilation
+    expect(generateDiagnosticsSpy).not.toHaveBeenCalled();
   });
 });
