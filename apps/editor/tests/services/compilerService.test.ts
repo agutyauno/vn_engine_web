@@ -163,7 +163,11 @@ describe('CompilerService (Phase 2)', () => {
       const compilePromise = service.compile(validFiles);
 
       // Simulate worker crash / error
-      mockWorker.onerror?.(new ErrorEvent('error', { message: 'Worker script crash' }));
+      const errorEvent =
+        typeof ErrorEvent !== 'undefined'
+          ? new ErrorEvent('error', { message: 'Worker script crash' })
+          : { message: 'Worker script crash' };
+      mockWorker.onerror?.(errorEvent);
 
       const output = await compilePromise;
       expect(mockWorker.terminate).toHaveBeenCalled();

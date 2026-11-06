@@ -69,3 +69,15 @@ if (typeof document !== 'undefined') {
     });
   }
 }
+
+if (typeof globalThis.ErrorEvent === 'undefined' && typeof Event !== 'undefined') {
+  class ErrorEventPolyfill extends Event {
+    public message: string;
+    constructor(type: string, init?: { message?: string }) {
+      super(type);
+      this.message = init?.message || '';
+    }
+  }
+  // @ts-expect-error Polyfill ErrorEvent for Node environments like Node 22
+  globalThis.ErrorEvent = ErrorEventPolyfill;
+}
