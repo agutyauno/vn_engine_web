@@ -54,9 +54,65 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): void {
             kind: monaco.languages.CompletionItemKind.Function,
             documentation: scDoc,
             insertText: scName,
+            sortText: `00_${scName}`,
             range,
           });
         }
+        return { suggestions };
+      }
+
+      // A1. Gợi ý hành động goto / call sau dấu hai chấm của một lựa chọn ("Choice text": hoặc "Choice text": g)
+      if (/"[^"]*":\s*[a-zA-Z0-9_]*$/.test(textUntilPosition)) {
+        suggestions.push({
+          label: 'goto',
+          kind: monaco.languages.CompletionItemKind.Keyword,
+          detail: 'Jump to scene',
+          documentation: 'Jump execution flow to target scene',
+          insertText: 'goto ',
+          sortText: '00_goto',
+          range,
+        });
+        suggestions.push({
+          label: 'call',
+          kind: monaco.languages.CompletionItemKind.Keyword,
+          detail: 'Call subroutine scene',
+          documentation: 'Call subroutine scene and return',
+          insertText: 'call ',
+          sortText: '00_call',
+          range,
+        });
+        return { suggestions };
+      }
+
+      // A2. Gợi ý biến và boolean literals trong biểu thức điều kiện if và while
+      if (/\b(if|while)\s+(\(?\s*)[a-zA-Z0-9_]*$/.test(textUntilPosition)) {
+        const vars = context.getVariables();
+        for (const v of vars) {
+          suggestions.push({
+            label: v,
+            kind: monaco.languages.CompletionItemKind.Variable,
+            documentation: `Script variable: ${v}`,
+            insertText: v,
+            sortText: `00_${v}`,
+            range,
+          });
+        }
+        suggestions.push({
+          label: 'true',
+          kind: monaco.languages.CompletionItemKind.Keyword,
+          documentation: 'Boolean literal true',
+          insertText: 'true',
+          sortText: '00_true',
+          range,
+        });
+        suggestions.push({
+          label: 'false',
+          kind: monaco.languages.CompletionItemKind.Keyword,
+          documentation: 'Boolean literal false',
+          insertText: 'false',
+          sortText: '00_false',
+          range,
+        });
         return { suggestions };
       }
 
@@ -353,6 +409,38 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): void {
         }
       }
 
+      // F0. Gợi ý biến và boolean literals trong vế phải phép gán (~ var = ...)
+      if (/~\s*[a-zA-Z0-9_]+\s*=\s*[a-zA-Z0-9_+\-*/\s]*$/.test(textUntilPosition)) {
+        const vars = context.getVariables();
+        for (const v of vars) {
+          suggestions.push({
+            label: v,
+            kind: monaco.languages.CompletionItemKind.Variable,
+            documentation: `Script state variable: ${v}`,
+            insertText: v,
+            sortText: `00_${v}`,
+            range,
+          });
+        }
+        suggestions.push({
+          label: 'true',
+          kind: monaco.languages.CompletionItemKind.Keyword,
+          documentation: 'Boolean literal true',
+          insertText: 'true',
+          sortText: '00_true',
+          range,
+        });
+        suggestions.push({
+          label: 'false',
+          kind: monaco.languages.CompletionItemKind.Keyword,
+          documentation: 'Boolean literal false',
+          insertText: 'false',
+          sortText: '00_false',
+          range,
+        });
+        return { suggestions };
+      }
+
       // F. Gợi ý Biến trạng thái sau ~
       if (/~\s*[a-zA-Z0-9_]*$/.test(textUntilPosition)) {
         const vars = context.getVariables();
@@ -451,6 +539,59 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): void {
           }
           return { suggestions };
         }
+      }
+
+      // G-1. Quét ngược phát hiện khối choice { ... } để gợi ý snippet nhánh lựa chọn (TC-AUTO-CHOICE-01)
+      let isInsideChoiceBlock = false;
+      let braceDepth = 0;
+      for (let i = position.lineNumber; i >= 1; i--) {
+        const line =
+          i === position.lineNumber
+            ? model.getLineContent(i).substring(0, position.column - 1)
+            : model.getLineContent(i);
+        const stripped = line.replace(/#.*$/, '').replace(/"[^"]*"/g, '');
+        for (let j = stripped.length - 1; j >= 0; j--) {
+          const ch = stripped[j];
+          if (ch === '}') braceDepth++;
+          else if (ch === '{') {
+            if (braceDepth > 0) {
+              braceDepth--;
+            } else {
+              const beforeBrace = stripped.substring(0, j).trim();
+              if (
+                /\bchoice\b/.test(beforeBrace) ||
+                (i > 1 && /\bchoice\b/.test(model.getLineContent(i - 1)))
+              ) {
+                isInsideChoiceBlock = true;
+              }
+              break;
+            }
+          }
+        }
+        if (isInsideChoiceBlock || braceDepth < 0) break;
+      }
+
+      if (isInsideChoiceBlock) {
+        suggestions.push({
+          label: '"Choice": goto target',
+          kind: monaco.languages.CompletionItemKind.Snippet,
+          detail: 'Choice branch with goto jump',
+          documentation: 'Insert choice option jumping to target scene',
+          insertText: '"${1:Choice}": goto ${2:target_scene}',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          sortText: '00_choice_goto',
+          range,
+        });
+        suggestions.push({
+          label: '"Choice": call target',
+          kind: monaco.languages.CompletionItemKind.Snippet,
+          detail: 'Choice branch with call subroutine',
+          documentation: 'Insert choice option calling subroutine scene',
+          insertText: '"${1:Choice}": call ${2:target_scene}',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          sortText: '00_choice_call',
+          range,
+        });
       }
 
       // G0. Gợi ý Nhân vật cho câu thoại (Character Dialogue Statements)
