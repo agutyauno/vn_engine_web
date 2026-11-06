@@ -33,18 +33,70 @@ export interface CompileResult {
   program?: Instruction[];
   ast?: ProgramAST;
   errors?: CompileError[];
+  bytecodeChecksum?: string;
+}
+
+/**
+ * Hàm băm 64-bit tiền tố độ dài nhanh không phụ thuộc crypto / Node.js
+ * Sử dụng Murmur3-like 64-bit mix với 2 bộ tích lũy 32-bit độc lập.
+ */
+export function computeFastHash64(str: string): string {
+  let h1 = 0xdeadbeef;
+  let h2 = 0x41c64e6d;
+  for (let i = 0; i < str.length; i++) {
+    const ch = str.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return `${str.length}:${(h1 >>> 0).toString(16).padStart(8, '0')}${(h2 >>> 0).toString(16).padStart(8, '0')}`;
 }
 
 export class Compiler {
+  private fileCache = new Map<string, { hash: string; ast: ProgramAST }>();
+
+  public getCacheSize(): number {
+    return this.fileCache.size;
+  }
+
+  public clearCache(): void {
+    this.fileCache.clear();
+  }
+
   public compile(files: ScriptFile[], options?: CompilerOptions): CompileResult {
     const errors: CompileError[] = [];
     const allTopLevelStatements: StatementAST[] = [];
     const allScenes: SceneASTNode[] = [];
 
+    // Dọn dẹp tệp đã bị xóa khỏi cache (Garbage collection)
+    const currentFileIds = new Set(files.map(f => f.id));
+    for (const cachedId of this.fileCache.keys()) {
+      if (!currentFileIds.has(cachedId)) {
+        this.fileCache.delete(cachedId);
+      }
+    }
+
     // Sắp xếp các file theo thứ tự order
     const sortedFiles = [...files].sort((a, b) => a.order - b.order);
 
     for (const file of sortedFiles) {
+      const fileHash = computeFastHash64(file.content);
+      const cached = this.fileCache.get(file.id);
+
+      if (cached && cached.hash === fileHash) {
+        if (cached.ast.topLevelStatements) {
+          allTopLevelStatements.push(...cached.ast.topLevelStatements);
+        }
+        if (cached.ast.scenes) {
+          allScenes.push(...cached.ast.scenes);
+        }
+        continue;
+      }
+
+      // Xóa cache cũ nếu nội dung thay đổi hoặc parse lại
+      this.fileCache.delete(file.id);
+
       try {
         // Stage 1: Phân tích từ vựng (Lexer)
         const lexResult = VNSLexer.tokenize(file.content);
@@ -69,11 +121,15 @@ export class Compiler {
         // Xây dựng AST cho từng file
         const builder = new VNSAstBuilder(file.id);
         const fileAst = builder.visit(cst) as ProgramAST;
-        if (fileAst?.topLevelStatements) {
-          allTopLevelStatements.push(...fileAst.topLevelStatements);
-        }
-        if (fileAst?.scenes) {
-          allScenes.push(...fileAst.scenes);
+
+        if (fileAst) {
+          this.fileCache.set(file.id, { hash: fileHash, ast: fileAst });
+          if (fileAst.topLevelStatements) {
+            allTopLevelStatements.push(...fileAst.topLevelStatements);
+          }
+          if (fileAst.scenes) {
+            allScenes.push(...fileAst.scenes);
+          }
         }
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
@@ -128,11 +184,13 @@ export class Compiler {
 
       // Stage 5: Sinh Bytecode (Instruction Set)
       const program = generateBytecode(mergedAst, options?.characters);
+      const bytecodeChecksum = computeFastHash64(JSON.stringify(program));
 
       return {
         success: true,
         program,
         ast: mergedAst,
+        bytecodeChecksum,
       };
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
