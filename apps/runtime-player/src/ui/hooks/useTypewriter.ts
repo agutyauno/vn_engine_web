@@ -35,7 +35,11 @@ function prepareSegments(rawText: string): PreparedSegment[] {
   if (trailingPunctMatch && trailingPunctMatch[1] && parsed.length > 0) {
     const punct = trailingPunctMatch[1];
     const lastSeg = parsed[parsed.length - 1]!;
-    if (lastSeg.text.endsWith(punct) && lastSeg.text.length > punct.length && lastSeg.pauseAfterMs) {
+    if (
+      lastSeg.text.endsWith(punct) &&
+      lastSeg.text.length > punct.length &&
+      lastSeg.pauseAfterMs
+    ) {
       const baseText = lastSeg.text.slice(0, -punct.length);
       const pauseMs = lastSeg.pauseAfterMs;
       parsed[parsed.length - 1] = {
@@ -91,10 +95,7 @@ export function useTypewriter({
   const totalChars = useMemo(() => computeTotalChars(segments), [segments]);
 
   const shouldBypass =
-    isComplete ||
-    playbackMode === 'SKIP' ||
-    baseCharsPerSecond <= 0 ||
-    totalChars === 0;
+    isComplete || playbackMode === 'SKIP' || baseCharsPerSecond <= 0 || totalChars === 0;
 
   const [revealedCount, setRevealedCount] = useState<number>(() => {
     return shouldBypass ? totalChars : 0;
@@ -198,7 +199,7 @@ export function useTypewriter({
 
   const visibleSegments = useMemo(() => {
     if (shouldBypass || revealedCount >= totalChars) {
-      return segments.map((s) => ({ text: s.text, color: s.color }));
+      return segments.map(s => ({ text: s.text, color: s.color }));
     }
     return getVisibleSegments(segments, revealedCount);
   }, [shouldBypass, revealedCount, totalChars, segments]);

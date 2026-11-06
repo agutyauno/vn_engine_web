@@ -83,7 +83,9 @@ describe('App Routing & Navigation (TDD)', () => {
       fireEvent.click(openButton);
 
       await waitFor(() => {
-        expect(screen.getByTestId('header-project-title')).toHaveTextContent('Cyberpunk Chronicles');
+        expect(screen.getByTestId('header-project-title')).toHaveTextContent(
+          'Cyberpunk Chronicles',
+        );
       });
 
       expect(screen.getByTestId('btn-back-hub')).toBeInTheDocument();

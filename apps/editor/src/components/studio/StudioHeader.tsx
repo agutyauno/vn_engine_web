@@ -98,8 +98,8 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
             autoFocus
             data-testid="input-header-title"
             value={titleValue}
-            onChange={(e) => setTitleValue(e.target.value)}
-            onKeyDown={(e) => {
+            onChange={e => setTitleValue(e.target.value)}
+            onKeyDown={e => {
               if (e.key === 'Enter') handleTitleSubmit();
               if (e.key === 'Escape') {
                 setTitleValue(resolvedTitle);
@@ -121,7 +121,10 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
             >
               {resolvedTitle}
             </h1>
-            <EditIcon size={12} className="opacity-0 group-hover:opacity-100 text-neutral-500 transition-opacity" />
+            <EditIcon
+              size={12}
+              className="opacity-0 group-hover:opacity-100 text-neutral-500 transition-opacity"
+            />
             {isDirty && (
               <span
                 data-testid="header-dirty-dot"
@@ -166,9 +169,7 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
           </button>
         )}
 
-        {(onQuickPlay || onRunFromCursor) && (
-          <div className="h-4 w-px bg-neutral-800 mx-0.5" />
-        )}
+        {(onQuickPlay || onRunFromCursor) && <div className="h-4 w-px bg-neutral-800 mx-0.5" />}
 
         {onExport && (
           <button

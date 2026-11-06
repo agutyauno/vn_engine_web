@@ -32,15 +32,7 @@ export interface AssetLibraryPaneProps {
 }
 
 type ConsolidatedCategory =
-  | 'all'
-  | 'backgrounds'
-  | 'sprites'
-  | 'audio'
-  | 'bgm'
-  | 'sfx'
-  | 'voice'
-  | 'ui'
-  | 'other';
+  'all' | 'backgrounds' | 'sprites' | 'audio' | 'bgm' | 'sfx' | 'voice' | 'ui' | 'other';
 
 export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
   project,
@@ -52,8 +44,8 @@ export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
   onReplaceAsset,
   onDeleteAsset,
 }) => {
-  const lastAssetCategory = useEditorUIStore((s) => s.lastAssetCategory) as ConsolidatedCategory;
-  const setLastAssetCategory = useEditorUIStore((s) => s.setLastAssetCategory);
+  const lastAssetCategory = useEditorUIStore(s => s.lastAssetCategory) as ConsolidatedCategory;
+  const setLastAssetCategory = useEditorUIStore(s => s.setLastAssetCategory);
 
   const [activeTab, setActiveTab] = useState<ConsolidatedCategory>(lastAssetCategory || 'all');
   const [editingAsset, setEditingAsset] = useState<AssetRef | null>(null);
@@ -77,7 +69,9 @@ export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
   const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
   const [stagedFile, setStagedFile] = useState<File | null>(null);
   const [modalPrefillId, setModalPrefillId] = useState<string | undefined>(undefined);
-  const [modalPrefillCategory, setModalPrefillCategory] = useState<AssetCategory | undefined>(undefined);
+  const [modalPrefillCategory, setModalPrefillCategory] = useState<AssetCategory | undefined>(
+    undefined,
+  );
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
@@ -119,19 +113,20 @@ export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
       setIsAudioPlaying(false);
     } else {
       player.src = asset.storageUrl;
-      player.play()
+      player
+        .play()
         .then(() => {
           setAuditioningAssetId(asset.id);
           setIsAudioPlaying(true);
         })
-        .catch((err) => {
+        .catch(err => {
           console.warn('Playback error or blocked by autoplay policy:', err);
         });
     }
   };
 
   // Filter assets based on active category and search
-  const filteredAssets = (project.assets || []).filter((asset) => {
+  const filteredAssets = (project.assets || []).filter(asset => {
     let matchesCategory = false;
     if (activeTab === 'all') {
       matchesCategory = true;
@@ -149,21 +144,34 @@ export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
     } else if (activeTab === 'bgm') {
       matchesCategory =
         asset.category === 'bgm' ||
-        (!asset.category && asset.type === 'audio' && (asset.name.startsWith('bgm_') || asset.name.includes('music') || asset.name.includes('theme')));
+        (!asset.category &&
+          asset.type === 'audio' &&
+          (asset.name.startsWith('bgm_') ||
+            asset.name.includes('music') ||
+            asset.name.includes('theme')));
     } else if (activeTab === 'sfx') {
       matchesCategory =
         asset.category === 'sfx' ||
-        (!asset.category && asset.type === 'audio' && (asset.name.startsWith('sfx_') || asset.name.startsWith('se_') || asset.name.includes('sound') || asset.name.includes('click')));
+        (!asset.category &&
+          asset.type === 'audio' &&
+          (asset.name.startsWith('sfx_') ||
+            asset.name.startsWith('se_') ||
+            asset.name.includes('sound') ||
+            asset.name.includes('click')));
     } else if (activeTab === 'voice') {
       matchesCategory =
         asset.category === 'voice' ||
-        (!asset.category && asset.type === 'audio' && (asset.name.startsWith('voice_') || asset.name.includes('voice')));
+        (!asset.category &&
+          asset.type === 'audio' &&
+          (asset.name.startsWith('voice_') || asset.name.includes('voice')));
     } else if (activeTab === 'ui') {
       matchesCategory = asset.category === 'ui';
     } else if (activeTab === 'other') {
       matchesCategory =
         asset.category === 'other' ||
-        (!['background', 'sprite', 'bgm', 'sfx', 'voice', 'ui'].includes(asset.category || '') && asset.type !== 'image' && asset.type !== 'audio');
+        (!['background', 'sprite', 'bgm', 'sfx', 'voice', 'ui'].includes(asset.category || '') &&
+          asset.type !== 'image' &&
+          asset.type !== 'audio');
     }
 
     if (!matchesCategory) return false;
@@ -199,18 +207,18 @@ export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
       activeTab === 'backgrounds'
         ? 'background'
         : activeTab === 'sprites'
-        ? 'sprite'
-        : activeTab === 'bgm' || activeTab === 'audio'
-        ? 'bgm'
-        : activeTab === 'sfx'
-        ? 'sfx'
-        : activeTab === 'voice'
-        ? 'voice'
-        : activeTab === 'ui'
-        ? 'ui'
-        : activeTab === 'other'
-        ? 'other'
-        : undefined
+          ? 'sprite'
+          : activeTab === 'bgm' || activeTab === 'audio'
+            ? 'bgm'
+            : activeTab === 'sfx'
+              ? 'sfx'
+              : activeTab === 'voice'
+                ? 'voice'
+                : activeTab === 'ui'
+                  ? 'ui'
+                  : activeTab === 'other'
+                    ? 'other'
+                    : undefined,
     );
     setIsCreateModalOpen(true);
   };
@@ -365,12 +373,14 @@ export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
 
       {/* Category Dropdown & Backward-Compatible Aliases */}
       <div className="border-b border-neutral-800 px-3 py-2">
-        <label htmlFor="select-asset-category-filter" className="sr-only">Filter by Category</label>
+        <label htmlFor="select-asset-category-filter" className="sr-only">
+          Filter by Category
+        </label>
         <select
           id="select-asset-category-filter"
           data-testid="select-asset-category-filter"
           value={activeTab}
-          onChange={(e) => handleCategoryFilterChange(e.target.value as ConsolidatedCategory)}
+          onChange={e => handleCategoryFilterChange(e.target.value as ConsolidatedCategory)}
           className="w-full rounded border border-neutral-800 bg-neutral-950 px-2.5 py-1.5 text-xs text-neutral-200 focus:border-neutral-700 focus:outline-none transition cursor-pointer font-sans"
         >
           <option value="all">All Categories</option>
@@ -383,15 +393,41 @@ export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
           <option value="other">Other</option>
         </select>
         <div className="hidden" aria-hidden="true">
-          <button type="button" data-testid="tab-asset-all" onClick={() => setActiveTab('all')}>All</button>
-          <button type="button" data-testid="tab-asset-backgrounds" onClick={() => setActiveTab('backgrounds')}>Backgrounds</button>
-          <button type="button" data-testid="tab-asset-sprites" onClick={() => setActiveTab('sprites')}>Sprites</button>
-          <button type="button" data-testid="tab-asset-bgm" onClick={() => setActiveTab('bgm')}>BGM</button>
-          <button type="button" data-testid="tab-asset-sfx" onClick={() => setActiveTab('sfx')}>SFX</button>
-          <button type="button" data-testid="tab-asset-voice" onClick={() => setActiveTab('voice')}>Voice</button>
-          <button type="button" data-testid="tab-asset-ui" onClick={() => setActiveTab('ui')}>UI</button>
-          <button type="button" data-testid="tab-asset-other" onClick={() => setActiveTab('other')}>Other</button>
-          <button type="button" data-testid="tab-asset-audio" onClick={() => setActiveTab('audio')}>Audio</button>
+          <button type="button" data-testid="tab-asset-all" onClick={() => setActiveTab('all')}>
+            All
+          </button>
+          <button
+            type="button"
+            data-testid="tab-asset-backgrounds"
+            onClick={() => setActiveTab('backgrounds')}
+          >
+            Backgrounds
+          </button>
+          <button
+            type="button"
+            data-testid="tab-asset-sprites"
+            onClick={() => setActiveTab('sprites')}
+          >
+            Sprites
+          </button>
+          <button type="button" data-testid="tab-asset-bgm" onClick={() => setActiveTab('bgm')}>
+            BGM
+          </button>
+          <button type="button" data-testid="tab-asset-sfx" onClick={() => setActiveTab('sfx')}>
+            SFX
+          </button>
+          <button type="button" data-testid="tab-asset-voice" onClick={() => setActiveTab('voice')}>
+            Voice
+          </button>
+          <button type="button" data-testid="tab-asset-ui" onClick={() => setActiveTab('ui')}>
+            UI
+          </button>
+          <button type="button" data-testid="tab-asset-other" onClick={() => setActiveTab('other')}>
+            Other
+          </button>
+          <button type="button" data-testid="tab-asset-audio" onClick={() => setActiveTab('audio')}>
+            Audio
+          </button>
         </div>
       </div>
 
@@ -403,7 +439,7 @@ export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
             type="text"
             data-testid="input-asset-search"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={e => setSearchQuery(e.target.value)}
             placeholder={`Search ${activeTab}...`}
             className="w-full rounded border border-neutral-800 bg-neutral-950 pl-8 pr-3 py-1.5 text-xs text-neutral-200 placeholder-neutral-600 focus:border-neutral-700 focus:outline-none transition"
           />
@@ -417,7 +453,7 @@ export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
             <span>No assets found</span>
           </div>
         ) : (
-          filteredAssets.map((asset) => {
+          filteredAssets.map(asset => {
             const safety = checkAssetDeletionSafety(asset.id, project);
             const isReferenced = !safety.safe;
             const isAuditioning = auditioningAssetId === asset.id && isAudioPlaying;
@@ -458,7 +494,10 @@ export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
 
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
-                      <p className="truncate text-xs font-medium text-neutral-200" title={asset.name}>
+                      <p
+                        className="truncate text-xs font-medium text-neutral-200"
+                        title={asset.name}
+                      >
                         {asset.name}
                       </p>
                       <span
@@ -538,7 +577,7 @@ export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
         asset={selectedAssetForDelete}
         project={project}
         onClose={() => setSelectedAssetForDelete(null)}
-        onConfirmDelete={(asset) => {
+        onConfirmDelete={asset => {
           onDeleteAsset?.(asset.id);
           setSelectedAssetForDelete(null);
         }}
@@ -554,7 +593,7 @@ export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xs p-6 select-none"
         >
           <div
-            onClick={(e) => e.stopPropagation()}
+            onClick={e => e.stopPropagation()}
             className="relative flex flex-col items-center max-w-4xl max-h-[90vh] rounded-lg border border-neutral-800 bg-neutral-950 p-2 shadow-2xl overflow-hidden"
           >
             <div className="flex w-full items-center justify-between px-3 py-2 border-b border-neutral-800 text-xs text-neutral-300">
@@ -588,20 +627,20 @@ export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
           (activeTab === 'backgrounds'
             ? 'background'
             : activeTab === 'sprites'
-            ? 'sprite'
-            : activeTab === 'audio' || activeTab === 'bgm'
-            ? 'bgm'
-            : activeTab === 'sfx'
-            ? 'sfx'
-            : activeTab === 'voice'
-            ? 'voice'
-            : activeTab === 'ui'
-            ? 'ui'
-            : activeTab === 'other'
-            ? 'other'
-            : undefined)
+              ? 'sprite'
+              : activeTab === 'audio' || activeTab === 'bgm'
+                ? 'bgm'
+                : activeTab === 'sfx'
+                  ? 'sfx'
+                  : activeTab === 'voice'
+                    ? 'voice'
+                    : activeTab === 'ui'
+                      ? 'ui'
+                      : activeTab === 'other'
+                        ? 'other'
+                        : undefined)
         }
-        existingAssetIds={(project.assets || []).map((a) => a.id)}
+        existingAssetIds={(project.assets || []).map(a => a.id)}
         onClose={() => {
           setIsCreateModalOpen(false);
           setStagedFile(null);
@@ -618,7 +657,7 @@ export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
           initialFile={null}
           initialAsset={editingAsset}
           isEditMode={true}
-          existingAssetIds={(project.assets || []).map((a) => a.id)}
+          existingAssetIds={(project.assets || []).map(a => a.id)}
           onClose={() => setEditingAsset(null)}
           onSave={(updatedAsset, fileBlob) => {
             (onUpdateAsset || onAddAsset)?.(updatedAsset, fileBlob);

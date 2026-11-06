@@ -58,7 +58,7 @@ describe('AssetResolverAdapter', () => {
   beforeEach(() => {
     reportedDiagnostics = [];
     mockDiagnosticBus = {
-      report: vi.fn((diag) => {
+      report: vi.fn(diag => {
         reportedDiagnostics.push(diag);
       }),
       clear: vi.fn(),
@@ -188,8 +188,12 @@ describe('AssetResolverAdapter', () => {
       const adapter = new AssetResolverAdapter(() => sampleProjectData, mockDiagnosticBus);
       const resolver = adapter.getAssetAudioResolver();
 
-      expect(resolver('https://cdn.example.com/track.mp3')).toBe('https://cdn.example.com/track.mp3');
-      expect(resolver('http://localhost:3000/sfx/click.ogg')).toBe('http://localhost:3000/sfx/click.ogg');
+      expect(resolver('https://cdn.example.com/track.mp3')).toBe(
+        'https://cdn.example.com/track.mp3',
+      );
+      expect(resolver('http://localhost:3000/sfx/click.ogg')).toBe(
+        'http://localhost:3000/sfx/click.ogg',
+      );
       expect(resolver('data:audio/mp3;base64,sounddata')).toBe('data:audio/mp3;base64,sounddata');
       expect(resolver('blob:http://localhost/uuid-1234')).toBe('blob:http://localhost/uuid-1234');
       expect(resolver('/sounds/fanfare.wav')).toBe('/sounds/fanfare.wav');
@@ -218,4 +222,3 @@ describe('AssetResolverAdapter', () => {
     });
   });
 });
-

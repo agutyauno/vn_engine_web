@@ -46,8 +46,12 @@ export class StorageAdapter {
 
     // Phân vùng tiền tố theo ADR-024
     const prefix = this.isPreview
-      ? (this.projectId ? `vn_engine_preview_${this.projectId}` : 'vn_engine_preview')
-      : (this.projectId ? `vn_engine_player_${this.projectId}` : 'vn_engine_player');
+      ? this.projectId
+        ? `vn_engine_preview_${this.projectId}`
+        : 'vn_engine_preview'
+      : this.projectId
+        ? `vn_engine_player_${this.projectId}`
+        : 'vn_engine_player';
 
     this.slotsKey = `${prefix}_save_slots`;
     this.quickKey = `${prefix}_quicksave`;
@@ -84,7 +88,6 @@ export class StorageAdapter {
       this.memoryStorage.setItem(key, value);
     }
   }
-
 
   /**
    * Lấy danh sách 6 slots lưu trữ thường (indices 0..5 tương ứng slots 1..6)

@@ -31,9 +31,7 @@ const SHORTCUT_GROUPS: { group: string; items: ShortcutItem[] }[] = [
   },
   {
     group: 'Live Preview',
-    items: [
-      { keys: ['Ctrl + Enter', 'F5'], description: 'Toggle Live Preview playback' },
-    ],
+    items: [{ keys: ['Ctrl + Enter', 'F5'], description: 'Toggle Live Preview playback' }],
   },
 ];
 
@@ -83,7 +81,7 @@ export const ShortcutsHelpModal: React.FC<ShortcutsHelpModalProps> = ({ isOpen, 
 
         {/* Shortcuts List */}
         <div className="max-h-[480px] overflow-y-auto p-5 text-xs space-y-5">
-          {SHORTCUT_GROUPS.map((section) => (
+          {SHORTCUT_GROUPS.map(section => (
             <div key={section.group} className="space-y-2">
               <h3 className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">
                 {section.group}

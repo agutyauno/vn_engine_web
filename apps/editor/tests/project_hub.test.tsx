@@ -36,13 +36,23 @@ describe('ProjectHubView (TDD)', () => {
     await repo.createProject({
       title: 'Cyberpunk Adventure',
       description: 'Futuristic story in Neo-Tokyo',
-      displaySettings: { width: 1920, height: 1080, orientation: 'landscape', lockAspectRatio: true },
+      displaySettings: {
+        width: 1920,
+        height: 1080,
+        orientation: 'landscape',
+        lockAspectRatio: true,
+      },
     });
 
     await repo.createProject({
       title: 'Romance at Sunset',
       description: 'Slice of life romance',
-      displaySettings: { width: 1080, height: 1920, orientation: 'portrait', lockAspectRatio: true },
+      displaySettings: {
+        width: 1080,
+        height: 1920,
+        orientation: 'portrait',
+        lockAspectRatio: true,
+      },
     });
 
     const handleOpen = vi.fn();
@@ -111,7 +121,12 @@ describe('ProjectHubView (TDD)', () => {
     const original = await repo.createProject({
       title: 'Original VN',
       description: 'First version',
-      displaySettings: { width: 1920, height: 1080, orientation: 'landscape', lockAspectRatio: true },
+      displaySettings: {
+        width: 1920,
+        height: 1080,
+        orientation: 'landscape',
+        lockAspectRatio: true,
+      },
     });
 
     const handleOpen = vi.fn();
@@ -131,14 +146,19 @@ describe('ProjectHubView (TDD)', () => {
 
     const list = await repo.listProjects();
     expect(list).toHaveLength(2);
-    expect(list.some((p) => p.title === 'Copy of Original VN')).toBe(true);
+    expect(list.some(p => p.title === 'Copy of Original VN')).toBe(true);
   });
 
   it('UT-EDT-HUB-05: deletes a project with safe confirmation requiring exact title typing', async () => {
     const toDelete = await repo.createProject({
       title: 'Draft Project',
       description: 'To be deleted safely',
-      displaySettings: { width: 1920, height: 1080, orientation: 'landscape', lockAspectRatio: true },
+      displaySettings: {
+        width: 1920,
+        height: 1080,
+        orientation: 'landscape',
+        lockAspectRatio: true,
+      },
     });
 
     const handleOpen = vi.fn();
@@ -333,14 +353,14 @@ describe('ProjectHubView (TDD)', () => {
     });
 
     const projects = await repo.listProjects();
-    expect(projects.some((p) => p.title === 'Enter Key Created Project')).toBe(true);
+    expect(projects.some(p => p.title === 'Enter Key Created Project')).toBe(true);
   });
 
   it('UT-EDT-HUB-10: blocks duplicate creation submissions when busy guard is active (ADV-RACE-05)', async () => {
     let resolveCreate: () => void = () => {};
     const originalCreate = repo.createProject.bind(repo);
-    const createSpy = vi.spyOn(repo, 'createProject').mockImplementation(async (params) => {
-      await new Promise<void>((resolve) => {
+    const createSpy = vi.spyOn(repo, 'createProject').mockImplementation(async params => {
+      await new Promise<void>(resolve => {
         resolveCreate = resolve;
       });
       return originalCreate(params);

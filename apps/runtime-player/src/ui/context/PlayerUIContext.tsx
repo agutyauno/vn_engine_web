@@ -27,7 +27,7 @@ export function PlayerUIProvider({
   useEffect(() => {
     if (!kernel) return;
     setKernelState(kernel.getState());
-    return kernel.subscribe((nextState) => {
+    return kernel.subscribe(nextState => {
       setKernelState(nextState);
     });
   }, [kernel]);
@@ -51,19 +51,19 @@ export function PlayerUIProvider({
       toggleHideControls: () => kernel.toggleHideControls(),
       toggleCleanArt: () => kernel.toggleCleanArt(),
       toggleMute: () => kernel.toggleMute(),
-      openModal: (modal) => kernel.openModal(modal),
+      openModal: modal => kernel.openModal(modal),
       closeModal: () => kernel.closeModal(),
       closeInspect: () => kernel.closeInspect(),
       setAudioVolume: (channel, volume) => kernel.setAudioVolume(channel, volume),
-      setTextSpeed: (charsPerSec) => kernel.setTextSpeed(charsPerSec),
-      setAutoDelay: (delayMs) => kernel.setAutoDelay(delayMs),
-      showToast: (message) => kernel.showToast(message),
-      saveSlot: (slotIndex) => kernel.saveSlot(slotIndex),
-      loadSlot: (slotIndex) => kernel.loadSlot(slotIndex),
+      setTextSpeed: charsPerSec => kernel.setTextSpeed(charsPerSec),
+      setAutoDelay: delayMs => kernel.setAutoDelay(delayMs),
+      showToast: message => kernel.showToast(message),
+      saveSlot: slotIndex => kernel.saveSlot(slotIndex),
+      loadSlot: slotIndex => kernel.loadSlot(slotIndex),
       quickSave: () => kernel.quickSave(),
       quickLoad: () => kernel.quickLoad(),
-      replayVoice: (assetId) => kernel.replayVoice(assetId),
-      resolveDesync: (choice) => kernel.resolveDesync(choice),
+      replayVoice: assetId => kernel.replayVoice(assetId),
+      resolveDesync: choice => kernel.resolveDesync(choice),
     };
   }, [propActions, kernel]);
 

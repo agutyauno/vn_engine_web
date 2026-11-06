@@ -530,8 +530,6 @@ export const DownloadIcon: React.FC<IconProps> = ({ size = 16, className, ...pro
   </svg>
 );
 
-
-
 export const HelpCircleIcon: React.FC<IconProps> = ({ size = 16, className, ...props }) => (
   <svg
     width={size}

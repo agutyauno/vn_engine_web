@@ -16,8 +16,18 @@ export const PRESET_RESOLUTIONS: Record<
   Exclude<AspectPreset, 'custom'>,
   { width: number; height: number; orientation: 'landscape' | 'portrait'; label: string }
 > = {
-  '16:9': { width: 1920, height: 1080, orientation: 'landscape', label: 'Landscape 16:9 (1920 × 1080)' },
-  '9:16': { width: 1080, height: 1920, orientation: 'portrait', label: 'Portrait 9:16 (1080 × 1920) - Mobile' },
+  '16:9': {
+    width: 1920,
+    height: 1080,
+    orientation: 'landscape',
+    label: 'Landscape 16:9 (1920 × 1080)',
+  },
+  '9:16': {
+    width: 1080,
+    height: 1920,
+    orientation: 'portrait',
+    label: 'Portrait 9:16 (1080 × 1920) - Mobile',
+  },
   '4:3': { width: 1024, height: 768, orientation: 'landscape', label: 'Classic 4:3 (1024 × 768)' },
 };
 
@@ -119,7 +129,8 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
   };
 
   const busy = submitting || isSubmitting;
-  const presetIsResolutionError = preset === 'custom' && Boolean(error?.toLowerCase().includes('resolution'));
+  const presetIsResolutionError =
+    preset === 'custom' && Boolean(error?.toLowerCase().includes('resolution'));
 
   return (
     <div
@@ -149,14 +160,14 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
               autoFocus
               data-testid="input-project-name"
               value={title}
-              onChange={(e) => {
+              onChange={e => {
                 setTitle(e.target.value);
                 if (error) setError(null);
               }}
               placeholder="e.g. My First Visual Novel"
               className="mt-1 w-full rounded border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-100 placeholder-neutral-500 focus:border-neutral-400 focus:outline-none"
             />
-            {error && (!presetIsResolutionError) && (
+            {error && !presetIsResolutionError && (
               <p data-testid="error-project-name" className="mt-1 text-xs text-red-400">
                 {error}
               </p>
@@ -190,7 +201,7 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
                     type="number"
                     data-testid="input-project-width"
                     value={width}
-                    onChange={(e) => {
+                    onChange={e => {
                       setWidth(e.target.value);
                       if (error) setError(null);
                     }}
@@ -203,7 +214,7 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
                     type="number"
                     data-testid="input-project-height"
                     value={height}
-                    onChange={(e) => {
+                    onChange={e => {
                       setHeight(e.target.value);
                       if (error) setError(null);
                     }}
@@ -227,7 +238,7 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
               data-testid="input-project-desc"
               rows={3}
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={e => setDescription(e.target.value)}
               placeholder="Brief summary or premise of your project..."
               className="mt-1 w-full rounded border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-100 placeholder-neutral-500 focus:border-neutral-400 focus:outline-none"
             />

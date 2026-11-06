@@ -2,10 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { Instruction } from '@vn-engine/shared-types';
 import type { CatchUpVisualState } from '@vn-engine/renderer';
 import { VNRuntimeKernel } from '../src/core/VNRuntimeKernel';
-import type {
-  KernelAdapters,
-  SaveSlotData,
-} from '../src/core/contracts';
+import type { KernelAdapters, SaveSlotData } from '../src/core/contracts';
 import { PreviewBridgeAdapter } from '../src/adapters/PreviewBridgeAdapter';
 
 describe('End-to-End CUJ Lifecycle Flow (TASK-PLAYER-REBUILD-SPEC §1.3)', () => {
@@ -119,7 +116,12 @@ describe('End-to-End CUJ Lifecycle Flow (TASK-PLAYER-REBUILD-SPEC §1.3)', () =>
       expect.objectContaining({ type: 'BACKGROUND', assetId: 'bg_room' }),
     );
     expect(mockRenderer.applySideEffect).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'SHOW', character: 'alice', sprite: 'neutral', position: 'center' }),
+      expect.objectContaining({
+        type: 'SHOW',
+        character: 'alice',
+        sprite: 'neutral',
+        position: 'center',
+      }),
     );
     expect(mockAudio.applySideEffect).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'PLAY', channel: 'voice', assetId: 'alice_v01' }),
@@ -157,7 +159,12 @@ describe('End-to-End CUJ Lifecycle Flow (TASK-PLAYER-REBUILD-SPEC §1.3)', () =>
 
     // Side effects dispatched for line 2
     expect(mockRenderer.applySideEffect).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'SHOW', character: 'alice', sprite: 'happy', position: 'center' }),
+      expect.objectContaining({
+        type: 'SHOW',
+        character: 'alice',
+        sprite: 'happy',
+        position: 'center',
+      }),
     );
     expect(mockAudio.applySideEffect).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'PLAY', channel: 'voice', assetId: 'alice_v02' }),
@@ -227,7 +234,7 @@ describe('End-to-End CUJ Lifecycle Flow (TASK-PLAYER-REBUILD-SPEC §1.3)', () =>
     });
 
     await kernel.startNewGame(); // line 1: neutral, "Hello, welcome to TaleForge!"
-    await kernel.advance();      // line 2: happy, "How are you feeling today?"
+    await kernel.advance(); // line 2: happy, "How are you feeling today?"
 
     expect(kernel.getState().dialogue.rawText).toBe('How are you feeling today?');
 
@@ -301,7 +308,7 @@ describe('End-to-End CUJ Lifecycle Flow (TASK-PLAYER-REBUILD-SPEC §1.3)', () =>
       },
     } as MessageEvent);
 
-    await vi.runAllTimersAsync?.() ?? new Promise(r => setTimeout(r, 10));
+    (await vi.runAllTimersAsync?.()) ?? new Promise(r => setTimeout(r, 10));
 
     const state = standbyKernel.getState();
     expect(state.mode).toBe('GAMEPLAY');

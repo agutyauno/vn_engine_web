@@ -1,5 +1,9 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { ProjectRepository, ProjectSummary, CreateProjectParams } from '../../core/contracts/repository';
+import {
+  ProjectRepository,
+  ProjectSummary,
+  CreateProjectParams,
+} from '../../core/contracts/repository';
 import { PlusIcon, SearchIcon, FolderIcon } from '../common/Icons';
 import { ProjectCard } from './ProjectCard';
 import { NewProjectModal } from './NewProjectModal';
@@ -60,7 +64,10 @@ export const ProjectHubView: React.FC<ProjectHubViewProps> = ({ repository, onOp
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [storageUsage, setStorageUsage] = useState<{ usedBytes: number; quotaBytes?: number } | null>(null);
+  const [storageUsage, setStorageUsage] = useState<{
+    usedBytes: number;
+    quotaBytes?: number;
+  } | null>(null);
 
   // Modals state
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
@@ -89,7 +96,7 @@ export const ProjectHubView: React.FC<ProjectHubViewProps> = ({ repository, onOp
   };
 
   const handleDuplicateProject = async (id: string) => {
-    const original = projects.find((p) => p.id === id);
+    const original = projects.find(p => p.id === id);
     const newTitle = original ? `Copy of ${original.title}` : 'Copy of Project';
     await repository.duplicateProject(id, newTitle);
     await loadProjects();
@@ -106,9 +113,9 @@ export const ProjectHubView: React.FC<ProjectHubViewProps> = ({ repository, onOp
     if (!searchQuery.trim()) return projects;
     const query = searchQuery.toLowerCase();
     return projects.filter(
-      (p) =>
+      p =>
         p.title.toLowerCase().includes(query) ||
-        (p.description && p.description.toLowerCase().includes(query))
+        (p.description && p.description.toLowerCase().includes(query)),
     );
   }, [projects, searchQuery]);
 
@@ -121,7 +128,10 @@ export const ProjectHubView: React.FC<ProjectHubViewProps> = ({ repository, onOp
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col">
       {/* Top Navigation Bar */}
-      <header id="hub-header" className="border-b border-neutral-800 bg-neutral-900/90 px-8 py-4 backdrop-blur">
+      <header
+        id="hub-header"
+        className="border-b border-neutral-800 bg-neutral-900/90 px-8 py-4 backdrop-blur"
+      >
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded border border-neutral-700 bg-neutral-800 text-white font-bold">
@@ -134,26 +144,27 @@ export const ProjectHubView: React.FC<ProjectHubViewProps> = ({ repository, onOp
           </div>
 
           <div className="flex items-center gap-4">
-            {storageUsage && (() => {
-              const quota = getQuotaBadgeInfo(storageUsage.usedBytes, storageUsage.quotaBytes);
-              return (
-                <div
-                  id="hub-quota-badge"
-                  data-testid="hub-quota-badge"
-                  data-status={quota.status}
-                  data-color={quota.color}
-                  className={`hidden sm:inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${quota.badgeClass}`}
-                >
-                  <span className="font-semibold">{quota.text}</span>
-                  <span className="font-mono text-neutral-300">
-                    {formatBytes(storageUsage.usedBytes)}
-                    {storageUsage.quotaBytes && storageUsage.quotaBytes > 0
-                      ? ` / ${formatBytes(storageUsage.quotaBytes)} (${Math.round(quota.percentage)}%)`
-                      : ''}
-                  </span>
-                </div>
-              );
-            })()}
+            {storageUsage &&
+              (() => {
+                const quota = getQuotaBadgeInfo(storageUsage.usedBytes, storageUsage.quotaBytes);
+                return (
+                  <div
+                    id="hub-quota-badge"
+                    data-testid="hub-quota-badge"
+                    data-status={quota.status}
+                    data-color={quota.color}
+                    className={`hidden sm:inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${quota.badgeClass}`}
+                  >
+                    <span className="font-semibold">{quota.text}</span>
+                    <span className="font-mono text-neutral-300">
+                      {formatBytes(storageUsage.usedBytes)}
+                      {storageUsage.quotaBytes && storageUsage.quotaBytes > 0
+                        ? ` / ${formatBytes(storageUsage.quotaBytes)} (${Math.round(quota.percentage)}%)`
+                        : ''}
+                    </span>
+                  </div>
+                );
+              })()}
             <button
               type="button"
               id="btn-new-project"
@@ -182,14 +193,15 @@ export const ProjectHubView: React.FC<ProjectHubViewProps> = ({ repository, onOp
               id="hub-search-input"
               data-testid="input-project-search"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={e => setSearchQuery(e.target.value)}
               placeholder="Search projects by name or description..."
               className="w-full rounded border border-neutral-800 bg-neutral-900 py-2 pl-9 pr-4 text-sm text-neutral-200 placeholder-neutral-500 focus:border-neutral-500 focus:outline-none"
             />
           </div>
 
           <div className="text-xs text-neutral-400">
-            Showing <span className="font-semibold text-neutral-200">{filteredProjects.length}</span> of{' '}
+            Showing{' '}
+            <span className="font-semibold text-neutral-200">{filteredProjects.length}</span> of{' '}
             <span className="font-semibold text-neutral-200">{projects.length}</span> projects
           </div>
         </div>
@@ -227,14 +239,14 @@ export const ProjectHubView: React.FC<ProjectHubViewProps> = ({ repository, onOp
             data-testid="projects-grid"
             className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3"
           >
-            {filteredProjects.map((p) => (
+            {filteredProjects.map(p => (
               <ProjectCard
                 key={p.id}
                 project={p}
                 onOpen={onOpenProject}
                 onDuplicate={handleDuplicateProject}
-                onDelete={(id) => {
-                  const target = projects.find((item) => item.id === id);
+                onDelete={id => {
+                  const target = projects.find(item => item.id === id);
                   if (target) setProjectToDelete(target);
                 }}
               />

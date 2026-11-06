@@ -267,11 +267,10 @@ describe('Shortcuts & Navigation Hooks (Phase 4 TDD)', () => {
     });
 
     it('contains no colored emojis (Rule 8 compliance)', () => {
-      const { container } = render(
-        <ShortcutsHelpModal isOpen={true} onClose={vi.fn()} />
-      );
+      const { container } = render(<ShortcutsHelpModal isOpen={true} onClose={vi.fn()} />);
 
-      const emojiRegex = /[\u{1F300}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F900}-\u{1F9FF}\u{1F1E0}-\u{1F1FF}]/u;
+      const emojiRegex =
+        /[\u{1F300}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F900}-\u{1F9FF}\u{1F1E0}-\u{1F1FF}]/u;
       const text = container.textContent || '';
       expect(emojiRegex.test(text)).toBe(false);
     });

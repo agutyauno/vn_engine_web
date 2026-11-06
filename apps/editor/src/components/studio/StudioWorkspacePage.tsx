@@ -2,10 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import type { AssetRef, AssetCategory, Character, Project } from '@vn-engine/shared-types';
 import type { ProjectRepository } from '../../core/contracts/repository';
 import { ActivityBar, type StudioTab } from './ActivityBar';
-import {
-  FileExplorerPane,
-  generateDefaultScriptName,
-} from './FileExplorerPane';
+import { FileExplorerPane, generateDefaultScriptName } from './FileExplorerPane';
 import { StudioHeader } from './StudioHeader';
 import { CharacterManagerPane } from '../characters/CharacterManagerPane';
 import { CharacterModal } from '../characters/CharacterModal';
@@ -27,7 +24,10 @@ import { useCompilerPipeline } from '../../hooks/useCompilerPipeline';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { CompilerService } from '../../core/services/compilerService';
 import { PreviewBridge, buildPreviewUrl } from '../../core/services/previewBridge';
-import { scanActiveReconciliation, type EditorDiagnostic } from '../../core/services/reconciliation';
+import {
+  scanActiveReconciliation,
+  type EditorDiagnostic,
+} from '../../core/services/reconciliation';
 
 export interface StudioWorkspacePageProps {
   projectId: string;
@@ -53,55 +53,55 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
   onExport,
 }) => {
   // --- Project Store Hook Injection ---
-  const project = useProjectStore((s) => s.project);
-  const isDirty = useProjectStore((s) => s.isDirty);
-  const isSaving = useProjectStore((s) => s.isSaving);
-  const dirtyFileIds = useProjectStore((s) => s.dirtyFileIds);
-  const setProject = useProjectStore((s) => s.setProject);
-  const updateFileContent = useProjectStore((s) => s.updateFileContent);
-  const saveProject = useProjectStore((s) => s.saveProject);
-  const updateProjectMetadata = useProjectStore((s) => s.updateProjectMetadata);
-  const createFile = useProjectStore((s) => s.createFile);
-  const renameFile = useProjectStore((s) => s.renameFile);
-  const deleteFile = useProjectStore((s) => s.deleteFile);
-  const saveCharacter = useProjectStore((s) => s.saveCharacter);
-  const deleteCharacter = useProjectStore((s) => s.deleteCharacter);
-  const saveAsset = useProjectStore((s) => s.saveAsset);
-  const deleteAsset = useProjectStore((s) => s.deleteAsset);
+  const project = useProjectStore(s => s.project);
+  const isDirty = useProjectStore(s => s.isDirty);
+  const isSaving = useProjectStore(s => s.isSaving);
+  const dirtyFileIds = useProjectStore(s => s.dirtyFileIds);
+  const setProject = useProjectStore(s => s.setProject);
+  const updateFileContent = useProjectStore(s => s.updateFileContent);
+  const saveProject = useProjectStore(s => s.saveProject);
+  const updateProjectMetadata = useProjectStore(s => s.updateProjectMetadata);
+  const createFile = useProjectStore(s => s.createFile);
+  const renameFile = useProjectStore(s => s.renameFile);
+  const deleteFile = useProjectStore(s => s.deleteFile);
+  const saveCharacter = useProjectStore(s => s.saveCharacter);
+  const deleteCharacter = useProjectStore(s => s.deleteCharacter);
+  const saveAsset = useProjectStore(s => s.saveAsset);
+  const deleteAsset = useProjectStore(s => s.deleteAsset);
 
   // --- UI Store Hook Injection ---
-  const navWidth = useEditorUIStore((s) => s.navWidth);
-  const drawerHeight = useEditorUIStore((s) => s.drawerHeight);
-  const setNavWidth = useEditorUIStore((s) => s.setNavWidth);
-  const setDrawerHeight = useEditorUIStore((s) => s.setDrawerHeight);
+  const navWidth = useEditorUIStore(s => s.navWidth);
+  const drawerHeight = useEditorUIStore(s => s.drawerHeight);
+  const setNavWidth = useEditorUIStore(s => s.setNavWidth);
+  const setDrawerHeight = useEditorUIStore(s => s.setDrawerHeight);
 
-  const activeTab = useEditorUIStore((s) => s.activeTab);
-  const setActiveTab = useEditorUIStore((s) => s.setActiveTab);
-  const activeFileId = useEditorUIStore((s) => s.activeFileId);
-  const openFileIds = useEditorUIStore((s) => s.openFileIds);
-  const selectTab = useEditorUIStore((s) => s.selectTab);
-  const isDrawerOpen = useEditorUIStore((s) => s.isDrawerOpen);
-  const toggleDrawer = useEditorUIStore((s) => s.toggleDrawer);
-  const cursorJumpTarget = useEditorUIStore((s) => s.cursorJumpTarget);
-  const setCursorJumpTarget = useEditorUIStore((s) => s.setCursorJumpTarget);
+  const activeTab = useEditorUIStore(s => s.activeTab);
+  const setActiveTab = useEditorUIStore(s => s.setActiveTab);
+  const activeFileId = useEditorUIStore(s => s.activeFileId);
+  const openFileIds = useEditorUIStore(s => s.openFileIds);
+  const selectTab = useEditorUIStore(s => s.selectTab);
+  const isDrawerOpen = useEditorUIStore(s => s.isDrawerOpen);
+  const toggleDrawer = useEditorUIStore(s => s.toggleDrawer);
+  const cursorJumpTarget = useEditorUIStore(s => s.cursorJumpTarget);
+  const setCursorJumpTarget = useEditorUIStore(s => s.setCursorJumpTarget);
 
-  const isSettingsOpen = useEditorUIStore((s) => s.isSettingsOpen);
-  const setSettingsOpen = useEditorUIStore((s) => s.setSettingsOpen);
-  const isShortcutsOpen = useEditorUIStore((s) => s.isShortcutsOpen);
-  const setShortcutsOpen = useEditorUIStore((s) => s.setShortcutsOpen);
-  const isUnsavedModalOpen = useEditorUIStore((s) => s.isUnsavedModalOpen);
-  const triggerUnsavedGuard = useEditorUIStore((s) => s.triggerUnsavedGuard);
-  const resolveUnsavedGuard = useEditorUIStore((s) => s.resolveUnsavedGuard);
+  const isSettingsOpen = useEditorUIStore(s => s.isSettingsOpen);
+  const setSettingsOpen = useEditorUIStore(s => s.setSettingsOpen);
+  const isShortcutsOpen = useEditorUIStore(s => s.isShortcutsOpen);
+  const setShortcutsOpen = useEditorUIStore(s => s.setShortcutsOpen);
+  const isUnsavedModalOpen = useEditorUIStore(s => s.isUnsavedModalOpen);
+  const triggerUnsavedGuard = useEditorUIStore(s => s.triggerUnsavedGuard);
+  const resolveUnsavedGuard = useEditorUIStore(s => s.resolveUnsavedGuard);
 
   // --- Diagnostics Store Hook Injection ---
-  const compilerDiagnostics = useDiagnosticsStore((s) => s.compilerDiagnostics);
-  const runtimeDiagnostics = useDiagnosticsStore((s) => s.runtimeDiagnostics);
-  const reconciliationDiagnostics = useDiagnosticsStore((s) => s.reconciliationDiagnostics);
-  const errorCount = useDiagnosticsStore((s) => s.errorCount);
-  const warningCount = useDiagnosticsStore((s) => s.warningCount);
+  const compilerDiagnostics = useDiagnosticsStore(s => s.compilerDiagnostics);
+  const runtimeDiagnostics = useDiagnosticsStore(s => s.runtimeDiagnostics);
+  const reconciliationDiagnostics = useDiagnosticsStore(s => s.reconciliationDiagnostics);
+  const errorCount = useDiagnosticsStore(s => s.errorCount);
+  const warningCount = useDiagnosticsStore(s => s.warningCount);
 
   // --- Live Preview Store Hook Injection ---
-  const setIsPlaying = usePreviewStore((s) => s.setIsPlaying);
+  const setIsPlaying = usePreviewStore(s => s.setIsPlaying);
 
   const currentProject = project ?? initialProject ?? null;
 
@@ -134,7 +134,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
           }
           if (typeof document !== 'undefined') {
             const iframe = document.querySelector<HTMLIFrameElement>(
-              'iframe[data-testid="preview-player-iframe"]'
+              'iframe[data-testid="preview-player-iframe"]',
             );
             if (iframe?.contentWindow) return iframe.contentWindow;
           }
@@ -156,7 +156,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
           return null;
         },
       }),
-    [repository]
+    [repository],
   );
 
   useEffect(() => {
@@ -186,7 +186,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
   const handleCloseTab = useCallback((fileId: string) => {
     const open = useEditorUIStore.getState().openFileIds;
     const index = open.indexOf(fileId);
-    const nextOpen = open.filter((id) => id !== fileId);
+    const nextOpen = open.filter(id => id !== fileId);
     let nextActive = useEditorUIStore.getState().activeFileId;
     if (nextActive === fileId) {
       nextActive = nextOpen[index] || nextOpen[index - 1] || nextOpen[0] || null;
@@ -231,7 +231,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
           popoutWindowRef.current = window.open(
             url,
             'VN_Preview_Popout',
-            'width=1280,height=720,menubar=no,toolbar=no,location=no,status=no'
+            'width=1280,height=720,menubar=no,toolbar=no,location=no,status=no',
           );
         } else {
           popoutWindowRef.current?.focus?.();
@@ -268,7 +268,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
         });
       }
     },
-    [currentProject, compilerService, previewBridge, setIsPlaying]
+    [currentProject, compilerService, previewBridge, setIsPlaying],
   );
 
   const handleQuickPlayAction = useCallback(() => {
@@ -311,7 +311,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
       useProjectStore.getState().initProject(initialProject, repository);
       if (initialProject.files && initialProject.files.length > 0) {
         useEditorUIStore.setState({
-          openFileIds: initialProject.files.map((f) => f.id),
+          openFileIds: initialProject.files.map(f => f.id),
           activeFileId: initialProject.files[0]?.id ?? null,
           isDrawerOpen: true,
         });
@@ -331,7 +331,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
           useProjectStore.getState().initProject(loaded, repository);
           if (loaded.files && loaded.files.length > 0) {
             useEditorUIStore.setState({
-              openFileIds: loaded.files.map((f) => f.id),
+              openFileIds: loaded.files.map(f => f.id),
               activeFileId: loaded.files[0]?.id ?? null,
               isDrawerOpen: true,
             });
@@ -399,7 +399,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
         console.error('Failed to update project title:', err);
       }
     },
-    [project, updateProjectMetadata, saveProject, repository]
+    [project, updateProjectMetadata, saveProject, repository],
   );
 
   // Tab Selection
@@ -407,7 +407,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
     (fileId: string) => {
       selectTab(fileId);
     },
-    [selectTab]
+    [selectTab],
   );
 
   // File Creation
@@ -427,7 +427,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
         console.error('Failed to create script file:', err);
       }
     },
-    [createFile, selectTab, saveProject, repository]
+    [createFile, selectTab, saveProject, repository],
   );
 
   // File Renaming
@@ -440,7 +440,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
         console.error('Failed to rename script file:', err);
       }
     },
-    [renameFile, saveProject, repository]
+    [renameFile, saveProject, repository],
   );
 
   // File Deletion
@@ -454,7 +454,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
         console.error('Failed to delete script file:', err);
       }
     },
-    [deleteFile, handleCloseTab, saveProject, repository]
+    [deleteFile, handleCloseTab, saveProject, repository],
   );
 
   // Set Entry Scene
@@ -467,7 +467,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
         console.error('Failed to update entry scene:', err);
       }
     },
-    [updateProjectMetadata, saveProject, repository]
+    [updateProjectMetadata, saveProject, repository],
   );
 
   // Script Content Editing
@@ -480,7 +480,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
       if (!fileId) return;
       updateFileContent(fileId, newContent);
     },
-    [activeFileId, updateFileContent]
+    [activeFileId, updateFileContent],
   );
 
   // Character Management Handlers
@@ -494,7 +494,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
             sprites: {},
             defaultExpression: 'default',
           }
-        : null
+        : null,
     );
     setIsCharModalOpen(true);
   }, []);
@@ -515,7 +515,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
         console.error('Failed to persist character:', err);
       }
     },
-    [saveCharacter, saveProject, repository]
+    [saveCharacter, saveProject, repository],
   );
 
   const handleDeleteCharacter = useCallback(
@@ -527,7 +527,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
         console.error('Failed to delete character:', err);
       }
     },
-    [deleteCharacter, saveProject, repository]
+    [deleteCharacter, saveProject, repository],
   );
 
   // Asset Management Handlers
@@ -541,13 +541,13 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
         console.error('Failed to persist asset:', err);
       }
     },
-    [saveAsset, saveProject, repository]
+    [saveAsset, saveProject, repository],
   );
 
   const handleReplaceAsset = useCallback(
     async (assetId: string, newBlob: Blob, newFileName?: string) => {
       const current = useProjectStore.getState().project;
-      const existing = current?.assets.find((a) => a.id === assetId);
+      const existing = current?.assets.find(a => a.id === assetId);
       if (!existing) return;
 
       const updatedAsset: AssetRef = {
@@ -564,7 +564,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
         console.error('Failed to replace asset:', err);
       }
     },
-    [saveAsset, saveProject, repository]
+    [saveAsset, saveProject, repository],
   );
 
   const handleDeleteAsset = useCallback(
@@ -576,16 +576,12 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
         console.error('Failed to delete asset:', err);
       }
     },
-    [deleteAsset, saveProject, repository]
+    [deleteAsset, saveProject, repository],
   );
 
   // Diagnostic Click & QuickFix
   const allDiagnostics = useMemo<DiagnosticItem[]>(() => {
-    return [
-      ...compilerDiagnostics,
-      ...reconciliationDiagnostics,
-      ...runtimeDiagnostics,
-    ];
+    return [...compilerDiagnostics, ...reconciliationDiagnostics, ...runtimeDiagnostics];
   }, [compilerDiagnostics, reconciliationDiagnostics, runtimeDiagnostics]);
 
   const handleDiagnosticClick = useCallback(
@@ -593,7 +589,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
       let targetFileId = (diag as EditorDiagnostic).fileId;
       const fileName = (diag as EditorDiagnostic).fileName;
       if (!targetFileId && fileName && project) {
-        const match = project.files.find((f) => f.name === fileName);
+        const match = project.files.find(f => f.name === fileName);
         if (match) targetFileId = match.id;
       }
       if (targetFileId) {
@@ -603,7 +599,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
         setCursorJumpTarget({ line: diag.line, col: diag.col || 1 });
       }
     },
-    [project, handleSelectTab, setCursorJumpTarget]
+    [project, handleSelectTab, setCursorJumpTarget],
   );
 
   const handleQuickFix = useCallback(
@@ -619,7 +615,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
         handleOpenCreateCharacter(editorDiag.quickFix.targetId);
       }
     },
-    [setActiveTab, handleOpenCreateCharacter]
+    [setActiveTab, handleOpenCreateCharacter],
   );
 
   // Settings & Export Handlers
@@ -638,7 +634,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
         console.error('Failed to update project settings:', err);
       }
     },
-    [setSettingsOpen, setProject, repository]
+    [setSettingsOpen, setProject, repository],
   );
 
   const handleOpenExportModal = useCallback(() => {
@@ -663,7 +659,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
       }
       setIsExportOpen(false);
     },
-    [project]
+    [project],
   );
 
   const uncreatedCharacterIds = useMemo(() => {
@@ -708,7 +704,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
     useEditorUIStore.getState().activeFileId ||
     (currentProject?.files && currentProject.files[0]?.id) ||
     null;
-  const activeFile = (currentProject?.files || []).find((f) => f.id === currentActiveFileId) ?? null;
+  const activeFile = (currentProject?.files || []).find(f => f.id === currentActiveFileId) ?? null;
   const canvasWidth = currentProject?.displaySettings?.width ?? 1920;
   const canvasHeight = currentProject?.displaySettings?.height ?? 1080;
   const memoizedDirtyFileIds = new Set(dirtyFileIds);
@@ -798,7 +794,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
           {activeTab !== null && (
             <ColumnSplitter
               type="nav"
-              onResize={(delta) => setNavWidth(navWidth + delta)}
+              onResize={delta => setNavWidth(navWidth + delta)}
               onReset={() => setNavWidth(260)}
             />
           )}
@@ -811,14 +807,16 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
             {/* Header Tab Bar */}
             <EditorTabBar
               files={currentProject.files || []}
-              openFileIds={openFileIds.length > 0 ? openFileIds : (currentProject.files || []).map((f) => f.id)}
+              openFileIds={
+                openFileIds.length > 0 ? openFileIds : (currentProject.files || []).map(f => f.id)
+              }
               activeFileId={currentActiveFileId || ''}
               dirtyFileIds={memoizedDirtyFileIds}
               onSelectTab={handleSelectTab}
               onCloseTab={handleCloseTab}
               onNewFile={() =>
                 handleCreateFile(
-                  generateDefaultScriptName((currentProject.files || []).map((f) => f.name))
+                  generateDefaultScriptName((currentProject.files || []).map(f => f.name)),
                 )
               }
             />
@@ -829,13 +827,13 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
               project={currentProject}
               cursorJumpTarget={cursorJumpTarget}
               onChange={handleContentChange}
-              onCursorChange={(line) => setCurrentCursorLine(line)}
+              onCursorChange={line => setCurrentCursorLine(line)}
             />
 
             {/* Resizable Drawer Splitter */}
             <ColumnSplitter
               type="drawer"
-              onResize={(delta) => setDrawerHeight(drawerHeight + delta)}
+              onResize={delta => setDrawerHeight(drawerHeight + delta)}
               onReset={() => setDrawerHeight(200)}
             />
 
@@ -864,8 +862,8 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
           isOpen={isCharModalOpen}
           initialData={editingCharacter}
           existingIds={(currentProject.characters || [])
-            .filter((c) => !editingCharacter || c.id !== editingCharacter.id)
-            .map((c) => c.id)}
+            .filter(c => !editingCharacter || c.id !== editingCharacter.id)
+            .map(c => c.id)}
           onClose={() => {
             setIsCharModalOpen(false);
             setEditingCharacter(null);
@@ -903,10 +901,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
       />
 
       {/* Shortcuts Help Modal Dialog */}
-      <ShortcutsHelpModal
-        isOpen={isShortcutsOpen}
-        onClose={() => setShortcutsOpen(false)}
-      />
+      <ShortcutsHelpModal isOpen={isShortcutsOpen} onClose={() => setShortcutsOpen(false)} />
     </div>
   );
 };

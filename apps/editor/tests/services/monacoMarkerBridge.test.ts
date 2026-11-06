@@ -141,9 +141,15 @@ describe('monacoMarkerBridge (Phase 2)', () => {
 
     const markers = mockMonaco.editor.setModelMarkers.mock.calls[0]![2];
     expect(markers.length).toBe(2);
-    expect(markers.some((m: monaco.editor.IMarkerData) => m.message === 'Error in current file')).toBe(true);
-    expect(markers.some((m: monaco.editor.IMarkerData) => m.message === 'Global warning without fileId')).toBe(true);
-    expect(markers.some((m: monaco.editor.IMarkerData) => m.message === 'Error in other chapter')).toBe(false);
+    expect(
+      markers.some((m: monaco.editor.IMarkerData) => m.message === 'Error in current file'),
+    ).toBe(true);
+    expect(
+      markers.some((m: monaco.editor.IMarkerData) => m.message === 'Global warning without fileId'),
+    ).toBe(true);
+    expect(
+      markers.some((m: monaco.editor.IMarkerData) => m.message === 'Error in other chapter'),
+    ).toBe(false);
   });
 
   it('clamps coordinates to valid model line lengths via getLineMaxColumn', () => {
@@ -185,8 +191,7 @@ describe('monacoMarkerBridge (Phase 2)', () => {
     expect(mockMonaco.editor.setModelMarkers).toHaveBeenCalledWith(
       mockModel,
       expect.any(String),
-      []
+      [],
     );
   });
 });
-

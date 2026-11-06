@@ -105,5 +105,3 @@ export interface EngineDiagnosticMessage {
 export interface DiagnosticsClearMessage {
   type: 'DIAGNOSTICS_CLEAR';
 }
-
-

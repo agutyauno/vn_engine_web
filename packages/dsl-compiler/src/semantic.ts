@@ -258,11 +258,7 @@ export function validateSemantics(ast: ProgramAST, options?: SemanticOptions): C
   const errors: CompileError[] = [];
   const definedSceneNames = new Set<string>();
   const registeredAssetIds = options?.assets
-    ? new Set(
-        options.assets
-          .flatMap((a) => [a.id, a.name])
-          .filter((x): x is string => Boolean(x)),
-      )
+    ? new Set(options.assets.flatMap(a => [a.id, a.name]).filter((x): x is string => Boolean(x)))
     : null;
 
   // 1. Kiểm tra biến Global ở top-level

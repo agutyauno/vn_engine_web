@@ -1,10 +1,5 @@
 import { Compiler } from '@vn-engine/dsl-compiler';
-import type {
-  ScriptFile,
-  Character,
-  Instruction,
-  EngineDiagnostic,
-} from '@vn-engine/shared-types';
+import type { ScriptFile, Character, Instruction, EngineDiagnostic } from '@vn-engine/shared-types';
 
 export interface CompilerWorkerRequest {
   requestId: number;
@@ -81,4 +76,3 @@ self.onmessage = (event: MessageEvent<CompilerWorkerRequest>) => {
     self.postMessage(response);
   }
 };
-

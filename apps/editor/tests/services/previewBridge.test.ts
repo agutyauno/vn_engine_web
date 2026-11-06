@@ -76,15 +76,12 @@ describe('PreviewBridge (Phase 3 Two-Way Live Preview Bus)', () => {
       expect(isAllowedPreviewOrigin('http://localhost:3000', TEST_PREVIEW_ORIGIN)).toBe(true);
       expect(isAllowedPreviewOrigin('http://127.0.0.1:3000', TEST_PREVIEW_ORIGIN)).toBe(true);
       expect(
-        isAllowedPreviewOrigin(
-          'https://tenant-1.usercontent-platform.com',
-          TEST_PREVIEW_ORIGIN
-        )
+        isAllowedPreviewOrigin('https://tenant-1.usercontent-platform.com', TEST_PREVIEW_ORIGIN),
       ).toBe(true);
       expect(isAllowedPreviewOrigin(TEST_PREVIEW_ORIGIN, TEST_PREVIEW_ORIGIN)).toBe(true);
-      expect(isAllowedPreviewOrigin(TEST_LOCAL_ORIGIN, TEST_PREVIEW_ORIGIN, TEST_LOCAL_ORIGIN)).toBe(
-        true
-      );
+      expect(
+        isAllowedPreviewOrigin(TEST_LOCAL_ORIGIN, TEST_PREVIEW_ORIGIN, TEST_LOCAL_ORIGIN),
+      ).toBe(true);
     });
 
     it('TC-SEC-02: rejects and ignores messages from unauthorized or malicious origins', async () => {
@@ -129,7 +126,7 @@ describe('PreviewBridge (Phase 3 Two-Way Live Preview Bus)', () => {
 
       expect(mockTargetWindow.postMessage).toHaveBeenCalledWith(
         { type: 'QUERY_READY' },
-        TEST_PREVIEW_ORIGIN
+        TEST_PREVIEW_ORIGIN,
       );
     });
 
@@ -147,7 +144,7 @@ describe('PreviewBridge (Phase 3 Two-Way Live Preview Bus)', () => {
       expect(usePreviewStore.getState().connectionStatus).toBe('connected');
       expect(mockTargetWindow.postMessage).toHaveBeenCalledWith(
         { type: 'PLAYER_READY_ACK' },
-        TEST_PREVIEW_ORIGIN
+        TEST_PREVIEW_ORIGIN,
       );
     });
 
@@ -166,7 +163,7 @@ describe('PreviewBridge (Phase 3 Two-Way Live Preview Bus)', () => {
       activeBridge.probeReady();
       expect(mockTargetWindow.postMessage).toHaveBeenLastCalledWith(
         { type: 'QUERY_READY' },
-        TEST_PREVIEW_ORIGIN
+        TEST_PREVIEW_ORIGIN,
       );
     });
   });
@@ -227,7 +224,7 @@ describe('PreviewBridge (Phase 3 Two-Way Live Preview Bus)', () => {
       // Verify handshake ACK
       expect(mockTargetWindow.postMessage).toHaveBeenCalledWith(
         { type: 'PLAYER_READY_ACK' },
-        TEST_PREVIEW_ORIGIN
+        TEST_PREVIEW_ORIGIN,
       );
 
       // Verify hot reload program flush
@@ -236,7 +233,7 @@ describe('PreviewBridge (Phase 3 Two-Way Live Preview Bus)', () => {
           type: 'HOT_RELOAD_PROGRAM',
           payload: samplePayload1,
         },
-        TEST_PREVIEW_ORIGIN
+        TEST_PREVIEW_ORIGIN,
       );
 
       // Verify variable override flushes
@@ -246,7 +243,7 @@ describe('PreviewBridge (Phase 3 Two-Way Live Preview Bus)', () => {
           name: 'gold',
           value: 250,
         },
-        TEST_PREVIEW_ORIGIN
+        TEST_PREVIEW_ORIGIN,
       );
       expect(mockTargetWindow.postMessage).toHaveBeenCalledWith(
         {
@@ -254,7 +251,7 @@ describe('PreviewBridge (Phase 3 Two-Way Live Preview Bus)', () => {
           name: 'heroName',
           value: 'Alice',
         },
-        TEST_PREVIEW_ORIGIN
+        TEST_PREVIEW_ORIGIN,
       );
 
       // State stores must be cleanly cleared
@@ -274,7 +271,7 @@ describe('PreviewBridge (Phase 3 Two-Way Live Preview Bus)', () => {
           type: 'HOT_RELOAD_PROGRAM',
           payload: samplePayload1,
         },
-        TEST_PREVIEW_ORIGIN
+        TEST_PREVIEW_ORIGIN,
       );
       expect(usePreviewStore.getState().pendingProgram).toBeNull();
 
@@ -286,7 +283,7 @@ describe('PreviewBridge (Phase 3 Two-Way Live Preview Bus)', () => {
           name: 'stamina',
           value: 80,
         },
-        TEST_PREVIEW_ORIGIN
+        TEST_PREVIEW_ORIGIN,
       );
       expect(usePreviewStore.getState().pendingVariableOverrides).toEqual({});
     });
@@ -310,14 +307,14 @@ describe('PreviewBridge (Phase 3 Two-Way Live Preview Bus)', () => {
 
       expect(mockSourceWindow.postMessage).toHaveBeenCalledWith(
         { type: 'PLAYER_READY_ACK' },
-        TEST_PREVIEW_ORIGIN
+        TEST_PREVIEW_ORIGIN,
       );
       expect(mockSourceWindow.postMessage).toHaveBeenCalledWith(
         {
           type: 'HOT_RELOAD_PROGRAM',
           payload: samplePayload1,
         },
-        TEST_PREVIEW_ORIGIN
+        TEST_PREVIEW_ORIGIN,
       );
       expect(usePreviewStore.getState().pendingProgram).toBeNull();
     });
@@ -345,7 +342,7 @@ describe('PreviewBridge (Phase 3 Two-Way Live Preview Bus)', () => {
           type: 'HOT_RELOAD_PROGRAM',
           payload: samplePayload2,
         },
-        TEST_PREVIEW_ORIGIN
+        TEST_PREVIEW_ORIGIN,
       );
     });
   });
@@ -386,7 +383,7 @@ describe('PreviewBridge (Phase 3 Two-Way Live Preview Bus)', () => {
           buffer: arrayBuffer,
         },
         TEST_PREVIEW_ORIGIN,
-        [arrayBuffer]
+        [arrayBuffer],
       );
     });
 
@@ -414,7 +411,7 @@ describe('PreviewBridge (Phase 3 Two-Way Live Preview Bus)', () => {
           requestId: 'req-404',
           error: 'NOT_FOUND',
         },
-        TEST_PREVIEW_ORIGIN
+        TEST_PREVIEW_ORIGIN,
       );
     });
   });
@@ -502,4 +499,3 @@ describe('PreviewBridge (Phase 3 Two-Way Live Preview Bus)', () => {
     });
   });
 });
-

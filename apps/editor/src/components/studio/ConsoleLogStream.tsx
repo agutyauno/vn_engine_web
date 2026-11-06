@@ -13,10 +13,7 @@ export interface ConsoleLogStreamProps {
   onClearLogs: () => void;
 }
 
-export const ConsoleLogStream: React.FC<ConsoleLogStreamProps> = ({
-  logs,
-  onClearLogs,
-}) => {
+export const ConsoleLogStream: React.FC<ConsoleLogStreamProps> = ({ logs, onClearLogs }) => {
   const formatTime = (ts: number): string => {
     try {
       const d = new Date(ts);
@@ -27,7 +24,10 @@ export const ConsoleLogStream: React.FC<ConsoleLogStreamProps> = ({
   };
 
   return (
-    <div data-testid="console-log-stream" className="flex h-full flex-col font-mono text-xs select-none">
+    <div
+      data-testid="console-log-stream"
+      className="flex h-full flex-col font-mono text-xs select-none"
+    >
       {/* Console Top Bar */}
       <div className="flex h-7 items-center justify-between border-b border-neutral-800 px-3 bg-neutral-900/40">
         <div className="flex items-center gap-1.5 text-neutral-400 text-[10px] uppercase font-semibold">
@@ -62,10 +62,10 @@ export const ConsoleLogStream: React.FC<ConsoleLogStreamProps> = ({
               log.level === 'error'
                 ? 'text-rose-400 bg-rose-950/40 border-rose-800/40'
                 : log.level === 'warn'
-                ? 'text-amber-400 bg-amber-950/40 border-amber-800/40'
-                : log.level === 'debug'
-                ? 'text-neutral-400 bg-neutral-800'
-                : 'text-sky-400 bg-sky-950/40 border-sky-800/40';
+                  ? 'text-amber-400 bg-amber-950/40 border-amber-800/40'
+                  : log.level === 'debug'
+                    ? 'text-neutral-400 bg-neutral-800'
+                    : 'text-sky-400 bg-sky-950/40 border-sky-800/40';
 
             return (
               <div

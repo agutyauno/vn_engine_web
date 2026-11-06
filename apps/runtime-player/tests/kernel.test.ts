@@ -2,10 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { Instruction } from '@vn-engine/shared-types';
 import { VNRuntimeKernel } from '../src/core/VNRuntimeKernel';
 import { parseTypewriterSegments, stripControlTags } from '../src/core/typewriter';
-import type {
-  KernelAdapters,
-  SaveSlotData,
-} from '../src/core/contracts';
+import type { KernelAdapters, SaveSlotData } from '../src/core/contracts';
 
 describe('Typewriter & Tag Sanitization', () => {
   it('should strip all control tags for backlog display', () => {
@@ -20,7 +17,8 @@ describe('Typewriter & Tag Sanitization', () => {
   });
 
   it('should parse pause, speed, and color control tags into TypewriterSegment array', () => {
-    const raw = 'Start {pause: 0.5s}mid {speed: slow}slow {color: #ff0000}red{speed: normal} normal';
+    const raw =
+      'Start {pause: 0.5s}mid {speed: slow}slow {color: #ff0000}red{speed: normal} normal';
     const segments = parseTypewriterSegments(raw);
 
     expect(segments.length).toBeGreaterThanOrEqual(4);

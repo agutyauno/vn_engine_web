@@ -39,7 +39,12 @@ export function scanActiveReconciliation(project: Project): ReconciliationReport
   const assetRefMap: Record<string, ScriptReference[]> = {};
   const charRefMap: Record<string, ScriptReference[]> = {};
 
-  const recordAssetRef = (assetName: string, file: string, line: number, type: 'background' | 'audio' | 'inspect') => {
+  const recordAssetRef = (
+    assetName: string,
+    file: string,
+    line: number,
+    type: 'background' | 'audio' | 'inspect',
+  ) => {
     const cleanName = assetName.trim();
     if (!cleanName) return;
     if (!assetRefMap[cleanName]) {
@@ -113,7 +118,7 @@ export function scanActiveReconciliation(project: Project): ReconciliationReport
   }
 
   const knownCharIds = new Set(
-    (project.characters || []).map((c) => (c.id || '').trim().toLowerCase())
+    (project.characters || []).map(c => (c.id || '').trim().toLowerCase()),
   );
 
   const knownAssetKeys = new Set<string>();
@@ -162,7 +167,7 @@ export function scanActiveReconciliation(project: Project): ReconciliationReport
 
 export function checkAssetDeletionSafety(
   assetIdOrName: string,
-  project: Project
+  project: Project,
 ): DeletionSafetyResult {
   const target = (assetIdOrName || '').trim();
   if (!target) {
@@ -170,18 +175,25 @@ export function checkAssetDeletionSafety(
   }
 
   const matchedAsset = (project.assets || []).find(
-    (a) => a.id === target || a.name === target || a.name.toLowerCase() === target.toLowerCase()
+    a => a.id === target || a.name === target || a.name.toLowerCase() === target.toLowerCase(),
   );
 
   const report = scanActiveReconciliation(project);
 
-  const refsByName = report.assetReferences[target] || report.assetReferences[target.toLowerCase()] || [];
+  const refsByName =
+    report.assetReferences[target] || report.assetReferences[target.toLowerCase()] || [];
   let refsByMatchedName: ScriptReference[] = [];
   let refsByMatchedId: ScriptReference[] = [];
 
   if (matchedAsset) {
-    refsByMatchedName = report.assetReferences[matchedAsset.name] || report.assetReferences[matchedAsset.name.toLowerCase()] || [];
-    refsByMatchedId = report.assetReferences[matchedAsset.id] || report.assetReferences[matchedAsset.id.toLowerCase()] || [];
+    refsByMatchedName =
+      report.assetReferences[matchedAsset.name] ||
+      report.assetReferences[matchedAsset.name.toLowerCase()] ||
+      [];
+    refsByMatchedId =
+      report.assetReferences[matchedAsset.id] ||
+      report.assetReferences[matchedAsset.id.toLowerCase()] ||
+      [];
   }
 
   const allRefs = [...refsByName, ...refsByMatchedName, ...refsByMatchedId];
@@ -221,7 +233,8 @@ export function generateDiagnostics(project: Project): GeneratedEditorDiagnostic
   }
 
   for (const assetName of report.uncreatedAssets) {
-    const refs = report.assetReferences[assetName] || report.assetReferences[assetName.toLowerCase()] || [];
+    const refs =
+      report.assetReferences[assetName] || report.assetReferences[assetName.toLowerCase()] || [];
     if (refs.length > 0) {
       for (const ref of refs) {
         diagnostics.push({
@@ -264,7 +277,8 @@ export function generateDiagnostics(project: Project): GeneratedEditorDiagnostic
   }
 
   for (const charId of report.uncreatedCharacters) {
-    const refs = report.characterReferences[charId] || report.characterReferences[charId.toLowerCase()] || [];
+    const refs =
+      report.characterReferences[charId] || report.characterReferences[charId.toLowerCase()] || [];
     if (refs.length > 0) {
       for (const ref of refs) {
         diagnostics.push({

@@ -57,7 +57,10 @@ export const DockDrawer: React.FC<DockDrawerProps> = ({
             }}
             className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium transition rounded-t bg-neutral-900 text-white border-b-2 border-amber-500"
           >
-            <AlertCircleIcon size={12} className={errorCount > 0 ? 'text-rose-400' : 'text-neutral-500'} />
+            <AlertCircleIcon
+              size={12}
+              className={errorCount > 0 ? 'text-rose-400' : 'text-neutral-500'}
+            />
             <span>Problems</span>
             {errorCount > 0 && (
               <span
@@ -80,9 +83,7 @@ export const DockDrawer: React.FC<DockDrawerProps> = ({
 
         {/* Drawer Action Controls */}
         <div className="flex items-center gap-2">
-          <span className="text-[10px] text-neutral-500 font-mono hidden sm:inline">
-            Ctrl + `
-          </span>
+          <span className="text-[10px] text-neutral-500 font-mono hidden sm:inline">Ctrl + `</span>
           <button
             type="button"
             data-testid="btn-toggle-drawer"
@@ -96,11 +97,7 @@ export const DockDrawer: React.FC<DockDrawerProps> = ({
       </div>
 
       {/* Drawer Body */}
-      {isOpen && (
-        <div className="flex-1 overflow-auto bg-neutral-950 font-sans">
-          {children}
-        </div>
-      )}
+      {isOpen && <div className="flex-1 overflow-auto bg-neutral-950 font-sans">{children}</div>}
     </div>
   );
 };

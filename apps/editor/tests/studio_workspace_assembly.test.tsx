@@ -71,25 +71,27 @@ describe('StudioWorkspacePage Assembly & Cutover (Phase 5 TDD)', () => {
   }
 
   function getNavSplitter(): HTMLElement {
-    const vertical = screen.getAllByRole('separator').filter(
-      (el) => el.getAttribute('aria-orientation') === 'vertical'
-    );
+    const vertical = screen
+      .getAllByRole('separator')
+      .filter(el => el.getAttribute('aria-orientation') === 'vertical');
     if (vertical.length === 0) throw new Error('No vertical separator found for nav');
     return vertical[0] as HTMLElement;
   }
 
-
-
   function getDrawerSplitter(): HTMLElement {
-    const horizontal = screen.getAllByRole('separator').find(
-      (el) => el.getAttribute('aria-orientation') === 'horizontal'
-    );
+    const horizontal = screen
+      .getAllByRole('separator')
+      .find(el => el.getAttribute('aria-orientation') === 'horizontal');
     if (!horizontal) throw new Error('No horizontal separator found for drawer');
     return horizontal as HTMLElement;
   }
 
   beforeEach(() => {
-    Object.defineProperty(window, 'innerWidth', { value: 1920, configurable: true, writable: true });
+    Object.defineProperty(window, 'innerWidth', {
+      value: 1920,
+      configurable: true,
+      writable: true,
+    });
     setupTestStore();
     setPointerCaptureMock = vi.fn();
     releasePointerCaptureMock = vi.fn();
@@ -110,7 +112,7 @@ describe('StudioWorkspacePage Assembly & Cutover (Phase 5 TDD)', () => {
         projectId={sampleProject.id}
         repository={mockRepo}
         initialProject={sampleProject}
-      />
+      />,
     );
 
     // Store synchronization verification
@@ -120,7 +122,9 @@ describe('StudioWorkspacePage Assembly & Cutover (Phase 5 TDD)', () => {
     expect(useEditorUIStore.getState().openFileIds).toContain('file-1');
 
     // DOM rendering verification
-    expect(screen.getByTestId('header-project-title')).toHaveTextContent('Workspace Assembly Project');
+    expect(screen.getByTestId('header-project-title')).toHaveTextContent(
+      'Workspace Assembly Project',
+    );
     expect(screen.getByTestId('editor-tab-file-1')).toBeInTheDocument();
   });
 
@@ -132,7 +136,7 @@ describe('StudioWorkspacePage Assembly & Cutover (Phase 5 TDD)', () => {
         projectId={sampleProject.id}
         repository={mockRepo}
         initialProject={sampleProject}
-      />
+      />,
     );
 
     const colNav = screen.getByTestId('col-navigation');
@@ -162,7 +166,7 @@ describe('StudioWorkspacePage Assembly & Cutover (Phase 5 TDD)', () => {
         projectId={sampleProject.id}
         repository={mockRepo}
         initialProject={sampleProject}
-      />
+      />,
     );
 
     expect(screen.queryByTestId('col-preview-dock')).not.toBeInTheDocument();
@@ -182,7 +186,7 @@ describe('StudioWorkspacePage Assembly & Cutover (Phase 5 TDD)', () => {
         projectId={sampleProject.id}
         repository={mockRepo}
         initialProject={sampleProject}
-      />
+      />,
     );
 
     expect(useEditorUIStore.getState().drawerHeight).toBe(200);
@@ -212,7 +216,7 @@ describe('StudioWorkspacePage Assembly & Cutover (Phase 5 TDD)', () => {
         repository={mockRepo}
         initialProject={sampleProject}
         onBackToHub={handleBackToHub}
-      />
+      />,
     );
 
     // Dirty the workspace by editing script content
@@ -241,7 +245,7 @@ describe('StudioWorkspacePage Assembly & Cutover (Phase 5 TDD)', () => {
   });
 
   // TC-ASSEMBLY-06: Unsaved Changes Guard: Don't Save
-  it('TC-ASSEMBLY-06: Unsaved Changes Guard discards modifications and proceeds without saving repo when Don\'t Save clicked', async () => {
+  it("TC-ASSEMBLY-06: Unsaved Changes Guard discards modifications and proceeds without saving repo when Don't Save clicked", async () => {
     const mockRepo = createMockRepository(sampleProject);
     const handleBackToHub = vi.fn();
 
@@ -251,7 +255,7 @@ describe('StudioWorkspacePage Assembly & Cutover (Phase 5 TDD)', () => {
         repository={mockRepo}
         initialProject={sampleProject}
         onBackToHub={handleBackToHub}
-      />
+      />,
     );
 
     const textarea = screen.getByTestId('monaco-fallback-textarea');
@@ -285,7 +289,7 @@ describe('StudioWorkspacePage Assembly & Cutover (Phase 5 TDD)', () => {
         repository={mockRepo}
         initialProject={sampleProject}
         onBackToHub={handleBackToHub}
-      />
+      />,
     );
 
     const textarea = screen.getByTestId('monaco-fallback-textarea');
@@ -313,7 +317,7 @@ describe('StudioWorkspacePage Assembly & Cutover (Phase 5 TDD)', () => {
         projectId={sampleProject.id}
         repository={mockRepo}
         initialProject={sampleProject}
-      />
+      />,
     );
 
     const textarea = screen.getByTestId('monaco-fallback-textarea');
@@ -338,7 +342,7 @@ describe('StudioWorkspacePage Assembly & Cutover (Phase 5 TDD)', () => {
         projectId={sampleProject.id}
         repository={mockRepo}
         initialProject={sampleProject}
-      />
+      />,
     );
 
     const initialDrawerState = useEditorUIStore.getState().isDrawerOpen;
@@ -360,7 +364,7 @@ describe('StudioWorkspacePage Assembly & Cutover (Phase 5 TDD)', () => {
         projectId={sampleProject.id}
         repository={mockRepo}
         initialProject={sampleProject}
-      />
+      />,
     );
 
     expect(screen.queryByTestId('modal-project-settings')).not.toBeInTheDocument();
@@ -379,7 +383,7 @@ describe('StudioWorkspacePage Assembly & Cutover (Phase 5 TDD)', () => {
         projectId={sampleProject.id}
         repository={mockRepo}
         initialProject={sampleProject}
-      />
+      />,
     );
 
     expect(screen.queryByTestId('modal-shortcuts-help')).not.toBeInTheDocument();
@@ -398,7 +402,7 @@ describe('StudioWorkspacePage Assembly & Cutover (Phase 5 TDD)', () => {
         projectId={sampleProject.id}
         repository={mockRepo}
         initialProject={sampleProject}
-      />
+      />,
     );
 
     expect(screen.queryByTestId('btn-duplicate-file-file-1')).not.toBeInTheDocument();
@@ -416,7 +420,7 @@ describe('StudioWorkspacePage Assembly & Cutover (Phase 5 TDD)', () => {
         repository={mockRepo}
         initialProject={sampleProject}
         onBackToHub={handleBackToHub}
-      />
+      />,
     );
 
     expect(useProjectStore.getState().isDirty).toBe(false);
@@ -428,4 +432,3 @@ describe('StudioWorkspacePage Assembly & Cutover (Phase 5 TDD)', () => {
     expect(screen.queryByTestId('modal-unsaved-changes')).not.toBeInTheDocument();
   });
 });
-

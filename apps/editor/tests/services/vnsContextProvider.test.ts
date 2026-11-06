@@ -1,6 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import type { Project, AssetRef, Character, VariableDeclaration, ScriptFile } from '@vn-engine/shared-types';
-import { createVnsProjectContext, type SceneItem } from '../../src/core/services/vnsContextProvider';
+import type {
+  Project,
+  AssetRef,
+  Character,
+  VariableDeclaration,
+  ScriptFile,
+} from '@vn-engine/shared-types';
+import {
+  createVnsProjectContext,
+  type SceneItem,
+} from '../../src/core/services/vnsContextProvider';
 
 function createMockProject(options?: {
   files?: Array<{ id: string; name: string; content: string; order: number; version: number }>;
@@ -49,12 +58,12 @@ describe('VNS Project Context Provider (vnsContextProvider)', () => {
     const scenes = context.getScenes() as SceneItem[];
 
     expect(scenes).toHaveLength(2);
-    expect(scenes.find((s) => s.name === 'intro')).toEqual({
+    expect(scenes.find(s => s.name === 'intro')).toEqual({
       name: 'intro',
       file: 'prologue.vns',
       line: 1,
     });
-    expect(scenes.find((s) => s.name === 'classroom')).toEqual({
+    expect(scenes.find(s => s.name === 'classroom')).toEqual({
       name: 'classroom',
       file: 'chapter1.vns',
       line: 2,
@@ -79,8 +88,8 @@ describe('VNS Project Context Provider (vnsContextProvider)', () => {
     const scenes = context.getScenes() as SceneItem[];
 
     expect(scenes).toHaveLength(2);
-    expect(scenes.find((s) => s.name === 'intro')).toBeDefined();
-    expect(scenes.find((s) => s.name === 'intro.morning')).toEqual({
+    expect(scenes.find(s => s.name === 'intro')).toBeDefined();
+    expect(scenes.find(s => s.name === 'intro.morning')).toEqual({
       name: 'intro.morning',
       file: 'act1.vns',
       line: 2,
@@ -103,7 +112,7 @@ describe('VNS Project Context Provider (vnsContextProvider)', () => {
 
     const context = createVnsProjectContext(() => project);
     const scenes = context.getScenes() as SceneItem[];
-    const names = scenes.map((s) => s.name);
+    const names = scenes.map(s => s.name);
 
     expect(names).toContain('real_scene');
     expect(names).not.toContain('fake1');
@@ -187,4 +196,3 @@ describe('VNS Project Context Provider (vnsContextProvider)', () => {
     });
   });
 });
-

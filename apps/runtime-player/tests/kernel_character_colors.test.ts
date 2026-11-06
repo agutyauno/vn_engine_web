@@ -223,4 +223,3 @@ describe('VNRuntimeKernel Character Color Resolution (TASK-player-typewriter-and
     });
   });
 });
-

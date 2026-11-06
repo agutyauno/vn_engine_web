@@ -90,7 +90,7 @@ describe('Milestone 6: Monaco Script Workspace (Column 2 Top)', () => {
           dirtyFileIds={new Set()}
           onSelectTab={handleSelect}
           onCloseTab={handleClose}
-        />
+        />,
       );
 
       // Verify clean display without .vns
@@ -121,7 +121,7 @@ describe('Milestone 6: Monaco Script Workspace (Column 2 Top)', () => {
           dirtyFileIds={dirtySet}
           onSelectTab={vi.fn()}
           onCloseTab={vi.fn()}
-        />
+        />,
       );
 
       // file-1 has dirty dot
@@ -144,7 +144,7 @@ describe('Milestone 6: Monaco Script Workspace (Column 2 Top)', () => {
           dirtyFileIds={new Set()}
           onSelectTab={vi.fn()}
           onCloseTab={handleClose}
-        />
+        />,
       );
 
       const closeBtn = screen.getByTestId('btn-close-tab-file-2');
@@ -164,7 +164,7 @@ describe('Milestone 6: Monaco Script Workspace (Column 2 Top)', () => {
           onSelectTab={vi.fn()}
           onCloseTab={vi.fn()}
           onNewFile={handleNew}
-        />
+        />,
       );
 
       const newTabBtn = screen.getByTestId('btn-new-tab');
@@ -185,7 +185,7 @@ describe('Milestone 6: Monaco Script Workspace (Column 2 Top)', () => {
           file={sampleFiles[0]!}
           project={sampleProject}
           onChange={handleChange}
-        />
+        />,
       );
 
       expect(screen.getByTestId('monaco-editor-container')).toBeInTheDocument();
@@ -203,13 +203,7 @@ describe('Milestone 6: Monaco Script Workspace (Column 2 Top)', () => {
     });
 
     it('displays empty placeholder when no file is active', () => {
-      render(
-        <MonacoEditorContainer
-          file={null}
-          project={sampleProject}
-          onChange={vi.fn()}
-        />
-      );
+      render(<MonacoEditorContainer file={null} project={sampleProject} onChange={vi.fn()} />);
 
       expect(screen.getByText(/No file open/i)).toBeInTheDocument();
     });
@@ -233,7 +227,7 @@ describe('Milestone 6: Monaco Script Workspace (Column 2 Top)', () => {
           projectId={sampleProject.id}
           repository={repo}
           initialProject={sampleProject}
-        />
+        />,
       );
 
       // Verify active tab in EditorTabBar
@@ -275,7 +269,7 @@ describe('Milestone 6: Monaco Script Workspace (Column 2 Top)', () => {
           projectId={sampleProject.id}
           repository={repo}
           initialProject={sampleProject}
-        />
+        />,
       );
 
       // Initially file-1 content is shown
@@ -296,7 +290,7 @@ describe('Milestone 6: Monaco Script Workspace (Column 2 Top)', () => {
           projectId={sampleProject.id}
           repository={repo}
           initialProject={sampleProject}
-        />
+        />,
       );
 
       // Close file-1 tab

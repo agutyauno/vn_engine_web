@@ -32,11 +32,7 @@ export class VNRuntimeKernel {
   private pendingRestoreSnapshot: string | null = null;
   private pendingDesyncSlot: SaveSlotData | null = null;
 
-  constructor(
-    program: Instruction[],
-    adapters?: KernelAdapters,
-    options?: VNRuntimeKernelOptions,
-  ) {
+  constructor(program: Instruction[], adapters?: KernelAdapters, options?: VNRuntimeKernelOptions) {
     this.adapters = adapters ?? {};
     this.options = options;
     if (options?.characters) {
@@ -48,14 +44,7 @@ export class VNRuntimeKernel {
       this.seenDialogues = new Set(this.adapters.storage.getSeenDialogues());
     }
 
-    const defaultSlots: Array<SaveSlotData | null> = [
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-    ];
+    const defaultSlots: Array<SaveSlotData | null> = [null, null, null, null, null, null];
     const initialSlots = this.adapters.storage?.getSlots?.() ?? defaultSlots;
     const initialQuickSave = this.adapters.storage?.getQuickSave?.() ?? null;
 
@@ -289,8 +278,7 @@ export class VNRuntimeKernel {
       this.adapters.storage?.saveSeenDialogue?.(dialogueKey);
     }
 
-    const speakerName =
-      instruction.displayNameOverride ?? (instruction.character ?? undefined);
+    const speakerName = instruction.displayNameOverride ?? instruction.character ?? undefined;
     const speakerColorHex = this.resolveSpeakerColor(instruction.character);
 
     this.state.dialogue = {
@@ -360,7 +348,8 @@ export class VNRuntimeKernel {
         rawText: catchUp.currentDialogue.text,
         speakerName:
           catchUp.currentDialogue.displayNameOverride ??
-          (catchUp.currentDialogue.character ?? undefined),
+          catchUp.currentDialogue.character ??
+          undefined,
         speakerColorHex: this.resolveSpeakerColor(catchUp.currentDialogue.character),
         isComplete: true,
         canAdvance: true,
@@ -466,8 +455,7 @@ export class VNRuntimeKernel {
       throw new Error(`Invalid slot index: ${slotIndex}. Regular slots are 1-6.`);
     }
 
-    const thumbnailDataUrl =
-      (await this.adapters.renderer?.captureThumbnail?.()) ?? '';
+    const thumbnailDataUrl = (await this.adapters.renderer?.captureThumbnail?.()) ?? '';
     const serializedState = this.vm.serialize({
       projectId: this.options?.projectId,
     });
@@ -479,12 +467,8 @@ export class VNRuntimeKernel {
       timestamp: Date.now(),
       thumbnailDataUrl,
       currentScene,
-      previewText: currentDialogue?.text
-        ? stripControlTags(currentDialogue.text)
-        : '',
-      speakerName:
-        currentDialogue?.displayNameOverride ??
-        (currentDialogue?.character ?? undefined),
+      previewText: currentDialogue?.text ? stripControlTags(currentDialogue.text) : '',
+      speakerName: currentDialogue?.displayNameOverride ?? currentDialogue?.character ?? undefined,
       dialogueCounter: this.vm.getState().instructionPointer,
       serializedState,
       scriptHash: this.vm.getScriptHash(),
@@ -512,8 +496,7 @@ export class VNRuntimeKernel {
   }
 
   public async quickSave(): Promise<void> {
-    const thumbnailDataUrl =
-      (await this.adapters.renderer?.captureThumbnail?.()) ?? '';
+    const thumbnailDataUrl = (await this.adapters.renderer?.captureThumbnail?.()) ?? '';
     const serializedState = this.vm.serialize({
       projectId: this.options?.projectId,
     });
@@ -525,12 +508,8 @@ export class VNRuntimeKernel {
       timestamp: Date.now(),
       thumbnailDataUrl,
       currentScene,
-      previewText: currentDialogue?.text
-        ? stripControlTags(currentDialogue.text)
-        : '',
-      speakerName:
-        currentDialogue?.displayNameOverride ??
-        (currentDialogue?.character ?? undefined),
+      previewText: currentDialogue?.text ? stripControlTags(currentDialogue.text) : '',
+      speakerName: currentDialogue?.displayNameOverride ?? currentDialogue?.character ?? undefined,
       dialogueCounter: this.vm.getState().instructionPointer,
       serializedState,
       scriptHash: this.vm.getScriptHash(),
@@ -543,9 +522,7 @@ export class VNRuntimeKernel {
 
   public async quickLoad(): Promise<void> {
     const slot =
-      this.state.quickSaveSlot ??
-      (await this.adapters.storage?.getQuickSave?.()) ??
-      null;
+      this.state.quickSaveSlot ?? (await this.adapters.storage?.getQuickSave?.()) ?? null;
 
     if (!slot) return;
     await this.loadSlotData(slot);
@@ -618,20 +595,13 @@ export class VNRuntimeKernel {
   }
 
   public setVariable(name: string, value: unknown, scope?: 'global' | 'local'): void {
-    if (
-      typeof value === 'string' ||
-      typeof value === 'number' ||
-      typeof value === 'boolean'
-    ) {
+    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
       this.vm.setVariable(name, value, scope);
       this.emit();
     }
   }
 
-  public async loadProgram(
-    program: Instruction[],
-    options?: LoadProgramOptions,
-  ): Promise<void> {
+  public async loadProgram(program: Instruction[], options?: LoadProgramOptions): Promise<void> {
     if (options?.characters) {
       this.registerCharacters(options.characters);
     }

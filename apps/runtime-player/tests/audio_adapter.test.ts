@@ -254,10 +254,7 @@ describe('AudioAdapter', () => {
         channel: 'sfx',
       };
       adapter.applySideEffect(stopSfx);
-      expect(mockAudioManager.stop).toHaveBeenCalledWith(
-        'sound',
-        expect.anything(),
-      );
+      expect(mockAudioManager.stop).toHaveBeenCalledWith('sound', expect.anything());
     });
 
     it('aliases "bgm" -> "music" and "sfx" -> "sound" in setVolume', () => {

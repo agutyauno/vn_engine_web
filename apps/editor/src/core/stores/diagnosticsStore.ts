@@ -31,7 +31,7 @@ export const initialDiagnosticsState: Omit<
 function calculateCounts(
   compiler: EngineDiagnostic[],
   runtime: EngineDiagnostic[],
-  reconciliation: EngineDiagnostic[]
+  reconciliation: EngineDiagnostic[],
 ): { errorCount: number; warningCount: number } {
   let errorCount = 0;
   let warningCount = 0;
@@ -52,15 +52,15 @@ function calculateCounts(
   return { errorCount, warningCount };
 }
 
-export const useDiagnosticsStore = create<DiagnosticsStoreState>((set) => ({
+export const useDiagnosticsStore = create<DiagnosticsStoreState>(set => ({
   ...initialDiagnosticsState,
 
-  setCompilerDiagnostics: (diags) =>
-    set((state) => {
+  setCompilerDiagnostics: diags =>
+    set(state => {
       const counts = calculateCounts(
         diags,
         state.runtimeDiagnostics,
-        state.reconciliationDiagnostics
+        state.reconciliationDiagnostics,
       );
       return {
         compilerDiagnostics: diags,
@@ -68,26 +68,22 @@ export const useDiagnosticsStore = create<DiagnosticsStoreState>((set) => ({
       };
     }),
 
-  setReconciliationDiagnostics: (diags) =>
-    set((state) => {
-      const counts = calculateCounts(
-        state.compilerDiagnostics,
-        state.runtimeDiagnostics,
-        diags
-      );
+  setReconciliationDiagnostics: diags =>
+    set(state => {
+      const counts = calculateCounts(state.compilerDiagnostics, state.runtimeDiagnostics, diags);
       return {
         reconciliationDiagnostics: diags,
         ...counts,
       };
     }),
 
-  addRuntimeDiagnostic: (diag) =>
-    set((state) => {
+  addRuntimeDiagnostic: diag =>
+    set(state => {
       const updatedRuntime = [...state.runtimeDiagnostics, diag];
       const counts = calculateCounts(
         state.compilerDiagnostics,
         updatedRuntime,
-        state.reconciliationDiagnostics
+        state.reconciliationDiagnostics,
       );
       return {
         runtimeDiagnostics: updatedRuntime,
@@ -100,4 +96,3 @@ export const useDiagnosticsStore = create<DiagnosticsStoreState>((set) => ({
       ...initialDiagnosticsState,
     }),
 }));
-

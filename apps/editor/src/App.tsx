@@ -5,8 +5,7 @@ import { ProjectHubView } from './components/hub/ProjectHubView';
 import { StudioWorkspacePage } from './components/studio/StudioWorkspacePage';
 
 export type AppRoute =
-  | { view: 'hub'; projectId?: undefined }
-  | { view: 'studio'; projectId: string };
+  { view: 'hub'; projectId?: undefined } | { view: 'studio'; projectId: string };
 
 export function parseHashRoute(hash: string): AppRoute {
   const cleanHash = hash.replace(/^#\/?/, '');
@@ -78,10 +77,7 @@ export const App: React.FC<AppProps> = ({ repository: customRepo, initialRoute }
           onBackToHub={navigateToHub}
         />
       ) : (
-        <ProjectHubView
-          repository={repo}
-          onOpenProject={navigateToStudio}
-        />
+        <ProjectHubView repository={repo} onOpenProject={navigateToStudio} />
       )}
     </div>
   );

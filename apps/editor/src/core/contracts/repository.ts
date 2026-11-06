@@ -5,12 +5,7 @@ import type {
   ProjectEditorSettings,
 } from '@vn-engine/shared-types';
 
-export type {
-  Project,
-  ProjectDisplaySettings,
-  ProjectGameplaySettings,
-  ProjectEditorSettings,
-};
+export type { Project, ProjectDisplaySettings, ProjectGameplaySettings, ProjectEditorSettings };
 
 export type DisplaySettings = ProjectDisplaySettings;
 export type GameplaySettings = ProjectGameplaySettings;

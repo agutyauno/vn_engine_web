@@ -283,7 +283,7 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): void {
       if (/\bplay\s+(music|sound|voice)\s+[a-zA-Z0-9_]*$/.test(textUntilPosition)) {
         const assets = context.getAssets();
         const isVoice = /\bplay\s+voice\s+[a-zA-Z0-9_]*$/.test(textUntilPosition);
-        const targetSet = isVoice ? (assets.voices || new Set()) : assets.audio;
+        const targetSet = isVoice ? assets.voices || new Set() : assets.audio;
         for (const aud of targetSet) {
           suggestions.push({
             label: aud,
@@ -330,7 +330,10 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): void {
           // Gợi ý typewriter control tags
           const typewriterTags = [
             { tag: '{pause:0.5s}', doc: 'Pause typewriter rendering for 0.5 seconds' },
-            { tag: '{speed:fast}', doc: 'Change typewriter text rendering speed ("slow" | "normal" | "fast")' },
+            {
+              tag: '{speed:fast}',
+              doc: 'Change typewriter text rendering speed ("slow" | "normal" | "fast")',
+            },
             { tag: '{color:#38bdf8}', doc: 'Colorize subsequent dialogue text' },
           ];
 

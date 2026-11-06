@@ -56,7 +56,12 @@ describe('Player Hot-Reload & State Preservation (TASK-decouple-preview-and-hotr
 
     const program: Instruction[] = [
       { type: 'SCENE', name: 'intro', loc: { fileId: 'main.vns', line: 1 } },
-      { type: 'DIALOGUE', character: 'alice', text: 'Hello from Standby!', loc: { fileId: 'main.vns', line: 2 } },
+      {
+        type: 'DIALOGUE',
+        character: 'alice',
+        text: 'Hello from Standby!',
+        loc: { fileId: 'main.vns', line: 2 },
+      },
     ];
 
     await kernel.loadProgram(program);
@@ -71,8 +76,18 @@ describe('Player Hot-Reload & State Preservation (TASK-decouple-preview-and-hotr
   it('TEST-KRN-02: should preserve existing variables (score, affinity) and retain GAMEPLAY mode upon hot reload', async () => {
     const initialProgram: Instruction[] = [
       { type: 'SCENE', name: 'chapter1', loc: { fileId: 'main.vns', line: 1 } },
-      { type: 'ASSIGN', variable: 'score', value: { type: 'Literal', value: 10 }, loc: { fileId: 'main.vns', line: 2 } },
-      { type: 'DIALOGUE', character: 'narrator', text: 'Game started.', loc: { fileId: 'main.vns', line: 3 } },
+      {
+        type: 'ASSIGN',
+        variable: 'score',
+        value: { type: 'Literal', value: 10 },
+        loc: { fileId: 'main.vns', line: 2 },
+      },
+      {
+        type: 'DIALOGUE',
+        character: 'narrator',
+        text: 'Game started.',
+        loc: { fileId: 'main.vns', line: 3 },
+      },
     ];
 
     const kernel = new VNRuntimeKernel(
@@ -93,8 +108,18 @@ describe('Player Hot-Reload & State Preservation (TASK-decouple-preview-and-hotr
     // Live Hot reload với bytecode được cập nhật từ editor
     const updatedProgram: Instruction[] = [
       { type: 'SCENE', name: 'chapter1', loc: { fileId: 'main.vns', line: 1 } },
-      { type: 'ASSIGN', variable: 'score', value: { type: 'Literal', value: 10 }, loc: { fileId: 'main.vns', line: 2 } },
-      { type: 'DIALOGUE', character: 'narrator', text: 'Game started (patched).', loc: { fileId: 'main.vns', line: 3 } },
+      {
+        type: 'ASSIGN',
+        variable: 'score',
+        value: { type: 'Literal', value: 10 },
+        loc: { fileId: 'main.vns', line: 2 },
+      },
+      {
+        type: 'DIALOGUE',
+        character: 'narrator',
+        text: 'Game started (patched).',
+        loc: { fileId: 'main.vns', line: 3 },
+      },
     ];
 
     await kernel.loadProgram(updatedProgram, { preserveState: true });
@@ -110,10 +135,32 @@ describe('Player Hot-Reload & State Preservation (TASK-decouple-preview-and-hotr
     const program: Instruction[] = [
       { type: 'SCENE', name: 'intro', loc: { fileId: 'main.vns', line: 1 } },
       { type: 'BACKGROUND', assetId: 'bg_park.png', loc: { fileId: 'main.vns', line: 2 } },
-      { type: 'SHOW', character: 'alice', sprite: 'happy', position: 'left', loc: { fileId: 'main.vns', line: 3 } },
-      { type: 'DIALOGUE', character: 'alice', text: 'First dialogue', loc: { fileId: 'main.vns', line: 4 } },
-      { type: 'SHOW', character: 'bob', sprite: 'smile', position: 'right', loc: { fileId: 'main.vns', line: 5 } },
-      { type: 'DIALOGUE', character: 'bob', text: 'Second dialogue at target line', loc: { fileId: 'main.vns', line: 6 } },
+      {
+        type: 'SHOW',
+        character: 'alice',
+        sprite: 'happy',
+        position: 'left',
+        loc: { fileId: 'main.vns', line: 3 },
+      },
+      {
+        type: 'DIALOGUE',
+        character: 'alice',
+        text: 'First dialogue',
+        loc: { fileId: 'main.vns', line: 4 },
+      },
+      {
+        type: 'SHOW',
+        character: 'bob',
+        sprite: 'smile',
+        position: 'right',
+        loc: { fileId: 'main.vns', line: 5 },
+      },
+      {
+        type: 'DIALOGUE',
+        character: 'bob',
+        text: 'Second dialogue at target line',
+        loc: { fileId: 'main.vns', line: 6 },
+      },
     ];
 
     const kernel = new VNRuntimeKernel(
@@ -145,7 +192,12 @@ describe('Player Hot-Reload & State Preservation (TASK-decouple-preview-and-hotr
   it('TEST-KRN-04: should hot-patch active dialogue text immediately without requiring advance()', async () => {
     const initialProgram: Instruction[] = [
       { type: 'SCENE', name: 'intro', loc: { fileId: 'main.vns', line: 1 } },
-      { type: 'DIALOGUE', character: 'alice', text: 'Original line content', loc: { fileId: 'main.vns', line: 2 } },
+      {
+        type: 'DIALOGUE',
+        character: 'alice',
+        text: 'Original line content',
+        loc: { fileId: 'main.vns', line: 2 },
+      },
     ];
 
     const kernel = new VNRuntimeKernel(
@@ -160,7 +212,12 @@ describe('Player Hot-Reload & State Preservation (TASK-decouple-preview-and-hotr
     // Tác giả sửa trực tiếp text câu thoại tại dòng 2 trong Monaco Editor
     const patchedProgram: Instruction[] = [
       { type: 'SCENE', name: 'intro', loc: { fileId: 'main.vns', line: 1 } },
-      { type: 'DIALOGUE', character: 'alice', text: 'Hot-reloaded modified content!', loc: { fileId: 'main.vns', line: 2 } },
+      {
+        type: 'DIALOGUE',
+        character: 'alice',
+        text: 'Hot-reloaded modified content!',
+        loc: { fileId: 'main.vns', line: 2 },
+      },
     ];
 
     await kernel.loadProgram(patchedProgram, { line: 2, preserveState: true });
@@ -174,8 +231,18 @@ describe('Player Hot-Reload & State Preservation (TASK-decouple-preview-and-hotr
   it('TEST-KRN-05: should safely anchor to the closest subsequent instruction if the current line was deleted', async () => {
     const initialProgram: Instruction[] = [
       { type: 'SCENE', name: 'intro', loc: { fileId: 'main.vns', line: 1 } },
-      { type: 'DIALOGUE', character: 'alice', text: 'Line to be deleted', loc: { fileId: 'main.vns', line: 2 } },
-      { type: 'DIALOGUE', character: 'alice', text: 'Subsequent surviving line', loc: { fileId: 'main.vns', line: 5 } },
+      {
+        type: 'DIALOGUE',
+        character: 'alice',
+        text: 'Line to be deleted',
+        loc: { fileId: 'main.vns', line: 2 },
+      },
+      {
+        type: 'DIALOGUE',
+        character: 'alice',
+        text: 'Subsequent surviving line',
+        loc: { fileId: 'main.vns', line: 5 },
+      },
     ];
 
     const kernel = new VNRuntimeKernel(
@@ -190,7 +257,12 @@ describe('Player Hot-Reload & State Preservation (TASK-decouple-preview-and-hotr
     // Bytecode mới đã xóa câu thoại tại dòng 2, dòng sống sót kế tiếp là dòng 5
     const patchedProgram: Instruction[] = [
       { type: 'SCENE', name: 'intro', loc: { fileId: 'main.vns', line: 1 } },
-      { type: 'DIALOGUE', character: 'alice', text: 'Subsequent surviving line', loc: { fileId: 'main.vns', line: 5 } },
+      {
+        type: 'DIALOGUE',
+        character: 'alice',
+        text: 'Subsequent surviving line',
+        loc: { fileId: 'main.vns', line: 5 },
+      },
     ];
 
     // Reload với con trỏ đang ở dòng 2 đã bị xóa
@@ -213,7 +285,13 @@ describe('Player Hot-Reload & State Preservation (TASK-decouple-preview-and-hotr
         { type: 'SCENE', name: 'scene1', loc: { fileId: 'main.vns', line: 1 } },
       ];
       const characters: Character[] = [
-        { id: 'char_1', name: 'Alice', colorHex: '#ff0000', defaultExpression: 'happy', sprites: { happy: 'asset_1' } },
+        {
+          id: 'char_1',
+          name: 'Alice',
+          colorHex: '#ff0000',
+          defaultExpression: 'happy',
+          sprites: { happy: 'asset_1' },
+        },
       ];
       const assets: AssetRef[] = [
         { id: 'asset_1', name: 'bg.png', type: 'image', storageUrl: 'blob:bg', sizeBytes: 1024 },

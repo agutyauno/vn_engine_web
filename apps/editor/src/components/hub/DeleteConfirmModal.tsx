@@ -68,10 +68,12 @@ export const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
 
         <div className="mt-4 space-y-3 text-sm text-neutral-300">
           <p>
-            Are you sure you want to delete <span className="font-semibold text-white">"{targetTitle}"</span>?
+            Are you sure you want to delete{' '}
+            <span className="font-semibold text-white">"{targetTitle}"</span>?
           </p>
           <p className="text-xs text-neutral-400">
-            This action cannot be undone. All project scripts, assets, and settings stored locally will be permanently removed.
+            This action cannot be undone. All project scripts, assets, and settings stored locally
+            will be permanently removed.
           </p>
 
           <div className="mt-4">
@@ -79,14 +81,15 @@ export const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
               htmlFor="confirm-delete-title-input"
               className="block text-xs font-medium text-neutral-400 mb-1"
             >
-              Please type <span className="font-semibold text-white">{targetTitle}</span> to confirm:
+              Please type <span className="font-semibold text-white">{targetTitle}</span> to
+              confirm:
             </label>
             <input
               id="confirm-delete-title-input"
               data-testid="confirm-delete-title-input"
               type="text"
               value={typedTitle}
-              onChange={(e) => setTypedTitle(e.target.value)}
+              onChange={e => setTypedTitle(e.target.value)}
               placeholder={targetTitle}
               className="w-full rounded border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-100 placeholder-neutral-600 focus:border-red-500 focus:outline-none"
             />

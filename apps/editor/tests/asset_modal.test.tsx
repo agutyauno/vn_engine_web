@@ -3,10 +3,7 @@
 import '@testing-library/jest-dom';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import {
-  validateAssetFile,
-  slugifyAssetId,
-} from '../src/core/utils/assetValidation';
+import { validateAssetFile, slugifyAssetId } from '../src/core/utils/assetValidation';
 import { CreateAssetModal } from '../src/components/studio/CreateAssetModal';
 import type { AssetRef } from '@vn-engine/shared-types';
 
@@ -99,7 +96,7 @@ describe('CreateAssetModal Component', () => {
         existingAssetIds={['school_rooftop_evening', 'bg_classroom']}
         onClose={onClose}
         onSave={onSave}
-      />
+      />,
     );
 
     const errorBadge = await screen.findByTestId('asset-id-duplicate-error');
@@ -122,15 +119,15 @@ describe('CreateAssetModal Component', () => {
         existingAssetIds={[]}
         onClose={() => {}}
         onSave={() => {}}
-      />
+      />,
     );
 
     const previewContainer = screen.getByTestId('asset-preview-container');
     expect(previewContainer).toBeInTheDocument();
     expect(
       previewContainer.className.includes('checkerboard') ||
-      previewContainer.getAttribute('style')?.includes('url') ||
-      previewContainer.className.includes('bg-')
+        previewContainer.getAttribute('style')?.includes('url') ||
+        previewContainer.className.includes('bg-'),
     ).toBe(true);
 
     const previewImage = screen.getByTestId('asset-preview-image');
@@ -153,7 +150,7 @@ describe('CreateAssetModal Component', () => {
         existingAssetIds={['other_asset']}
         onClose={onClose}
         onSave={onSave}
-      />
+      />,
     );
 
     const idInput = screen.getByTestId('input-asset-id');
@@ -191,7 +188,7 @@ describe('CreateAssetModal Component', () => {
         existingAssetIds={[]}
         onClose={() => {}}
         onSave={onSave}
-      />
+      />,
     );
 
     const idInput = screen.getByTestId('input-asset-id');
@@ -213,7 +210,7 @@ describe('CreateAssetModal Component', () => {
         existingAssetIds={[]}
         onClose={() => {}}
         onSave={onSave}
-      />
+      />,
     );
 
     // 1. Khẳng định không còn tồn tại các tab chuyển chế độ hay input remote url

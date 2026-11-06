@@ -48,7 +48,7 @@ export const DockProblemsTable: React.FC<DockProblemsTableProps> = ({
   };
 
   const toggleGroup = (groupKey: string) => {
-    setExpandedGroupKeys((prev) => {
+    setExpandedGroupKeys(prev => {
       const next = new Set(prev);
       if (next.has(groupKey)) {
         next.delete(groupKey);
@@ -59,7 +59,7 @@ export const DockProblemsTable: React.FC<DockProblemsTableProps> = ({
     });
   };
 
-  const filteredDiagnostics = (diagnostics || []).filter((d) => {
+  const filteredDiagnostics = (diagnostics || []).filter(d => {
     if (currentFilter === 'all') return true;
     return d.severity === currentFilter;
   });
@@ -110,7 +110,10 @@ export const DockProblemsTable: React.FC<DockProblemsTableProps> = ({
   }
 
   return (
-    <div data-testid="dock-problems-table" className="h-full flex flex-col overflow-hidden select-none">
+    <div
+      data-testid="dock-problems-table"
+      className="h-full flex flex-col overflow-hidden select-none"
+    >
       {/* Filter toolbar */}
       <div className="flex items-center gap-2 border-b border-neutral-800 bg-neutral-900/40 px-3 py-1 text-xs">
         <span className="text-[11px] font-medium text-neutral-400">Filter:</span>
@@ -136,7 +139,7 @@ export const DockProblemsTable: React.FC<DockProblemsTableProps> = ({
               : 'text-neutral-400 hover:text-rose-300'
           }`}
         >
-          Errors ({diagnostics.filter((d) => d.severity === 'error').length})
+          Errors ({diagnostics.filter(d => d.severity === 'error').length})
         </button>
         <button
           type="button"
@@ -148,7 +151,7 @@ export const DockProblemsTable: React.FC<DockProblemsTableProps> = ({
               : 'text-neutral-400 hover:text-amber-300'
           }`}
         >
-          Warnings ({diagnostics.filter((d) => d.severity === 'warning').length})
+          Warnings ({diagnostics.filter(d => d.severity === 'warning').length})
         </button>
         <button
           type="button"
@@ -160,7 +163,7 @@ export const DockProblemsTable: React.FC<DockProblemsTableProps> = ({
               : 'text-neutral-400 hover:text-sky-300'
           }`}
         >
-          Info ({diagnostics.filter((d) => d.severity === 'info').length})
+          Info ({diagnostics.filter(d => d.severity === 'info').length})
         </button>
       </div>
 
@@ -176,7 +179,7 @@ export const DockProblemsTable: React.FC<DockProblemsTableProps> = ({
             </tr>
           </thead>
           <tbody className="divide-y divide-neutral-900">
-            {diagnosticGroups.map((group) => {
+            {diagnosticGroups.map(group => {
               const isGroup = group.items.length > 1;
               const isError = group.severity === 'error';
               const isWarning = group.severity === 'warning';
@@ -211,10 +214,10 @@ export const DockProblemsTable: React.FC<DockProblemsTableProps> = ({
                           group.category === 'compiler'
                             ? 'bg-rose-950/60 text-rose-300 border border-rose-800/40'
                             : group.category === 'asset'
-                            ? 'bg-amber-950/60 text-amber-300 border border-amber-800/40'
-                            : group.category === 'character'
-                            ? 'bg-sky-950/60 text-sky-300 border border-sky-800/40'
-                            : 'bg-neutral-800 text-neutral-300'
+                              ? 'bg-amber-950/60 text-amber-300 border border-amber-800/40'
+                              : group.category === 'character'
+                                ? 'bg-sky-950/60 text-sky-300 border border-sky-800/40'
+                                : 'bg-neutral-800 text-neutral-300'
                         }`}
                       >
                         {group.category}
@@ -253,7 +256,7 @@ export const DockProblemsTable: React.FC<DockProblemsTableProps> = ({
                         <button
                           type="button"
                           data-testid={`btn-quickfix-${diagId}`}
-                          onClick={(e) => {
+                          onClick={e => {
                             e.stopPropagation();
                             onQuickFix(diag);
                           }}
@@ -297,10 +300,10 @@ export const DockProblemsTable: React.FC<DockProblemsTableProps> = ({
                           group.category === 'compiler'
                             ? 'bg-rose-950/60 text-rose-300 border border-rose-800/40'
                             : group.category === 'asset'
-                            ? 'bg-amber-950/60 text-amber-300 border border-amber-800/40'
-                            : group.category === 'character'
-                            ? 'bg-sky-950/60 text-sky-300 border border-sky-800/40'
-                            : 'bg-neutral-800 text-neutral-300'
+                              ? 'bg-amber-950/60 text-amber-300 border border-amber-800/40'
+                              : group.category === 'character'
+                                ? 'bg-sky-950/60 text-sky-300 border border-sky-800/40'
+                                : 'bg-neutral-800 text-neutral-300'
                         }`}
                       >
                         {group.category}
@@ -313,14 +316,18 @@ export const DockProblemsTable: React.FC<DockProblemsTableProps> = ({
                         <button
                           type="button"
                           data-testid={`btn-toggle-group-${group.groupKey}`}
-                          onClick={(e) => {
+                          onClick={e => {
                             e.stopPropagation();
                             toggleGroup(group.groupKey);
                           }}
                           className="p-0.5 rounded hover:bg-neutral-800 text-neutral-400 hover:text-white transition"
                           title={isExpanded ? 'Collapse group' : 'Expand group'}
                         >
-                          {isExpanded ? <ChevronDownIcon size={12} /> : <ChevronRightIcon size={12} />}
+                          {isExpanded ? (
+                            <ChevronDownIcon size={12} />
+                          ) : (
+                            <ChevronRightIcon size={12} />
+                          )}
                         </button>
                         {group.code && (
                           <span className="shrink-0 rounded bg-neutral-800 px-1.5 py-0.5 text-[10px] font-mono text-neutral-400 border border-neutral-700">
@@ -343,7 +350,8 @@ export const DockProblemsTable: React.FC<DockProblemsTableProps> = ({
                     <td className="py-1.5 px-3 font-mono text-[11px] text-neutral-400">
                       {firstFileName ? (
                         <span>
-                          {firstFileName}{firstLine ? `:${firstLine}` : ''}{' '}
+                          {firstFileName}
+                          {firstLine ? `:${firstLine}` : ''}{' '}
                           <span className="text-neutral-500 font-sans text-[10px]">
                             (+{group.items.length - 1})
                           </span>
@@ -359,9 +367,10 @@ export const DockProblemsTable: React.FC<DockProblemsTableProps> = ({
                         <button
                           type="button"
                           data-testid={`btn-quickfix-group-${group.groupKey}`}
-                          onClick={(e) => {
+                          onClick={e => {
                             e.stopPropagation();
-                            const target = group.items.find((it) => 'quickFix' in it && it.quickFix) || firstItem;
+                            const target =
+                              group.items.find(it => 'quickFix' in it && it.quickFix) || firstItem;
                             if (target) onQuickFix(target);
                           }}
                           title={`Quick Fix: ${group.quickFix.type}`}
@@ -377,7 +386,8 @@ export const DockProblemsTable: React.FC<DockProblemsTableProps> = ({
                   {/* Child Rows when expanded */}
                   {isExpanded &&
                     group.items.map((item, itemIdx) => {
-                      const childId = 'id' in item && item.id ? item.id : `${group.groupKey}-${itemIdx}`;
+                      const childId =
+                        'id' in item && item.id ? item.id : `${group.groupKey}-${itemIdx}`;
                       const childFileName = 'fileName' in item ? item.fileName : undefined;
                       const childLine = 'line' in item ? item.line : undefined;
                       const childCol = 'col' in item ? item.col : undefined;
@@ -396,19 +406,22 @@ export const DockProblemsTable: React.FC<DockProblemsTableProps> = ({
                             <div className="flex items-center gap-2">
                               <span className="text-neutral-600">↳</span>
                               <span>
-                                {childFileName}:{childLine}{childCol ? `:${childCol}` : ''}
+                                {childFileName}:{childLine}
+                                {childCol ? `:${childCol}` : ''}
                               </span>
                             </div>
                           </td>
                           <td className="py-1 px-3 font-mono text-[11px] text-neutral-400">
-                            {childFileName ? `${childFileName}${childLine ? `:${childLine}` : ''}` : '—'}
+                            {childFileName
+                              ? `${childFileName}${childLine ? `:${childLine}` : ''}`
+                              : '—'}
                           </td>
                           <td className="py-1 px-3 text-right">
                             {childQuickFix && onQuickFix && (
                               <button
                                 type="button"
                                 data-testid={`btn-quickfix-${childId}`}
-                                onClick={(e) => {
+                                onClick={e => {
                                   e.stopPropagation();
                                   onQuickFix(item);
                                 }}

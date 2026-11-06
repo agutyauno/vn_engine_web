@@ -49,7 +49,8 @@ export const UnsavedChangesModal: React.FC<UnsavedChangesModalProps> = ({
             There are unsaved modifications in your project.
           </p>
           <p className="text-neutral-400 leading-relaxed">
-            Leaving or switching scenes without saving will discard any modifications made since the last save point. What would you like to do?
+            Leaving or switching scenes without saving will discard any modifications made since the
+            last save point. What would you like to do?
           </p>
         </div>
 

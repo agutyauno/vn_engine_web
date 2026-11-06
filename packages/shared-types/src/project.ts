@@ -76,14 +76,7 @@ export interface VariableDeclaration {
   defaultValue: string | number | boolean;
 }
 
-export type AssetCategory =
-  | 'background'
-  | 'sprite'
-  | 'bgm'
-  | 'sfx'
-  | 'voice'
-  | 'ui'
-  | 'other';
+export type AssetCategory = 'background' | 'sprite' | 'bgm' | 'sfx' | 'voice' | 'ui' | 'other';
 
 export interface AssetRef {
   id: string; // UUIDv4

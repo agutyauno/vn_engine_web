@@ -51,7 +51,8 @@ export const ExportWizardModal: React.FC<ExportWizardModalProps> = ({
         {/* Modal Body */}
         <div className="flex-1 overflow-auto p-5 text-xs text-neutral-300 space-y-4">
           <p className="text-neutral-400">
-            Select the release format for <strong className="text-white font-medium">{project.title}</strong>:
+            Select the release format for{' '}
+            <strong className="text-white font-medium">{project.title}</strong>:
           </p>
 
           <div className="space-y-2">

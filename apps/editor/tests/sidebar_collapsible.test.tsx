@@ -48,7 +48,11 @@ const mockProject: Project = {
 
 describe('Collapsible & Fluid Resizable Navigation Sidebar', () => {
   beforeEach(() => {
-    Object.defineProperty(window, 'innerWidth', { value: 1920, configurable: true, writable: true });
+    Object.defineProperty(window, 'innerWidth', {
+      value: 1920,
+      configurable: true,
+      writable: true,
+    });
     useEditorUIStore.setState({
       activeTab: 'scripts',
       navWidth: 260,
@@ -62,12 +66,7 @@ describe('Collapsible & Fluid Resizable Navigation Sidebar', () => {
   it('TC-SIDEBAR-01: should collapse navigation sidebar when clicking the currently active ActivityBar tab', () => {
     const handleSelectTab = vi.fn();
 
-    render(
-      <ActivityBar
-        activeTab="scripts"
-        onSelectTab={handleSelectTab}
-      />
-    );
+    render(<ActivityBar activeTab="scripts" onSelectTab={handleSelectTab} />);
 
     const scriptsButton = screen.getByTestId('tab-scripts');
     fireEvent.click(scriptsButton);
@@ -83,7 +82,7 @@ describe('Collapsible & Fluid Resizable Navigation Sidebar', () => {
         projectId="test-project-sidebar"
         repository={repo}
         initialProject={mockProject}
-      />
+      />,
     );
 
     const navColumn = screen.getByTestId('col-navigation');
@@ -108,7 +107,7 @@ describe('Collapsible & Fluid Resizable Navigation Sidebar', () => {
         projectId="test-project-sidebar"
         repository={repo}
         initialProject={mockProject}
-      />
+      />,
     );
 
     const navColumn = screen.getByTestId('col-navigation');
@@ -130,7 +129,7 @@ describe('Collapsible & Fluid Resizable Navigation Sidebar', () => {
         projectId="test-project-sidebar"
         repository={repo}
         initialProject={mockProject}
-      />
+      />,
     );
 
     const navColumn = screen.getByTestId('col-navigation');
@@ -157,7 +156,7 @@ describe('Collapsible & Fluid Resizable Navigation Sidebar', () => {
         projectId="test-project-sidebar"
         repository={repo}
         initialProject={mockProject}
-      />
+      />,
     );
 
     const navSplitter = document.querySelector('[data-testid="column-splitter-nav"]');
@@ -178,7 +177,7 @@ describe('Collapsible & Fluid Resizable Navigation Sidebar', () => {
         onCreateFile={() => {}}
         onRenameFile={() => {}}
         onDeleteFile={() => {}}
-      />
+      />,
     );
 
     const explorerPane = screen.getByTestId('pane-file-explorer');
@@ -196,7 +195,7 @@ describe('Collapsible & Fluid Resizable Navigation Sidebar', () => {
         projectId="test-project-sidebar"
         repository={repo}
         initialProject={mockProject}
-      />
+      />,
     );
 
     const assetPlaceholder = screen.getByTestId('pane-assets-placeholder');
@@ -212,7 +211,7 @@ describe('Collapsible & Fluid Resizable Navigation Sidebar', () => {
         onCreateCharacter={() => {}}
         onEditCharacter={() => {}}
         onDeleteCharacter={() => {}}
-      />
+      />,
     );
 
     const charPane = screen.getByTestId('pane-characters');

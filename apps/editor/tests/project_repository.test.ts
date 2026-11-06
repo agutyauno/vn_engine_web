@@ -65,17 +65,27 @@ describe('E-Phase 1: Storage & Repository Layer (IndexedDBProjectRepository)', (
   it('should list project summaries with accurate counts and metadata', async () => {
     await repository.createProject({
       title: 'Project A',
-      displaySettings: { width: 1920, height: 1080, orientation: 'landscape', lockAspectRatio: true },
+      displaySettings: {
+        width: 1920,
+        height: 1080,
+        orientation: 'landscape',
+        lockAspectRatio: true,
+      },
     });
     await repository.createProject({
       title: 'Project B (Portrait)',
-      displaySettings: { width: 1080, height: 1920, orientation: 'portrait', lockAspectRatio: true },
+      displaySettings: {
+        width: 1080,
+        height: 1920,
+        orientation: 'portrait',
+        lockAspectRatio: true,
+      },
     });
 
     const summaries = await repository.listProjects();
 
     expect(summaries).toHaveLength(2);
-    const projB = summaries.find((s) => s.title.includes('Portrait'));
+    const projB = summaries.find(s => s.title.includes('Portrait'));
     expect(projB).toBeDefined();
     expect(projB?.canvasWidth).toBe(1080);
     expect(projB?.canvasHeight).toBe(1920);
@@ -88,7 +98,12 @@ describe('E-Phase 1: Storage & Repository Layer (IndexedDBProjectRepository)', (
   it('should get a project by ID and return null for nonexistent ID', async () => {
     const created = await repository.createProject({
       title: 'Target Project',
-      displaySettings: { width: 1920, height: 1080, orientation: 'landscape', lockAspectRatio: true },
+      displaySettings: {
+        width: 1920,
+        height: 1080,
+        orientation: 'landscape',
+        lockAspectRatio: true,
+      },
     });
 
     const found = await repository.getProject(created.id);
@@ -103,7 +118,12 @@ describe('E-Phase 1: Storage & Repository Layer (IndexedDBProjectRepository)', (
   it('should update an existing project and maintain updatedAt timestamp', async () => {
     const created = await repository.createProject({
       title: 'Initial Title',
-      displaySettings: { width: 1920, height: 1080, orientation: 'landscape', lockAspectRatio: true },
+      displaySettings: {
+        width: 1920,
+        height: 1080,
+        orientation: 'landscape',
+        lockAspectRatio: true,
+      },
     });
 
     const updatedProject = {
@@ -132,7 +152,12 @@ describe('E-Phase 1: Storage & Repository Layer (IndexedDBProjectRepository)', (
     const original = await repository.createProject({
       title: 'Original Game',
       description: 'Master copy',
-      displaySettings: { width: 1920, height: 1080, orientation: 'landscape', lockAspectRatio: true },
+      displaySettings: {
+        width: 1920,
+        height: 1080,
+        orientation: 'landscape',
+        lockAspectRatio: true,
+      },
     });
 
     const duplicate = await repository.duplicateProject(original.id, 'Original Game (Copy)');
@@ -152,11 +177,21 @@ describe('E-Phase 1: Storage & Repository Layer (IndexedDBProjectRepository)', (
   it('should delete a project from database', async () => {
     const p1 = await repository.createProject({
       title: 'To Delete',
-      displaySettings: { width: 1920, height: 1080, orientation: 'landscape', lockAspectRatio: true },
+      displaySettings: {
+        width: 1920,
+        height: 1080,
+        orientation: 'landscape',
+        lockAspectRatio: true,
+      },
     });
     const p2 = await repository.createProject({
       title: 'To Keep',
-      displaySettings: { width: 1920, height: 1080, orientation: 'landscape', lockAspectRatio: true },
+      displaySettings: {
+        width: 1920,
+        height: 1080,
+        orientation: 'landscape',
+        lockAspectRatio: true,
+      },
     });
 
     await repository.deleteProject(p1.id);
@@ -178,7 +213,7 @@ describe('E-Phase 1: Storage & Repository Layer (IndexedDBProjectRepository)', (
 
   it('should throw when duplicating a non-existent project', async () => {
     await expect(repository.duplicateProject('non-existent-proj', 'Copy Title')).rejects.toThrow(
-      'Project not found: non-existent-proj'
+      'Project not found: non-existent-proj',
     );
   });
 
@@ -240,7 +275,12 @@ describe('E-Phase 1: Storage & Repository Layer (IndexedDBProjectRepository)', (
       // Create a project
       const proj = await repository.createProject({
         title: 'Storage Test Project',
-        displaySettings: { width: 1920, height: 1080, orientation: 'landscape', lockAspectRatio: true },
+        displaySettings: {
+          width: 1920,
+          height: 1080,
+          orientation: 'landscape',
+          lockAspectRatio: true,
+        },
       });
 
       const afterProjUsage = await repository.getStorageUsage();

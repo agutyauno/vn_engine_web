@@ -36,7 +36,10 @@ window.addEventListener('DOMContentLoaded', async () => {
   const isPopout = urlParams.get('popout') === 'true' || window.name === 'VN_Preview_Popout';
   const isModePreview = urlParams.get('mode') === 'preview';
   const isEmbedded =
-    (window.parent && window.parent !== window) || isPopout || urlParams.get('embedded') === 'true' || isModePreview;
+    (window.parent && window.parent !== window) ||
+    isPopout ||
+    urlParams.get('embedded') === 'true' ||
+    isModePreview;
 
   const projectId = urlParams.get('projectId') || urlParams.get('project') || undefined;
 
@@ -48,22 +51,22 @@ window.addEventListener('DOMContentLoaded', async () => {
   // 1. Quản lý Project Data và Asset Resolver
   let currentProjectData: ProjectData = {
     id: projectId,
-    characters: (!isEmbedded && !isModePreview) ? (defaultStandaloneCharacters as unknown as ProjectDataCharacter[]) : [],
+    characters:
+      !isEmbedded && !isModePreview
+        ? (defaultStandaloneCharacters as unknown as ProjectDataCharacter[])
+        : [],
     assets: [],
   };
 
   let bridge: PreviewBridgeAdapter;
 
-  const assetResolver = new AssetResolverAdapter(
-    () => currentProjectData,
-    {
-      report: (diag) => {
-        if (bridge && typeof bridge.sendDiagnostic === 'function') {
-          bridge.sendDiagnostic(diag as EngineDiagnostic);
-        }
-      },
+  const assetResolver = new AssetResolverAdapter(() => currentProjectData, {
+    report: diag => {
+      if (bridge && typeof bridge.sendDiagnostic === 'function') {
+        bridge.sendDiagnostic(diag as EngineDiagnostic);
+      }
     },
-  );
+  });
 
   // 2. Khởi tạo Platform Adapters
   const gameRenderer = new GameRenderer();
@@ -99,7 +102,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   }
 
   // 4. Khởi tạo VNRuntimeKernel
-  const initialMode: PlayerMode = (isEmbedded || isModePreview) ? 'STANDBY' : 'TITLE';
+  const initialMode: PlayerMode = isEmbedded || isModePreview ? 'STANDBY' : 'TITLE';
   const kernel = new VNRuntimeKernel(
     program,
     {
@@ -110,7 +113,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     {
       initialMode,
       projectId,
-      characters: (!isEmbedded && !isModePreview) ? defaultStandaloneCharacters : undefined,
+      characters: !isEmbedded && !isModePreview ? defaultStandaloneCharacters : undefined,
     },
   );
 
@@ -139,7 +142,8 @@ window.addEventListener('DOMContentLoaded', async () => {
         currentProjectData = {
           ...currentProjectData,
           id: opts.projectId || currentProjectData.id,
-          characters: (opts.characters as unknown as ProjectDataCharacter[]) || currentProjectData.characters,
+          characters:
+            (opts.characters as unknown as ProjectDataCharacter[]) || currentProjectData.characters,
           assets: (opts.assets as unknown as ProjectDataAsset[]) || currentProjectData.assets,
         };
         assetResolver.resetWarnedAssets();
@@ -165,7 +169,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
   };
 
-  kernel.subscribe((state) => {
+  kernel.subscribe(state => {
     if (state.mode === 'GAMEPLAY') {
       requestAnimationFrame(attachCanvasToStage);
     }
@@ -175,9 +179,6 @@ window.addEventListener('DOMContentLoaded', async () => {
   // 6. Mount Preact UI Root vào #ui-root
   const uiRoot = document.getElementById('ui-root');
   if (uiRoot) {
-    render(
-      h(PlayerUIProvider, { kernel }, h(PlayerApp, null)),
-      uiRoot,
-    );
+    render(h(PlayerUIProvider, { kernel }, h(PlayerApp, null)), uiRoot);
   }
 });

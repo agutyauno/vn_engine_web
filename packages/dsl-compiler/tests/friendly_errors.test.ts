@@ -46,7 +46,7 @@ describe('Friendly Diagnostics & Error Formatter (TDD RED)', () => {
     expect(result.success).toBe(false);
     expect(result.errors).toBeDefined();
     const err = result.errors!.find(
-      (e) => e.code === 'ERR_SEMANTIC_DANGLING_SCENE' || e.message.includes('non_existent')
+      e => e.code === 'ERR_SEMANTIC_DANGLING_SCENE' || e.message.includes('non_existent'),
     );
     expect(err).toBeDefined();
     expect(err?.code).toBe('ERR_SEMANTIC_DANGLING_SCENE');
@@ -62,7 +62,7 @@ describe('Friendly Diagnostics & Error Formatter (TDD RED)', () => {
     expect(result.success).toBe(false);
     expect(result.errors).toBeDefined();
     const err = result.errors!.find(
-      (e) => e.code === 'ERR_SEMANTIC_MISSING_AUDIO' || e.message.includes('unregistered_voice')
+      e => e.code === 'ERR_SEMANTIC_MISSING_AUDIO' || e.message.includes('unregistered_voice'),
     );
     expect(err).toBeDefined();
     expect(err?.code).toBe('ERR_SEMANTIC_MISSING_AUDIO');
@@ -80,4 +80,3 @@ describe('Friendly Diagnostics & Error Formatter (TDD RED)', () => {
     expect(err.message).not.toMatch(/^Syntax error:\s*/i);
   });
 });
-

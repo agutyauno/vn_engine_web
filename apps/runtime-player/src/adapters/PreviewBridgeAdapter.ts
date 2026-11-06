@@ -45,10 +45,7 @@ export interface PreviewBridgeOptions {
   targetWindow?: () => Window | null;
   editorOrigin?: string;
   localOrigin?: string;
-  onHotReload?: (
-    program: Instruction[],
-    options?: HotReloadOptions
-  ) => void;
+  onHotReload?: (program: Instruction[], options?: HotReloadOptions) => void;
   onSetVariable?: (name: string, value: unknown) => void;
 }
 

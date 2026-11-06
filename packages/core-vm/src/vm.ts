@@ -1047,4 +1047,3 @@ export class VisualNovelVM {
     return this.evaluator;
   }
 }
-

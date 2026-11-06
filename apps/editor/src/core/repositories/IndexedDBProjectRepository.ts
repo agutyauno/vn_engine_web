@@ -26,7 +26,7 @@ export class IndexedDBProjectRepository implements ProjectRepository {
     return new Promise((resolve, reject) => {
       const request = indexedDB.open(this.dbName, DB_VERSION);
 
-      request.onupgradeneeded = (event) => {
+      request.onupgradeneeded = event => {
         const db = (event.target as IDBOpenDBRequest).result;
 
         if (!db.objectStoreNames.contains('projects')) {
@@ -67,7 +67,7 @@ export class IndexedDBProjectRepository implements ProjectRepository {
 
       request.onsuccess = () => {
         const projects: Project[] = request.result || [];
-        const summaries: ProjectSummary[] = projects.map((p) => ({
+        const summaries: ProjectSummary[] = projects.map(p => ({
           id: p.id,
           title: p.title,
           description: p.description,
@@ -78,7 +78,10 @@ export class IndexedDBProjectRepository implements ProjectRepository {
           scriptCount: p.files?.length || 0,
           characterCount: p.characters?.length || 0,
           assetCount: p.assets?.length || 0,
-          totalSizeBytes: typeof Blob !== 'undefined' ? new Blob([JSON.stringify(p)]).size : JSON.stringify(p).length,
+          totalSizeBytes:
+            typeof Blob !== 'undefined'
+              ? new Blob([JSON.stringify(p)]).size
+              : JSON.stringify(p).length,
         }));
 
         // Sắp xếp theo ngày cập nhật mới nhất trước
@@ -111,11 +114,17 @@ export class IndexedDBProjectRepository implements ProjectRepository {
 
   async createProject(params: CreateProjectParams): Promise<Project> {
     const db = await this.getDB();
-    const id = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `proj_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    const id =
+      typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `proj_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
     const now = Date.now();
 
     const defaultScript: ScriptFile = {
-      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `file_${Date.now()}`,
+      id:
+        typeof crypto !== 'undefined' && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `file_${Date.now()}`,
       name: 'main.vns',
       content: `# Main visual novel script: ${params.title}\n\nscene start {\n  narrator: "Welcome to ${params.title}."\n}`,
       order: 0,
@@ -217,7 +226,10 @@ export class IndexedDBProjectRepository implements ProjectRepository {
       throw new Error(`Project not found: ${id}`);
     }
 
-    const newId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `proj_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    const newId =
+      typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `proj_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
     const now = Date.now();
 
     const clonedProject: Project = {
@@ -226,13 +238,16 @@ export class IndexedDBProjectRepository implements ProjectRepository {
       title: newTitle,
       updatedAt: now,
       version: 1,
-      files: (original.files || []).map((f) => ({
+      files: (original.files || []).map(f => ({
         ...f,
-        id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `file_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        id:
+          typeof crypto !== 'undefined' && crypto.randomUUID
+            ? crypto.randomUUID()
+            : `file_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       })),
-      characters: (original.characters || []).map((c) => ({ ...c })),
-      assets: (original.assets || []).map((a) => ({ ...a })),
-      variables: (original.variables || []).map((v) => ({ ...v })),
+      characters: (original.characters || []).map(c => ({ ...c })),
+      assets: (original.assets || []).map(a => ({ ...a })),
+      variables: (original.variables || []).map(v => ({ ...v })),
     };
 
     const db = await this.getDB();
@@ -331,13 +346,16 @@ export class IndexedDBProjectRepository implements ProjectRepository {
     let blobsBytes = 0;
     try {
       const db = await this.getDB();
-      blobsBytes = await new Promise<number>((resolve) => {
+      blobsBytes = await new Promise<number>(resolve => {
         const tx = db.transaction('asset_blobs', 'readonly');
         const store = tx.objectStore('asset_blobs');
         const req = store.getAll();
         req.onsuccess = () => {
           const records = (req.result || []) as AssetBlobRecord[];
-          const sum = records.reduce((acc, curr) => acc + (curr.sizeBytes || curr.blob?.size || 0), 0);
+          const sum = records.reduce(
+            (acc, curr) => acc + (curr.sizeBytes || curr.blob?.size || 0),
+            0,
+          );
           resolve(sum);
         };
         req.onerror = () => resolve(0);

@@ -1,12 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { Character } from '@vn-engine/shared-types';
-import {
-  AlertTriangleIcon,
-  CloseIcon,
-  ImageIcon,
-  PlusIcon,
-  TrashIcon,
-} from '../common/Icons';
+import { AlertTriangleIcon, CloseIcon, ImageIcon, PlusIcon, TrashIcon } from '../common/Icons';
 
 export interface CharacterSpriteRow {
   id: string;
@@ -25,14 +19,7 @@ export interface CharacterModalProps {
   onSave: (character: Character) => void;
 }
 
-export const COLOR_SWATCHES = [
-  '#38bdf8',
-  '#ec4899',
-  '#10b981',
-  '#f59e0b',
-  '#a855f7',
-  '#ffffff',
-];
+export const COLOR_SWATCHES = ['#38bdf8', '#ec4899', '#10b981', '#f59e0b', '#a855f7', '#ffffff'];
 
 export function normalizeHex(input: string, fallback: string = '#38bdf8'): string {
   let trimmed = input.trim();
@@ -120,11 +107,11 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
           imageUrl: url,
           fileName: `${key}.png`,
           isDefault: key === defaultExpr,
-        })
+        }),
       );
 
       // If no row is default but rows exist, set first to default
-      if (rows.length > 0 && !rows.some((r) => r.isDefault)) {
+      if (rows.length > 0 && !rows.some(r => r.isDefault)) {
         rows[0]!.isDefault = true;
       }
 
@@ -157,7 +144,7 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
       return;
     }
 
-    if (!isEditMode && existingIds.map((id) => id.toLowerCase()).includes(trimmed.toLowerCase())) {
+    if (!isEditMode && existingIds.map(id => id.toLowerCase()).includes(trimmed.toLowerCase())) {
       setIdError(`Character ID '${trimmed.toLowerCase()}' already exists`);
       return;
     }
@@ -183,7 +170,7 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
 
     const normalized = key.toLowerCase();
     const isDuplicate = expressions.some(
-      (r, i) => i !== index && r.expressionKey.trim().toLowerCase() === normalized
+      (r, i) => i !== index && r.expressionKey.trim().toLowerCase() === normalized,
     );
 
     if (isDuplicate) {
@@ -224,7 +211,7 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
     const newWarnings: string[] = [];
     const validFiles: { file: File; key: string }[] = [];
 
-    Array.from(files).forEach((file) => {
+    Array.from(files).forEach(file => {
       if (file.type && !file.type.startsWith('image/')) {
         newWarnings.push(`Skipped non-image file: ${file.name}`);
         return;
@@ -237,21 +224,21 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
     });
 
     if (newWarnings.length > 0) {
-      setWarnings((prev) => [...prev, ...newWarnings]);
+      setWarnings(prev => [...prev, ...newWarnings]);
     }
 
     if (validFiles.length === 0) return;
 
     validFiles.forEach(({ file, key }) => {
       const reader = new FileReader();
-      reader.onload = (event) => {
+      reader.onload = event => {
         const result = event.target?.result as string;
         if (!result) return;
 
-        setExpressions((prev) => {
+        setExpressions(prev => {
           let derivedKey = key;
           let counter = 1;
-          while (prev.some((r) => r.expressionKey.toLowerCase() === derivedKey.toLowerCase())) {
+          while (prev.some(r => r.expressionKey.toLowerCase() === derivedKey.toLowerCase())) {
             derivedKey = `${key}_${counter++}`;
           }
 
@@ -268,11 +255,11 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
           // If new row is default, unset previous defaults
           let updated = [...prev];
           if (newRow.isDefault) {
-            updated = updated.map((r) => ({ ...r, isDefault: false }));
+            updated = updated.map(r => ({ ...r, isDefault: false }));
           }
 
           const combined = [...updated, newRow];
-          if (!combined.some((r) => r.isDefault) && combined.length > 0) {
+          if (!combined.some(r => r.isDefault) && combined.length > 0) {
             combined[0]!.isDefault = true;
           }
 
@@ -286,16 +273,16 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
   // Single file replacement for an expression row
   const handleSingleFileUpload = (index: number, file: File) => {
     if (file.type && !file.type.startsWith('image/')) {
-      setWarnings((prev) => [...prev, `Skipped non-image file: ${file.name}`]);
+      setWarnings(prev => [...prev, `Skipped non-image file: ${file.name}`]);
       return;
     }
 
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = event => {
       const result = event.target?.result as string;
       if (!result) return;
 
-      setExpressions((prev) => {
+      setExpressions(prev => {
         const next = [...prev];
         const target = next[index];
         if (target) {
@@ -314,10 +301,10 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
 
   // Add blank expression row
   const handleAddBlankRow = () => {
-    setExpressions((prev) => {
+    setExpressions(prev => {
       let candidate = prev.length === 0 ? 'default' : `expr_${prev.length}`;
       let counter = 1;
-      while (prev.some((r) => r.expressionKey.toLowerCase() === candidate.toLowerCase())) {
+      while (prev.some(r => r.expressionKey.toLowerCase() === candidate.toLowerCase())) {
         candidate = `expr_${prev.length}_${counter++}`;
       }
 
@@ -336,17 +323,17 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
 
   // Set default expression row
   const handleSetDefaultRow = (index: number) => {
-    setExpressions((prev) =>
+    setExpressions(prev =>
       prev.map((row, i) => ({
         ...row,
         isDefault: i === index,
-      }))
+      })),
     );
   };
 
   // Delete expression row with fallback shift
   const handleDeleteRow = (index: number) => {
-    setExpressions((prev) => {
+    setExpressions(prev => {
       const wasDefault = prev[index]?.isDefault;
       const next = prev.filter((_, i) => i !== index);
 
@@ -379,7 +366,7 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
     }
 
     if (!defaultExpr && expressions.length > 0) {
-      const firstWithKey = expressions.find((r) => r.expressionKey.trim());
+      const firstWithKey = expressions.find(r => r.expressionKey.trim());
       defaultExpr = firstWithKey ? firstWithKey.expressionKey.trim().toLowerCase() : 'default';
     }
 
@@ -423,7 +410,10 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-y-auto p-5 space-y-5">
+        <form
+          onSubmit={handleSubmit}
+          className="flex flex-1 flex-col overflow-y-auto p-5 space-y-5"
+        >
           {/* Section 1: Identity & Color */}
           <div className="space-y-4 rounded-md border border-neutral-800/80 bg-neutral-950/40 p-4">
             <div className="grid grid-cols-2 gap-4">
@@ -438,7 +428,7 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
                   value={isEditMode && initialData ? initialData.id : charId}
                   disabled={isEditMode}
                   readOnly={isEditMode}
-                  onChange={(e) => {
+                  onChange={e => {
                     if (!isEditMode) {
                       setCharId(e.target.value);
                     }
@@ -448,8 +438,8 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
                     isEditMode
                       ? 'border-neutral-800 bg-neutral-950/60 text-neutral-500 cursor-not-allowed'
                       : idError
-                      ? 'border-red-500/70 bg-neutral-950 text-white focus:border-red-400'
-                      : 'border-neutral-700 bg-neutral-950 text-white focus:border-neutral-400'
+                        ? 'border-red-500/70 bg-neutral-950 text-white focus:border-red-400'
+                        : 'border-neutral-700 bg-neutral-950 text-white focus:border-neutral-400'
                   }`}
                 />
                 {idError && (
@@ -468,7 +458,7 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
                   type="text"
                   data-testid="input-char-name"
                   value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
+                  onChange={e => setDisplayName(e.target.value)}
                   placeholder="e.g. Elena Gilbert"
                   className="w-full rounded border border-neutral-700 bg-neutral-950 px-3 py-1.5 text-xs text-white focus:border-neutral-400 focus:outline-none transition"
                 />
@@ -499,7 +489,7 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
 
                 {/* Swatches */}
                 <div className="flex items-center gap-1.5">
-                  {COLOR_SWATCHES.map((hex) => (
+                  {COLOR_SWATCHES.map(hex => (
                     <button
                       key={hex}
                       type="button"
@@ -524,7 +514,9 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
                     className="rounded border border-neutral-800 bg-neutral-950 px-2.5 py-1 text-xs font-semibold"
                     style={{ color: isValidHex(colorHex) ? normalizeHex(colorHex) : nativeColor }}
                   >
-                    {displayName || (isEditMode && initialData ? initialData.id : charId) || 'Elena Gilbert'}
+                    {displayName ||
+                      (isEditMode && initialData ? initialData.id : charId) ||
+                      'Elena Gilbert'}
                   </span>
                 </div>
               </div>
@@ -572,19 +564,19 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
             <div
               id="char-bulk-dropzone"
               data-testid="char-bulk-dropzone"
-              onDragOver={(e) => {
+              onDragOver={e => {
                 e.preventDefault();
                 setIsDragging(true);
               }}
-              onDragEnter={(e) => {
+              onDragEnter={e => {
                 e.preventDefault();
                 setIsDragging(true);
               }}
-              onDragLeave={(e) => {
+              onDragLeave={e => {
                 e.preventDefault();
                 setIsDragging(false);
               }}
-              onDrop={(e) => {
+              onDrop={e => {
                 e.preventDefault();
                 setIsDragging(false);
                 if (e.dataTransfer.files) {
@@ -603,7 +595,8 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
                 Drag & drop multiple expression images here
               </span>
               <p className="mt-0.5 text-[11px] text-neutral-500">
-                Supports PNG, JPG, WebP, AVIF. Automatically strips file extensions & character prefixes.
+                Supports PNG, JPG, WebP, AVIF. Automatically strips file extensions & character
+                prefixes.
               </p>
               <input
                 ref={bulkFileInputRef}
@@ -611,7 +604,7 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
                 multiple
                 accept="image/png,image/jpeg,image/webp,image/avif"
                 data-testid="input-char-sprite-files"
-                onChange={(e) => {
+                onChange={e => {
                   if (e.target.files) {
                     processFiles(e.target.files);
                   }
@@ -672,10 +665,10 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
                             type="text"
                             data-testid={`input-expr-key-${idx}`}
                             value={row.expressionKey}
-                            onChange={(e) => {
+                            onChange={e => {
                               const val = e.target.value;
-                              setExpressions((prev) =>
-                                prev.map((r, i) => (i === idx ? { ...r, expressionKey: val } : r))
+                              setExpressions(prev =>
+                                prev.map((r, i) => (i === idx ? { ...r, expressionKey: val } : r)),
                               );
                             }}
                             placeholder="e.g. smile"
@@ -686,7 +679,10 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
                             }`}
                           />
                           {error && (
-                            <p data-testid="expr-key-error" className="mt-0.5 text-[10px] text-red-400">
+                            <p
+                              data-testid="expr-key-error"
+                              className="mt-0.5 text-[10px] text-red-400"
+                            >
                               {error}
                             </p>
                           )}
@@ -734,7 +730,7 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
                             type="file"
                             accept="image/png,image/jpeg,image/webp,image/avif"
                             data-testid={`input-file-expr-${idx}`}
-                            onChange={(e) => {
+                            onChange={e => {
                               const f = e.target.files?.[0];
                               if (f) handleSingleFileUpload(idx, f);
                             }}

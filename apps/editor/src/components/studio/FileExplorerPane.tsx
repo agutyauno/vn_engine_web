@@ -38,7 +38,7 @@ export function normalizeScriptName(input: string): string {
 export function validateFileName(
   name: string,
   existingNames: string[],
-  currentName?: string
+  currentName?: string,
 ): { valid: boolean; error?: string; normalizedName?: string } {
   const trimmed = name.trim();
   if (!trimmed || trimmed.toLowerCase() === '.vns') {
@@ -58,7 +58,7 @@ export function validateFileName(
   const normalizedLower = normalized.toLowerCase();
   const currentLower = currentName ? normalizeScriptName(currentName).toLowerCase() : undefined;
 
-  const isDuplicate = existingNames.some((existing) => {
+  const isDuplicate = existingNames.some(existing => {
     const existingNormLower = normalizeScriptName(existing).toLowerCase();
     if (currentLower && existingNormLower === currentLower) {
       return false; // ignore self when renaming
@@ -83,7 +83,7 @@ export function generateDefaultScriptName(existingNames: string[]): string {
   const base = 'New Script';
   let candidate = `${base}.vns`;
   let counter = 2;
-  const set = new Set(existingNames.map((n) => normalizeScriptName(n).toLowerCase()));
+  const set = new Set(existingNames.map(n => normalizeScriptName(n).toLowerCase()));
 
   while (set.has(candidate.toLowerCase())) {
     candidate = `${base} (${counter}).vns`;
@@ -117,7 +117,7 @@ export const FileExplorerPane: React.FC<FileExplorerPaneProps> = ({
       setValidationError(null);
       return;
     }
-    const existingNames = files.map((f) => f.name);
+    const existingNames = files.map(f => f.name);
     const validation = validateFileName(trimmed, existingNames);
     if (!validation.valid) {
       setValidationError(validation.error || 'Invalid file name');
@@ -131,7 +131,7 @@ export const FileExplorerPane: React.FC<FileExplorerPaneProps> = ({
   };
 
   const handleRenameSubmit = (fileId: string) => {
-    const targetFile = files.find((f) => f.id === fileId);
+    const targetFile = files.find(f => f.id === fileId);
     if (!targetFile) return;
 
     const trimmed = renameValue.trim();
@@ -140,7 +140,7 @@ export const FileExplorerPane: React.FC<FileExplorerPaneProps> = ({
       return;
     }
 
-    const existingNames = files.map((f) => f.name);
+    const existingNames = files.map(f => f.name);
     const validation = validateFileName(trimmed, existingNames, targetFile.name);
     if (!validation.valid) {
       setRenameError(validation.error || 'Invalid file name');
@@ -189,11 +189,11 @@ export const FileExplorerPane: React.FC<FileExplorerPaneProps> = ({
                 autoFocus
                 data-testid="input-new-script-name"
                 value={newFileName}
-                onChange={(e) => {
+                onChange={e => {
                   setNewFileName(e.target.value);
                   if (validationError) setValidationError(null);
                 }}
-                onKeyDown={(e) => {
+                onKeyDown={e => {
                   if (e.key === 'Enter') handleCreateSubmit();
                   if (e.key === 'Escape') {
                     setIsCreating(false);
@@ -220,7 +220,7 @@ export const FileExplorerPane: React.FC<FileExplorerPaneProps> = ({
           </div>
         )}
 
-        {files.map((file) => {
+        {files.map(file => {
           const effectiveEntry = entrySceneName || 'main.vns';
           const isEntry =
             file.name === effectiveEntry ||
@@ -234,7 +234,9 @@ export const FileExplorerPane: React.FC<FileExplorerPaneProps> = ({
             <div
               key={file.id}
               data-testid={`file-item-${file.id}`}
-              style={isActive ? { backgroundColor: 'var(--vn-primary-highlight, #1e293b)' } : undefined}
+              style={
+                isActive ? { backgroundColor: 'var(--vn-primary-highlight, #1e293b)' } : undefined
+              }
               className={`group flex flex-col rounded px-2 py-1.5 text-xs transition cursor-pointer ${
                 isActive
                   ? 'text-white font-medium'
@@ -255,11 +257,11 @@ export const FileExplorerPane: React.FC<FileExplorerPaneProps> = ({
                       autoFocus
                       data-testid={`input-rename-file-${file.id}`}
                       value={renameValue}
-                      onChange={(e) => {
+                      onChange={e => {
                         setRenameValue(e.target.value);
                         if (renameError) setRenameError(null);
                       }}
-                      onKeyDown={(e) => {
+                      onKeyDown={e => {
                         if (e.key === 'Enter') handleRenameSubmit(file.id);
                         if (e.key === 'Escape') {
                           setRenamingId(null);
@@ -268,7 +270,7 @@ export const FileExplorerPane: React.FC<FileExplorerPaneProps> = ({
                       }}
                       onBlur={() => handleRenameSubmit(file.id)}
                       className="w-full bg-neutral-950 px-1 py-0.5 text-xs text-white rounded border border-neutral-600 focus:outline-none font-mono"
-                      onClick={(e) => e.stopPropagation()}
+                      onClick={e => e.stopPropagation()}
                     />
                   ) : (
                     <span className="truncate font-mono">{displayName}</span>
@@ -290,7 +292,7 @@ export const FileExplorerPane: React.FC<FileExplorerPaneProps> = ({
                       <button
                         type="button"
                         data-testid={`btn-set-entry-${file.id}`}
-                        onClick={(e) => {
+                        onClick={e => {
                           e.stopPropagation();
                           onSetEntryScene(file.name);
                         }}
@@ -304,7 +306,7 @@ export const FileExplorerPane: React.FC<FileExplorerPaneProps> = ({
                     <button
                       type="button"
                       data-testid={`btn-rename-file-${file.id}`}
-                      onClick={(e) => {
+                      onClick={e => {
                         e.stopPropagation();
                         setRenamingId(file.id);
                         setRenameValue(displayName);
@@ -320,7 +322,7 @@ export const FileExplorerPane: React.FC<FileExplorerPaneProps> = ({
                       type="button"
                       data-testid={`btn-delete-file-${file.id}`}
                       disabled={isDeleteDisabled}
-                      onClick={(e) => {
+                      onClick={e => {
                         e.stopPropagation();
                         if (!isDeleteDisabled) onDeleteFile(file.id);
                       }}
@@ -328,8 +330,8 @@ export const FileExplorerPane: React.FC<FileExplorerPaneProps> = ({
                         isEntry
                           ? 'Entry scene cannot be deleted'
                           : files.length <= 1
-                          ? 'Cannot delete the only script file'
-                          : 'Delete Script'
+                            ? 'Cannot delete the only script file'
+                            : 'Delete Script'
                       }
                       className={`rounded p-1 ${
                         isDeleteDisabled
@@ -344,7 +346,10 @@ export const FileExplorerPane: React.FC<FileExplorerPaneProps> = ({
               </div>
 
               {renameError && renamingId === file.id && (
-                <span data-testid={`rename-error-${file.id}`} className="text-[10px] text-red-400 mt-1 block">
+                <span
+                  data-testid={`rename-error-${file.id}`}
+                  className="text-[10px] text-red-400 mt-1 block"
+                >
                   {renameError}
                 </span>
               )}

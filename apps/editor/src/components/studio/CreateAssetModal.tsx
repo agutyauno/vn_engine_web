@@ -44,7 +44,7 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
   const [assetId, setAssetId] = useState<string>(initialAsset?.id || initialAssetId || '');
   const [assetName, setAssetName] = useState<string>(initialAsset?.name || '');
   const [category, setCategory] = useState<AssetCategory>(
-    initialAsset?.category || initialCategory || 'background'
+    initialAsset?.category || initialCategory || 'background',
   );
   const [detectedType, setDetectedType] = useState<AssetRef['type']>(initialAsset?.type || 'image');
   const [previewUrl, setPreviewUrl] = useState<string>(initialAsset?.storageUrl || '');
@@ -97,8 +97,11 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
     if (!initialAsset && !initialAssetId && !assetId) {
       setAssetId(validation.suggestedId || slugifyAssetId(currentFile.name));
     }
-    setAssetName((prev) => (prev.trim() ? prev : currentFile.name));
-    setCategory((prev) => initialCategory || (initialAsset ? prev : validation.suggestedCategory || 'background'));
+    setAssetName(prev => (prev.trim() ? prev : currentFile.name));
+    setCategory(
+      prev =>
+        initialCategory || (initialAsset ? prev : validation.suggestedCategory || 'background'),
+    );
     setDetectedType(validation.detectedType || 'image');
 
     const objectUrl =
@@ -125,7 +128,9 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
     Boolean(assetId.trim()) &&
     isValidIdentifier &&
     !isDuplicate &&
-    (isEdit ? (Boolean(previewUrl) || Boolean(currentFile)) : (Boolean(currentFile) && !validationError));
+    (isEdit
+      ? Boolean(previewUrl) || Boolean(currentFile)
+      : Boolean(currentFile) && !validationError);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -252,12 +257,12 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
               <div
                 data-testid="asset-dropzone"
                 onClick={() => fileInputRef.current?.click()}
-                onDragOver={(e) => {
+                onDragOver={e => {
                   e.preventDefault();
                   setIsDragging(true);
                 }}
                 onDragLeave={() => setIsDragging(false)}
-                onDrop={(e) => {
+                onDrop={e => {
                   e.preventDefault();
                   setIsDragging(false);
                   const file = e.dataTransfer.files?.[0];
@@ -296,7 +301,7 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
               type="text"
               value={assetId}
               disabled={isEdit}
-              onChange={(e) => setAssetId(e.target.value)}
+              onChange={e => setAssetId(e.target.value)}
               placeholder="e.g. bg_classroom, bgm_theme"
               className={`w-full px-3 py-2 text-xs bg-neutral-950 border border-neutral-800 rounded-md text-neutral-100 placeholder-neutral-500 focus:outline-hidden focus:border-neutral-500 font-mono ${
                 isEdit ? 'opacity-60 cursor-not-allowed' : ''
@@ -308,30 +313,26 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
               </p>
             )}
             {isDuplicate && (
-              <p
-                data-testid="asset-id-duplicate-error"
-                className="mt-1 text-xs text-red-400"
-              >
+              <p data-testid="asset-id-duplicate-error" className="mt-1 text-xs text-red-400">
                 This Asset ID already exists in the project.
               </p>
             )}
             {!isValidIdentifier && assetId.trim().length > 0 && !isDuplicate && (
               <p className="mt-1 text-xs text-amber-400">
-                Asset ID must start with a letter or underscore and contain only alphanumeric characters and underscores.
+                Asset ID must start with a letter or underscore and contain only alphanumeric
+                characters and underscores.
               </p>
             )}
           </div>
 
           {/* Asset Name */}
           <div>
-            <label className="block text-xs font-medium text-neutral-300 mb-1">
-              Asset Name
-            </label>
+            <label className="block text-xs font-medium text-neutral-300 mb-1">Asset Name</label>
             <input
               data-testid="input-asset-name"
               type="text"
               value={assetName}
-              onChange={(e) => setAssetName(e.target.value)}
+              onChange={e => setAssetName(e.target.value)}
               placeholder="Display name or file name"
               className="w-full px-3 py-2 text-xs bg-neutral-950 border border-neutral-800 rounded-md text-neutral-100 placeholder-neutral-500 focus:outline-hidden focus:border-neutral-500"
             />
@@ -339,16 +340,14 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
 
           {/* Category */}
           <div>
-            <label className="block text-xs font-medium text-neutral-300 mb-1">
-              Category
-            </label>
+            <label className="block text-xs font-medium text-neutral-300 mb-1">Category</label>
             <select
               data-testid="select-asset-category"
               value={category}
-              onChange={(e) => setCategory(e.target.value as AssetCategory)}
+              onChange={e => setCategory(e.target.value as AssetCategory)}
               className="w-full px-3 py-2 text-xs bg-neutral-950 border border-neutral-800 rounded-md text-neutral-100 focus:outline-hidden focus:border-neutral-500"
             >
-              {CATEGORY_OPTIONS.map((opt) => (
+              {CATEGORY_OPTIONS.map(opt => (
                 <option key={opt.value} value={opt.value}>
                   {opt.label}
                 </option>
@@ -386,7 +385,7 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
         >
           <div
             className="relative max-w-full max-h-full flex items-center justify-center"
-            onClick={(e) => e.stopPropagation()}
+            onClick={e => e.stopPropagation()}
           >
             <img
               src={previewUrl}

@@ -484,10 +484,9 @@ describe('Dialogue Typewriter Animation & Inline Colors (TASK-player-typewriter-
       const span = spans?.[0] as HTMLElement;
       expect(span?.textContent).toBe('Alice');
       const styleAttr = span?.getAttribute('style') ?? '';
-      expect(
-        styleAttr.includes('#38bdf8') ||
-          span?.style.color.includes('56, 189, 248'),
-      ).toBe(true);
+      expect(styleAttr.includes('#38bdf8') || span?.style.color.includes('56, 189, 248')).toBe(
+        true,
+      );
 
       // Clean text content across whole dialogue
       expect(dialogueText?.textContent?.trim()).toBe('Greetings, Alice! Welcome.');

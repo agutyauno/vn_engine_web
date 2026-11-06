@@ -131,7 +131,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     });
   },
 
-  setProject: (project) => {
+  setProject: project => {
     clearAutoSaveTimer();
     set({
       project,
@@ -141,7 +141,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     });
   },
 
-  setRepository: (repo) => {
+  setRepository: repo => {
     activeRepository = repo;
   },
 
@@ -149,7 +149,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     const currentProject = get().project;
     if (!currentProject) return;
 
-    const fileIndex = currentProject.files.findIndex((f) => f.id === fileId);
+    const fileIndex = currentProject.files.findIndex(f => f.id === fileId);
     if (fileIndex === -1) return;
 
     const existingFile = currentProject.files[fileIndex];
@@ -188,7 +188,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     }
   },
 
-  saveProject: async (repo) => {
+  saveProject: async repo => {
     clearAutoSaveTimer();
     const currentProject = get().project;
     if (!currentProject) return;
@@ -204,9 +204,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
       }
 
       // Snapshot subtraction: remove only the files that were snapshotted
-      const remainingDirtyIds = get().dirtyFileIds.filter(
-        (id) => !snapshottedDirtyIds.includes(id)
-      );
+      const remainingDirtyIds = get().dirtyFileIds.filter(id => !snapshottedDirtyIds.includes(id));
 
       set({
         dirtyFileIds: remainingDirtyIds,
@@ -216,8 +214,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
       // Retain dirtyFileIds and keep isDirty on error
       set({ isDirty: true });
 
-      const errorMessage =
-        error instanceof Error ? error.message : 'Failed to save project';
+      const errorMessage = error instanceof Error ? error.message : 'Failed to save project';
       useDiagnosticsStore.getState().addRuntimeDiagnostic({
         id: `diag-save-${Date.now()}`,
         code: 'E_STORAGE_SAVE',
@@ -232,7 +229,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     }
   },
 
-  updateProjectMetadata: (metadata) => {
+  updateProjectMetadata: metadata => {
     const currentProject = get().project;
     if (!currentProject) return;
 
@@ -246,7 +243,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     });
   },
 
-  updateDisplaySettings: (settings) => {
+  updateDisplaySettings: settings => {
     const currentProject = get().project;
     if (!currentProject) return;
 
@@ -264,7 +261,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     });
   },
 
-  updateGameplaySettings: (settings) => {
+  updateGameplaySettings: settings => {
     const currentProject = get().project;
     if (!currentProject) return;
 
@@ -282,7 +279,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     });
   },
 
-  updateEditorSettings: (settings) => {
+  updateEditorSettings: settings => {
     const currentProject = get().project;
     if (!currentProject) return;
 
@@ -300,7 +297,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     });
   },
 
-  createFile: (name) => {
+  createFile: name => {
     const currentProject = get().project;
     if (!currentProject) return;
 
@@ -333,14 +330,14 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
 
     // Check for duplicate filenames
     const exists = currentProject.files.some(
-      (f) => f.id !== fileId && f.name.toLowerCase() === normalized.toLowerCase()
+      f => f.id !== fileId && f.name.toLowerCase() === normalized.toLowerCase(),
     );
     if (exists) {
       return; // Prevent duplicate names
     }
 
-    const updatedFiles = currentProject.files.map((f) =>
-      f.id === fileId ? { ...f, name: normalized, version: (f.version || 1) + 1 } : f
+    const updatedFiles = currentProject.files.map(f =>
+      f.id === fileId ? { ...f, name: normalized, version: (f.version || 1) + 1 } : f,
     );
 
     const dirtyFileIds = get().dirtyFileIds.includes(fileId)
@@ -358,11 +355,11 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     });
   },
 
-  deleteFile: (fileId) => {
+  deleteFile: fileId => {
     const currentProject = get().project;
     if (!currentProject) return;
 
-    const target = currentProject.files.find((f) => f.id === fileId);
+    const target = currentProject.files.find(f => f.id === fileId);
     if (!target) return;
 
     // Protection: never delete main.vns
@@ -370,8 +367,8 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
       return;
     }
 
-    const updatedFiles = currentProject.files.filter((f) => f.id !== fileId);
-    const dirtyFileIds = get().dirtyFileIds.filter((id) => id !== fileId);
+    const updatedFiles = currentProject.files.filter(f => f.id !== fileId);
+    const dirtyFileIds = get().dirtyFileIds.filter(id => id !== fileId);
 
     set({
       project: {
@@ -384,11 +381,11 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     });
   },
 
-  saveCharacter: (char) => {
+  saveCharacter: char => {
     const currentProject = get().project;
     if (!currentProject) return;
 
-    const index = currentProject.characters.findIndex((c) => c.id === char.id);
+    const index = currentProject.characters.findIndex(c => c.id === char.id);
     const updated = [...currentProject.characters];
     if (index >= 0) {
       updated[index] = char;
@@ -406,14 +403,14 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     });
   },
 
-  deleteCharacter: (charId) => {
+  deleteCharacter: charId => {
     const currentProject = get().project;
     if (!currentProject) return;
 
     set({
       project: {
         ...currentProject,
-        characters: currentProject.characters.filter((c) => c.id !== charId),
+        characters: currentProject.characters.filter(c => c.id !== charId),
         updatedAt: Date.now(),
       },
       isDirty: true,
@@ -428,7 +425,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
       await activeRepository.saveAssetBlob(asset.id, blob);
     }
 
-    const index = currentProject.assets.findIndex((a) => a.id === asset.id);
+    const index = currentProject.assets.findIndex(a => a.id === asset.id);
     const updated = [...currentProject.assets];
     if (index >= 0) {
       updated[index] = asset;
@@ -446,7 +443,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     });
   },
 
-  deleteAsset: async (assetId) => {
+  deleteAsset: async assetId => {
     const currentProject = get().project;
     if (!currentProject) return;
 
@@ -457,7 +454,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     set({
       project: {
         ...currentProject,
-        assets: currentProject.assets.filter((a) => a.id !== assetId),
+        assets: currentProject.assets.filter(a => a.id !== assetId),
         updatedAt: Date.now(),
       },
       isDirty: true,

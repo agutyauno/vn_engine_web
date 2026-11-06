@@ -1,10 +1,7 @@
 // apps/editor/tests/reconciliation.test.ts
 import { describe, it, expect } from 'vitest';
 import type { Project, ScriptFile, Character, AssetRef } from '@vn-engine/shared-types';
-import {
-  scanActiveReconciliation,
-  generateDiagnostics,
-} from '../src/core/services/reconciliation';
+import { scanActiveReconciliation, generateDiagnostics } from '../src/core/services/reconciliation';
 
 function createMockProject(options?: {
   files?: ScriptFile[];
@@ -64,7 +61,7 @@ describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () 
 
     const diagnostics = generateDiagnostics(project);
     const sceneAssetDiags = diagnostics.filter(
-      (d) => d.category === 'asset' && ['intro', '.c1', 'ending'].includes(d.assetKey ?? '')
+      d => d.category === 'asset' && ['intro', '.c1', 'ending'].includes(d.assetKey ?? ''),
     );
     expect(sceneAssetDiags).toHaveLength(0);
   });
@@ -76,11 +73,7 @@ describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () 
         {
           id: 'file-1',
           name: 'chapter1.vns',
-          content: [
-            'scene classroom {',
-            '  background bg_room',
-            '}',
-          ].join('\n'),
+          content: ['scene classroom {', '  background bg_room', '}'].join('\n'),
           order: 0,
           version: 1,
         },
@@ -221,9 +214,7 @@ describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () 
     expect(report.uncreatedCharacters).not.toContain('bob');
 
     const diagnostics = generateDiagnostics(project);
-    const bobDiags = diagnostics.filter(
-      (d) => d.category === 'character' && d.assetKey === 'bob'
-    );
+    const bobDiags = diagnostics.filter(d => d.category === 'character' && d.assetKey === 'bob');
     expect(bobDiags).toHaveLength(0);
   });
 
@@ -255,7 +246,7 @@ describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () 
 
     const diagnostics = generateDiagnostics(project);
     const charlieDiags = diagnostics.filter(
-      (d) => d.category === 'character' && d.assetKey === 'charlie'
+      d => d.category === 'character' && d.assetKey === 'charlie',
     );
     expect(charlieDiags).toHaveLength(0);
   });
@@ -267,11 +258,7 @@ describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () 
         {
           id: 'file-1',
           name: 'reveal.vns',
-          content: [
-            'scene reveal_scene {',
-            '  reveal bob as "Thám tử tư"',
-            '}',
-          ].join('\n'),
+          content: ['scene reveal_scene {', '  reveal bob as "Thám tử tư"', '}'].join('\n'),
           order: 0,
           version: 1,
         },
@@ -284,9 +271,7 @@ describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () 
     expect(report.uncreatedCharacters).not.toContain('bob');
 
     const diagnostics = generateDiagnostics(project);
-    const bobDiags = diagnostics.filter(
-      (d) => d.category === 'character' && d.assetKey === 'bob'
-    );
+    const bobDiags = diagnostics.filter(d => d.category === 'character' && d.assetKey === 'bob');
     expect(bobDiags).toHaveLength(0);
   });
 
@@ -297,11 +282,7 @@ describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () 
         {
           id: 'file-1',
           name: 'show_test.vns',
-          content: [
-            'scene visual_scene {',
-            '  show charlie.happy',
-            '}',
-          ].join('\n'),
+          content: ['scene visual_scene {', '  show charlie.happy', '}'].join('\n'),
           order: 0,
           version: 1,
         },
@@ -318,7 +299,7 @@ describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () 
 
     const diagnostics = generateDiagnostics(project);
     const charlieDiags = diagnostics.filter(
-      (d) => d.category === 'character' && d.assetKey === 'charlie'
+      d => d.category === 'character' && d.assetKey === 'charlie',
     );
     expect(charlieDiags).toHaveLength(1);
     expect(charlieDiags[0]?.severity).toBe('warning');
@@ -331,11 +312,7 @@ describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () 
         {
           id: 'file-1',
           name: 'hide_test.vns',
-          content: [
-            'scene visual_scene {',
-            '  hide dave',
-            '}',
-          ].join('\n'),
+          content: ['scene visual_scene {', '  hide dave', '}'].join('\n'),
           order: 0,
           version: 1,
         },
@@ -351,9 +328,7 @@ describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () 
     expect(report.uncreatedCharacters).toContain('dave');
 
     const diagnostics = generateDiagnostics(project);
-    const daveDiags = diagnostics.filter(
-      (d) => d.category === 'character' && d.assetKey === 'dave'
-    );
+    const daveDiags = diagnostics.filter(d => d.category === 'character' && d.assetKey === 'dave');
     expect(daveDiags).toHaveLength(1);
     expect(daveDiags[0]?.severity).toBe('warning');
   });
@@ -384,7 +359,7 @@ describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () 
 
     const diagnostics = generateDiagnostics(project);
     const narratorDiags = diagnostics.filter(
-      (d) => d.category === 'character' && d.assetKey === 'narrator'
+      d => d.category === 'character' && d.assetKey === 'narrator',
     );
     expect(narratorDiags).toHaveLength(0);
   });
@@ -478,17 +453,13 @@ describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () 
 
     const diagnostics = generateDiagnostics(project);
     const unusedDiag = diagnostics.find(
-      (d) => d.category === 'asset' && d.assetKey === 'bg_park.png'
+      d => d.category === 'asset' && d.assetKey === 'bg_park.png',
     );
 
     expect(unusedDiag).toBeDefined();
     expect(unusedDiag?.severity).toBe('info');
-    expect(unusedDiag?.message).toEqual(
-      expect.stringContaining('Unused asset')
-    );
-    expect(unusedDiag?.message).toEqual(
-      expect.stringContaining('bg_park.png')
-    );
+    expect(unusedDiag?.message).toEqual(expect.stringContaining('Unused asset'));
+    expect(unusedDiag?.message).toEqual(expect.stringContaining('bg_park.png'));
   });
 
   // TC-UNUSED-02: generateDiagnostics does NOT produce unused asset diagnostic for referenced assets
@@ -498,12 +469,9 @@ describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () 
         {
           id: 'file-1',
           name: 'main.vns',
-          content: [
-            'scene park {',
-            '  background bg_park',
-            '  play music bgm_relax',
-            '}',
-          ].join('\n'),
+          content: ['scene park {', '  background bg_park', '  play music bgm_relax', '}'].join(
+            '\n',
+          ),
           order: 0,
           version: 1,
         },
@@ -528,13 +496,13 @@ describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () 
 
     const diagnostics = generateDiagnostics(project);
     const unusedDiags = diagnostics.filter(
-      (d) =>
+      d =>
         d.category === 'asset' &&
         d.severity === 'info' &&
         (d.assetKey === 'bg_park.png' ||
           d.assetKey === 'bgm_relax.mp3' ||
           d.assetKey === 'bg_park' ||
-          d.assetKey === 'bgm_relax')
+          d.assetKey === 'bgm_relax'),
     );
 
     expect(unusedDiags).toHaveLength(0);

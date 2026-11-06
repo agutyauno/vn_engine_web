@@ -18,10 +18,7 @@ export function DialogueGroup(): JSX.Element {
         speakerName={dialogue.speakerName}
         speakerColorHex={dialogue.speakerColorHex}
       />
-      <DialogueBox
-        rawText={dialogue.rawText}
-        isComplete={dialogue.isComplete}
-      />
+      <DialogueBox rawText={dialogue.rawText} isComplete={dialogue.isComplete} />
       <ControlBar />
     </div>
   );

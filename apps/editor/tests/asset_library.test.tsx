@@ -101,11 +101,7 @@ play music "bg_rain.mp3"
     it('detects uncreated character "bob" and uncreated assets', () => {
       const proj: Project = {
         ...sampleProject,
-        assets: [
-          sampleProject.assets[0]!,
-          sampleProject.assets[1]!,
-          sampleProject.assets[3]!,
-        ],
+        assets: [sampleProject.assets[0]!, sampleProject.assets[1]!, sampleProject.assets[3]!],
       };
 
       const report: ReconciliationReport = scanActiveReconciliation(proj);
@@ -166,11 +162,11 @@ play music "bg_rain.mp3"
       render(
         <SafeDeleteModal
           isOpen={true}
-          asset={sampleProject.assets.find((a) => a.name === 'bg_school.png')!}
+          asset={sampleProject.assets.find(a => a.name === 'bg_school.png')!}
           project={sampleProject}
           onClose={handleClose}
           onConfirmDelete={handleDelete}
-        />
+        />,
       );
 
       // Warning should be displayed
@@ -193,11 +189,11 @@ play music "bg_rain.mp3"
       render(
         <SafeDeleteModal
           isOpen={true}
-          asset={sampleProject.assets.find((a) => a.name === 'unused_bg.png')!}
+          asset={sampleProject.assets.find(a => a.name === 'unused_bg.png')!}
           project={sampleProject}
           onClose={handleClose}
           onConfirmDelete={handleDelete}
-        />
+        />,
       );
 
       expect(screen.getByTestId('safe-delete-modal')).toBeInTheDocument();
@@ -236,7 +232,7 @@ play music "bg_rain.mp3"
         assets: sampleProject.assets,
       });
 
-      const targetAsset = sampleProject.assets.find((a) => a.id === 'ast-audio-rain')!;
+      const targetAsset = sampleProject.assets.find(a => a.id === 'ast-audio-rain')!;
       const originalId = targetAsset.id; // 'ast-audio-rain'
 
       // Save initial blob
@@ -257,14 +253,16 @@ play music "bg_rain.mp3"
       // Update project asset metadata (e.g. sizeBytes)
       const updatedProject: Project = {
         ...sampleProject,
-        assets: sampleProject.assets.map((a) =>
-          a.id === originalId ? { ...a, sizeBytes: newBlob.size, version: (a.version || 1) + 1 } : a
+        assets: sampleProject.assets.map(a =>
+          a.id === originalId
+            ? { ...a, sizeBytes: newBlob.size, version: (a.version || 1) + 1 }
+            : a,
         ),
       };
       await repo.updateProject(updatedProject);
 
       const reloadedProj = await repo.getProject(sampleProject.id);
-      const reloadedAsset = reloadedProj?.assets.find((a) => a.id === originalId);
+      const reloadedAsset = reloadedProj?.assets.find(a => a.id === originalId);
       expect(reloadedAsset).toBeDefined();
       expect(reloadedAsset!.id).toBe('ast-audio-rain'); // ID preserved 100%
       expect(reloadedAsset!.sizeBytes).toBe(newBlob.size);
@@ -284,7 +282,7 @@ play music "bg_rain.mp3"
           onAddAsset={onAddAsset}
           onReplaceAsset={vi.fn()}
           onDeleteAsset={vi.fn()}
-        />
+        />,
       );
 
       const quickFixBadge = screen.getByTestId('quickfix-pending-badge');
@@ -304,7 +302,7 @@ play music "bg_rain.mp3"
           onAddAsset={vi.fn()}
           onReplaceAsset={vi.fn()}
           onDeleteAsset={vi.fn()}
-        />
+        />,
       );
 
       // Verify tabs exist
@@ -337,7 +335,7 @@ play music "bg_rain.mp3"
           onAddAsset={vi.fn()}
           onReplaceAsset={vi.fn()}
           onDeleteAsset={vi.fn()}
-        />
+        />,
       );
 
       // Find delete button for bg_classroom.png
@@ -356,7 +354,7 @@ play music "bg_rain.mp3"
           onAddAsset={vi.fn()}
           onReplaceAsset={handleReplace}
           onDeleteAsset={vi.fn()}
-        />
+        />,
       );
 
       const replaceButtons = screen.getAllByTestId('btn-replace-asset');

@@ -124,7 +124,7 @@ describe('projectStore', () => {
     expect(state.isDirty).toBe(true);
     expect(state.dirtyFileIds).toContain('file-main');
 
-    const updatedFile = state.project?.files.find((f) => f.id === 'file-main');
+    const updatedFile = state.project?.files.find(f => f.id === 'file-main');
     expect(updatedFile?.content).toBe('scene start:\n  say "Updated"');
     expect(updatedFile?.version).toBe(2);
   });
@@ -164,7 +164,7 @@ describe('projectStore', () => {
 
     const state = useProjectStore.getState();
     expect(state.isDirty).toBe(true);
-    const newFile = state.project?.files.find((f) => f.name === 'chapter2.vns');
+    const newFile = state.project?.files.find(f => f.name === 'chapter2.vns');
     expect(newFile).toBeDefined();
     expect(state.dirtyFileIds).toContain(newFile?.id);
   });
@@ -175,12 +175,12 @@ describe('projectStore', () => {
 
     useProjectStore.getState().renameFile('file-ch1', 'prologue.vns');
     let state = useProjectStore.getState();
-    expect(state.project?.files.find((f) => f.id === 'file-ch1')?.name).toBe('prologue.vns');
+    expect(state.project?.files.find(f => f.id === 'file-ch1')?.name).toBe('prologue.vns');
 
     // Attempt renaming to existing filename should fail or keep original
     useProjectStore.getState().renameFile('file-ch1', 'main.vns');
     state = useProjectStore.getState();
-    expect(state.project?.files.find((f) => f.id === 'file-ch1')?.name).toBe('prologue.vns');
+    expect(state.project?.files.find(f => f.id === 'file-ch1')?.name).toBe('prologue.vns');
   });
 
   it('does not expose duplicateFile on project store (eliminated feature)', () => {
@@ -195,12 +195,12 @@ describe('projectStore', () => {
     // Attempt to delete main.vns
     useProjectStore.getState().deleteFile('file-main');
     let state = useProjectStore.getState();
-    expect(state.project?.files.some((f) => f.id === 'file-main')).toBe(true);
+    expect(state.project?.files.some(f => f.id === 'file-main')).toBe(true);
 
     // Delete normal file
     useProjectStore.getState().deleteFile('file-ch1');
     state = useProjectStore.getState();
-    expect(state.project?.files.some((f) => f.id === 'file-ch1')).toBe(false);
+    expect(state.project?.files.some(f => f.id === 'file-ch1')).toBe(false);
     expect(state.isDirty).toBe(true);
   });
 
@@ -212,7 +212,9 @@ describe('projectStore', () => {
     expect(useProjectStore.getState().project?.title).toBe('New Title');
     expect(useProjectStore.getState().project?.entryScene).toBe('intro');
 
-    useProjectStore.getState().updateDisplaySettings({ orientation: 'portrait', width: 1080, height: 1920 });
+    useProjectStore
+      .getState()
+      .updateDisplaySettings({ orientation: 'portrait', width: 1080, height: 1920 });
     expect(useProjectStore.getState().project?.displaySettings?.orientation).toBe('portrait');
 
     useProjectStore.getState().updateGameplaySettings({ textSpeed: 80 });
@@ -236,11 +238,11 @@ describe('projectStore', () => {
     });
 
     let state = useProjectStore.getState();
-    expect(state.project?.characters.some((c) => c.id === 'bob')).toBe(true);
+    expect(state.project?.characters.some(c => c.id === 'bob')).toBe(true);
 
     useProjectStore.getState().deleteCharacter('bob');
     state = useProjectStore.getState();
-    expect(state.project?.characters.some((c) => c.id === 'bob')).toBe(false);
+    expect(state.project?.characters.some(c => c.id === 'bob')).toBe(false);
   });
 
   it('saves and deletes assets in asset registry and invokes repository blob methods', async () => {
@@ -256,15 +258,15 @@ describe('projectStore', () => {
         storageUrl: '/assets/forest.png',
         sizeBytes: 2048,
       },
-      blob
+      blob,
     );
 
     expect(mockRepo.saveAssetBlob).toHaveBeenCalledWith('bg-forest', blob);
-    expect(useProjectStore.getState().project?.assets.some((a) => a.id === 'bg-forest')).toBe(true);
+    expect(useProjectStore.getState().project?.assets.some(a => a.id === 'bg-forest')).toBe(true);
 
     await useProjectStore.getState().deleteAsset('bg-forest');
     expect(mockRepo.deleteAssetBlob).toHaveBeenCalledWith('bg-forest');
-    expect(useProjectStore.getState().project?.assets.some((a) => a.id === 'bg-forest')).toBe(false);
+    expect(useProjectStore.getState().project?.assets.some(a => a.id === 'bg-forest')).toBe(false);
   });
 
   it('executes snapshot-based dirty subtraction preventing in-flight keystroke erasure', async () => {
@@ -273,7 +275,7 @@ describe('projectStore', () => {
 
     let resolveSave: () => void = () => {};
     mockRepo.updateProject = vi.fn().mockImplementation(() => {
-      return new Promise<void>((resolve) => {
+      return new Promise<void>(resolve => {
         resolveSave = resolve;
       });
     });
@@ -320,7 +322,11 @@ describe('projectStore', () => {
 
     // Storage diagnostic should be added
     const diagState = useDiagnosticsStore.getState();
-    expect(diagState.runtimeDiagnostics.some((d) => d.message.includes('QuotaExceeded') || d.category === 'runtime')).toBe(true);
+    expect(
+      diagState.runtimeDiagnostics.some(
+        d => d.message.includes('QuotaExceeded') || d.category === 'runtime',
+      ),
+    ).toBe(true);
   });
 
   it('ensures store state is strictly JSON-serializable without circular or non-serializable objects', () => {

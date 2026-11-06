@@ -35,7 +35,7 @@ export function useKeyboardShortcuts(options?: KeyboardShortcutOptions): void {
       const isTextFocused = Boolean(
         active?.closest('.monaco-editor') ||
         ['INPUT', 'TEXTAREA'].includes(active?.tagName ?? '') ||
-        (active as HTMLElement)?.isContentEditable
+        (active as HTMLElement)?.isContentEditable,
       );
 
       // 1. Ctrl + S / Cmd + S (Save)
@@ -108,5 +108,15 @@ export function useKeyboardShortcuts(options?: KeyboardShortcutOptions): void {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [enabled, onSave, onTogglePlay, onRunFromCursor, onToggleDrawer, onToggleSidebar, onOpenSettings, onCloseTab, onOpenShortcuts]);
+  }, [
+    enabled,
+    onSave,
+    onTogglePlay,
+    onRunFromCursor,
+    onToggleDrawer,
+    onToggleSidebar,
+    onOpenSettings,
+    onCloseTab,
+    onOpenShortcuts,
+  ]);
 }

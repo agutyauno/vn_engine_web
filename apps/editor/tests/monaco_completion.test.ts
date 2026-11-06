@@ -160,15 +160,13 @@ describe('Monaco DSL 1.1.0 Features, Scoped Interpolation & Hover Provider (TDD 
       (_lang, provider) => {
         capturedCompletionProvider = provider;
         return { dispose: () => {} };
-      }
+      },
     );
 
-    vi.spyOn(monaco.languages, 'registerHoverProvider').mockImplementation(
-      (_lang, provider) => {
-        capturedHoverProvider = provider;
-        return { dispose: () => {} };
-      }
-    );
+    vi.spyOn(monaco.languages, 'registerHoverProvider').mockImplementation((_lang, provider) => {
+      capturedHoverProvider = provider;
+      return { dispose: () => {} };
+    });
   });
 
   afterEach(() => {
@@ -179,9 +177,7 @@ describe('Monaco DSL 1.1.0 Features, Scoped Interpolation & Hover Provider (TDD 
   it('TC-MC-01: Jump suggestions display source file name and declaration line number in documentation', () => {
     const mockContext: VnsProjectContext = {
       getFiles: () => ({}),
-      getScenes: () => [
-        { name: 'intro', file: 'prologue.vns', line: 12 },
-      ],
+      getScenes: () => [{ name: 'intro', file: 'prologue.vns', line: 12 }],
       getCharacters: () => new Map(),
       getAssets: () => ({ backgrounds: new Set(), audio: new Set(), voices: new Set() }),
       getAssetDetails: () => new Map(),
@@ -201,7 +197,7 @@ describe('Monaco DSL 1.1.0 Features, Scoped Interpolation & Hover Provider (TDD 
       dummyToken,
     ) as monaco.languages.CompletionList;
 
-    const introSuggestion = (result?.suggestions || []).find((s) => s.label === 'intro');
+    const introSuggestion = (result?.suggestions || []).find(s => s.label === 'intro');
     expect(introSuggestion).toBeDefined();
     expect(introSuggestion?.documentation).toContain('prologue.vns');
     expect(introSuggestion?.documentation).toContain('12');
@@ -229,9 +225,11 @@ describe('Monaco DSL 1.1.0 Features, Scoped Interpolation & Hover Provider (TDD 
       dummyToken,
     ) as monaco.languages.CompletionList;
 
-    const inputSnippet = (result?.suggestions || []).find((s) => s.label === 'input');
+    const inputSnippet = (result?.suggestions || []).find(s => s.label === 'input');
     expect(inputSnippet).toBeDefined();
-    expect(inputSnippet?.insertText).toContain('input ${1:variable} "${2:Prompt question}" default: "${3:value}"');
+    expect(inputSnippet?.insertText).toContain(
+      'input ${1:variable} "${2:Prompt question}" default: "${3:value}"',
+    );
   });
 
   // TC-MC-03: DSL 1.1.0 play voice snippet
@@ -260,7 +258,7 @@ describe('Monaco DSL 1.1.0 Features, Scoped Interpolation & Hover Provider (TDD 
       dummyToken,
     ) as monaco.languages.CompletionList;
 
-    const voiceItem = (result?.suggestions || []).find((s) => s.label === 'voice_alice_hello');
+    const voiceItem = (result?.suggestions || []).find(s => s.label === 'voice_alice_hello');
     expect(voiceItem).toBeDefined();
   });
 
@@ -286,7 +284,7 @@ describe('Monaco DSL 1.1.0 Features, Scoped Interpolation & Hover Provider (TDD 
       dummyToken,
     ) as monaco.languages.CompletionList;
 
-    const labels = (result?.suggestions || []).map((s) => s.label);
+    const labels = (result?.suggestions || []).map(s => s.label);
     expect(labels).toContain('{playerName}');
     expect(labels).toContain('{pause:0.5s}');
     expect(labels).toContain('{speed:fast}');
@@ -315,7 +313,7 @@ describe('Monaco DSL 1.1.0 Features, Scoped Interpolation & Hover Provider (TDD 
       dummyToken,
     ) as monaco.languages.CompletionList;
 
-    const labels = (result?.suggestions || []).map((s) => s.label);
+    const labels = (result?.suggestions || []).map(s => s.label);
     expect(labels).not.toContain('{pause:0.5s}');
     expect(labels).not.toContain('{speed:fast}');
   });
@@ -364,9 +362,7 @@ describe('Monaco DSL 1.1.0 Features, Scoped Interpolation & Hover Provider (TDD 
       getCharacters: () => new Map(),
       getAssets: () => ({ backgrounds: new Set(), audio: new Set(), voices: new Set() }),
       getAssetDetails: () =>
-        new Map([
-          ['bg_classroom', { category: 'background', type: 'image', sizeBytes: 20480 }],
-        ]),
+        new Map([['bg_classroom', { category: 'background', type: 'image', sizeBytes: 20480 }]]),
       getVariables: () => [],
       switchActiveFile: () => {},
     };

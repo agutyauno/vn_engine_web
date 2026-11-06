@@ -22,7 +22,7 @@ export const EditorTabBar: React.FC<EditorTabBarProps> = ({
   onCloseTab,
   onNewFile,
 }) => {
-  const fileMap = new Map(files.map((f) => [f.id, f]));
+  const fileMap = new Map(files.map(f => [f.id, f]));
 
   return (
     <div
@@ -30,7 +30,7 @@ export const EditorTabBar: React.FC<EditorTabBarProps> = ({
       className="flex h-9 w-full items-center justify-between border-b border-neutral-800 bg-neutral-900/90 select-none overflow-x-auto overflow-y-hidden"
     >
       <div className="flex items-center h-full flex-1 min-w-0 overflow-x-auto">
-        {openFileIds.map((fileId) => {
+        {openFileIds.map(fileId => {
           const file = fileMap.get(fileId);
           if (!file) return null;
 
@@ -68,7 +68,7 @@ export const EditorTabBar: React.FC<EditorTabBarProps> = ({
               <button
                 type="button"
                 data-testid={`btn-close-tab-${fileId}`}
-                onClick={(e) => {
+                onClick={e => {
                   e.stopPropagation();
                   onCloseTab(fileId);
                 }}

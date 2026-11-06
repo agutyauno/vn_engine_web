@@ -5,11 +5,7 @@ import type {
   ProjectEditorSettings,
   ProjectGameplaySettings,
 } from '@vn-engine/shared-types';
-import {
-  XIcon,
-  SettingsIcon,
-  CheckIcon,
-} from '../common/Icons';
+import { XIcon, SettingsIcon, CheckIcon } from '../common/Icons';
 
 export interface ProjectSettingsModalProps {
   isOpen: boolean;
@@ -65,7 +61,7 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({
   };
 
   const setResolutionPreset = (w: number, h: number, orient: 'landscape' | 'portrait') => {
-    setFormData((prev) => ({
+    setFormData(prev => ({
       ...prev,
       displaySettings: {
         width: w,
@@ -172,7 +168,7 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({
                     type="text"
                     data-testid="input-settings-title"
                     value={formData.title}
-                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    onChange={e => setFormData({ ...formData, title: e.target.value })}
                     className="w-full rounded border border-neutral-700 bg-neutral-950 px-3 py-1.5 text-xs text-white focus:border-neutral-500 focus:outline-none"
                   />
                 </div>
@@ -185,7 +181,7 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({
                     rows={3}
                     data-testid="input-settings-description"
                     value={formData.description || ''}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    onChange={e => setFormData({ ...formData, description: e.target.value })}
                     placeholder="Short summary of this visual novel..."
                     className="w-full rounded border border-neutral-700 bg-neutral-950 px-3 py-1.5 text-xs text-white focus:border-neutral-500 focus:outline-none"
                   />
@@ -198,10 +194,10 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({
                   <select
                     data-testid="select-settings-entry-scene"
                     value={formData.entryScene || (formData.files?.[0]?.name ?? 'main.vns')}
-                    onChange={(e) => setFormData({ ...formData, entryScene: e.target.value })}
+                    onChange={e => setFormData({ ...formData, entryScene: e.target.value })}
                     className="w-full rounded border border-neutral-700 bg-neutral-950 px-3 py-1.5 text-xs text-white focus:border-neutral-500 focus:outline-none"
                   >
-                    {(formData.files || []).map((file) => (
+                    {(formData.files || []).map(file => (
                       <option key={file.id} value={file.name}>
                         {file.name}
                       </option>
@@ -297,7 +293,7 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({
                       type="number"
                       data-testid="input-settings-width"
                       value={currentDisplay.width}
-                      onChange={(e) =>
+                      onChange={e =>
                         setFormData({
                           ...formData,
                           displaySettings: {
@@ -318,7 +314,7 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({
                       type="number"
                       data-testid="input-settings-height"
                       value={currentDisplay.height}
-                      onChange={(e) =>
+                      onChange={e =>
                         setFormData({
                           ...formData,
                           displaySettings: {
@@ -338,7 +334,7 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({
                     id="lockAspectRatio"
                     data-testid="checkbox-settings-aspect-ratio"
                     checked={currentDisplay.lockAspectRatio}
-                    onChange={(e) =>
+                    onChange={e =>
                       setFormData({
                         ...formData,
                         displaySettings: {
@@ -349,7 +345,10 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({
                     }
                     className="h-4 w-4 rounded accent-neutral-200"
                   />
-                  <label htmlFor="lockAspectRatio" className="text-xs text-neutral-300 cursor-pointer">
+                  <label
+                    htmlFor="lockAspectRatio"
+                    className="text-xs text-neutral-300 cursor-pointer"
+                  >
                     Lock aspect ratio during viewport scaling
                   </label>
                 </div>
@@ -361,9 +360,7 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({
               <div className="space-y-4">
                 <div className="flex items-center justify-between rounded border border-neutral-800 bg-neutral-950/60 p-3">
                   <div>
-                    <span className="block text-xs font-medium text-white">
-                      Auto-save Enabled
-                    </span>
+                    <span className="block text-xs font-medium text-white">Auto-save Enabled</span>
                     <span className="text-[11px] text-neutral-400">
                       Automatically persist script changes after typing stops
                     </span>
@@ -372,7 +369,7 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({
                     type="checkbox"
                     data-testid="checkbox-settings-autosave"
                     checked={currentEditor.autoSave}
-                    onChange={(e) =>
+                    onChange={e =>
                       setFormData({
                         ...formData,
                         editorSettings: {
@@ -396,7 +393,7 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({
                     step={100}
                     data-testid="input-settings-autosave-debounce"
                     value={currentEditor.autoSaveDebounceMs}
-                    onChange={(e) =>
+                    onChange={e =>
                       setFormData({
                         ...formData,
                         editorSettings: {
@@ -424,7 +421,7 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({
                   <select
                     data-testid="select-settings-unmet-choice"
                     value={currentGameplay.unmetChoiceDisplay}
-                    onChange={(e) =>
+                    onChange={e =>
                       setFormData({
                         ...formData,
                         gameplaySettings: {
@@ -453,7 +450,7 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({
                     max={100}
                     data-testid="slider-settings-text-speed"
                     value={currentGameplay.textSpeed}
-                    onChange={(e) =>
+                    onChange={e =>
                       setFormData({
                         ...formData,
                         gameplaySettings: {
@@ -483,7 +480,7 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({
                     step={0.5}
                     data-testid="slider-settings-autoforward-delay"
                     value={currentGameplay.autoForwardDelay}
-                    onChange={(e) =>
+                    onChange={e =>
                       setFormData({
                         ...formData,
                         gameplaySettings: {

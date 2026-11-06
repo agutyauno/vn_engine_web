@@ -108,7 +108,8 @@ export class AssetResolverAdapter {
           return val;
         }
         const refAsset = data.assets?.find(
-          a => a.id.toLowerCase() === val.toLowerCase() || a.name?.toLowerCase() === val.toLowerCase(),
+          a =>
+            a.id.toLowerCase() === val.toLowerCase() || a.name?.toLowerCase() === val.toLowerCase(),
         );
         if (refAsset?.storageUrl) {
           return refAsset.storageUrl;
@@ -155,8 +156,7 @@ export class AssetResolverAdapter {
 
         if (character) {
           const spriteVal =
-            getSpriteFromMap(character.sprites, exprPart) ??
-            getFallbackSprite(character.sprites);
+            getSpriteFromMap(character.sprites, exprPart) ?? getFallbackSprite(character.sprites);
           if (spriteVal) {
             return resolveSpriteValue(spriteVal);
           }
@@ -179,8 +179,7 @@ export class AssetResolverAdapter {
 
             if (expr !== null) {
               const spriteVal =
-                getSpriteFromMap(character.sprites, expr) ??
-                getFallbackSprite(character.sprites);
+                getSpriteFromMap(character.sprites, expr) ?? getFallbackSprite(character.sprites);
               if (spriteVal) {
                 return resolveSpriteValue(spriteVal);
               }

@@ -82,7 +82,7 @@ export function extractScenesFromFile(fileName: string, content: string): SceneI
  */
 export function createVnsProjectContext(
   getProject: () => Project | null,
-  fallbackProject?: Project
+  fallbackProject?: Project,
 ): VnsProjectContext {
   const getCurProject = () => getProject() || fallbackProject || null;
 
@@ -138,7 +138,7 @@ export function createVnsProjectContext(
         }
       }
 
-      lastFilesList = files.map((f) => ({ name: f.name, content: f.content }));
+      lastFilesList = files.map(f => ({ name: f.name, content: f.content }));
       cachedAggregatedScenes = aggregated;
       return cachedAggregatedScenes;
     },
@@ -164,10 +164,7 @@ export function createVnsProjectContext(
       for (const a of proj?.assets || []) {
         const isVoice = a.category === 'voice';
         const isAudio =
-          a.type === 'audio' ||
-          a.category === 'bgm' ||
-          a.category === 'sfx' ||
-          isVoice;
+          a.type === 'audio' || a.category === 'bgm' || a.category === 'sfx' || isVoice;
 
         // Prioritize DSL 1.1.0 asset identifier (e.g. bg_classroom, bgm_peaceful, voice_alice_01)
         if (a.id) {
@@ -214,7 +211,7 @@ export function createVnsProjectContext(
 
     getVariables: () => {
       const proj = getCurProject();
-      return (proj?.variables || []).map((v) => v.name);
+      return (proj?.variables || []).map(v => v.name);
     },
 
     switchActiveFile: () => {},

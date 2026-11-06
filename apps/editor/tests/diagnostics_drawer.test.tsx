@@ -32,7 +32,8 @@ const sampleProject: Project = {
     {
       id: 'file-main',
       name: 'main.vns',
-      content: 'scene "bg_school.png"\nshow alice.happy\nplay music "bg_theme.mp3"\n"Alice" "Hello world!"\n',
+      content:
+        'scene "bg_school.png"\nshow alice.happy\nplay music "bg_theme.mp3"\n"Alice" "Hello world!"\n',
       order: 0,
       version: 1,
     },
@@ -50,7 +51,8 @@ const sampleProject: Project = {
       name: 'Alice Margatroid',
       colorHex: '#38bdf8',
       sprites: {
-        happy: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+        happy:
+          'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
       },
       defaultExpression: 'happy',
     },
@@ -128,7 +130,7 @@ describe('Milestone 7: Bottom Diagnostics Drawer (Column 2 Bottom)', () => {
           onToggleDrawer={handleToggle}
         >
           <div data-testid="drawer-children-content">Drawer Content</div>
-        </DockDrawer>
+        </DockDrawer>,
       );
 
       expect(screen.getByTestId('dock-drawer')).toBeInTheDocument();
@@ -161,7 +163,7 @@ describe('Milestone 7: Bottom Diagnostics Drawer (Column 2 Bottom)', () => {
           onToggleDrawer={handleToggle}
         >
           <div>Content</div>
-        </DockDrawer>
+        </DockDrawer>,
       );
 
       // Trigger Ctrl + `
@@ -180,7 +182,7 @@ describe('Milestone 7: Bottom Diagnostics Drawer (Column 2 Bottom)', () => {
           onToggleDrawer={vi.fn()}
         >
           <div>Content</div>
-        </DockDrawer>
+        </DockDrawer>,
       );
 
       const emojiRegex = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/u;
@@ -198,7 +200,7 @@ describe('Milestone 7: Bottom Diagnostics Drawer (Column 2 Bottom)', () => {
           diagnostics={sampleDiagnostics}
           onDiagnosticClick={vi.fn()}
           onQuickFix={vi.fn()}
-        />
+        />,
       );
 
       expect(screen.getByTestId('dock-problems-table')).toBeInTheDocument();
@@ -210,12 +212,7 @@ describe('Milestone 7: Bottom Diagnostics Drawer (Column 2 Bottom)', () => {
     it('IT-EDT-01: 1-click jump from problem row triggers navigation callback with file and line', () => {
       const handleClick = vi.fn();
 
-      render(
-        <DockProblemsTable
-          diagnostics={sampleDiagnostics}
-          onDiagnosticClick={handleClick}
-        />
-      );
+      render(<DockProblemsTable diagnostics={sampleDiagnostics} onDiagnosticClick={handleClick} />);
 
       const row = screen.getByTestId('problem-row-diag-1');
       fireEvent.click(row);
@@ -227,19 +224,14 @@ describe('Milestone 7: Bottom Diagnostics Drawer (Column 2 Bottom)', () => {
           fileName: 'main.vns',
           line: 12,
           col: 5,
-        })
+        }),
       );
     });
 
     it('IT-EDT-02: 1-click Quick Fix button triggers onQuickFix with diagnostic payload', () => {
       const handleQuickFix = vi.fn();
 
-      render(
-        <DockProblemsTable
-          diagnostics={sampleDiagnostics}
-          onQuickFix={handleQuickFix}
-        />
-      );
+      render(<DockProblemsTable diagnostics={sampleDiagnostics} onQuickFix={handleQuickFix} />);
 
       const quickFixBtn = screen.getByTestId('btn-quickfix-diag-2');
       fireEvent.click(quickFixBtn);
@@ -252,7 +244,7 @@ describe('Milestone 7: Bottom Diagnostics Drawer (Column 2 Bottom)', () => {
             type: 'create_asset',
             targetId: 'bg_sunset.png',
           }),
-        })
+        }),
       );
     });
 
@@ -272,12 +264,7 @@ describe('Milestone 7: Bottom Diagnostics Drawer (Column 2 Bottom)', () => {
       const handleInject = vi.fn();
       const variables = { affection: 10, playerName: 'Hero', isDaytime: true };
 
-      render(
-        <RuntimeCheatInjector
-          variables={variables}
-          onInjectVariable={handleInject}
-        />
-      );
+      render(<RuntimeCheatInjector variables={variables} onInjectVariable={handleInject} />);
 
       expect(screen.getByTestId('runtime-cheat-injector')).toBeInTheDocument();
       expect(screen.getByText('affection')).toBeInTheDocument();
@@ -299,12 +286,7 @@ describe('Milestone 7: Bottom Diagnostics Drawer (Column 2 Bottom)', () => {
     it('handles boolean and string variable injections properly', () => {
       const handleInject = vi.fn();
 
-      render(
-        <RuntimeCheatInjector
-          variables={{}}
-          onInjectVariable={handleInject}
-        />
-      );
+      render(<RuntimeCheatInjector variables={{}} onInjectVariable={handleInject} />);
 
       const nameInput = screen.getByTestId('input-cheat-var-name');
       const valInput = screen.getByTestId('input-cheat-var-value');
@@ -330,8 +312,18 @@ describe('Milestone 7: Bottom Diagnostics Drawer (Column 2 Bottom)', () => {
   describe('ConsoleLogStream Component', () => {
     const logs: ConsoleLogEntry[] = [
       { id: '1', timestamp: 1700000000000, level: 'info', message: 'Engine initialized v1.1.0' },
-      { id: '2', timestamp: 1700000001000, level: 'warn', message: 'Asset bg_sunset.png not cached' },
-      { id: '3', timestamp: 1700000002000, level: 'error', message: 'Cannot find character sprite' },
+      {
+        id: '2',
+        timestamp: 1700000001000,
+        level: 'warn',
+        message: 'Asset bg_sunset.png not cached',
+      },
+      {
+        id: '3',
+        timestamp: 1700000002000,
+        level: 'error',
+        message: 'Cannot find character sprite',
+      },
     ];
 
     it('renders logs list with level badges and clears logs', () => {
@@ -372,7 +364,7 @@ describe('Milestone 7: Bottom Diagnostics Drawer (Column 2 Bottom)', () => {
           projectId={sampleProject.id}
           repository={repo}
           initialProject={sampleProject}
-        />
+        />,
       );
 
       // Verify DockDrawer is rendered
@@ -464,7 +456,7 @@ describe('Milestone 7: Bottom Diagnostics Drawer (Column 2 Bottom)', () => {
           diagnostics={duplicateAssetDiagnostics}
           onDiagnosticClick={vi.fn()}
           onQuickFix={vi.fn()}
-        />
+        />,
       );
 
       // Parent row shows badge-group-count with "×3"
@@ -483,7 +475,7 @@ describe('Milestone 7: Bottom Diagnostics Drawer (Column 2 Bottom)', () => {
           diagnostics={duplicateAssetDiagnostics}
           onDiagnosticClick={vi.fn()}
           onQuickFix={vi.fn()}
-        />
+        />,
       );
 
       // Initially collapsed: child rows not rendered
@@ -514,7 +506,7 @@ describe('Milestone 7: Bottom Diagnostics Drawer (Column 2 Bottom)', () => {
           diagnostics={duplicateAssetDiagnostics}
           onDiagnosticClick={handleDiagnosticClick}
           onQuickFix={vi.fn()}
-        />
+        />,
       );
 
       // Expand accordion
@@ -531,7 +523,7 @@ describe('Milestone 7: Bottom Diagnostics Drawer (Column 2 Bottom)', () => {
           id: 'diag-dup-2',
           fileName: 'chapter2.vns',
           line: 25,
-        })
+        }),
       );
     });
 
@@ -540,7 +532,7 @@ describe('Milestone 7: Bottom Diagnostics Drawer (Column 2 Bottom)', () => {
         <DockProblemsTable
           diagnostics={[duplicateAssetDiagnostics[3]!]} // diag-single
           onDiagnosticClick={vi.fn()}
-        />
+        />,
       );
 
       expect(screen.getByText(/Syntax error: unexpected token/i)).toBeInTheDocument();
@@ -551,10 +543,7 @@ describe('Milestone 7: Bottom Diagnostics Drawer (Column 2 Bottom)', () => {
     it('TEST-ACCORDION-05: parent group displays quick fix button and clicking it triggers onQuickFix with diagnostic', () => {
       const handleQuickFix = vi.fn();
       render(
-        <DockProblemsTable
-          diagnostics={duplicateAssetDiagnostics}
-          onQuickFix={handleQuickFix}
-        />
+        <DockProblemsTable diagnostics={duplicateAssetDiagnostics} onQuickFix={handleQuickFix} />,
       );
 
       const quickFixBtn = screen.getByTestId(/btn-quickfix-group-/);
@@ -568,7 +557,7 @@ describe('Milestone 7: Bottom Diagnostics Drawer (Column 2 Bottom)', () => {
             type: 'create_asset',
             targetId: 'bg_forest.png',
           }),
-        })
+        }),
       );
     });
   });

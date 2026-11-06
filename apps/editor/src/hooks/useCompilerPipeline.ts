@@ -15,7 +15,7 @@ export interface UseCompilerPipelineOptions {
 export function useCompilerPipeline(options: UseCompilerPipelineOptions): void {
   const { compilerService, previewBridge, debounceMs = 200 } = options;
 
-  const project = useProjectStore((s) => s.project);
+  const project = useProjectStore(s => s.project);
 
   const lastBytecodeRef = useRef<Instruction[] | null>(null);
   const prevProjectRef = useRef<Project | null>(null);
@@ -49,7 +49,7 @@ export function useCompilerPipeline(options: UseCompilerPipelineOptions): void {
         });
       }
     },
-    [compilerService, previewBridge]
+    [compilerService, previewBridge],
   );
 
   useEffect(() => {
@@ -109,4 +109,3 @@ export function useCompilerPipeline(options: UseCompilerPipelineOptions): void {
     };
   }, []);
 }
-

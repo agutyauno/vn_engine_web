@@ -24,13 +24,7 @@ describe('ColumnSplitter Component (Phase 4 TDD)', () => {
   describe('TC-SPLIT-01: Nav Splitter Dragging', () => {
     it('emits positive delta when dragged right and negative delta when dragged left', () => {
       const handleResize = vi.fn();
-      render(
-        <ColumnSplitter
-          type="nav"
-          onResize={handleResize}
-          onReset={vi.fn()}
-        />
-      );
+      render(<ColumnSplitter type="nav" onResize={handleResize} onReset={vi.fn()} />);
 
       const splitter = screen.getByRole('separator');
       expect(splitter).toBeInTheDocument();
@@ -60,13 +54,7 @@ describe('ColumnSplitter Component (Phase 4 TDD)', () => {
   describe('TC-SPLIT-02: Preview Splitter Dragging', () => {
     it('emits positive delta when dragged left (expanding preview) and negative when dragged right', () => {
       const handleResize = vi.fn();
-      render(
-        <ColumnSplitter
-          type="preview"
-          onResize={handleResize}
-          onReset={vi.fn()}
-        />
-      );
+      render(<ColumnSplitter type="preview" onResize={handleResize} onReset={vi.fn()} />);
 
       const splitter = screen.getByRole('separator');
 
@@ -89,13 +77,7 @@ describe('ColumnSplitter Component (Phase 4 TDD)', () => {
   describe('TC-SPLIT-03: Drawer Splitter Dragging', () => {
     it('emits positive delta when dragged up (expanding drawer) and negative when dragged down', () => {
       const handleResize = vi.fn();
-      render(
-        <ColumnSplitter
-          type="drawer"
-          onResize={handleResize}
-          onReset={vi.fn()}
-        />
-      );
+      render(<ColumnSplitter type="drawer" onResize={handleResize} onReset={vi.fn()} />);
 
       const splitter = screen.getByRole('separator');
 
@@ -117,13 +99,7 @@ describe('ColumnSplitter Component (Phase 4 TDD)', () => {
   // TC-SPLIT-04: Pointer Capture
   describe('TC-SPLIT-04: Pointer Capture Execution', () => {
     it('calls setPointerCapture on pointer down and releasePointerCapture on pointer up', () => {
-      render(
-        <ColumnSplitter
-          type="nav"
-          onResize={vi.fn()}
-          onReset={vi.fn()}
-        />
-      );
+      render(<ColumnSplitter type="nav" onResize={vi.fn()} onReset={vi.fn()} />);
 
       const splitter = screen.getByRole('separator');
 
@@ -139,13 +115,7 @@ describe('ColumnSplitter Component (Phase 4 TDD)', () => {
   describe('TC-SPLIT-05: Double Click Reset', () => {
     it('invokes onReset callback when double-clicked', () => {
       const handleReset = vi.fn();
-      render(
-        <ColumnSplitter
-          type="nav"
-          onResize={vi.fn()}
-          onReset={handleReset}
-        />
-      );
+      render(<ColumnSplitter type="nav" onResize={vi.fn()} onReset={handleReset} />);
 
       const splitter = screen.getByRole('separator');
       fireEvent.doubleClick(splitter);
@@ -158,37 +128,21 @@ describe('ColumnSplitter Component (Phase 4 TDD)', () => {
   describe('TC-SPLIT-06: Accessibility & ARIA Attributes', () => {
     it('renders role="separator" and aria-orientation="vertical" for nav and preview', () => {
       const { rerender } = render(
-        <ColumnSplitter
-          type="nav"
-          onResize={vi.fn()}
-          onReset={vi.fn()}
-        />
+        <ColumnSplitter type="nav" onResize={vi.fn()} onReset={vi.fn()} />,
       );
 
       let splitter = screen.getByRole('separator');
       expect(splitter).toHaveAttribute('aria-orientation', 'vertical');
       expect(splitter).toHaveAttribute('tabindex', '0');
 
-      rerender(
-        <ColumnSplitter
-          type="preview"
-          onResize={vi.fn()}
-          onReset={vi.fn()}
-        />
-      );
+      rerender(<ColumnSplitter type="preview" onResize={vi.fn()} onReset={vi.fn()} />);
       splitter = screen.getByRole('separator');
       expect(splitter).toHaveAttribute('aria-orientation', 'vertical');
       expect(splitter).toHaveAttribute('tabindex', '0');
     });
 
     it('renders aria-orientation="horizontal" for drawer', () => {
-      render(
-        <ColumnSplitter
-          type="drawer"
-          onResize={vi.fn()}
-          onReset={vi.fn()}
-        />
-      );
+      render(<ColumnSplitter type="drawer" onResize={vi.fn()} onReset={vi.fn()} />);
 
       const splitter = screen.getByRole('separator');
       expect(splitter).toHaveAttribute('aria-orientation', 'horizontal');
@@ -202,7 +156,7 @@ describe('ColumnSplitter Component (Phase 4 TDD)', () => {
           onResize={vi.fn()}
           onReset={vi.fn()}
           className="custom-splitter-class"
-        />
+        />,
       );
 
       const splitter = screen.getByRole('separator');

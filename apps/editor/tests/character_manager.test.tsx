@@ -51,7 +51,7 @@ describe('Milestone 4: Character & Sprite Manager', () => {
           existingIds={existingIds}
           onClose={vi.fn()}
           onSave={handleSave}
-        />
+        />,
       );
 
       const idInput = screen.getByTestId('input-char-id');
@@ -82,26 +82,19 @@ describe('Milestone 4: Character & Sprite Manager', () => {
         expect.objectContaining({
           id: 'clara',
           name: 'Clara Oswald',
-        })
+        }),
       );
     });
 
     it('validates Character ID format (^[a-zA-Z0-9_]+$)', () => {
-      render(
-        <CharacterModal
-          isOpen={true}
-          existingIds={[]}
-          onClose={vi.fn()}
-          onSave={vi.fn()}
-        />
-      );
+      render(<CharacterModal isOpen={true} existingIds={[]} onClose={vi.fn()} onSave={vi.fn()} />);
 
       const idInput = screen.getByTestId('input-char-id');
       const saveBtn = screen.getByTestId('btn-save-character');
 
       fireEvent.change(idInput, { target: { value: 'invalid-id with spaces!' } });
       expect(
-        screen.getByText('Character ID must contain only letters, numbers, and underscores')
+        screen.getByText('Character ID must contain only letters, numbers, and underscores'),
       ).toBeInTheDocument();
       expect(saveBtn).toBeDisabled();
     });
@@ -127,7 +120,7 @@ describe('Milestone 4: Character & Sprite Manager', () => {
           existingIds={['elena']}
           onClose={vi.fn()}
           onSave={vi.fn()}
-        />
+        />,
       );
 
       const idInput = screen.getByTestId('input-char-id') as HTMLInputElement;
@@ -147,14 +140,7 @@ describe('Milestone 4: Character & Sprite Manager', () => {
   // --------------------------------------------------------------------------
   describe('IT-EDT-03: Two-Way HEX Color Picker Sync', () => {
     it('synchronizes text input, native color picker, swatches, and live nameplate preview', () => {
-      render(
-        <CharacterModal
-          isOpen={true}
-          existingIds={[]}
-          onClose={vi.fn()}
-          onSave={vi.fn()}
-        />
-      );
+      render(<CharacterModal isOpen={true} existingIds={[]} onClose={vi.fn()} onSave={vi.fn()} />);
 
       const hexInput = screen.getByTestId('input-char-color-hex') as HTMLInputElement;
       const colorPicker = screen.getByTestId('input-char-color-picker') as HTMLInputElement;
@@ -194,14 +180,7 @@ describe('Milestone 4: Character & Sprite Manager', () => {
   // --------------------------------------------------------------------------
   describe('UT-EDT-09: Bulk Expression Dropzone', () => {
     it('extracts expression keys from file input and strips file extensions & character prefixes', async () => {
-      render(
-        <CharacterModal
-          isOpen={true}
-          existingIds={[]}
-          onClose={vi.fn()}
-          onSave={vi.fn()}
-        />
-      );
+      render(<CharacterModal isOpen={true} existingIds={[]} onClose={vi.fn()} onSave={vi.fn()} />);
 
       const idInput = screen.getByTestId('input-char-id');
       fireEvent.change(idInput, { target: { value: 'elena' } });
@@ -226,14 +205,7 @@ describe('Milestone 4: Character & Sprite Manager', () => {
     });
 
     it('handles dragover, dragleave, and drop on #char-bulk-dropzone', async () => {
-      render(
-        <CharacterModal
-          isOpen={true}
-          existingIds={[]}
-          onClose={vi.fn()}
-          onSave={vi.fn()}
-        />
-      );
+      render(<CharacterModal isOpen={true} existingIds={[]} onClose={vi.fn()} onSave={vi.fn()} />);
 
       const dropzone = screen.getByTestId('char-bulk-dropzone');
 
@@ -256,14 +228,7 @@ describe('Milestone 4: Character & Sprite Manager', () => {
     });
 
     it('filters out non-image files and displays warning', async () => {
-      render(
-        <CharacterModal
-          isOpen={true}
-          existingIds={[]}
-          onClose={vi.fn()}
-          onSave={vi.fn()}
-        />
-      );
+      render(<CharacterModal isOpen={true} existingIds={[]} onClose={vi.fn()} onSave={vi.fn()} />);
 
       const fileInput = screen.getByTestId('input-char-sprite-files');
       const nonImage = new File(['text'], 'notes.txt', { type: 'text/plain' });
@@ -284,14 +249,7 @@ describe('Milestone 4: Character & Sprite Manager', () => {
   // --------------------------------------------------------------------------
   describe('UT-EDT-08: Single File Upload & Row Sprite Management', () => {
     it('allows adding an expression row and uploading a single image to Base64 thumbnail', async () => {
-      render(
-        <CharacterModal
-          isOpen={true}
-          existingIds={[]}
-          onClose={vi.fn()}
-          onSave={vi.fn()}
-        />
-      );
+      render(<CharacterModal isOpen={true} existingIds={[]} onClose={vi.fn()} onSave={vi.fn()} />);
 
       // Add empty expression row
       const addRowBtn = screen.getByTestId('btn-add-expr-row');
@@ -339,7 +297,7 @@ describe('Milestone 4: Character & Sprite Manager', () => {
           existingIds={['alice']}
           onClose={vi.fn()}
           onSave={vi.fn()}
-        />
+        />,
       );
 
       // Verify row 0 (smile) is default
@@ -380,7 +338,7 @@ describe('Milestone 4: Character & Sprite Manager', () => {
           existingIds={['alice']}
           onClose={vi.fn()}
           onSave={vi.fn()}
-        />
+        />,
       );
 
       const saveBtn = screen.getByTestId('btn-save-character');
@@ -390,13 +348,15 @@ describe('Milestone 4: Character & Sprite Manager', () => {
       const keyInput1 = screen.getByTestId('input-expr-key-1');
       fireEvent.change(keyInput1, { target: { value: 'smile' } });
 
-      expect(screen.getAllByText("Expression key 'smile' already exists").length).toBeGreaterThanOrEqual(1);
+      expect(
+        screen.getAllByText("Expression key 'smile' already exists").length,
+      ).toBeGreaterThanOrEqual(1);
       expect(saveBtn).toBeDisabled();
 
       // Change to invalid characters
       fireEvent.change(keyInput1, { target: { value: 'smile!' } });
       expect(
-        screen.getByText('Expression key must contain only letters, numbers, and underscores')
+        screen.getByText('Expression key must contain only letters, numbers, and underscores'),
       ).toBeInTheDocument();
       expect(saveBtn).toBeDisabled();
 
@@ -418,7 +378,7 @@ describe('Milestone 4: Character & Sprite Manager', () => {
           onCreateCharacter={handleCreate}
           onEditCharacter={vi.fn()}
           onDeleteCharacter={vi.fn()}
-        />
+        />,
       );
 
       expect(screen.getByTestId('pane-character-empty')).toBeInTheDocument();
@@ -460,7 +420,7 @@ describe('Milestone 4: Character & Sprite Manager', () => {
           onCreateCharacter={vi.fn()}
           onEditCharacter={handleEdit}
           onDeleteCharacter={handleDelete}
-        />
+        />,
       );
 
       // Alice card with thumbnail avatar
@@ -520,7 +480,12 @@ describe('Milestone 4: Character & Sprite Manager', () => {
         variables: [],
         uiScreens: [],
         customScripts: [],
-        displaySettings: { width: 1920, height: 1080, orientation: 'landscape', lockAspectRatio: true },
+        displaySettings: {
+          width: 1920,
+          height: 1080,
+          orientation: 'landscape',
+          lockAspectRatio: true,
+        },
       };
 
       render(
@@ -528,7 +493,7 @@ describe('Milestone 4: Character & Sprite Manager', () => {
           projectId="proj-test"
           repository={mockRepo}
           initialProject={mockProject}
-        />
+        />,
       );
 
       // Switch to characters tab
@@ -561,7 +526,7 @@ describe('Milestone 4: Character & Sprite Manager', () => {
                 name: 'The Hero',
               }),
             ],
-          })
+          }),
         );
       });
     });

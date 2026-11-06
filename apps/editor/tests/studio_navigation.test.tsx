@@ -60,7 +60,7 @@ describe('Studio Shell & Navigation (Milestone 3 TDD)', () => {
           onCreateFile={vi.fn()}
           onRenameFile={vi.fn()}
           onDeleteFile={vi.fn()}
-        />
+        />,
       );
 
       // Should display clean chapter names without .vns
@@ -89,7 +89,7 @@ describe('Studio Shell & Navigation (Milestone 3 TDD)', () => {
           onCreateFile={handleCreate}
           onRenameFile={vi.fn()}
           onDeleteFile={vi.fn()}
-        />
+        />,
       );
 
       const createBtn = screen.getByTestId('btn-new-script');
@@ -113,7 +113,7 @@ describe('Studio Shell & Navigation (Milestone 3 TDD)', () => {
           onCreateFile={handleCreate}
           onRenameFile={vi.fn()}
           onDeleteFile={vi.fn()}
-        />
+        />,
       );
 
       // 1. Forbidden character test
@@ -124,7 +124,7 @@ describe('Studio Shell & Navigation (Milestone 3 TDD)', () => {
 
       expect(handleCreate).not.toHaveBeenCalled();
       expect(screen.getByTestId('file-validation-error')).toHaveTextContent(
-        'File name cannot contain characters: \\ / : * ? " < > |'
+        'File name cannot contain characters: \\ / : * ? " < > |',
       );
 
       // 2. Duplicate name test (case-insensitive)
@@ -133,7 +133,7 @@ describe('Studio Shell & Navigation (Milestone 3 TDD)', () => {
 
       expect(handleCreate).not.toHaveBeenCalled();
       expect(screen.getByTestId('file-validation-error')).toHaveTextContent(
-        'File "CHAPTER_1.vns" already exists!'
+        'File "CHAPTER_1.vns" already exists!',
       );
     });
 
@@ -148,7 +148,7 @@ describe('Studio Shell & Navigation (Milestone 3 TDD)', () => {
           onCreateFile={vi.fn()}
           onRenameFile={vi.fn()}
           onDeleteFile={handleDelete}
-        />
+        />,
       );
 
       // Entry file delete button should be disabled
@@ -177,7 +177,7 @@ describe('Studio Shell & Navigation (Milestone 3 TDD)', () => {
           onCreateFile={vi.fn()}
           onRenameFile={vi.fn()}
           onDeleteFile={handleDelete}
-        />
+        />,
       );
 
       const deleteBtn = screen.getByTestId('btn-delete-file-f-only');
@@ -197,7 +197,7 @@ describe('Studio Shell & Navigation (Milestone 3 TDD)', () => {
           onCreateFile={vi.fn()}
           onRenameFile={handleRename}
           onDeleteFile={vi.fn()}
-        />
+        />,
       );
 
       // Trigger rename on chapter_1
@@ -212,7 +212,7 @@ describe('Studio Shell & Navigation (Milestone 3 TDD)', () => {
       fireEvent.keyDown(renameInput, { key: 'Enter', code: 'Enter' });
       expect(handleRename).not.toHaveBeenCalled();
       expect(screen.getByTestId('rename-error-f-2')).toHaveTextContent(
-        'File "ending.vns" already exists!'
+        'File "ending.vns" already exists!',
       );
 
       // Valid rename
@@ -231,12 +231,22 @@ describe('Studio Shell & Navigation (Milestone 3 TDD)', () => {
       // Sequential naming
       expect(generateDefaultScriptName(['main.vns'])).toBe('New Script.vns');
       expect(generateDefaultScriptName(['main.vns', 'New Script.vns'])).toBe('New Script (2).vns');
-      expect(
-        generateDefaultScriptName(['main.vns', 'New Script.vns', 'New Script (2).vns'])
-      ).toBe('New Script (3).vns');
+      expect(generateDefaultScriptName(['main.vns', 'New Script.vns', 'New Script (2).vns'])).toBe(
+        'New Script (3).vns',
+      );
 
       // Forbidden characters
-      const forbidden = ['bad/1', 'bad\\2', 'bad:3', 'bad*4', 'bad?5', 'bad"6', 'bad<7', 'bad>8', 'bad|9'];
+      const forbidden = [
+        'bad/1',
+        'bad\\2',
+        'bad:3',
+        'bad*4',
+        'bad?5',
+        'bad"6',
+        'bad<7',
+        'bad>8',
+        'bad|9',
+      ];
       for (const f of forbidden) {
         const res = validateFileName(f, ['main.vns']);
         expect(res.valid).toBe(false);
@@ -267,7 +277,8 @@ describe('Studio Shell & Navigation (Milestone 3 TDD)', () => {
 
       const text = container.textContent || '';
       // Regex checking common emoji unicode ranges
-      const emojiRegex = /[\u{1F300}-\u{1F6FF}\u{1F900}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/u;
+      const emojiRegex =
+        /[\u{1F300}-\u{1F6FF}\u{1F900}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/u;
       expect(emojiRegex.test(text)).toBe(false);
 
       // Confirms all icons are pure vector SVGs
@@ -278,11 +289,7 @@ describe('Studio Shell & Navigation (Milestone 3 TDD)', () => {
     it('renders optional settings button if onOpenSettings is provided', () => {
       const handleSettings = vi.fn();
       render(
-        <ActivityBar
-          activeTab="scripts"
-          onSelectTab={vi.fn()}
-          onOpenSettings={handleSettings}
-        />
+        <ActivityBar activeTab="scripts" onSelectTab={vi.fn()} onOpenSettings={handleSettings} />,
       );
 
       const settingsBtn = screen.getByTestId('activity-bar-btn-settings');
@@ -303,7 +310,7 @@ describe('Studio Shell & Navigation (Milestone 3 TDD)', () => {
           onBack={handleBack}
           onSave={handleSave}
           isDirty={true}
-        />
+        />,
       );
 
       expect(screen.getByText('My Visual Novel')).toBeInTheDocument();
@@ -322,7 +329,7 @@ describe('Studio Shell & Navigation (Milestone 3 TDD)', () => {
           projectTitle="Original Title"
           onBack={vi.fn()}
           onTitleChange={handleTitleChange}
-        />
+        />,
       );
 
       const titleElement = screen.getByTestId('header-project-title');
@@ -340,22 +347,12 @@ describe('Studio Shell & Navigation (Milestone 3 TDD)', () => {
 
     it('renders dirty dot indicator ● when isDirty is true', () => {
       const { rerender } = render(
-        <StudioHeader
-          projectTitle="My Project"
-          isDirty={false}
-          onBack={vi.fn()}
-        />
+        <StudioHeader projectTitle="My Project" isDirty={false} onBack={vi.fn()} />,
       );
 
       expect(screen.queryByTestId('header-dirty-dot')).not.toBeInTheDocument();
 
-      rerender(
-        <StudioHeader
-          projectTitle="My Project"
-          isDirty={true}
-          onBack={vi.fn()}
-        />
-      );
+      rerender(<StudioHeader projectTitle="My Project" isDirty={true} onBack={vi.fn()} />);
 
       expect(screen.getByTestId('header-dirty-dot')).toBeInTheDocument();
       expect(screen.getByTestId('header-dirty-dot')).toHaveTextContent('●');
@@ -368,19 +365,14 @@ describe('Studio Shell & Navigation (Milestone 3 TDD)', () => {
           isDirty={false}
           isSaving={false}
           onBack={vi.fn()}
-        />
+        />,
       );
 
       expect(screen.queryByTestId('header-save-status')).not.toBeInTheDocument();
       expect(screen.queryByTestId('header-dirty-dot')).not.toBeInTheDocument();
 
       rerender(
-        <StudioHeader
-          projectTitle="My Project"
-          isDirty={true}
-          isSaving={false}
-          onBack={vi.fn()}
-        />
+        <StudioHeader projectTitle="My Project" isDirty={true} isSaving={false} onBack={vi.fn()} />,
       );
 
       expect(screen.queryByTestId('header-save-status')).not.toBeInTheDocument();
@@ -420,7 +412,7 @@ describe('Studio Shell & Navigation (Milestone 3 TDD)', () => {
           projectId="proj-123"
           repository={mockRepo}
           initialProject={mockProject}
-        />
+        />,
       );
 
       expect(screen.getByTestId('studio-workspace-page')).toBeInTheDocument();
@@ -449,7 +441,7 @@ describe('Studio Shell & Navigation (Milestone 3 TDD)', () => {
           projectId="proj-123"
           repository={mockRepo}
           initialProject={mockProject}
-        />
+        />,
       );
 
       // Default tab is scripts
@@ -459,7 +451,8 @@ describe('Studio Shell & Navigation (Milestone 3 TDD)', () => {
       fireEvent.click(screen.getByTestId('tab-characters'));
       expect(screen.queryByTestId('pane-file-explorer')).not.toBeInTheDocument();
       expect(
-        screen.queryByTestId('pane-characters') || screen.queryByTestId('pane-characters-placeholder')
+        screen.queryByTestId('pane-characters') ||
+          screen.queryByTestId('pane-characters-placeholder'),
       ).toBeInTheDocument();
 
       // Switch to assets
@@ -477,7 +470,7 @@ describe('Studio Shell & Navigation (Milestone 3 TDD)', () => {
           projectId="proj-123"
           repository={mockRepo}
           initialProject={mockProject}
-        />
+        />,
       );
 
       const titleHeader = screen.getByTestId('header-project-title');
@@ -491,7 +484,7 @@ describe('Studio Shell & Navigation (Milestone 3 TDD)', () => {
         expect(mockRepo.updateProject).toHaveBeenCalledWith(
           expect.objectContaining({
             title: 'New World Novel',
-          })
+          }),
         );
       });
     });
@@ -502,7 +495,7 @@ describe('Studio Shell & Navigation (Milestone 3 TDD)', () => {
           projectId="proj-123"
           repository={mockRepo}
           initialProject={mockProject}
-        />
+        />,
       );
 
       // 1. Add file
@@ -514,10 +507,8 @@ describe('Studio Shell & Navigation (Milestone 3 TDD)', () => {
       await waitFor(() => {
         expect(mockRepo.updateProject).toHaveBeenCalledWith(
           expect.objectContaining({
-            files: expect.arrayContaining([
-              expect.objectContaining({ name: 'interlude.vns' }),
-            ]),
-          })
+            files: expect.arrayContaining([expect.objectContaining({ name: 'interlude.vns' })]),
+          }),
         );
       });
 
@@ -528,10 +519,8 @@ describe('Studio Shell & Navigation (Milestone 3 TDD)', () => {
       await waitFor(() => {
         expect(mockRepo.updateProject).toHaveBeenCalledWith(
           expect.objectContaining({
-            files: expect.not.arrayContaining([
-              expect.objectContaining({ id: 'f-2' }),
-            ]),
-          })
+            files: expect.not.arrayContaining([expect.objectContaining({ id: 'f-2' })]),
+          }),
         );
       });
     });

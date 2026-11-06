@@ -132,7 +132,7 @@ describe('StorageAdapter', () => {
       const slots = adapter.getSlots();
 
       expect(slots).toHaveLength(6);
-      expect(slots.every((s) => s === null)).toBe(true);
+      expect(slots.every(s => s === null)).toBe(true);
     });
 
     it('should save and load regular save slot (1-6)', async () => {
@@ -267,4 +267,3 @@ describe('StorageAdapter', () => {
     });
   });
 });
-

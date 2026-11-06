@@ -42,7 +42,7 @@ describe('FileExplorerPane: Configurable Entry Scene', () => {
         onRenameFile={vi.fn()}
         onDeleteFile={vi.fn()}
         onSetEntryScene={onSetEntryScene}
-      />
+      />,
     );
 
     // main.vns should have Entry badge
@@ -69,7 +69,7 @@ describe('FileExplorerPane: Configurable Entry Scene', () => {
         onRenameFile={vi.fn()}
         onDeleteFile={vi.fn()}
         onSetEntryScene={vi.fn()}
-      />
+      />,
     );
 
     // prologue.vns is the designated entry
@@ -94,7 +94,7 @@ describe('FileExplorerPane: Configurable Entry Scene', () => {
         onRenameFile={vi.fn()}
         onDeleteFile={vi.fn()}
         onSetEntryScene={vi.fn()}
-      />
+      />,
     );
 
     // Verify duplicate file buttons are completely absent

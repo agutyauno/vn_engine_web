@@ -1,12 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import type { Character } from '@vn-engine/shared-types';
-import {
-  EditIcon,
-  PlusIcon,
-  SearchIcon,
-  TrashIcon,
-  UserIcon,
-} from '../common/Icons';
+import { EditIcon, PlusIcon, SearchIcon, TrashIcon, UserIcon } from '../common/Icons';
 
 export interface CharacterManagerPaneProps {
   characters: Character[];
@@ -29,7 +23,7 @@ export const CharacterManagerPane: React.FC<CharacterManagerPaneProps> = ({
     if (!searchQuery.trim()) return characters;
     const q = searchQuery.toLowerCase();
     return characters.filter(
-      (c) => c.name.toLowerCase().includes(q) || c.id.toLowerCase().includes(q)
+      c => c.name.toLowerCase().includes(q) || c.id.toLowerCase().includes(q),
     );
   }, [characters, searchQuery]);
 
@@ -70,7 +64,7 @@ export const CharacterManagerPane: React.FC<CharacterManagerPaneProps> = ({
               type="text"
               data-testid="input-search-characters"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={e => setSearchQuery(e.target.value)}
               placeholder="Filter characters..."
               className="w-full rounded border border-neutral-800 bg-neutral-950/80 py-1 pl-7 pr-2 text-xs text-neutral-200 placeholder:text-neutral-500 focus:border-neutral-700 focus:outline-none"
             />
@@ -86,7 +80,7 @@ export const CharacterManagerPane: React.FC<CharacterManagerPaneProps> = ({
             <div className="flex items-center gap-1 px-1 text-[10px] font-semibold uppercase tracking-wider text-amber-400">
               <span>AST Detected Uncreated</span>
             </div>
-            {uncreatedIds.map((id) => (
+            {uncreatedIds.map(id => (
               <div
                 key={id}
                 data-testid={`uncreated-character-${id}`}
@@ -142,10 +136,9 @@ export const CharacterManagerPane: React.FC<CharacterManagerPaneProps> = ({
         ) : (
           /* Character Cards List */
           <div className="p-2 space-y-1.5">
-            {filteredCharacters.map((char) => {
+            {filteredCharacters.map(char => {
               const defaultKey = char.defaultExpression || 'default';
-              const avatarUrl =
-                char.sprites?.[defaultKey] || Object.values(char.sprites || {})[0];
+              const avatarUrl = char.sprites?.[defaultKey] || Object.values(char.sprites || {})[0];
               const spriteCount = Object.keys(char.sprites || {}).length;
 
               return (

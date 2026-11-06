@@ -11,7 +11,7 @@ export function BacklogDrawer(): JSX.Element {
     <div
       id="modal-backlog"
       className="modal-backlog-backdrop modal-backlog-drawer"
-      onClick={(e) => {
+      onClick={e => {
         if (e.target === e.currentTarget) {
           actions.closeModal();
         }
@@ -31,7 +31,7 @@ export function BacklogDrawer(): JSX.Element {
           </button>
         </div>
         <div className="backlog-list">
-          {backlog.map((entry) => (
+          {backlog.map(entry => (
             <div key={entry.id} className="backlog-entry">
               {entry.speakerName && (
                 <span
@@ -49,7 +49,7 @@ export function BacklogDrawer(): JSX.Element {
                     </span>
                   ) : (
                     seg.text
-                  )
+                  ),
                 )}
               </span>
               {entry.voiceAssetId && (
@@ -70,4 +70,3 @@ export function BacklogDrawer(): JSX.Element {
     </div>
   );
 }
-

@@ -14,22 +14,20 @@ export function ChoiceOverlay(): JSX.Element | null {
       const target = e.target as HTMLElement | null;
       if (
         target &&
-        (target.tagName === 'INPUT' ||
-          target.tagName === 'TEXTAREA' ||
-          target.isContentEditable)
+        (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)
       ) {
         return;
       }
 
       if (e.key === 'ArrowDown') {
         e.preventDefault();
-        setFocusedIndex((prev) => (prev + 1) % activeChoices.length);
+        setFocusedIndex(prev => (prev + 1) % activeChoices.length);
         return;
       }
 
       if (e.key === 'ArrowUp') {
         e.preventDefault();
-        setFocusedIndex((prev) => (prev - 1 + activeChoices.length) % activeChoices.length);
+        setFocusedIndex(prev => (prev - 1 + activeChoices.length) % activeChoices.length);
         return;
       }
 
@@ -59,7 +57,7 @@ export function ChoiceOverlay(): JSX.Element | null {
   }, [activeChoices, focusedIndex, actions]);
 
   if (!activeChoices || activeChoices.length === 0) return null;
-  const allUnsatisfied = activeChoices.every((choice) => !choice.isSatisfied);
+  const allUnsatisfied = activeChoices.every(choice => !choice.isSatisfied);
 
   return (
     <div id="choice-overlay" className="choice-overlay">

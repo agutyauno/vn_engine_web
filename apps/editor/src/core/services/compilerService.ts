@@ -1,14 +1,6 @@
 import { Compiler } from '@vn-engine/dsl-compiler';
-import type {
-  ScriptFile,
-  Character,
-  Instruction,
-  EngineDiagnostic,
-} from '@vn-engine/shared-types';
-import type {
-  CompilerWorkerRequest,
-  CompilerWorkerResponse,
-} from './compiler.worker';
+import type { ScriptFile, Character, Instruction, EngineDiagnostic } from '@vn-engine/shared-types';
+import type { CompilerWorkerRequest, CompilerWorkerResponse } from './compiler.worker';
 
 export interface CompileExecutionOptions {
   characters?: Character[];
@@ -49,7 +41,7 @@ export class CompilerService {
 
   public async compile(
     files: ScriptFile[],
-    options?: CompileExecutionOptions
+    options?: CompileExecutionOptions,
   ): Promise<CompileOutput> {
     const currentRequestId = ++this.latestRequestId;
 
@@ -68,7 +60,7 @@ export class CompilerService {
   private compileSync(
     requestId: number,
     files: ScriptFile[],
-    options?: CompileExecutionOptions
+    options?: CompileExecutionOptions,
   ): CompileOutput {
     const compiler = new Compiler();
     const result = compiler.compile(files, {
@@ -206,14 +198,14 @@ export class CompilerService {
   private compileWithWorker(
     requestId: number,
     files: ScriptFile[],
-    options?: CompileExecutionOptions
+    options?: CompileExecutionOptions,
   ): Promise<CompileOutput> {
     const worker = this.ensureWorker();
     if (!worker) {
       return Promise.resolve(this.compileSync(requestId, files, options));
     }
 
-    return new Promise<CompileOutput>((resolve) => {
+    return new Promise<CompileOutput>(resolve => {
       // 2000ms Watchdog Timer
       const timeoutId = setTimeout(() => {
         if (this.pendingRequests.has(requestId)) {

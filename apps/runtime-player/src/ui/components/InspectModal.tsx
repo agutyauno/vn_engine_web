@@ -34,4 +34,3 @@ export function InspectModal(props: InspectModalProps): JSX.Element {
     </div>
   );
 }
-

@@ -73,9 +73,7 @@ export const RuntimeCheatInjector: React.FC<RuntimeCheatInjectorProps> = ({
                   title="Click to copy to inject form"
                 >
                   <td className="py-1 px-2 font-semibold text-sky-400">{key}</td>
-                  <td className="py-1 px-2 text-neutral-500 text-[10px]">
-                    {typeof val}
-                  </td>
+                  <td className="py-1 px-2 text-neutral-500 text-[10px]">{typeof val}</td>
                   <td className="py-1 px-2 text-neutral-200">
                     {typeof val === 'object' ? JSON.stringify(val) : String(val)}
                   </td>
@@ -103,21 +101,19 @@ export const RuntimeCheatInjector: React.FC<RuntimeCheatInjectorProps> = ({
               data-testid="input-cheat-var-name"
               placeholder="e.g. affection, gold, isClear"
               value={varName}
-              onChange={(e) => setVarName(e.target.value)}
+              onChange={e => setVarName(e.target.value)}
               className="w-full rounded border border-neutral-700 bg-neutral-950 px-2.5 py-1 text-xs text-white placeholder-neutral-600 focus:border-sky-500 focus:outline-none font-mono"
             />
           </div>
 
           <div>
-            <label className="block text-[10px] font-mono text-neutral-500 mb-1">
-              New Value
-            </label>
+            <label className="block text-[10px] font-mono text-neutral-500 mb-1">New Value</label>
             <input
               type="text"
               data-testid="input-cheat-var-value"
               placeholder="e.g. 99, true, S-Rank"
               value={varValue}
-              onChange={(e) => setVarValue(e.target.value)}
+              onChange={e => setVarValue(e.target.value)}
               className="w-full rounded border border-neutral-700 bg-neutral-950 px-2.5 py-1 text-xs text-white placeholder-neutral-600 focus:border-sky-500 focus:outline-none font-mono"
             />
           </div>

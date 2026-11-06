@@ -37,13 +37,23 @@ describe('PreviewBridgeAdapter', () => {
     it('should accept usercontent-platform.com domain and subdomains (SAD §3.3)', () => {
       expect(isAllowedEditorOrigin('https://usercontent-platform.com')).toBe(true);
       expect(isAllowedEditorOrigin('https://sub.usercontent-platform.com')).toBe(true);
-      expect(isAllowedEditorOrigin('https://preview-123.tenant.usercontent-platform.com')).toBe(true);
+      expect(isAllowedEditorOrigin('https://preview-123.tenant.usercontent-platform.com')).toBe(
+        true,
+      );
       expect(isAllowedEditorOrigin('http://usercontent-platform.com:8080')).toBe(true);
     });
 
     it('should accept configured editorOrigin and localOrigin', () => {
-      expect(isAllowedEditorOrigin('https://studio.taleforge.app', 'https://studio.taleforge.app')).toBe(true);
-      expect(isAllowedEditorOrigin('https://player.taleforge.app', 'https://other.com', 'https://player.taleforge.app')).toBe(true);
+      expect(
+        isAllowedEditorOrigin('https://studio.taleforge.app', 'https://studio.taleforge.app'),
+      ).toBe(true);
+      expect(
+        isAllowedEditorOrigin(
+          'https://player.taleforge.app',
+          'https://other.com',
+          'https://player.taleforge.app',
+        ),
+      ).toBe(true);
     });
 
     it('should reject untrusted and phishing origins', () => {
@@ -217,9 +227,7 @@ describe('PreviewBridgeAdapter', () => {
 
       adapter.init();
 
-      const testProgram: Instruction[] = [
-        { type: 'SCENE', name: 'flat_scene' },
-      ];
+      const testProgram: Instruction[] = [{ type: 'SCENE', name: 'flat_scene' }];
 
       adapter.handleMessage(
         new MessageEvent('message', {
@@ -283,7 +291,7 @@ describe('PreviewBridgeAdapter', () => {
 
       // Verify that messages were throttled, not sent 5 individual times
       const stateUpdateMessages = postedMessages.filter(
-        (m) => (m.message as { type: string }).type === 'PREVIEW_STATE_UPDATE',
+        m => (m.message as { type: string }).type === 'PREVIEW_STATE_UPDATE',
       );
       expect(stateUpdateMessages.length).toBeLessThanOrEqual(2);
 
@@ -335,4 +343,3 @@ describe('PreviewBridgeAdapter', () => {
     });
   });
 });
-

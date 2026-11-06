@@ -168,7 +168,7 @@ describe('CompilerService (Phase 2)', () => {
       const output = await compilePromise;
       expect(mockWorker.terminate).toHaveBeenCalled();
       expect(output.success).toBe(false);
-      expect(output.diagnostics.some((d) => d.severity === 'error')).toBe(true);
+      expect(output.diagnostics.some(d => d.severity === 'error')).toBe(true);
     });
 
     it('cleans up worker when terminate() is invoked', () => {
@@ -180,4 +180,3 @@ describe('CompilerService (Phase 2)', () => {
     });
   });
 });
-

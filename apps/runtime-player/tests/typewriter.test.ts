@@ -134,7 +134,8 @@ describe('Typewriter & Inline Tag Parser (TASK-player-typewriter-and-colors)', (
     });
 
     it('should handle multiple color spans with intervening rhythm tags', () => {
-      const raw = '{pause:0.5s}{color:#ef4444}Warning:{/color} {speed:fast}{color:#fbbf24}Low HP{/color}!';
+      const raw =
+        '{pause:0.5s}{color:#ef4444}Warning:{/color} {speed:fast}{color:#fbbf24}Low HP{/color}!';
       const segments = parseBacklogSegments(raw);
 
       expect(segments).toEqual([
@@ -150,4 +151,3 @@ describe('Typewriter & Inline Tag Parser (TASK-player-typewriter-and-colors)', (
     });
   });
 });
-

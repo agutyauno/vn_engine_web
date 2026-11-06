@@ -29,8 +29,8 @@ export const MonacoEditorContainer: React.FC<MonacoEditorContainerProps> = ({
   const monacoInstanceRef = useRef<typeof monacoType | null>(null);
   const [isMonacoMounted, setIsMonacoMounted] = useState(false);
 
-  const compilerDiagnostics = useDiagnosticsStore((s) => s.compilerDiagnostics);
-  const reconciliationDiagnostics = useDiagnosticsStore((s) => s.reconciliationDiagnostics);
+  const compilerDiagnostics = useDiagnosticsStore(s => s.compilerDiagnostics);
+  const reconciliationDiagnostics = useDiagnosticsStore(s => s.reconciliationDiagnostics);
 
   // Initialize Monaco and language features
   useEffect(() => {
@@ -57,9 +57,10 @@ export const MonacoEditorContainer: React.FC<MonacoEditorContainerProps> = ({
       if (!vnsRegistered) {
         try {
           registerVnsLanguage();
-          const { createVnsProjectContext } = await import('../../core/services/vnsContextProvider');
+          const { createVnsProjectContext } =
+            await import('../../core/services/vnsContextProvider');
           registerVnsLanguageFeatures(
-            createVnsProjectContext(() => useProjectStore.getState().project, project)
+            createVnsProjectContext(() => useProjectStore.getState().project, project),
           );
           vnsRegistered = true;
         } catch (err) {
@@ -92,7 +93,7 @@ export const MonacoEditorContainer: React.FC<MonacoEditorContainerProps> = ({
         onChange?.(val);
       });
 
-      editor.onDidChangeCursorPosition((e) => {
+      editor.onDidChangeCursorPosition(e => {
         onCursorChange?.(e.position.lineNumber, e.position.column);
       });
 
@@ -175,7 +176,7 @@ export const MonacoEditorContainer: React.FC<MonacoEditorContainerProps> = ({
           data-testid="monaco-fallback-textarea"
           value={file.content}
           readOnly={readOnly}
-          onChange={(e) => {
+          onChange={e => {
             if (file) {
               useProjectStore.getState().updateFileContent(file.id, e.target.value);
             }

@@ -5,7 +5,10 @@ export interface SpeakerNameplateProps {
   speakerColorHex?: string;
 }
 
-export function SpeakerNameplate({ speakerName, speakerColorHex }: SpeakerNameplateProps): JSX.Element | null {
+export function SpeakerNameplate({
+  speakerName,
+  speakerColorHex,
+}: SpeakerNameplateProps): JSX.Element | null {
   if (!speakerName || speakerName.trim() === '') {
     return null;
   }
@@ -20,4 +23,3 @@ export function SpeakerNameplate({ speakerName, speakerColorHex }: SpeakerNamepl
     </div>
   );
 }
-

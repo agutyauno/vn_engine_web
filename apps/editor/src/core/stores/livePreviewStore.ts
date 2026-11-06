@@ -46,21 +46,21 @@ export const initialPreviewState: Omit<
   watchedVariables: {},
 };
 
-export const usePreviewStore = create<LivePreviewStoreState>((set) => ({
+export const usePreviewStore = create<LivePreviewStoreState>(set => ({
   ...initialPreviewState,
 
-  setIsPlaying: (isPlaying) => set({ isPlaying }),
+  setIsPlaying: isPlaying => set({ isPlaying }),
 
-  togglePlay: () => set((state) => ({ isPlaying: !state.isPlaying })),
+  togglePlay: () => set(state => ({ isPlaying: !state.isPlaying })),
 
-  setConnectionStatus: (connectionStatus) => set({ connectionStatus }),
+  setConnectionStatus: connectionStatus => set({ connectionStatus }),
 
-  setPendingProgram: (payload) => set({ pendingProgram: payload }),
+  setPendingProgram: payload => set({ pendingProgram: payload }),
 
   clearPendingProgram: () => set({ pendingProgram: null }),
 
   setVariableOverride: (name, value) =>
-    set((state) => ({
+    set(state => ({
       pendingVariableOverrides: {
         ...state.pendingVariableOverrides,
         [name]: value,
@@ -69,8 +69,7 @@ export const usePreviewStore = create<LivePreviewStoreState>((set) => ({
 
   clearVariableOverrides: () => set({ pendingVariableOverrides: {} }),
 
-  syncVariables: (vars) => set({ watchedVariables: vars }),
+  syncVariables: vars => set({ watchedVariables: vars }),
 }));
 
 export const useLivePreviewStore = usePreviewStore;
-

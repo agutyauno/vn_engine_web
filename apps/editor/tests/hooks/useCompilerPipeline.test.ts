@@ -105,13 +105,13 @@ describe('useCompilerPipeline Hook (Phase 2)', () => {
         compilerService: mockCompilerService as unknown as CompilerService,
         previewBridge: mockPreviewBridge as unknown as PreviewBridge,
         debounceMs: 50,
-      })
+      }),
     );
 
     await waitFor(() => {
       expect(mockCompilerService.compile).toHaveBeenCalledWith(
         sampleProject.files,
-        expect.objectContaining({ characters: sampleProject.characters })
+        expect.objectContaining({ characters: sampleProject.characters }),
       );
     });
 
@@ -122,7 +122,7 @@ describe('useCompilerPipeline Hook (Phase 2)', () => {
           program: sampleBytecode,
           characters: sampleProject.characters,
           assets: sampleProject.assets,
-        })
+        }),
       );
     });
 
@@ -136,7 +136,7 @@ describe('useCompilerPipeline Hook (Phase 2)', () => {
         compilerService: mockCompilerService as unknown as CompilerService,
         previewBridge: mockPreviewBridge as unknown as PreviewBridge,
         debounceMs: 50,
-      })
+      }),
     );
 
     await waitFor(() => {
@@ -160,7 +160,7 @@ describe('useCompilerPipeline Hook (Phase 2)', () => {
 
     const lastCallPayload = mockPreviewBridge.hotReload.mock.calls[1]![0] as HotReloadPayload;
     expect(lastCallPayload.characters).toEqual(
-      expect.arrayContaining([expect.objectContaining({ id: 'bob' })])
+      expect.arrayContaining([expect.objectContaining({ id: 'bob' })]),
     );
     expect(lastCallPayload.program).toEqual(sampleBytecode);
 
@@ -183,7 +183,7 @@ describe('useCompilerPipeline Hook (Phase 2)', () => {
 
     const assetCallPayload = mockPreviewBridge.hotReload.mock.calls[2]![0] as HotReloadPayload;
     expect(assetCallPayload.assets).toEqual(
-      expect.arrayContaining([expect.objectContaining({ id: 'asset-sound' })])
+      expect.arrayContaining([expect.objectContaining({ id: 'asset-sound' })]),
     );
   });
 
@@ -211,7 +211,7 @@ describe('useCompilerPipeline Hook (Phase 2)', () => {
         compilerService: mockCompilerService as unknown as CompilerService,
         previewBridge: mockPreviewBridge as unknown as PreviewBridge,
         debounceMs: 50,
-      })
+      }),
     );
 
     await waitFor(() => {
@@ -222,4 +222,3 @@ describe('useCompilerPipeline Hook (Phase 2)', () => {
     expect(mockPreviewBridge.hotReload).not.toHaveBeenCalled();
   });
 });
-

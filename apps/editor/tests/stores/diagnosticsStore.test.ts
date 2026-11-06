@@ -63,7 +63,9 @@ describe('diagnosticsStore', () => {
   });
 
   it('updates compiler diagnostics and tallies error/warning counts', () => {
-    useDiagnosticsStore.getState().setCompilerDiagnostics([sampleCompilerError, sampleCompilerWarning]);
+    useDiagnosticsStore
+      .getState()
+      .setCompilerDiagnostics([sampleCompilerError, sampleCompilerWarning]);
 
     const state = useDiagnosticsStore.getState();
     expect(state.compilerDiagnostics).toHaveLength(2);

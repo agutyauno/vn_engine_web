@@ -18,35 +18,29 @@ export const ColumnSplitter: React.FC<ColumnSplitterProps> = ({
   const lastPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const activePointerIdRef = useRef<number | null>(null);
 
-  const handlePointerDown = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
-      isDraggingRef.current = true;
-      lastPosRef.current = { x: e.clientX, y: e.clientY };
-      activePointerIdRef.current = e.pointerId;
+  const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    isDraggingRef.current = true;
+    lastPosRef.current = { x: e.clientX, y: e.clientY };
+    activePointerIdRef.current = e.pointerId;
 
-      try {
-        e.currentTarget.setPointerCapture?.(e.pointerId);
-      } catch {
-        // Fallback for environments lacking pointer capture
-      }
-    },
-    []
-  );
+    try {
+      e.currentTarget.setPointerCapture?.(e.pointerId);
+    } catch {
+      // Fallback for environments lacking pointer capture
+    }
+  }, []);
 
-  const handlePointerUp = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
-      if (!isDraggingRef.current) return;
-      isDraggingRef.current = false;
+  const handlePointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDraggingRef.current) return;
+    isDraggingRef.current = false;
 
-      try {
-        e.currentTarget.releasePointerCapture?.(e.pointerId);
-      } catch {
-        // Fallback
-      }
-      activePointerIdRef.current = null;
-    },
-    []
-  );
+    try {
+      e.currentTarget.releasePointerCapture?.(e.pointerId);
+    } catch {
+      // Fallback
+    }
+    activePointerIdRef.current = null;
+  }, []);
 
   useEffect(() => {
     const handleWindowPointerMove = (e: PointerEvent) => {

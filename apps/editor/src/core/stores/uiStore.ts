@@ -77,15 +77,21 @@ function getInitialDimensions(): { navWidth: number; previewWidth: number; drawe
     const parsed = JSON.parse(raw);
     return {
       navWidth: typeof parsed.navWidth === 'number' ? parsed.navWidth : defaults.navWidth,
-      previewWidth: typeof parsed.previewWidth === 'number' ? parsed.previewWidth : defaults.previewWidth,
-      drawerHeight: typeof parsed.drawerHeight === 'number' ? parsed.drawerHeight : defaults.drawerHeight,
+      previewWidth:
+        typeof parsed.previewWidth === 'number' ? parsed.previewWidth : defaults.previewWidth,
+      drawerHeight:
+        typeof parsed.drawerHeight === 'number' ? parsed.drawerHeight : defaults.drawerHeight,
     };
   } catch {
     return defaults;
   }
 }
 
-function persistDimensions(dims: { navWidth: number; previewWidth: number; drawerHeight: number }): void {
+function persistDimensions(dims: {
+  navWidth: number;
+  previewWidth: number;
+  drawerHeight: number;
+}): void {
   if (typeof window !== 'undefined' && window.localStorage) {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(dims));
@@ -145,7 +151,7 @@ function getMaxCombinedWidth(): number {
 export const useEditorUIStore = create<EditorUIStoreState>((set, get) => ({
   ...initialUIState,
 
-  setNavWidth: (width) => {
+  setNavWidth: width => {
     const maxCombined = getMaxCombinedWidth();
     const maxNavAllowed = Math.max(200, Math.min(450, maxCombined - 320));
     const clampedNav = clamp(width, 200, maxNavAllowed);
@@ -164,7 +170,7 @@ export const useEditorUIStore = create<EditorUIStoreState>((set, get) => ({
     });
   },
 
-  setPreviewWidth: (width) => {
+  setPreviewWidth: width => {
     const maxCombined = getMaxCombinedWidth();
     const maxPreviewAllowed = Math.max(320, Math.min(720, maxCombined - 200));
     const clampedPreview = clamp(width, 320, maxPreviewAllowed);
@@ -182,7 +188,7 @@ export const useEditorUIStore = create<EditorUIStoreState>((set, get) => ({
     });
   },
 
-  setDrawerHeight: (height) => {
+  setDrawerHeight: height => {
     const clamped = clamp(height, 120, 480);
     set({ drawerHeight: clamped });
     persistDimensions({
@@ -219,9 +225,9 @@ export const useEditorUIStore = create<EditorUIStoreState>((set, get) => ({
     persistDimensions(defaults);
   },
 
-  setActiveTab: (activeTab) => set({ activeTab }),
+  setActiveTab: activeTab => set({ activeTab }),
 
-  setLastAssetCategory: (category) => {
+  setLastAssetCategory: category => {
     set({ lastAssetCategory: category });
     if (typeof window !== 'undefined' && window.localStorage) {
       try {
@@ -232,8 +238,8 @@ export const useEditorUIStore = create<EditorUIStoreState>((set, get) => ({
     }
   },
 
-  selectTab: (fileId) =>
-    set((state) => {
+  selectTab: fileId =>
+    set(state => {
       const openFileIds = state.openFileIds.includes(fileId)
         ? state.openFileIds
         : [...state.openFileIds, fileId];
@@ -243,13 +249,14 @@ export const useEditorUIStore = create<EditorUIStoreState>((set, get) => ({
       };
     }),
 
-  closeTab: (fileId) =>
-    set((state) => {
-      const openFileIds = state.openFileIds.filter((id) => id !== fileId);
+  closeTab: fileId =>
+    set(state => {
+      const openFileIds = state.openFileIds.filter(id => id !== fileId);
       let activeFileId = state.activeFileId;
 
       if (activeFileId === fileId) {
-        activeFileId = openFileIds.length > 0 ? (openFileIds[openFileIds.length - 1] ?? null) : null;
+        activeFileId =
+          openFileIds.length > 0 ? (openFileIds[openFileIds.length - 1] ?? null) : null;
       }
 
       return {
@@ -258,29 +265,29 @@ export const useEditorUIStore = create<EditorUIStoreState>((set, get) => ({
       };
     }),
 
-  toggleDrawer: () => set((state) => ({ isDrawerOpen: !state.isDrawerOpen })),
+  toggleDrawer: () => set(state => ({ isDrawerOpen: !state.isDrawerOpen })),
 
-  setDrawerOpen: (isDrawerOpen) => set({ isDrawerOpen }),
+  setDrawerOpen: isDrawerOpen => set({ isDrawerOpen }),
 
-  setCursorJumpTarget: (cursorJumpTarget) => set({ cursorJumpTarget }),
+  setCursorJumpTarget: cursorJumpTarget => set({ cursorJumpTarget }),
 
-  toggleSettings: () => set((state) => ({ isSettingsOpen: !state.isSettingsOpen })),
+  toggleSettings: () => set(state => ({ isSettingsOpen: !state.isSettingsOpen })),
 
-  setSettingsOpen: (isSettingsOpen) => set({ isSettingsOpen }),
+  setSettingsOpen: isSettingsOpen => set({ isSettingsOpen }),
 
-  toggleShortcuts: () => set((state) => ({ isShortcutsOpen: !state.isShortcutsOpen })),
+  toggleShortcuts: () => set(state => ({ isShortcutsOpen: !state.isShortcutsOpen })),
 
-  setShortcutsOpen: (isShortcutsOpen) => set({ isShortcutsOpen }),
+  setShortcutsOpen: isShortcutsOpen => set({ isShortcutsOpen }),
 
-  setLightboxImageUrl: (lightboxImageUrl) => set({ lightboxImageUrl }),
+  setLightboxImageUrl: lightboxImageUrl => set({ lightboxImageUrl }),
 
-  triggerUnsavedGuard: (pendingNavigationTarget) =>
+  triggerUnsavedGuard: pendingNavigationTarget =>
     set({
       isUnsavedModalOpen: true,
       pendingNavigationTarget,
     }),
 
-  resolveUnsavedGuard: (_proceed) =>
+  resolveUnsavedGuard: _proceed =>
     set({
       isUnsavedModalOpen: false,
       pendingNavigationTarget: null,

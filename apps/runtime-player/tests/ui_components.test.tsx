@@ -538,7 +538,9 @@ describe('GameplayOverlay & Clean Art Mode (Tier 2)', () => {
     window.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, cancelable: true }));
     expect(actions.toggleCleanArt).toHaveBeenCalledTimes(1);
 
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    window.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }),
+    );
     expect(actions.toggleCleanArt).toHaveBeenCalledTimes(2);
   });
 });
@@ -569,12 +571,13 @@ describe('DialogueGroup, DialogueBox, and SpeakerNameplate', () => {
   });
 
   it('SpeakerNameplate is omitted or hidden when speakerName is not provided', () => {
-    const { container } = render(
-      <SpeakerNameplate speakerName={undefined} />,
-    );
+    const { container } = render(<SpeakerNameplate speakerName={undefined} />);
 
     const nameplate = container.querySelector('#speaker-nameplate');
-    const isHidden = !nameplate || nameplate.classList.contains('hidden') || (nameplate as HTMLElement).style.display === 'none';
+    const isHidden =
+      !nameplate ||
+      nameplate.classList.contains('hidden') ||
+      (nameplate as HTMLElement).style.display === 'none';
     expect(isHidden).toBe(true);
   });
 
@@ -1053,7 +1056,9 @@ describe('Phase 2: Minimalist ADV Presentation & Viewport Scaling (RED Gate)', (
 
     // Verify document position order
     expect(
-      (speakerNameplate!.compareDocumentPosition(dialogueBox!) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0,
+      (speakerNameplate!.compareDocumentPosition(dialogueBox!) &
+        Node.DOCUMENT_POSITION_FOLLOWING) !==
+        0,
     ).toBe(true);
     expect(
       (dialogueBox!.compareDocumentPosition(controlBar!) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0,
@@ -1076,7 +1081,9 @@ describe('Phase 2: Minimalist ADV Presentation & Viewport Scaling (RED Gate)', (
     expect(controlBar?.classList.contains('hidden')).toBe(false);
     expect((controlBar as HTMLElement).style.display).not.toBe('none');
 
-    const buttons = Array.from(container.querySelectorAll<HTMLButtonElement>('#control-bar button'));
+    const buttons = Array.from(
+      container.querySelectorAll<HTMLButtonElement>('#control-bar button'),
+    );
     expect(buttons.length).toBeGreaterThanOrEqual(8);
 
     // ADV requirement: buttons must be icon-only (monochrome SVG, no visible text spans)
@@ -1094,7 +1101,7 @@ describe('Phase 2: Minimalist ADV Presentation & Viewport Scaling (RED Gate)', (
 
     // Verify all 8 core actions exist by aria-label or title (Back, Auto, Skip, Log, Save, Load, Settings, Hide UI)
     const hasButton = (keyword: string) =>
-      buttons.some((btn) => {
+      buttons.some(btn => {
         const label = (btn.getAttribute('aria-label') || '').toLowerCase();
         const title = (btn.getAttribute('title') || '').toLowerCase();
         return label.includes(keyword.toLowerCase()) || title.includes(keyword.toLowerCase());
@@ -1184,7 +1191,8 @@ describe('Phase 2: Minimalist ADV Presentation & Viewport Scaling (RED Gate)', (
     expect(typeof iconsRecord.FolderIcon).toBe('function');
 
     // Either BookOpenIcon or HistoryIcon must be exported for Log button
-    const LogIconComp = (iconsRecord.BookOpenIcon || iconsRecord.HistoryIcon) as ((props: { size?: number }) => JSX.Element) | undefined;
+    const LogIconComp = (iconsRecord.BookOpenIcon || iconsRecord.HistoryIcon) as
+      ((props: { size?: number }) => JSX.Element) | undefined;
     expect(LogIconComp).toBeDefined();
     expect(typeof LogIconComp).toBe('function');
 
@@ -1438,7 +1446,7 @@ describe('Phase 3: Player Ergonomics, Shortcuts, Modals & Navigation (RED Gate)'
       const areBadgesHidden =
         badges.length === 0 ||
         Array.from(badges).every(
-          (b) =>
+          b =>
             b.classList.contains('hidden') ||
             (b as HTMLElement).style.display === 'none' ||
             container.querySelector('.tool-ui-hidden') !== null,
@@ -1478,7 +1486,9 @@ describe('Phase 3: Player Ergonomics, Shortcuts, Modals & Navigation (RED Gate)'
 
       fireEvent.keyDown(window, { key: 'ArrowDown' });
       const buttons = container.querySelectorAll('.choice-button');
-      expect(buttons[1]!.classList.contains('focused') || buttons[1]!.classList.contains('selected')).toBe(true);
+      expect(
+        buttons[1]!.classList.contains('focused') || buttons[1]!.classList.contains('selected'),
+      ).toBe(true);
 
       fireEvent.keyDown(window, { key: 'Enter' });
       expect(actions.selectChoice).toHaveBeenCalledWith(1);
@@ -1508,7 +1518,9 @@ describe('Phase 3: Player Ergonomics, Shortcuts, Modals & Navigation (RED Gate)'
       );
 
       expect(container.querySelector('h2')?.textContent).toContain('Save');
-      expect(container.querySelectorAll('.tab, .modal-tab, .saveload-mode-bar [role="tab"]').length).toBe(0);
+      expect(
+        container.querySelectorAll('.tab, .modal-tab, .saveload-mode-bar [role="tab"]').length,
+      ).toBe(0);
 
       const cards = container.querySelectorAll('.save-slot-card');
       fireEvent.click(cards[0]!);
@@ -1529,7 +1541,9 @@ describe('Phase 3: Player Ergonomics, Shortcuts, Modals & Navigation (RED Gate)'
       );
 
       expect(container.querySelector('h2')?.textContent).toContain('Load');
-      expect(container.querySelectorAll('.tab, .modal-tab, .saveload-mode-bar [role="tab"]').length).toBe(0);
+      expect(
+        container.querySelectorAll('.tab, .modal-tab, .saveload-mode-bar [role="tab"]').length,
+      ).toBe(0);
 
       const cards = container.querySelectorAll('.save-slot-card');
       fireEvent.click(cards[0]!);
@@ -1567,7 +1581,9 @@ describe('Phase 3: Player Ergonomics, Shortcuts, Modals & Navigation (RED Gate)'
         </PlayerUIProvider>,
       );
 
-      expect(container.querySelectorAll('.backlog-timestamp, .backlog-date, .backlog-time').length).toBe(0);
+      expect(
+        container.querySelectorAll('.backlog-timestamp, .backlog-date, .backlog-time').length,
+      ).toBe(0);
 
       const entries = container.querySelectorAll('.backlog-entry');
       expect(entries.length).toBe(2);
@@ -1605,7 +1621,9 @@ describe('Phase 3: Player Ergonomics, Shortcuts, Modals & Navigation (RED Gate)'
       fireEvent.change(musicSlider!, { target: { value: '0.75' } });
       expect(actions.setAudioVolume).toHaveBeenCalledWith('music', 0.75);
 
-      const sfxSlider = container.querySelector<HTMLInputElement>('#slider-volume-sfx, #slider-volume-sound');
+      const sfxSlider = container.querySelector<HTMLInputElement>(
+        '#slider-volume-sfx, #slider-volume-sound',
+      );
       expect(sfxSlider).not.toBeNull();
       fireEvent.change(sfxSlider!, { target: { value: '0.5' } });
       expect(actions.setAudioVolume).toHaveBeenCalledWith('sound', 0.5);
@@ -1631,7 +1649,11 @@ describe('Phase 3: Player Ergonomics, Shortcuts, Modals & Navigation (RED Gate)'
       );
       expect(fullscreenBtn).not.toBeNull();
 
-      expect(container.querySelector('#select-resolution, .resolution-picker, select[name*="resolution"]')).toBeNull();
+      expect(
+        container.querySelector(
+          '#select-resolution, .resolution-picker, select[name*="resolution"]',
+        ),
+      ).toBeNull();
       expect(container.textContent).not.toMatch(/1920x1080|1280x720|Screen Resolution/i);
     });
   });

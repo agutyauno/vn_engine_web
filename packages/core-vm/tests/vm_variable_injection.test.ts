@@ -13,8 +13,18 @@ describe('VisualNovelVM Variable Injection & Live Debugging (ADR-024)', () => {
   it('should inject global and local variables explicitly via setVariable', () => {
     const program: Instruction[] = [
       { type: 'SCENE', name: 'main' },
-      { type: 'ASSIGN', variable: 'points', value: { type: 'Literal', value: 10 }, scope: 'global' },
-      { type: 'ASSIGN', variable: 'temp_count', value: { type: 'Literal', value: 1 }, scope: 'local' },
+      {
+        type: 'ASSIGN',
+        variable: 'points',
+        value: { type: 'Literal', value: 10 },
+        scope: 'global',
+      },
+      {
+        type: 'ASSIGN',
+        variable: 'temp_count',
+        value: { type: 'Literal', value: 1 },
+        scope: 'local',
+      },
       { type: 'DIALOGUE', character: 'alice', text: 'Hello' },
     ];
 
@@ -40,8 +50,18 @@ describe('VisualNovelVM Variable Injection & Live Debugging (ADR-024)', () => {
   it('should auto-infer scope: local if variable exists in localVariables, else global', () => {
     const program: Instruction[] = [
       { type: 'SCENE', name: 'main' },
-      { type: 'ASSIGN', variable: 'hero_name', value: { type: 'Literal', value: 'Hero' }, scope: 'global' },
-      { type: 'ASSIGN', variable: 'scene_timer', value: { type: 'Literal', value: 5 }, scope: 'local' },
+      {
+        type: 'ASSIGN',
+        variable: 'hero_name',
+        value: { type: 'Literal', value: 'Hero' },
+        scope: 'global',
+      },
+      {
+        type: 'ASSIGN',
+        variable: 'scene_timer',
+        value: { type: 'Literal', value: 5 },
+        scope: 'local',
+      },
       { type: 'DIALOGUE', character: 'alice', text: 'Waiting...' },
     ];
 
@@ -66,9 +86,18 @@ describe('VisualNovelVM Variable Injection & Live Debugging (ADR-024)', () => {
   it('should immediately reflect injected variable in state catch-up and text interpolation', () => {
     const program: Instruction[] = [
       { type: 'SCENE', name: 'dialogue_scene' },
-      { type: 'ASSIGN', variable: 'player_name', value: { type: 'Literal', value: 'Nam' }, scope: 'global' },
+      {
+        type: 'ASSIGN',
+        variable: 'player_name',
+        value: { type: 'Literal', value: 'Nam' },
+        scope: 'global',
+      },
       { type: 'ASSIGN', variable: 'gold', value: { type: 'Literal', value: 50 }, scope: 'global' },
-      { type: 'DIALOGUE', character: 'shopkeeper', text: 'Chào {player_name}, bạn đang có {gold} vàng.' },
+      {
+        type: 'DIALOGUE',
+        character: 'shopkeeper',
+        text: 'Chào {player_name}, bạn đang có {gold} vàng.',
+      },
     ];
 
     const vm = new VisualNovelVM(program);
@@ -87,7 +116,12 @@ describe('VisualNovelVM Variable Injection & Live Debugging (ADR-024)', () => {
   it('should affect upcoming conditional branches and choice availability dynamically', () => {
     const program: Instruction[] = [
       { type: 'SCENE', name: 'crossroads' },
-      { type: 'ASSIGN', variable: 'has_key', value: { type: 'Literal', value: false }, scope: 'global' },
+      {
+        type: 'ASSIGN',
+        variable: 'has_key',
+        value: { type: 'Literal', value: false },
+        scope: 'global',
+      },
       {
         type: 'CHOICE',
         choices: [

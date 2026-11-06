@@ -231,4 +231,3 @@ export function BookOpenIcon({ size = 24, className }: IconProps): JSX.Element {
     </svg>
   );
 }
-

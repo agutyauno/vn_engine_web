@@ -56,11 +56,10 @@ export const SafeDeleteModal: React.FC<SafeDeleteModalProps> = ({
           {isBlocked ? (
             <div className="space-y-3">
               <div className="rounded border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-300">
-                <p className="font-medium mb-1">
-                  Cannot delete asset &apos;{asset.name}&apos;
-                </p>
+                <p className="font-medium mb-1">Cannot delete asset &apos;{asset.name}&apos;</p>
                 <p className="text-neutral-300">
-                  This asset is currently referenced by your story script. Remove or replace these references before deleting.
+                  This asset is currently referenced by your story script. Remove or replace these
+                  references before deleting.
                 </p>
               </div>
 
@@ -86,10 +85,12 @@ export const SafeDeleteModal: React.FC<SafeDeleteModalProps> = ({
           ) : (
             <div className="space-y-2">
               <p className="text-xs text-neutral-300">
-                Are you sure you want to delete <span className="font-semibold text-white">&apos;{asset.name}&apos;</span>?
+                Are you sure you want to delete{' '}
+                <span className="font-semibold text-white">&apos;{asset.name}&apos;</span>?
               </p>
               <p className="text-[11px] text-neutral-500">
-                This asset is not referenced in any scripts. Deleting it will remove the asset and its stored file from local project storage.
+                This asset is not referenced in any scripts. Deleting it will remove the asset and
+                its stored file from local project storage.
               </p>
             </div>
           )}

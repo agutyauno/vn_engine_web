@@ -35,7 +35,7 @@ describe('Asset QuickFix Pipeline Integration', () => {
         onAddAsset={vi.fn()}
         onReplaceAsset={vi.fn()}
         onDeleteAsset={vi.fn()}
-      />
+      />,
     );
 
     // Verify badge displays the missing asset ID

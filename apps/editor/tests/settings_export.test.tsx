@@ -50,7 +50,7 @@ describe('Milestone 9: Project Settings & Export Wizard', () => {
           project={sampleProject}
           onClose={vi.fn()}
           onSave={vi.fn()}
-        />
+        />,
       );
 
       expect(screen.getByTestId('modal-project-settings')).toBeInTheDocument();
@@ -69,7 +69,7 @@ describe('Milestone 9: Project Settings & Export Wizard', () => {
           project={sampleProject}
           onClose={vi.fn()}
           onSave={handleSave}
-        />
+        />,
       );
 
       const titleInput = screen.getByTestId('input-settings-title');
@@ -82,7 +82,7 @@ describe('Milestone 9: Project Settings & Export Wizard', () => {
       expect(handleSave).toHaveBeenCalledWith(
         expect.objectContaining({
           title: 'Updated Novel Title',
-        })
+        }),
       );
     });
 
@@ -95,7 +95,7 @@ describe('Milestone 9: Project Settings & Export Wizard', () => {
           project={sampleProject}
           onClose={vi.fn()}
           onSave={handleSave}
-        />
+        />,
       );
 
       // Switch to display tab
@@ -114,7 +114,7 @@ describe('Milestone 9: Project Settings & Export Wizard', () => {
             height: 1920,
             orientation: 'portrait',
           }),
-        })
+        }),
       );
     });
 
@@ -127,7 +127,7 @@ describe('Milestone 9: Project Settings & Export Wizard', () => {
           project={sampleProject}
           onClose={vi.fn()}
           onSave={handleSave}
-        />
+        />,
       );
 
       fireEvent.click(screen.getByTestId('tab-settings-editor'));
@@ -142,7 +142,7 @@ describe('Milestone 9: Project Settings & Export Wizard', () => {
           editorSettings: expect.objectContaining({
             autoSaveDebounceMs: 2500,
           }),
-        })
+        }),
       );
     });
 
@@ -155,7 +155,7 @@ describe('Milestone 9: Project Settings & Export Wizard', () => {
           project={sampleProject}
           onClose={vi.fn()}
           onSave={handleSave}
-        />
+        />,
       );
 
       fireEvent.click(screen.getByTestId('tab-settings-gameplay'));
@@ -178,7 +178,7 @@ describe('Milestone 9: Project Settings & Export Wizard', () => {
             autoForwardDelay: 4,
             unmetChoiceDisplay: 'disabled',
           }),
-        })
+        }),
       );
     });
 
@@ -189,7 +189,7 @@ describe('Milestone 9: Project Settings & Export Wizard', () => {
           project={sampleProject}
           onClose={vi.fn()}
           onSave={vi.fn()}
-        />
+        />,
       );
 
       const emojiRegex = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/u;
@@ -208,7 +208,7 @@ describe('Milestone 9: Project Settings & Export Wizard', () => {
           project={sampleProject}
           onClose={vi.fn()}
           onExport={vi.fn()}
-        />
+        />,
       );
 
       expect(screen.getByTestId('modal-export-wizard')).toBeInTheDocument();
@@ -226,7 +226,7 @@ describe('Milestone 9: Project Settings & Export Wizard', () => {
           project={sampleProject}
           onClose={vi.fn()}
           onExport={handleExport}
-        />
+        />,
       );
 
       // Select Desktop target
@@ -246,7 +246,7 @@ describe('Milestone 9: Project Settings & Export Wizard', () => {
           project={sampleProject}
           onClose={vi.fn()}
           onExport={vi.fn()}
-        />
+        />,
       );
 
       const emojiRegex = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/u;
@@ -271,7 +271,7 @@ describe('Milestone 9: Project Settings & Export Wizard', () => {
           projectId={sampleProject.id}
           repository={repo}
           initialProject={sampleProject}
-        />
+        />,
       );
 
       const settingsBtn = screen.getByTestId('activity-bar-btn-settings');
@@ -302,7 +302,7 @@ describe('Milestone 9: Project Settings & Export Wizard', () => {
           projectId={sampleProject.id}
           repository={repo}
           initialProject={sampleProject}
-        />
+        />,
       );
 
       expect(screen.queryByTestId('btn-export-project')).not.toBeInTheDocument();

@@ -4,7 +4,10 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, renderHook, cleanup } from '@testing-library/react';
 import { StudioHeader } from '../src/components/studio/StudioHeader';
 import { EditorTabBar } from '../src/components/studio/EditorTabBar';
-import { useKeyboardShortcuts, type KeyboardShortcutOptions } from '../src/hooks/useKeyboardShortcuts';
+import {
+  useKeyboardShortcuts,
+  type KeyboardShortcutOptions,
+} from '../src/hooks/useKeyboardShortcuts';
 import type { ScriptFile } from '@vn-engine/shared-types';
 
 type ExtendedKeyboardShortcutOptions = KeyboardShortcutOptions & {
@@ -35,7 +38,7 @@ describe('Studio Header & TabBar Runner Relocation (TASK-editor-runner-header-re
           onRunFromCursor: handleRunFromCursor,
           onTogglePlay: handleTogglePlay,
           enabled: true,
-        })
+        }),
       );
 
       const altF5Event = new KeyboardEvent('keydown', {
@@ -62,11 +65,11 @@ describe('Studio Header & TabBar Runner Relocation (TASK-editor-runner-header-re
             onRunFromCursor: handleRunFromCursor,
             enabled,
           }),
-        { initialProps: { enabled: false } }
+        { initialProps: { enabled: false } },
       );
 
       window.dispatchEvent(
-        new KeyboardEvent('keydown', { key: 'F5', altKey: true, bubbles: true, cancelable: true })
+        new KeyboardEvent('keydown', { key: 'F5', altKey: true, bubbles: true, cancelable: true }),
       );
       expect(handleRunFromCursor).not.toHaveBeenCalled();
 
@@ -78,7 +81,7 @@ describe('Studio Header & TabBar Runner Relocation (TASK-editor-runner-header-re
           ctrlKey: true,
           bubbles: true,
           cancelable: true,
-        })
+        }),
       );
       expect(handleRunFromCursor).not.toHaveBeenCalled();
     });
@@ -92,7 +95,7 @@ describe('Studio Header & TabBar Runner Relocation (TASK-editor-runner-header-re
           onTogglePlay: handleTogglePlay,
           onRunFromCursor: handleRunFromCursor,
           enabled: true,
-        })
+        }),
       );
 
       const f5Event = new KeyboardEvent('keydown', {
@@ -138,13 +141,7 @@ describe('Studio Header & TabBar Runner Relocation (TASK-editor-runner-header-re
   // =========================================================================
   describe('StudioHeader Runner Controls (TEST-RELOC-01 to TEST-RELOC-05)', () => {
     it('TEST-UI-01: should NOT render header-save-status badge or "Saved to IndexedDB" text', () => {
-      render(
-        <StudioHeader
-          projectTitle="Visual Novel Polish"
-          isDirty={false}
-          isSaving={false}
-        />
-      );
+      render(<StudioHeader projectTitle="Visual Novel Polish" isDirty={false} isSaving={false} />);
 
       expect(screen.queryByTestId('header-save-status')).not.toBeInTheDocument();
       expect(screen.queryByText(/Saved to IndexedDB/i)).not.toBeInTheDocument();
@@ -154,32 +151,19 @@ describe('Studio Header & TabBar Runner Relocation (TASK-editor-runner-header-re
 
     it('TEST-UI-02: should render header-dirty-dot when isDirty is true and hide when false', () => {
       const { rerender } = render(
-        <StudioHeader
-          projectTitle="Visual Novel Polish"
-          isDirty={true}
-        />
+        <StudioHeader projectTitle="Visual Novel Polish" isDirty={true} />,
       );
 
       expect(screen.getByTestId('header-dirty-dot')).toBeInTheDocument();
 
-      rerender(
-        <StudioHeader
-          projectTitle="Visual Novel Polish"
-          isDirty={false}
-        />
-      );
+      rerender(<StudioHeader projectTitle="Visual Novel Polish" isDirty={false} />);
 
       expect(screen.queryByTestId('header-dirty-dot')).not.toBeInTheDocument();
     });
 
     it('TEST-RELOC-01: StudioHeader renders "Play" button with text and Play icon when onQuickPlay is provided', () => {
       const handleQuickPlay = vi.fn();
-      render(
-        <StudioHeader
-          projectTitle="Visual Novel Polish"
-          onQuickPlay={handleQuickPlay}
-        />
-      );
+      render(<StudioHeader projectTitle="Visual Novel Polish" onQuickPlay={handleQuickPlay} />);
 
       const playBtn = screen.getByTestId('btn-header-play');
       expect(playBtn).toBeInTheDocument();
@@ -192,28 +176,23 @@ describe('Studio Header & TabBar Runner Relocation (TASK-editor-runner-header-re
     it('TEST-RELOC-02: StudioHeader renders "Run from Cursor" button with text and Crosshair icon when onRunFromCursor is provided', () => {
       const handleRunFromCursor = vi.fn();
       render(
-        <StudioHeader
-          projectTitle="Visual Novel Polish"
-          onRunFromCursor={handleRunFromCursor}
-        />
+        <StudioHeader projectTitle="Visual Novel Polish" onRunFromCursor={handleRunFromCursor} />,
       );
 
       const runCursorBtn = screen.getByTestId('btn-header-run-cursor');
       expect(runCursorBtn).toBeInTheDocument();
       expect(runCursorBtn).toHaveTextContent('Run from Cursor');
-      expect(runCursorBtn).toHaveAttribute('title', expect.stringContaining('Run from Cursor (Alt+F5)'));
+      expect(runCursorBtn).toHaveAttribute(
+        'title',
+        expect.stringContaining('Run from Cursor (Alt+F5)'),
+      );
       const svgIcon = runCursorBtn.querySelector('svg');
       expect(svgIcon).toBeInTheDocument();
     });
 
     it('TEST-RELOC-03: clicking "btn-header-play" invokes onQuickPlay callback', () => {
       const handleQuickPlay = vi.fn();
-      render(
-        <StudioHeader
-          projectTitle="Visual Novel Polish"
-          onQuickPlay={handleQuickPlay}
-        />
-      );
+      render(<StudioHeader projectTitle="Visual Novel Polish" onQuickPlay={handleQuickPlay} />);
 
       const playBtn = screen.getByTestId('btn-header-play');
       fireEvent.click(playBtn);
@@ -223,10 +202,7 @@ describe('Studio Header & TabBar Runner Relocation (TASK-editor-runner-header-re
     it('TEST-RELOC-04: clicking "btn-header-run-cursor" invokes onRunFromCursor callback', () => {
       const handleRunFromCursor = vi.fn();
       render(
-        <StudioHeader
-          projectTitle="Visual Novel Polish"
-          onRunFromCursor={handleRunFromCursor}
-        />
+        <StudioHeader projectTitle="Visual Novel Polish" onRunFromCursor={handleRunFromCursor} />,
       );
 
       const runCursorBtn = screen.getByTestId('btn-header-run-cursor');
@@ -240,7 +216,7 @@ describe('Studio Header & TabBar Runner Relocation (TASK-editor-runner-header-re
           projectTitle="Visual Novel Polish"
           onQuickPlay={vi.fn()}
           onRunFromCursor={vi.fn()}
-        />
+        />,
       );
 
       expect(screen.queryByTestId('header-preview-status')).not.toBeInTheDocument();
@@ -249,11 +225,7 @@ describe('Studio Header & TabBar Runner Relocation (TASK-editor-runner-header-re
     });
 
     it('TEST-RELOC (Edge): does not render runner buttons if callbacks are not provided', () => {
-      render(
-        <StudioHeader
-          projectTitle="Visual Novel Polish"
-        />
-      );
+      render(<StudioHeader projectTitle="Visual Novel Polish" />);
 
       expect(screen.queryByTestId('btn-header-play')).not.toBeInTheDocument();
       expect(screen.queryByTestId('btn-header-run-cursor')).not.toBeInTheDocument();
@@ -266,7 +238,7 @@ describe('Studio Header & TabBar Runner Relocation (TASK-editor-runner-header-re
           isDirty={true}
           onQuickPlay={vi.fn()}
           onRunFromCursor={vi.fn()}
-        />
+        />,
       );
 
       const emojiRegex = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/u;
@@ -287,7 +259,7 @@ describe('Studio Header & TabBar Runner Relocation (TASK-editor-runner-header-re
           dirtyFileIds={new Set()}
           onSelectTab={vi.fn()}
           onCloseTab={vi.fn()}
-        />
+        />,
       );
 
       expect(screen.queryByTestId('btn-tabbar-play')).not.toBeInTheDocument();
@@ -307,7 +279,7 @@ describe('Studio Header & TabBar Runner Relocation (TASK-editor-runner-header-re
           dirtyFileIds={new Set(['file-2'])}
           onSelectTab={handleSelectTab}
           onCloseTab={handleCloseTab}
-        />
+        />,
       );
 
       const tab2 = screen.getByTestId('editor-tab-file-2');
@@ -330,7 +302,7 @@ describe('Studio Header & TabBar Runner Relocation (TASK-editor-runner-header-re
           dirtyFileIds={new Set(['file-1'])}
           onSelectTab={vi.fn()}
           onCloseTab={vi.fn()}
-        />
+        />,
       );
 
       const emojiRegex = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/u;

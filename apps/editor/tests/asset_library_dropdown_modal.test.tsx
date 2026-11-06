@@ -63,7 +63,7 @@ describe('AssetLibraryPane: Category Dropdown & Direct Modal Creation', () => {
         onAddAsset={vi.fn()}
         onReplaceAsset={vi.fn()}
         onDeleteAsset={vi.fn()}
-      />
+      />,
     );
 
     const categorySelect = screen.getByTestId('select-asset-category-filter');
@@ -71,7 +71,7 @@ describe('AssetLibraryPane: Category Dropdown & Direct Modal Creation', () => {
     expect(categorySelect.tagName.toLowerCase()).toBe('select');
 
     // Verify key option values exist
-    const options = Array.from((categorySelect as HTMLSelectElement).options).map((o) => o.value);
+    const options = Array.from((categorySelect as HTMLSelectElement).options).map(o => o.value);
     expect(options).toContain('all');
     expect(options).toContain('backgrounds');
     expect(options).toContain('sprites');
@@ -89,7 +89,7 @@ describe('AssetLibraryPane: Category Dropdown & Direct Modal Creation', () => {
         onAddAsset={vi.fn()}
         onReplaceAsset={vi.fn()}
         onDeleteAsset={vi.fn()}
-      />
+      />,
     );
 
     const categorySelect = screen.getByTestId('select-asset-category-filter');
@@ -110,7 +110,7 @@ describe('AssetLibraryPane: Category Dropdown & Direct Modal Creation', () => {
         onAddAsset={vi.fn()}
         onReplaceAsset={vi.fn()}
         onDeleteAsset={vi.fn()}
-      />
+      />,
     );
 
     // Modal should not be open initially
@@ -131,7 +131,7 @@ describe('AssetLibraryPane: Category Dropdown & Direct Modal Creation', () => {
         onAddAsset={vi.fn()}
         onReplaceAsset={vi.fn()}
         onDeleteAsset={vi.fn()}
-      />
+      />,
     );
 
     const categorySelect = screen.getByTestId('select-asset-category-filter');

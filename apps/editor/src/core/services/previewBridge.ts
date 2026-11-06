@@ -43,7 +43,7 @@ export type OutboundPreviewMessage =
 export function isAllowedPreviewOrigin(
   origin: string,
   previewOrigin: string,
-  localOrigin: string = typeof window !== 'undefined' ? window.location.origin : ''
+  localOrigin: string = typeof window !== 'undefined' ? window.location.origin : '',
 ): boolean {
   if (previewOrigin === '*') {
     return true;
@@ -66,7 +66,7 @@ export function isAllowedPreviewOrigin(
 export function buildPreviewUrl(
   baseUrl: string,
   projectId?: string | null,
-  options?: { isPopout?: boolean; editorOrigin?: string }
+  options?: { isPopout?: boolean; editorOrigin?: string },
 ): string {
   const cleanBase = baseUrl ? baseUrl.replace(/\/+$/, '') : '';
   const params = new URLSearchParams();
@@ -133,7 +133,7 @@ export class PreviewBridge {
           type: 'HOT_RELOAD_PROGRAM',
           payload,
         },
-        this.options.previewOrigin
+        this.options.previewOrigin,
       );
     } else {
       usePreviewStore.getState().setPendingProgram(payload);
@@ -151,7 +151,7 @@ export class PreviewBridge {
           name,
           value,
         },
-        this.options.previewOrigin
+        this.options.previewOrigin,
       );
     } else {
       usePreviewStore.getState().setVariableOverride(name, value);
@@ -160,11 +160,7 @@ export class PreviewBridge {
 
   public async handleMessage(event: MessageEvent): Promise<void> {
     if (
-      !isAllowedPreviewOrigin(
-        event.origin,
-        this.options.previewOrigin,
-        this.options.localOrigin
-      )
+      !isAllowedPreviewOrigin(event.origin, this.options.previewOrigin, this.options.localOrigin)
     ) {
       return;
     }
@@ -191,14 +187,15 @@ export class PreviewBridge {
         previewStore.setConnectionStatus('connected');
 
         // 1. Flush pendingProgram or fallback to getProgramPayload
-        const programToSend = previewStore.pendingProgram || this.options.getProgramPayload?.() || null;
+        const programToSend =
+          previewStore.pendingProgram || this.options.getProgramPayload?.() || null;
         if (programToSend && target) {
           target.postMessage(
             {
               type: 'HOT_RELOAD_PROGRAM',
               payload: programToSend,
             },
-            this.options.previewOrigin
+            this.options.previewOrigin,
           );
         }
         previewStore.clearPendingProgram();
@@ -215,7 +212,7 @@ export class PreviewBridge {
                   name,
                   value,
                 },
-                this.options.previewOrigin
+                this.options.previewOrigin,
               );
             }
           }

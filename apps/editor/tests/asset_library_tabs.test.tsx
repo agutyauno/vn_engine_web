@@ -101,7 +101,7 @@ describe('AssetLibraryPane: 7 Category Filter Tabs', () => {
         onAddAsset={vi.fn()}
         onReplaceAsset={vi.fn()}
         onDeleteAsset={vi.fn()}
-      />
+      />,
     );
 
     // Verify presence of all category tab elements by testId
@@ -132,7 +132,7 @@ describe('AssetLibraryPane: 7 Category Filter Tabs', () => {
         onAddAsset={vi.fn()}
         onReplaceAsset={vi.fn()}
         onDeleteAsset={vi.fn()}
-      />
+      />,
     );
 
     const bgmTab = screen.getByTestId('tab-asset-bgm');
@@ -158,7 +158,7 @@ describe('AssetLibraryPane: 7 Category Filter Tabs', () => {
         onAddAsset={vi.fn()}
         onReplaceAsset={vi.fn()}
         onDeleteAsset={vi.fn()}
-      />
+      />,
     );
 
     const allTab = screen.getByTestId('tab-asset-all');

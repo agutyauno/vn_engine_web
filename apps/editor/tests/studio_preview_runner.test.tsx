@@ -65,7 +65,7 @@ describe('Decoupled Studio Preview Runner (TASK-decouple-preview-and-hotreload)'
         projectId={testProject.id}
         repository={repo}
         initialProject={testProject}
-      />
+      />,
     );
 
     expect(screen.queryByTestId('col-preview-dock')).not.toBeInTheDocument();
@@ -78,7 +78,7 @@ describe('Decoupled Studio Preview Runner (TASK-decouple-preview-and-hotreload)'
         projectId={testProject.id}
         repository={repo}
         initialProject={testProject}
-      />
+      />,
     );
 
     expect(screen.queryByTestId('select-header-scene')).not.toBeInTheDocument();
@@ -90,7 +90,7 @@ describe('Decoupled Studio Preview Runner (TASK-decouple-preview-and-hotreload)'
         projectId={testProject.id}
         repository={repo}
         initialProject={testProject}
-      />
+      />,
     );
 
     const playBtn = screen.getByTestId('btn-header-play');
@@ -99,7 +99,7 @@ describe('Decoupled Studio Preview Runner (TASK-decouple-preview-and-hotreload)'
     expect(openSpy).toHaveBeenCalledWith(
       expect.stringContaining('popout=true'),
       'VN_Preview_Popout',
-      expect.any(String)
+      expect.any(String),
     );
   });
 
@@ -109,7 +109,7 @@ describe('Decoupled Studio Preview Runner (TASK-decouple-preview-and-hotreload)'
         projectId={testProject.id}
         repository={repo}
         initialProject={testProject}
-      />
+      />,
     );
 
     const runCursorBtn = screen.getByTestId('btn-header-run-cursor');
@@ -118,7 +118,7 @@ describe('Decoupled Studio Preview Runner (TASK-decouple-preview-and-hotreload)'
     expect(openSpy).toHaveBeenCalledWith(
       expect.stringContaining('popout=true'),
       'VN_Preview_Popout',
-      expect.any(String)
+      expect.any(String),
     );
   });
 
@@ -132,7 +132,7 @@ describe('Decoupled Studio Preview Runner (TASK-decouple-preview-and-hotreload)'
         projectId={testProject.id}
         repository={repo}
         initialProject={testProject}
-      />
+      />,
     );
 
     const playBtn = screen.getByTestId('btn-header-play');
@@ -151,7 +151,7 @@ describe('Decoupled Studio Preview Runner (TASK-decouple-preview-and-hotreload)'
         projectId={testProject.id}
         repository={repo}
         initialProject={testProject}
-      />
+      />,
     );
 
     // Wait for project initialization in store

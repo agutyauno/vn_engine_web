@@ -15,7 +15,7 @@ export function SaveLoadModal({ mode }: SaveLoadModalProps): JSX.Element {
     <div
       id="modal-saveload"
       className="modal-saveload-backdrop"
-      onClick={(e) => {
+      onClick={e => {
         if (e.target === e.currentTarget) {
           actions.closeModal();
         }
@@ -58,9 +58,7 @@ export function SaveLoadModal({ mode }: SaveLoadModalProps): JSX.Element {
                   <div className="slot-details">
                     <div className="slot-scene">{slotData.currentScene}</div>
                     <div className="slot-preview">{slotData.previewText}</div>
-                    <div className="slot-date">
-                      {new Date(slotData.timestamp).toLocaleString()}
-                    </div>
+                    <div className="slot-date">{new Date(slotData.timestamp).toLocaleString()}</div>
                   </div>
                 ) : (
                   <div className="slot-empty-label">Empty Slot</div>
@@ -73,4 +71,3 @@ export function SaveLoadModal({ mode }: SaveLoadModalProps): JSX.Element {
     </div>
   );
 }
-
