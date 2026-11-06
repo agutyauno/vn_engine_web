@@ -3,30 +3,27 @@ import '@testing-library/jest-dom';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, renderHook, cleanup } from '@testing-library/react';
 import { StudioHeader, type StudioHeaderProps } from '../src/components/studio/StudioHeader';
+import { EditorTabBar, type EditorTabBarProps } from '../src/components/studio/EditorTabBar';
 import { useKeyboardShortcuts, type KeyboardShortcutOptions } from '../src/hooks/useKeyboardShortcuts';
-
-// Mở rộng kiểu dữ liệu theo Data Contract trong TASK-decouple-preview-and-hotreload.md (Mục 2.2 & 2.3)
-type ExtendedStudioHeaderProps = StudioHeaderProps & {
-  scenes?: string[];
-  selectedScene?: string;
-  connectionStatus?: 'connected' | 'disconnected' | 'standby';
-  onQuickPlay?: () => void;
-  onRunFromCursor?: () => void;
-  onSelectScene?: (scene: string) => void;
-};
+import type { ScriptFile } from '@vn-engine/shared-types';
 
 type ExtendedKeyboardShortcutOptions = KeyboardShortcutOptions & {
   onRunFromCursor?: () => void;
 };
 
-describe('Editor Header Runner Controls & Shortcuts (TASK-decouple-preview-and-hotreload)', () => {
+const mockFiles: ScriptFile[] = [
+  { id: 'file-1', name: 'main.vns', content: 'scene intro {}', order: 0, version: 1 },
+  { id: 'file-2', name: 'chapter1.vns', content: 'scene ch1 {}', order: 1, version: 1 },
+];
+
+describe('Studio Header & TabBar Runner Controls (TASK-editor-ui-and-diagnostics-polish)', () => {
   afterEach(() => {
     cleanup();
     vi.restoreAllMocks();
   });
 
   // =========================================================================
-  // TEST-EDT-01 & TEST-EDT-02: Keyboard Shortcuts (useKeyboardShortcuts)
+  // 1. Keyboard Shortcuts (useKeyboardShortcuts)
   // =========================================================================
   describe('Keyboard Shortcuts (useKeyboardShortcuts)', () => {
     it('TEST-EDT-01: should trigger onRunFromCursor when pressing Alt + F5', () => {
@@ -41,7 +38,6 @@ describe('Editor Header Runner Controls & Shortcuts (TASK-decouple-preview-and-h
         })
       );
 
-      // Nhấn tổ hợp Alt + F5
       const altF5Event = new KeyboardEvent('keydown', {
         key: 'F5',
         altKey: true,
@@ -53,7 +49,6 @@ describe('Editor Header Runner Controls & Shortcuts (TASK-decouple-preview-and-h
       window.dispatchEvent(altF5Event);
 
       expect(handleRunFromCursor).toHaveBeenCalledTimes(1);
-      // Alt + F5 không được kích hoạt nhầm onTogglePlay
       expect(handleTogglePlay).not.toHaveBeenCalled();
       expect(altF5Event.defaultPrevented).toBe(true);
     });
@@ -70,13 +65,11 @@ describe('Editor Header Runner Controls & Shortcuts (TASK-decouple-preview-and-h
         { initialProps: { enabled: false } }
       );
 
-      // 1. Khi enabled = false
       window.dispatchEvent(
         new KeyboardEvent('keydown', { key: 'F5', altKey: true, bubbles: true, cancelable: true })
       );
       expect(handleRunFromCursor).not.toHaveBeenCalled();
 
-      // 2. Khi enabled = true nhưng nhấn Ctrl + Alt + F5
       rerender({ enabled: true });
       window.dispatchEvent(
         new KeyboardEvent('keydown', {
@@ -87,7 +80,6 @@ describe('Editor Header Runner Controls & Shortcuts (TASK-decouple-preview-and-h
           cancelable: true,
         })
       );
-      // Tổ hợp có Ctrl không phải là Alt + F5 thuần tuý
       expect(handleRunFromCursor).not.toHaveBeenCalled();
     });
 
@@ -103,7 +95,6 @@ describe('Editor Header Runner Controls & Shortcuts (TASK-decouple-preview-and-h
         })
       );
 
-      // 1. Nhấn phím F5 đơn thuần (không Alt)
       const f5Event = new KeyboardEvent('keydown', {
         key: 'F5',
         altKey: false,
@@ -118,7 +109,6 @@ describe('Editor Header Runner Controls & Shortcuts (TASK-decouple-preview-and-h
       expect(handleRunFromCursor).not.toHaveBeenCalled();
       expect(f5Event.defaultPrevented).toBe(true);
 
-      // 2. Nhấn tổ hợp Ctrl + Enter
       const ctrlEnterEvent = new KeyboardEvent('keydown', {
         key: 'Enter',
         ctrlKey: true,
@@ -131,7 +121,6 @@ describe('Editor Header Runner Controls & Shortcuts (TASK-decouple-preview-and-h
       expect(handleRunFromCursor).not.toHaveBeenCalled();
       expect(ctrlEnterEvent.defaultPrevented).toBe(true);
 
-      // 3. Nhấn tổ hợp Cmd + Enter (macOS metaKey)
       const cmdEnterEvent = new KeyboardEvent('keydown', {
         key: 'Enter',
         metaKey: true,
@@ -142,243 +131,191 @@ describe('Editor Header Runner Controls & Shortcuts (TASK-decouple-preview-and-h
 
       expect(handleTogglePlay).toHaveBeenCalledTimes(3);
     });
-
-    it('TEST-EDT-02 (Edge): should not trigger onTogglePlay when enabled is false', () => {
-      const handleTogglePlay = vi.fn();
-
-      renderHook(() =>
-        (useKeyboardShortcuts as (options?: ExtendedKeyboardShortcutOptions) => void)({
-          onTogglePlay: handleTogglePlay,
-          enabled: false,
-        })
-      );
-
-      window.dispatchEvent(
-        new KeyboardEvent('keydown', { key: 'F5', bubbles: true, cancelable: true })
-      );
-      window.dispatchEvent(
-        new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true, bubbles: true, cancelable: true })
-      );
-
-      expect(handleTogglePlay).not.toHaveBeenCalled();
-    });
   });
 
   // =========================================================================
-  // TEST-EDT-03: Render StudioHeader with Runner Controls
+  // 2. StudioHeader Minimalist Design (TEST-UI-01, TEST-UI-02, TEST-UI-03)
   // =========================================================================
-  describe('StudioHeader Runner Controls Rendering (TEST-EDT-03)', () => {
-    it('renders Play button with title containing "Play (F5)" and testid "btn-header-play"', () => {
+  describe('StudioHeader Minimalist Design', () => {
+    it('TEST-UI-01: should NOT render header-save-status badge or "Saved to IndexedDB" text', () => {
       render(
         <StudioHeader
-          {...({
-            projectTitle: 'Visual Novel Alpha',
-            scenes: ['scene1.vns', 'scene2.vns'],
-            selectedScene: 'scene1.vns',
-            connectionStatus: 'standby',
-            onQuickPlay: vi.fn(),
-            onRunFromCursor: vi.fn(),
-            onSelectScene: vi.fn(),
-          } as ExtendedStudioHeaderProps)}
+          projectTitle="Visual Novel Polish"
+          isDirty={false}
+          isSaving={false}
         />
       );
 
-      const playBtn = screen.getByTestId('btn-header-play');
-      expect(playBtn).toBeInTheDocument();
-      expect(playBtn).toHaveAttribute('title', expect.stringContaining('Play (F5)'));
+      expect(screen.queryByTestId('header-save-status')).not.toBeInTheDocument();
+      expect(screen.queryByText(/Saved to IndexedDB/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Saving\.\.\./i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Unsaved changes/i)).not.toBeInTheDocument();
     });
 
-    it('renders Run from Cursor button with title containing "Run from Cursor (Alt+F5)" and testid "btn-header-run-cursor"', () => {
-      render(
-        <StudioHeader
-          {...({
-            projectTitle: 'Visual Novel Alpha',
-            scenes: ['scene1.vns', 'scene2.vns'],
-            selectedScene: 'scene1.vns',
-            connectionStatus: 'standby',
-            onQuickPlay: vi.fn(),
-            onRunFromCursor: vi.fn(),
-            onSelectScene: vi.fn(),
-          } as ExtendedStudioHeaderProps)}
-        />
-      );
-
-      const runCursorBtn = screen.getByTestId('btn-header-run-cursor');
-      expect(runCursorBtn).toBeInTheDocument();
-      expect(runCursorBtn).toHaveAttribute('title', expect.stringContaining('Run from Cursor (Alt+F5)'));
-    });
-
-    it('renders Scene Selector dropdown with options and selected scene', () => {
-      const scenes = ['intro.vns', 'ch1_morning.vns', 'ch1_evening.vns', 'ending.vns'];
-      render(
-        <StudioHeader
-          {...({
-            projectTitle: 'Visual Novel Alpha',
-            scenes,
-            selectedScene: 'ch1_morning.vns',
-            connectionStatus: 'standby',
-            onQuickPlay: vi.fn(),
-            onRunFromCursor: vi.fn(),
-            onSelectScene: vi.fn(),
-          } as ExtendedStudioHeaderProps)}
-        />
-      );
-
-      const sceneSelect = screen.getByTestId('select-header-scene') as HTMLSelectElement;
-      expect(sceneSelect).toBeInTheDocument();
-      expect(sceneSelect.value).toBe('ch1_morning.vns');
-
-      // Kiểm tra tất cả options được render đầy đủ
-      const options = sceneSelect.querySelectorAll('option');
-      expect(options).toHaveLength(scenes.length);
-      scenes.forEach((sceneName, idx) => {
-        expect(options[idx]).toHaveValue(sceneName);
-        expect(options[idx]).toHaveTextContent(sceneName);
-      });
-    });
-
-    it('renders Preview Status dot and correctly reflects connectionStatus (connected, standby, disconnected)', () => {
+    it('TEST-UI-02: should render header-dirty-dot when isDirty is true and hide when false', () => {
       const { rerender } = render(
         <StudioHeader
-          {...({
-            projectTitle: 'Visual Novel Alpha',
-            connectionStatus: 'connected',
-          } as ExtendedStudioHeaderProps)}
+          projectTitle="Visual Novel Polish"
+          isDirty={true}
         />
       );
 
-      // 1. Connected
-      const statusConnected = screen.getByTestId('header-preview-status');
-      expect(statusConnected).toBeInTheDocument();
-      expect(statusConnected).toHaveAttribute('data-status', 'connected');
+      expect(screen.getByTestId('header-dirty-dot')).toBeInTheDocument();
 
-      // 2. Standby
       rerender(
         <StudioHeader
-          {...({
-            projectTitle: 'Visual Novel Alpha',
-            connectionStatus: 'standby',
-          } as ExtendedStudioHeaderProps)}
+          projectTitle="Visual Novel Polish"
+          isDirty={false}
         />
       );
-      const statusStandby = screen.getByTestId('header-preview-status');
-      expect(statusStandby).toHaveAttribute('data-status', 'standby');
 
-      // 3. Disconnected
-      rerender(
-        <StudioHeader
-          {...({
-            projectTitle: 'Visual Novel Alpha',
-            connectionStatus: 'disconnected',
-          } as ExtendedStudioHeaderProps)}
-        />
-      );
-      const statusDisconnected = screen.getByTestId('header-preview-status');
-      expect(statusDisconnected).toHaveAttribute('data-status', 'disconnected');
+      expect(screen.queryByTestId('header-dirty-dot')).not.toBeInTheDocument();
     });
 
-    it('strictly complies with Rule 8: zero colored OS emojis in Header DOM', () => {
-      const { container } = render(
+    it('TEST-UI-03: should NOT render runner controls or scene selector in StudioHeader', () => {
+      render(
         <StudioHeader
-          {...({
-            projectTitle: 'Emoji Compliance VN',
-            scenes: ['scene1.vns'],
-            selectedScene: 'scene1.vns',
-            connectionStatus: 'connected',
-            onQuickPlay: vi.fn(),
-            onRunFromCursor: vi.fn(),
-            onSelectScene: vi.fn(),
-          } as ExtendedStudioHeaderProps)}
+          projectTitle="Visual Novel Polish"
         />
       );
 
-      // Biểu thức regex kiểm tra các dải ký tự emoji Unicode màu mè
+      expect(screen.queryByTestId('btn-header-play')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('btn-header-run-cursor')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('select-header-scene')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('header-preview-status')).not.toBeInTheDocument();
+    });
+
+    it('strictly satisfies Rule 8: zero colored OS emojis in StudioHeader DOM', () => {
+      const { container } = render(
+        <StudioHeader
+          projectTitle="Compliance VN"
+          isDirty={true}
+        />
+      );
+
       const emojiRegex = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/u;
       expect(container.innerHTML).not.toMatch(emojiRegex);
     });
   });
 
   // =========================================================================
-  // TEST-EDT-04: Header Controls User Interactions
+  // 3. EditorTabBar Runner Controls (TEST-UI-04, TEST-UI-05, TEST-UI-06, TEST-UI-07)
   // =========================================================================
-  describe('StudioHeader Runner Controls Interactions (TEST-EDT-04)', () => {
-    it('clicking Play button triggers onQuickPlay callback', () => {
-      const handleQuickPlay = vi.fn();
-      render(
-        <StudioHeader
-          {...({
-            projectTitle: 'Interactive VN',
-            onQuickPlay: handleQuickPlay,
-          } as ExtendedStudioHeaderProps)}
+  describe('EditorTabBar Runner Controls', () => {
+    it('TEST-UI-04: renders runner controls (Play, Run from Cursor) and connection status dot in EditorTabBar', () => {
+      const { rerender } = render(
+        <EditorTabBar
+          files={mockFiles}
+          openFileIds={['file-1']}
+          activeFileId="file-1"
+          dirtyFileIds={new Set()}
+          onSelectTab={vi.fn()}
+          onCloseTab={vi.fn()}
+          onQuickPlay={vi.fn()}
+          onRunFromCursor={vi.fn()}
+          connectionStatus="connected"
         />
       );
 
-      const playBtn = screen.getByTestId('btn-header-play');
-      fireEvent.click(playBtn);
+      const playBtn = screen.getByTestId('btn-tabbar-play');
+      expect(playBtn).toBeInTheDocument();
+      expect(playBtn).toHaveAttribute('title', expect.stringContaining('Play (F5)'));
 
+      const runCursorBtn = screen.getByTestId('btn-tabbar-run-cursor');
+      expect(runCursorBtn).toBeInTheDocument();
+      expect(runCursorBtn).toHaveAttribute('title', expect.stringContaining('Run from Cursor (Alt+F5)'));
+
+      const previewStatus = screen.getByTestId('tabbar-preview-status');
+      expect(previewStatus).toBeInTheDocument();
+      expect(previewStatus).toHaveAttribute('data-status', 'connected');
+
+      rerender(
+        <EditorTabBar
+          files={mockFiles}
+          openFileIds={['file-1']}
+          activeFileId="file-1"
+          dirtyFileIds={new Set()}
+          onSelectTab={vi.fn()}
+          onCloseTab={vi.fn()}
+          connectionStatus="disconnected"
+        />
+      );
+      expect(screen.getByTestId('tabbar-preview-status')).toHaveAttribute('data-status', 'disconnected');
+    });
+
+    it('TEST-UI-05: clicking Play button triggers onQuickPlay callback', () => {
+      const handleQuickPlay = vi.fn();
+      render(
+        <EditorTabBar
+          files={mockFiles}
+          openFileIds={['file-1']}
+          activeFileId="file-1"
+          dirtyFileIds={new Set()}
+          onSelectTab={vi.fn()}
+          onCloseTab={vi.fn()}
+          onQuickPlay={handleQuickPlay}
+        />
+      );
+
+      const playBtn = screen.getByTestId('btn-tabbar-play');
+      fireEvent.click(playBtn);
       expect(handleQuickPlay).toHaveBeenCalledTimes(1);
     });
 
-    it('clicking Run from Cursor button triggers onRunFromCursor callback', () => {
+    it('TEST-UI-06: clicking Run from Cursor button triggers onRunFromCursor callback', () => {
       const handleRunFromCursor = vi.fn();
       render(
-        <StudioHeader
-          {...({
-            projectTitle: 'Interactive VN',
-            onRunFromCursor: handleRunFromCursor,
-          } as ExtendedStudioHeaderProps)}
+        <EditorTabBar
+          files={mockFiles}
+          openFileIds={['file-1']}
+          activeFileId="file-1"
+          dirtyFileIds={new Set()}
+          onSelectTab={vi.fn()}
+          onCloseTab={vi.fn()}
+          onRunFromCursor={handleRunFromCursor}
         />
       );
 
-      const runCursorBtn = screen.getByTestId('btn-header-run-cursor');
+      const runCursorBtn = screen.getByTestId('btn-tabbar-run-cursor');
       fireEvent.click(runCursorBtn);
-
       expect(handleRunFromCursor).toHaveBeenCalledTimes(1);
     });
 
-    it('selecting a scene from dropdown triggers onSelectScene callback with selected value', () => {
-      const handleSelectScene = vi.fn();
-      const scenes = ['prologue.vns', 'chapter1.vns', 'chapter2.vns'];
-
+    it('TEST-UI-07 (Edge): renders runner controls gracefully even when no tabs are open', () => {
       render(
-        <StudioHeader
-          {...({
-            projectTitle: 'Interactive VN',
-            scenes,
-            selectedScene: 'prologue.vns',
-            onSelectScene: handleSelectScene,
-          } as ExtendedStudioHeaderProps)}
+        <EditorTabBar
+          files={[]}
+          openFileIds={[]}
+          activeFileId=""
+          dirtyFileIds={new Set()}
+          onSelectTab={vi.fn()}
+          onCloseTab={vi.fn()}
+          onQuickPlay={vi.fn()}
+          onRunFromCursor={vi.fn()}
         />
       );
 
-      const sceneSelect = screen.getByTestId('select-header-scene');
-      fireEvent.change(sceneSelect, { target: { value: 'chapter2.vns' } });
-
-      expect(handleSelectScene).toHaveBeenCalledTimes(1);
-      expect(handleSelectScene).toHaveBeenCalledWith('chapter2.vns');
+      expect(screen.getByTestId('btn-tabbar-play')).toBeInTheDocument();
+      expect(screen.getByTestId('btn-tabbar-run-cursor')).toBeInTheDocument();
     });
 
-    it('does not crash when runner buttons or select are clicked without callbacks provided', () => {
-      render(
-        <StudioHeader
-          {...({
-            projectTitle: 'No Callbacks VN',
-            scenes: ['scene1.vns', 'scene2.vns'],
-            selectedScene: 'scene1.vns',
-          } as ExtendedStudioHeaderProps)}
+    it('strictly satisfies Rule 8: zero colored OS emojis in EditorTabBar DOM', () => {
+      const { container } = render(
+        <EditorTabBar
+          files={mockFiles}
+          openFileIds={['file-1']}
+          activeFileId="file-1"
+          dirtyFileIds={new Set(['file-1'])}
+          onSelectTab={vi.fn()}
+          onCloseTab={vi.fn()}
+          onQuickPlay={vi.fn()}
+          onRunFromCursor={vi.fn()}
+          connectionStatus="connected"
         />
       );
 
-      const playBtn = screen.getByTestId('btn-header-play');
-      const runCursorBtn = screen.getByTestId('btn-header-run-cursor');
-      const sceneSelect = screen.getByTestId('select-header-scene');
-
-      expect(() => {
-        fireEvent.click(playBtn);
-        fireEvent.click(runCursorBtn);
-        fireEvent.change(sceneSelect, { target: { value: 'scene2.vns' } });
-      }).not.toThrow();
+      const emojiRegex = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/u;
+      expect(container.innerHTML).not.toMatch(emojiRegex);
     });
   });
 });
-

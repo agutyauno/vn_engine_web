@@ -395,4 +395,181 @@ describe('Milestone 7: Bottom Diagnostics Drawer (Column 2 Bottom)', () => {
       });
     });
   });
+
+  // ========================================================================
+  // 6. DockProblemsTable Accordion Grouping (TASK-editor-ui-and-diagnostics-polish)
+  // ========================================================================
+  describe('DockProblemsTable Accordion Grouping', () => {
+    const duplicateAssetDiagnostics: EditorDiagnostic[] = [
+      {
+        id: 'diag-dup-1',
+        category: 'asset',
+        severity: 'warning',
+        message: "Uncreated asset 'bg_forest.png' referenced in script",
+        fileId: 'file-1',
+        fileName: 'chapter1.vns',
+        line: 12,
+        col: 1,
+        quickFix: {
+          type: 'create_asset',
+          targetId: 'bg_forest.png',
+          prefillData: { name: 'bg_forest.png', category: 'backgrounds' },
+        },
+      },
+      {
+        id: 'diag-dup-2',
+        category: 'asset',
+        severity: 'warning',
+        message: "Uncreated asset 'bg_forest.png' referenced in script",
+        fileId: 'file-2',
+        fileName: 'chapter2.vns',
+        line: 25,
+        col: 1,
+        quickFix: {
+          type: 'create_asset',
+          targetId: 'bg_forest.png',
+          prefillData: { name: 'bg_forest.png', category: 'backgrounds' },
+        },
+      },
+      {
+        id: 'diag-dup-3',
+        category: 'asset',
+        severity: 'warning',
+        message: "Uncreated asset 'bg_forest.png' referenced in script",
+        fileId: 'file-3',
+        fileName: 'chapter3.vns',
+        line: 40,
+        col: 1,
+        quickFix: {
+          type: 'create_asset',
+          targetId: 'bg_forest.png',
+          prefillData: { name: 'bg_forest.png', category: 'backgrounds' },
+        },
+      },
+      {
+        id: 'diag-single',
+        category: 'compiler',
+        severity: 'error',
+        message: 'Syntax error: unexpected token "invalid_opcode"',
+        fileId: 'file-1',
+        fileName: 'chapter1.vns',
+        line: 5,
+        col: 3,
+      },
+    ];
+
+    it('TEST-ACCORDION-01: groups duplicate diagnostics into a single parent row with badge-group-count and source summary', () => {
+      render(
+        <DockProblemsTable
+          diagnostics={duplicateAssetDiagnostics}
+          onDiagnosticClick={vi.fn()}
+          onQuickFix={vi.fn()}
+        />
+      );
+
+      // Parent row shows badge-group-count with "×3"
+      const groupCountBadge = screen.getByTestId('badge-group-count');
+      expect(groupCountBadge).toBeInTheDocument();
+      expect(groupCountBadge).toHaveTextContent('×3');
+
+      // Source column displays first file:line with count of remaining occurrences (+2)
+      expect(screen.getByText(/chapter1\.vns:12/)).toBeInTheDocument();
+      expect(screen.getByText(/\(\+2\)/)).toBeInTheDocument();
+    });
+
+    it('TEST-ACCORDION-02: collapses items by default and expands child rows on toggle click', () => {
+      render(
+        <DockProblemsTable
+          diagnostics={duplicateAssetDiagnostics}
+          onDiagnosticClick={vi.fn()}
+          onQuickFix={vi.fn()}
+        />
+      );
+
+      // Initially collapsed: child rows not rendered
+      expect(screen.queryByTestId('problem-row-child-diag-dup-2')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('problem-row-child-diag-dup-3')).not.toBeInTheDocument();
+
+      // Find toggle accordion button
+      const toggleBtn = screen.getByTestId(/btn-toggle-group-/);
+      expect(toggleBtn).toBeInTheDocument();
+
+      // Click to expand
+      fireEvent.click(toggleBtn);
+
+      // Now child rows are visible
+      expect(screen.getByTestId('problem-row-child-diag-dup-1')).toBeInTheDocument();
+      expect(screen.getByTestId('problem-row-child-diag-dup-2')).toBeInTheDocument();
+      expect(screen.getByTestId('problem-row-child-diag-dup-3')).toBeInTheDocument();
+
+      // Click again to collapse
+      fireEvent.click(toggleBtn);
+      expect(screen.queryByTestId('problem-row-child-diag-dup-2')).not.toBeInTheDocument();
+    });
+
+    it('TEST-ACCORDION-03: clicking a child row triggers onDiagnosticClick with that specific diagnostic item', () => {
+      const handleDiagnosticClick = vi.fn();
+      render(
+        <DockProblemsTable
+          diagnostics={duplicateAssetDiagnostics}
+          onDiagnosticClick={handleDiagnosticClick}
+          onQuickFix={vi.fn()}
+        />
+      );
+
+      // Expand accordion
+      const toggleBtn = screen.getByTestId(/btn-toggle-group-/);
+      fireEvent.click(toggleBtn);
+
+      // Click 2nd child row (chapter2.vns:25)
+      const childRow2 = screen.getByTestId('problem-row-child-diag-dup-2');
+      fireEvent.click(childRow2);
+
+      expect(handleDiagnosticClick).toHaveBeenCalledTimes(1);
+      expect(handleDiagnosticClick).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'diag-dup-2',
+          fileName: 'chapter2.vns',
+          line: 25,
+        })
+      );
+    });
+
+    it('TEST-ACCORDION-04: single diagnostic (count = 1) renders without accordion toggle button and without group count badge', () => {
+      render(
+        <DockProblemsTable
+          diagnostics={[duplicateAssetDiagnostics[3]]} // diag-single
+          onDiagnosticClick={vi.fn()}
+        />
+      );
+
+      expect(screen.getByText(/Syntax error: unexpected token/i)).toBeInTheDocument();
+      expect(screen.queryByTestId('badge-group-count')).not.toBeInTheDocument();
+      expect(screen.queryByTestId(/btn-toggle-group-/)).not.toBeInTheDocument();
+    });
+
+    it('TEST-ACCORDION-05: parent group displays quick fix button and clicking it triggers onQuickFix with diagnostic', () => {
+      const handleQuickFix = vi.fn();
+      render(
+        <DockProblemsTable
+          diagnostics={duplicateAssetDiagnostics}
+          onQuickFix={handleQuickFix}
+        />
+      );
+
+      const quickFixBtn = screen.getByTestId(/btn-quickfix-group-/);
+      expect(quickFixBtn).toBeInTheDocument();
+
+      fireEvent.click(quickFixBtn);
+      expect(handleQuickFix).toHaveBeenCalledTimes(1);
+      expect(handleQuickFix).toHaveBeenCalledWith(
+        expect.objectContaining({
+          quickFix: expect.objectContaining({
+            type: 'create_asset',
+            targetId: 'bg_forest.png',
+          }),
+        })
+      );
+    });
+  });
 });

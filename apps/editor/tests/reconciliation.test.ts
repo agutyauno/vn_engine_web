@@ -97,7 +97,7 @@ describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () 
     expect(report.uncreatedAssets).toContain('bg_room');
   });
 
-  // TC-RECON-03: background with arguments or transition:
+  // TC-RECON-03: background with arguments or transition
   it('TC-RECON-03: should record background asset reference when background has arguments or transition', () => {
     const project = createMockProject({
       files: [
@@ -194,8 +194,8 @@ describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () 
     expect(report.uncreatedAssets).toContain('ambient_rain');
   });
 
-  // TC-RECON-05: Dialogue alice: "Xin chào" records character reference for 'alice'
-  it('TC-RECON-05: should record character reference for dialogue lines alice: "Xin chào"', () => {
+  // TC-RECON-05: Dialogue alice: "Xin chào" does NOT flag uncreated character warning for speakers
+  it('TC-RECON-05: should NOT record uncreated character for dialogue lines alice: "Xin chào" or bob: "Chào bạn"', () => {
     const project = createMockProject({
       files: [
         {
@@ -216,19 +216,19 @@ describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () 
 
     const report = scanActiveReconciliation(project);
 
-    expect(report.characterReferences['alice']).toEqual([
-      { file: 'dialogue.vns', line: 2, type: 'character' },
-    ]);
-    expect(report.characterReferences['bob']).toEqual([
-      { file: 'dialogue.vns', line: 3, type: 'character' },
-    ]);
-
+    // Dialogue speakers do not require visual definitions in CharacterManager
     expect(report.uncreatedCharacters).not.toContain('alice');
-    expect(report.uncreatedCharacters).toContain('bob');
+    expect(report.uncreatedCharacters).not.toContain('bob');
+
+    const diagnostics = generateDiagnostics(project);
+    const bobDiags = diagnostics.filter(
+      (d) => d.category === 'character' && d.assetKey === 'bob'
+    );
+    expect(bobDiags).toHaveLength(0);
   });
 
-  // TC-RECON-06: Dialogue with as-alias alice as "???": "Xin chào"
-  it('TC-RECON-06: should record character reference for dialogue with as-alias (alice as "???": "Xin chào")', () => {
+  // TC-RECON-06: Dialogue with as-alias alice as "???": "Xin chào" does NOT flag uncreated character
+  it('TC-RECON-06: should NOT record uncreated character for dialogue with as-alias (alice as "???": "Xin chào")', () => {
     const project = createMockProject({
       files: [
         {
@@ -249,20 +249,19 @@ describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () 
 
     const report = scanActiveReconciliation(project);
 
-    expect(report.characterReferences['alice']).toEqual([
-      { file: 'alias.vns', line: 2, type: 'character' },
-    ]);
-    expect(report.characterReferences['charlie']).toEqual([
-      { file: 'alias.vns', line: 3, type: 'character' },
-    ]);
-
     expect(report.characterReferences['???']).toBeUndefined();
     expect(report.uncreatedCharacters).not.toContain('alice');
-    expect(report.uncreatedCharacters).toContain('charlie');
+    expect(report.uncreatedCharacters).not.toContain('charlie');
+
+    const diagnostics = generateDiagnostics(project);
+    const charlieDiags = diagnostics.filter(
+      (d) => d.category === 'character' && d.assetKey === 'charlie'
+    );
+    expect(charlieDiags).toHaveLength(0);
   });
 
-  // TC-RECON-07: reveal statement reveal bob as "Thám tử"
-  it('TC-RECON-07: should record character reference for reveal statement (reveal bob as "Thám tử")', () => {
+  // TC-RECON-07: reveal statement reveal bob as "Thám tử" does NOT flag uncreated character
+  it('TC-RECON-07: should NOT record uncreated character for reveal statement (reveal bob as "Thám tử")', () => {
     const project = createMockProject({
       files: [
         {
@@ -282,10 +281,81 @@ describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () 
 
     const report = scanActiveReconciliation(project);
 
-    expect(report.characterReferences['bob']).toEqual([
-      { file: 'reveal.vns', line: 2, type: 'character' },
+    expect(report.uncreatedCharacters).not.toContain('bob');
+
+    const diagnostics = generateDiagnostics(project);
+    const bobDiags = diagnostics.filter(
+      (d) => d.category === 'character' && d.assetKey === 'bob'
+    );
+    expect(bobDiags).toHaveLength(0);
+  });
+
+  // TC-RECON-SHOW: show statement with uncreated character flags uncreated character
+  it('TC-RECON-SHOW: should record uncreated character and generate warning for show statement', () => {
+    const project = createMockProject({
+      files: [
+        {
+          id: 'file-1',
+          name: 'show_test.vns',
+          content: [
+            'scene visual_scene {',
+            '  show charlie.happy',
+            '}',
+          ].join('\n'),
+          order: 0,
+          version: 1,
+        },
+      ],
+      characters: [],
+    });
+
+    const report = scanActiveReconciliation(project);
+
+    expect(report.characterReferences['charlie']).toEqual([
+      { file: 'show_test.vns', line: 2, type: 'character' },
     ]);
-    expect(report.uncreatedCharacters).toContain('bob');
+    expect(report.uncreatedCharacters).toContain('charlie');
+
+    const diagnostics = generateDiagnostics(project);
+    const charlieDiags = diagnostics.filter(
+      (d) => d.category === 'character' && d.assetKey === 'charlie'
+    );
+    expect(charlieDiags).toHaveLength(1);
+    expect(charlieDiags[0].severity).toBe('warning');
+  });
+
+  // TC-RECON-HIDE: hide statement with uncreated character flags uncreated character
+  it('TC-RECON-HIDE: should record uncreated character and generate warning for hide statement', () => {
+    const project = createMockProject({
+      files: [
+        {
+          id: 'file-1',
+          name: 'hide_test.vns',
+          content: [
+            'scene visual_scene {',
+            '  hide dave',
+            '}',
+          ].join('\n'),
+          order: 0,
+          version: 1,
+        },
+      ],
+      characters: [],
+    });
+
+    const report = scanActiveReconciliation(project);
+
+    expect(report.characterReferences['dave']).toEqual([
+      { file: 'hide_test.vns', line: 2, type: 'character' },
+    ]);
+    expect(report.uncreatedCharacters).toContain('dave');
+
+    const diagnostics = generateDiagnostics(project);
+    const daveDiags = diagnostics.filter(
+      (d) => d.category === 'character' && d.assetKey === 'dave'
+    );
+    expect(daveDiags).toHaveLength(1);
+    expect(daveDiags[0].severity).toBe('warning');
   });
 
   // TC-RECON-08: narrator: "Trời mưa..." does NOT flag narrator as uncreated character
@@ -330,7 +400,7 @@ describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () 
             '# background bg_commented',
             '// play music bgm_commented',
             '   background bg_indented',
-            '     alice: "Thụt đầu dòng"',
+            '     show alice.smile',
           ].join('\n'),
           order: 0,
           version: 1,
@@ -389,12 +459,12 @@ describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () 
         {
           id: 'file-1',
           name: 'main.vns',
-          content: 'alice: "Xin chào!"\n',
+          content: 'background bg_used\n',
           order: 0,
           version: 1,
         },
       ],
-      characters: [{ id: 'alice', name: 'Alice', sprites: {} }],
+      characters: [],
       assets: [
         {
           id: 'bg_park',
@@ -470,4 +540,3 @@ describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () 
     expect(unusedDiags).toHaveLength(0);
   });
 });
-
