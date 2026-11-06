@@ -117,7 +117,7 @@ export class IndexedDBProjectRepository implements ProjectRepository {
     const defaultScript: ScriptFile = {
       id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `file_${Date.now()}`,
       name: 'main.vns',
-      content: `// Main visual novel script\nscene start {\n  narrator: "Welcome to ${params.title}."\n}\n`,
+      content: `# Main visual novel script\nscene start {\n  narrator: "Welcome to ${params.title}."\n}\n`,
       order: 0,
       version: 1,
     };
