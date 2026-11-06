@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   PreviewBridge,
   isAllowedPreviewOrigin,
+  buildPreviewUrl,
   type PreviewBridgeOptions,
 } from '../../src/core/services/previewBridge';
 import { usePreviewStore, type HotReloadPayload } from '../../src/core/stores/livePreviewStore';
@@ -481,6 +482,23 @@ describe('PreviewBridge (Phase 3 Two-Way Live Preview Bus)', () => {
       activeBridge.dispose();
 
       expect(removeSpy).toHaveBeenCalledWith('message', expect.any(Function));
+    });
+  });
+
+  describe('PreviewBridge URL Building and Project Isolation', () => {
+    it('builds preview url with mode=preview, embedded=true, and projectId', () => {
+      const url = buildPreviewUrl('http://localhost:3000', 'proj_alpha');
+      expect(url).toContain('mode=preview');
+      expect(url).toContain('embedded=true');
+      expect(url).toContain('projectId=proj_alpha');
+    });
+
+    it('builds popout preview url with popout=true and projectId', () => {
+      const url = buildPreviewUrl('http://localhost:3000', 'proj_beta', { isPopout: true });
+      expect(url).toContain('mode=preview');
+      expect(url).toContain('popout=true');
+      expect(url).toContain('projectId=proj_beta');
+      expect(url).not.toContain('embedded=true');
     });
   });
 });
