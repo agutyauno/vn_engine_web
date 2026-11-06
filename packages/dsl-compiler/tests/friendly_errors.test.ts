@@ -79,4 +79,49 @@ describe('Friendly Diagnostics & Error Formatter (TDD RED)', () => {
     expect(err.code).toBe('ERR_SYNTAX_GENERIC');
     expect(err.message).not.toMatch(/^Syntax error:\s*/i);
   });
+
+  // TC-FE-07: Comment # chứa { sau lỗi cú pháp dòng đầu
+  it('TC-FE-07: Comment # containing { does not mask earlier syntax error or report false unclosed brace', () => {
+    const code = 'wrong_syntax\n# Main visual novel script: test\n# scene bla {\n#   bla:"bruh"\n#\n#\n';
+    const result = compileString(code, 'test.vns');
+    expect(result.success).toBe(false);
+    expect(result.errors).toBeDefined();
+    expect(result.errors!.length).toBeGreaterThan(0);
+    const err = result.errors![0]!;
+    expect(err.loc?.line).toBe(1);
+    expect(err.loc?.col).toBe(1);
+    expect(err.loc?.endCol).toBe(13);
+    expect(err.code).not.toBe('ERR_SYNTAX_UNCLOSED_BRACE');
+    expect(err.message).not.toContain("Missing closing brace '}' for block starting on line 3");
+  });
+
+  // TC-FE-08: Token span coordinates - endCol/endLine
+  it('TC-FE-08: Syntax error provides complete token span coordinates (endLine and endCol)', () => {
+    const code = 'invalid_token\n';
+    const result = compileString(code, 'test.vns');
+    expect(result.success).toBe(false);
+    expect(result.errors).toBeDefined();
+    expect(result.errors!.length).toBeGreaterThan(0);
+    const err = result.errors![0]!;
+    expect(err.loc).toBeDefined();
+    expect(err.loc?.line).toBe(1);
+    expect(err.loc?.col).toBe(1);
+    expect(err.loc?.endLine).toBe(1);
+    expect(err.loc?.endCol).toBeDefined();
+    expect(err.loc!.endCol!).toBeGreaterThan(err.loc!.col!);
+  });
+
+  // TC-FE-09: Unclosed brace thực sự với comment # chứa {
+  it('TC-FE-09: Genuine unclosed brace correctly identifies block line ignoring # comments with {', () => {
+    const code = 'scene intro {\n  # a comment with { bracket\n  "hello"\n';
+    const result = compileString(code, 'test.vns');
+    expect(result.success).toBe(false);
+    expect(result.errors).toBeDefined();
+    expect(result.errors!.length).toBeGreaterThan(0);
+    const err = result.errors![0]!;
+    expect(err.code).toBe('ERR_SYNTAX_UNCLOSED_BRACE');
+    expect(err.loc?.line).toBe(1);
+    expect(err.message).toContain("Missing closing brace '}' for block starting on line 1");
+    expect(err.message).not.toContain('line 2');
+  });
 });
