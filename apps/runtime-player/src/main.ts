@@ -7,7 +7,7 @@ import { render, h } from 'preact';
 import { compileString } from '@vn-engine/dsl-compiler';
 import { GameRenderer } from '@vn-engine/renderer';
 import { AudioManager } from '@vn-engine/audio';
-import type { Instruction, Character } from '@vn-engine/shared-types';
+import type { Instruction, Character, EngineDiagnostic } from '@vn-engine/shared-types';
 
 import { VNRuntimeKernel } from './core/VNRuntimeKernel';
 import type { PlayerMode } from './core/contracts';
@@ -59,7 +59,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     {
       report: (diag) => {
         if (bridge && typeof bridge.sendDiagnostic === 'function') {
-          bridge.sendDiagnostic(diag as any);
+          bridge.sendDiagnostic(diag as EngineDiagnostic);
         }
       },
     },

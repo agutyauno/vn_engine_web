@@ -72,7 +72,7 @@ const mockAssets: AssetRef[] = [
   {
     id: 'ast-misc-font',
     name: 'custom_font.ttf',
-    type: 'font' as any,
+    type: 'font',
     category: 'other',
     storageUrl: 'blob:custom-font',
     sizeBytes: 8192,

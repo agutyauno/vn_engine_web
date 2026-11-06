@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import type { JSX } from 'preact';
 import { render, fireEvent, cleanup } from '@testing-library/preact';
 import type {
   PlayerViewState,
@@ -1176,20 +1177,21 @@ describe('Phase 2: Minimalist ADV Presentation & Viewport Scaling (RED Gate)', (
 
   it('TEST-ICONS-01 (Clean Monochrome Icons): Icons.tsx exports FolderIcon and BookOpenIcon/HistoryIcon conforming to stroke="currentColor"', () => {
     // Dynamically inspect Icons module exports
-    const iconsRecord = IconsModule as Record<string, any>;
+    const iconsRecord = IconsModule as Record<string, unknown>;
 
     // FolderIcon must be exported for Load button
     expect(iconsRecord.FolderIcon).toBeDefined();
     expect(typeof iconsRecord.FolderIcon).toBe('function');
 
     // Either BookOpenIcon or HistoryIcon must be exported for Log button
-    const LogIconComp = iconsRecord.BookOpenIcon || iconsRecord.HistoryIcon;
+    const LogIconComp = (iconsRecord.BookOpenIcon || iconsRecord.HistoryIcon) as ((props: { size?: number }) => JSX.Element) | undefined;
     expect(LogIconComp).toBeDefined();
     expect(typeof LogIconComp).toBe('function');
 
     // Render FolderIcon and verify monochrome vector attributes
     if (typeof iconsRecord.FolderIcon === 'function') {
-      const { container } = render(<iconsRecord.FolderIcon size={16} />);
+      const FolderComp = iconsRecord.FolderIcon as (props: { size?: number }) => JSX.Element;
+      const { container } = render(<FolderComp size={16} />);
       const svg = container.querySelector('svg');
       expect(svg).not.toBeNull();
       expect(svg?.getAttribute('stroke')).toBe('currentColor');

@@ -2,7 +2,7 @@
 // TẦNG HIỂN THỊ ĐỒ HỌA 2D (PIXIJS - ADR-018)
 // ==========================================
 
-import { Application, Container, Sprite, Texture, Assets } from 'pixi.js';
+import { Application, Container, Sprite, Texture, Assets, Rectangle } from 'pixi.js';
 import type { ShowInstruction, BackgroundInstruction } from '@vn-engine/shared-types';
 import {
   resolveCharacterPlacement,
@@ -795,8 +795,10 @@ export class GameRenderer {
 
     // Sinh Texture Canvas Wireframe đơn sắc chuẩn Swiss
     if (typeof document === 'undefined') {
-      const tex = new Texture({ source: Texture.WHITE.source });
-      (tex as any).orig = { x: 0, y: 0, width: this.baseWidth, height: this.baseHeight };
+      const tex = new Texture({
+        source: Texture.WHITE.source,
+        orig: new Rectangle(0, 0, this.baseWidth, this.baseHeight),
+      });
       this.placeholderTextures.set(cacheKey, tex);
       return tex;
     }
@@ -913,8 +915,10 @@ export class GameRenderer {
     if (typeof document === 'undefined') {
       const w = isProp ? 400 : 320;
       const h = isProp ? 400 : 560;
-      const tex = new Texture({ source: Texture.WHITE.source });
-      (tex as any).orig = { x: 0, y: 0, width: w, height: h };
+      const tex = new Texture({
+        source: Texture.WHITE.source,
+        orig: new Rectangle(0, 0, w, h),
+      });
       this.placeholderTextures.set(cacheKey, tex);
       return tex;
     }

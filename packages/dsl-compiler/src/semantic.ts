@@ -455,12 +455,11 @@ export function validateSemantics(ast: ProgramAST, options?: SemanticOptions): C
           });
         }
       } else if (stmt.type === 'PlayStatement') {
-        const playStmt = stmt as any;
-        if (registeredAssetIds && !registeredAssetIds.has(playStmt.assetId)) {
+        if (registeredAssetIds && !registeredAssetIds.has(stmt.assetId)) {
           errors.push({
             code: VNS_ERROR_CODES.ERR_SEMANTIC_MISSING_AUDIO,
-            message: `Audio asset "${playStmt.assetId}" played on channel '${playStmt.channel}' was not found in registered project assets.`,
-            loc: playStmt.loc,
+            message: `Audio asset "${stmt.assetId}" played on channel '${stmt.channel}' was not found in registered project assets.`,
+            loc: stmt.loc,
           });
         }
       }
