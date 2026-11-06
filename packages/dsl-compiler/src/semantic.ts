@@ -24,10 +24,13 @@ import {
   type SourceLocation,
   type ExpressionAST,
 } from '@vn-engine/shared-types';
+import { VNS_ERROR_CODES } from './error_formatter';
 
 export interface CompileError {
   message: string;
   loc?: SourceLocation;
+  code?: string;
+  rawMessage?: string;
 }
 
 const VALID_TRANSITION_SET = new Set<string>(SUPPORTED_TRANSITIONS);
@@ -87,6 +90,7 @@ function checkInterpolatedVariables(
         }
         if (!globals.has(id) && !sceneLocals.has(id)) {
           errors.push({
+            code: VNS_ERROR_CODES.ERR_SEMANTIC_UNDEFINED_VAR,
             message: `Variable '${id}' in string interpolation "${m[0]}" has not been defined in scene '${sceneName}'.`,
             loc,
           });
@@ -114,6 +118,7 @@ function validateExpressionAST(
       if (!BUILTIN_EXPR_IDENTIFIERS.has(expr.name)) {
         if (!globals.has(expr.name) && !sceneLocals.has(expr.name)) {
           errors.push({
+            code: VNS_ERROR_CODES.ERR_SEMANTIC_UNDEFINED_VAR,
             message: `Variable '${expr.name}' in expression has not been defined in scene '${sceneName}'.`,
             loc,
           });
@@ -245,9 +250,20 @@ export function validateSceneStructure(ast: ProgramAST): CompileError[] {
   return errors;
 }
 
-export function validateSemantics(ast: ProgramAST): CompileError[] {
+export interface SemanticOptions {
+  assets?: Array<{ id: string; name?: string; type?: string; category?: string }>;
+}
+
+export function validateSemantics(ast: ProgramAST, options?: SemanticOptions): CompileError[] {
   const errors: CompileError[] = [];
   const definedSceneNames = new Set<string>();
+  const registeredAssetIds = options?.assets
+    ? new Set(
+        options.assets
+          .flatMap((a) => [a.id, a.name])
+          .filter((x): x is string => Boolean(x)),
+      )
+    : null;
 
   // 1. Kiểm tra biến Global ở top-level
   const globals = new Set<string>();
@@ -312,6 +328,7 @@ export function validateSemantics(ast: ProgramAST): CompileError[] {
         const gt = stmt as GotoStatement;
         if (!definedSceneNames.has(gt.targetScene)) {
           errors.push({
+            code: VNS_ERROR_CODES.ERR_SEMANTIC_DANGLING_SCENE,
             message: `Target of goto "${gt.targetScene}" does not exist in script.`,
             loc: gt.loc,
           });
@@ -320,6 +337,7 @@ export function validateSemantics(ast: ProgramAST): CompileError[] {
         const cl = stmt as CallStatement;
         if (!definedSceneNames.has(cl.targetScene)) {
           errors.push({
+            code: VNS_ERROR_CODES.ERR_SEMANTIC_DANGLING_SCENE,
             message: `Target of call "${cl.targetScene}" does not exist in script.`,
             loc: cl.loc,
           });
@@ -333,6 +351,7 @@ export function validateSemantics(ast: ProgramAST): CompileError[] {
           }
           if (!definedSceneNames.has(opt.targetScene)) {
             errors.push({
+              code: VNS_ERROR_CODES.ERR_SEMANTIC_DANGLING_SCENE,
               message: `Choice "${opt.text}" points to non-existent scene: "${opt.targetScene}".`,
               loc: opt.loc,
             });
@@ -359,6 +378,7 @@ export function validateSemantics(ast: ProgramAST): CompileError[] {
         validateExpressionAST(va.value, globals, sceneLocals, sceneName, va.loc, errors);
         if (!globals.has(va.variable) && !sceneLocals.has(va.variable)) {
           errors.push({
+            code: VNS_ERROR_CODES.ERR_SEMANTIC_UNDEFINED_VAR,
             message: `Variable '${va.variable}' must be declared before assignment in scene '${sceneName}'. Please use 'define ${va.variable} = ...' first.`,
             loc: va.loc,
           });
@@ -432,6 +452,15 @@ export function validateSemantics(ast: ProgramAST): CompileError[] {
           errors.push({
             message: `In background statement '${bgStmt.assetId}', unknown easing "${bgStmt.easing}". Supported easings: ${SUPPORTED_EASINGS.join(', ')}.`,
             loc: bgStmt.loc,
+          });
+        }
+      } else if (stmt.type === 'PlayStatement') {
+        const playStmt = stmt as any;
+        if (registeredAssetIds && !registeredAssetIds.has(playStmt.assetId)) {
+          errors.push({
+            code: VNS_ERROR_CODES.ERR_SEMANTIC_MISSING_AUDIO,
+            message: `Audio asset "${playStmt.assetId}" played on channel '${playStmt.channel}' was not found in registered project assets.`,
+            loc: playStmt.loc,
           });
         }
       }

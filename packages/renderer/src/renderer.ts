@@ -61,6 +61,8 @@ export class GameRenderer {
   public app: Application;
   public baseWidth: number;
   public baseHeight: number;
+  public options: RendererOptions;
+  public placeholderMode: 'procedural' | 'transparent';
 
   private backgroundContainer: Container;
   private characterContainer: Container;
@@ -72,6 +74,8 @@ export class GameRenderer {
   private isInitialized = false;
 
   constructor(options?: RendererOptions) {
+    this.options = options ?? {};
+    this.placeholderMode = options?.placeholderMode ?? 'transparent';
     this.baseWidth = options?.width ?? 1920;
     this.baseHeight = options?.height ?? 1080;
 
@@ -85,6 +89,11 @@ export class GameRenderer {
    */
   public async init(containerElement?: HTMLElement, options?: RendererOptions): Promise<void> {
     if (this.isInitialized) return;
+
+    if (options?.placeholderMode) {
+      this.placeholderMode = options.placeholderMode;
+      this.options.placeholderMode = options.placeholderMode;
+    }
 
     await this.app.init({
       width: this.baseWidth,
@@ -776,13 +785,20 @@ export class GameRenderer {
       }
     }
 
+    if (this.placeholderMode === 'transparent') {
+      return Texture.EMPTY;
+    }
+
     const cacheKey = `bg_${assetId}_${this.baseWidth}_${this.baseHeight}`;
     const cached = this.placeholderTextures.get(cacheKey);
     if (cached) return cached;
 
     // Sinh Texture Canvas Wireframe đơn sắc chuẩn Swiss
     if (typeof document === 'undefined') {
-      return Texture.WHITE;
+      const tex = new Texture({ source: Texture.WHITE.source });
+      (tex as any).orig = { x: 0, y: 0, width: this.baseWidth, height: this.baseHeight };
+      this.placeholderTextures.set(cacheKey, tex);
+      return tex;
     }
 
     const canvas = document.createElement('canvas');
@@ -886,12 +902,21 @@ export class GameRenderer {
       }
     }
 
+    if (this.placeholderMode === 'transparent') {
+      return Texture.EMPTY;
+    }
+
     const cacheKey = `char_${characterId}_${spriteId}_${isProp}`;
     const cached = this.placeholderTextures.get(cacheKey);
     if (cached) return cached;
 
     if (typeof document === 'undefined') {
-      return Texture.WHITE;
+      const w = isProp ? 400 : 320;
+      const h = isProp ? 400 : 560;
+      const tex = new Texture({ source: Texture.WHITE.source });
+      (tex as any).orig = { x: 0, y: 0, width: w, height: h };
+      this.placeholderTextures.set(cacheKey, tex);
+      return tex;
     }
 
     if (isProp) {

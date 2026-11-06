@@ -1,0 +1,210 @@
+import type {
+  DialogueInstruction,
+  ChoiceInstruction,
+  WaitInstruction,
+  Instruction,
+  PlayInstruction,
+  Character,
+} from '@vn-engine/shared-types';
+import type { CatchUpVisualState } from '@vn-engine/renderer';
+
+export type PlayerMode = 'TITLE' | 'GAMEPLAY' | 'INSPECT' | 'STANDBY' | 'HALTED';
+export type TextPlaybackMode = 'NORMAL' | 'AUTO' | 'SKIP';
+
+export interface PlayerSettingsData {
+  masterVolume: number;
+  musicVolume: number;
+  sfxVolume: number;
+  voiceVolume: number;
+  textSpeed: number;
+  autoDelay: number;
+  stageScaleMode: 'auto' | 'native';
+}
+
+export const DEFAULT_PLAYER_SETTINGS: PlayerSettingsData = {
+  masterVolume: 1.0,
+  musicVolume: 0.8,
+  sfxVolume: 0.8,
+  voiceVolume: 1.0,
+  textSpeed: 40,
+  autoDelay: 1500,
+  stageScaleMode: 'auto',
+};
+
+export interface AudioAdapterContract {
+  playMusic?(track: string, options?: { loop?: boolean; volume?: number }): Promise<void>;
+  stopMusic?(fadeDurationMs?: number): Promise<void>;
+  playSound?(effect: string, options?: { volume?: number }): Promise<void>;
+  playVoice(voiceFile: string): void | Promise<void>;
+  stopVoice(): void;
+  stopAll(): void;
+  setVolume(channel: 'master' | 'music' | 'sound' | 'voice' | string, volume: number): void;
+  applySideEffect(effect: Instruction): void;
+  syncStateCatchUp(effects: Map<string, PlayInstruction>): void;
+}
+
+export type StepResult =
+  | { type: 'SUSPEND_DIALOGUE'; instruction: DialogueInstruction }
+  | { type: 'SUSPEND_CHOICE'; instruction: ChoiceInstruction }
+  | { type: 'SUSPEND_WAIT'; instruction: WaitInstruction; duration: number }
+  | { type: 'SIDE_EFFECT'; instruction: Instruction }
+  | { type: 'HALTED' };
+
+export interface AudioChannelState {
+  masterVolume: number;
+  channelVolumes: Record<string, number>;
+  isMuted: boolean;
+  currentTracks: Record<string, string | undefined>;
+}
+
+export interface SaveSlotData {
+  slotIndex: number;
+  timestamp: number;
+  thumbnailDataUrl: string;
+  currentScene: string;
+  previewText: string;
+  speakerName?: string;
+  dialogueCounter: number;
+  serializedState: string;
+  scriptHash?: string;
+}
+
+export interface BacklogEntry {
+  id: string;
+  speakerName?: string;
+  speakerColorHex?: string;
+  text: string;
+  voiceAssetId?: string;
+  timestamp: number;
+}
+
+export interface TypewriterSegment {
+  text: string;
+  color?: string;
+  pauseAfterMs?: number;
+  speedMultiplier?: number;
+}
+
+export interface BacklogTextSegment {
+  text: string;
+  color?: string;
+}
+
+export interface DesyncModalData {
+  slotIndex: number;
+  currentHash: string;
+  saveHash: string;
+  sceneName: string;
+}
+
+export interface PlayerViewState {
+  mode: PlayerMode;
+  playbackMode: TextPlaybackMode;
+  isControlsHidden: boolean;
+  isCleanArtMode: boolean;
+  dialogue: {
+    isVisible: boolean;
+    speakerName?: string;
+    speakerColorHex?: string;
+    rawText: string;
+    isComplete: boolean;
+    canAdvance: boolean;
+    isSeen: boolean;
+  };
+  activeChoices: Array<{
+    text: string;
+    targetScene: string;
+    isSatisfied: boolean;
+  }> | null;
+  activeInspectModal: {
+    assetUrl: string;
+    title?: string;
+  } | null;
+  activeModal: 'none' | 'save' | 'load' | 'backlog' | 'settings' | 'inspect' | 'desync';
+  settings: {
+    textSpeed: number;
+    autoDelayMs: number;
+  };
+  activeToast: {
+    message: string;
+    id: number;
+  } | null;
+  audio: AudioChannelState;
+  backlog: BacklogEntry[];
+  saveSlots: Array<SaveSlotData | null>;
+  quickSaveSlot: SaveSlotData | null;
+  desyncData?: DesyncModalData;
+}
+
+export interface KernelAdapters {
+  renderer?: {
+    applySideEffect: (instr: Instruction) => Promise<void>;
+    syncStateCatchUp: (catchUp: CatchUpVisualState) => Promise<void>;
+    captureThumbnail?: () => Promise<string>;
+  };
+  audio?: {
+    applySideEffect: (instr: Instruction) => void;
+    syncStateCatchUp: (activeAudio: Map<string, PlayInstruction>) => void;
+    stopVoice: () => void;
+    stopAll?: () => void;
+    setVolume?: (channel: string, volume: number) => void;
+    setMute?: (muted: boolean) => void;
+    playVoice?: (assetId: string) => void;
+  };
+  storage?: {
+    getSeenDialogues: () => Set<string>;
+    saveSeenDialogue: (key: string) => void;
+    saveSeenDialogues?: (seen: Set<string>) => void;
+    getSlots?: () => Array<SaveSlotData | null>;
+    getQuickSave?: () => SaveSlotData | null;
+    saveSlot?: (data: SaveSlotData) => Promise<void>;
+    loadSlot?: (slotIndex: number) => Promise<SaveSlotData | null>;
+  };
+}
+
+export interface PlayerUIActions {
+  startNewGame: () => void;
+  returnToTitle: () => void;
+  advance: () => void;
+  completeDialogue: () => void;
+  selectChoice: (index: number) => void;
+  rollback: () => void;
+  toggleAuto: () => void;
+  toggleSkip: () => void;
+  toggleHideControls: () => void;
+  toggleCleanArt: () => void;
+  toggleMute: () => void;
+  openModal: (modal: 'save' | 'load' | 'backlog' | 'settings') => void;
+  closeModal: () => void;
+  closeInspect: () => void;
+  setAudioVolume: (channel: string, volume: number) => void;
+  setTextSpeed: (charsPerSec: number) => void;
+  setAutoDelay: (delayMs: number) => void;
+  showToast: (message: string) => void;
+  saveSlot: (slotIndex: number) => Promise<void>;
+  loadSlot: (slotIndex: number) => Promise<void>;
+  quickSave: () => Promise<void>;
+  quickLoad: () => Promise<void>;
+  replayVoice: (assetId: string) => void;
+  resolveDesync: (choice: 'continue' | 'restart' | 'cancel') => void;
+}
+
+export interface PlayerUIContract {
+  state: PlayerViewState;
+  actions: PlayerUIActions;
+}
+
+export interface VNRuntimeKernelOptions {
+  initialMode?: PlayerMode;
+  projectId?: string;
+  characters?: Character[];
+}
+
+export interface LoadProgramOptions {
+  scene?: string;
+  line?: number;
+  preserveState?: boolean;
+  projectId?: string;
+  characters?: Character[];
+  assets?: unknown[];
+}

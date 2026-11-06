@@ -2,13 +2,49 @@
 // CẤU TRÚC PROJECT & METADATA (TAD 2.3, system_architecture.md 3.1)
 // ==========================================
 
-export interface Project {
+export interface ProjectDisplaySettings {
+  width: number;
+  height: number;
+  orientation: 'landscape' | 'portrait';
+  lockAspectRatio: boolean;
+}
+export type DisplaySettings = ProjectDisplaySettings;
+
+export interface ProjectGameplaySettings {
+  unmetChoiceDisplay: 'hidden' | 'disabled';
+  textSpeed: number;
+  autoForwardDelay: number;
+  defaultVolumes: {
+    master: number;
+    bgm: number;
+    sfx: number;
+    voice: number;
+  };
+}
+export type GameplaySettings = ProjectGameplaySettings;
+
+export interface ProjectEditorSettings {
+  autoSave: boolean;
+  autoSaveDebounceMs: number;
+}
+export type EditorSettings = ProjectEditorSettings;
+
+export interface ProjectMetadata {
   id: string; // UUIDv4
   title: string;
+  description?: string;
   version: number; // Optimistic Concurrency Check (ADR-011)
   ownerId: string; // Supabase auth.uid() (ADR-019)
   defaultLanguage: string;
+  entryScene?: string;
+  updatedAt?: number;
+  displaySettings?: ProjectDisplaySettings;
+  gameplaySettings?: ProjectGameplaySettings;
+  editorSettings?: ProjectEditorSettings;
   publishedGameId?: string; // Lưu game-id trên Cloudflare R2 khi publish (TAD 7.1, ADR-019)
+}
+
+export interface Project extends ProjectMetadata {
   files: ScriptFile[]; // Danh sách file kịch bản đa chương
   characters: Character[]; // Danh sách nhân vật
   variables: VariableDeclaration[];
@@ -31,6 +67,7 @@ export interface Character {
   name: string; // Tên hiển thị mặc định: "Alice Carroll" (ADR-020)
   colorHex?: string; // Mã màu tên trong hộp thoại: "#e91e63"
   sprites: Record<string, string>; // { "happy": "asset-uuid-1", "sad": "asset-uuid-2" }
+  defaultExpression?: string;
 }
 
 export interface VariableDeclaration {
@@ -39,10 +76,20 @@ export interface VariableDeclaration {
   defaultValue: string | number | boolean;
 }
 
+export type AssetCategory =
+  | 'background'
+  | 'sprite'
+  | 'bgm'
+  | 'sfx'
+  | 'voice'
+  | 'ui'
+  | 'other';
+
 export interface AssetRef {
   id: string; // UUIDv4
   name: string; // "bg_classroom.png", "op_movie.mp4"
   type: 'image' | 'audio' | 'video' | 'font';
+  category?: AssetCategory;
   storageUrl: string; // URL CDN Cloudflare R2
   sizeBytes: number;
   version?: number; // Optimistic Concurrency Check (ADR-011)

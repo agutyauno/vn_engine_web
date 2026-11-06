@@ -1,180 +1,183 @@
 // ==========================================
 // ĐIỂM KHỞI ĐẦU RUNTIME PLAYER (MAIN ENTRY)
+// Tích hợp Kernel, Adapters và Preact UI Root
 // ==========================================
 
+import { render, h } from 'preact';
 import { compileString } from '@vn-engine/dsl-compiler';
-import { isValidProgram, validateProgram } from '@vn-engine/core-vm';
-import { VNPlayer } from './player';
-import { GameStorage } from './storage';
+import { GameRenderer } from '@vn-engine/renderer';
+import { AudioManager } from '@vn-engine/audio';
+import type { Instruction, Character } from '@vn-engine/shared-types';
+
+import { VNRuntimeKernel } from './core/VNRuntimeKernel';
+import type { PlayerMode } from './core/contracts';
+import { RendererAdapter } from './adapters/RendererAdapter';
+import { AudioAdapter } from './adapters/AudioAdapter';
+import { StorageAdapter } from './adapters/StorageAdapter';
+import {
+  AssetResolverAdapter,
+  type ProjectData,
+  type ProjectDataCharacter,
+  type ProjectDataAsset,
+} from './adapters/AssetResolverAdapter';
+import { PreviewBridgeAdapter, isAllowedEditorOrigin } from './adapters/PreviewBridgeAdapter';
+import { PlayerUIProvider } from './ui/context/PlayerUIContext';
+import { PlayerApp } from './ui/components/PlayerApp';
+
 import scenarioSource from './scenario.vns?raw';
 
-
-function isAllowedEditorOrigin(origin: string): boolean {
-  const envOrigin = import.meta.env.VITE_EDITOR_ORIGIN;
-  const allowedOrigins = ['http://localhost:3001', 'http://127.0.0.1:3001', window.location.origin];
-  if (envOrigin && typeof envOrigin === 'string' && envOrigin.trim().length > 0) {
-    allowedOrigins.push(envOrigin.trim().replace(/\/+$/, ''));
-  }
-  if (allowedOrigins.includes(origin)) return true;
-  const userContentRegex = /^https?:\/\/([a-zA-Z0-9-]+\.)*usercontent-platform\.com(:\d+)?$/;
-  return userContentRegex.test(origin);
-}
+const defaultStandaloneCharacters: Character[] = [
+  { id: 'alice', name: 'Alice', colorHex: '#38bdf8', sprites: {} },
+  { id: 'bob', name: 'Bob', colorHex: '#f43f5e', sprites: {} },
+];
 
 window.addEventListener('DOMContentLoaded', async () => {
-  // Kiểm tra nếu đang nhúng trong iframe hoặc mở Pop-out (Web Studio Live Preview)
   const urlParams = new URLSearchParams(window.location.search);
   const isPopout = urlParams.get('popout') === 'true' || window.name === 'VN_Preview_Popout';
   const isModePreview = urlParams.get('mode') === 'preview';
   const isEmbedded =
     (window.parent && window.parent !== window) || isPopout || urlParams.get('embedded') === 'true' || isModePreview;
 
-  const pid = urlParams.get('projectId') || urlParams.get('project');
-  if (pid) {
-    GameStorage.setProjectId(pid);
-  }
+  const projectId = urlParams.get('projectId') || urlParams.get('project') || undefined;
 
-  if (isModePreview || isEmbedded) {
-    GameStorage.setPreviewMode(true);
-  } else {
-    GameStorage.setPreviewMode(false);
-  }
-
-  let player: VNPlayer;
-
-  // Nếu là Live Preview: Khởi động ở chế độ Standby tinh gọn, không chạy kịch bản mẫu
-  if (isModePreview || isEmbedded) {
-    console.log('[RuntimePlayer] Initializing in Live Preview Standby mode...');
-    player = new VNPlayer([], { isStandby: true });
-    await player.start();
-  } else {
-    console.log('[RuntimePlayer] Loading and compiling sample VNS scenario...');
-    const compileResult = compileString(scenarioSource, 'scenario.vns');
-    if (!compileResult.success || !compileResult.program || !isValidProgram(compileResult.program)) {
-      console.error('[RuntimePlayer] Script compilation or validation error:', compileResult.errors);
-      alert('Script compilation error! Please check Console.');
-      return;
-    }
-
-    console.log(
-      `[RuntimePlayer] Successfully compiled ${compileResult.program.length} instructions. Initializing VNPlayer...`,
-    );
-
-    player = new VNPlayer(compileResult.program);
-    await player.start();
-  }
-
-  // Expose player to window for debugging if needed
-  (window as unknown as { vnPlayer: VNPlayer }).vnPlayer = player;
   if (isEmbedded) {
     document.documentElement.classList.add('is-embedded');
     document.body.classList.add('is-embedded');
   }
 
-  // Khởi tạo các nút trên Footer Trang Web Công Khai (Public Player Shell)
-  const btnFullscreen = document.getElementById('btn-public-fullscreen');
-  btnFullscreen?.addEventListener('click', () => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(err => {
-        console.warn('[RuntimePlayer] Cannot enter fullscreen:', err);
-      });
-    } else {
-      document.exitFullscreen().catch(() => {});
+  // 1. Quản lý Project Data và Asset Resolver
+  let currentProjectData: ProjectData = {
+    id: projectId,
+    characters: (!isEmbedded && !isModePreview) ? (defaultStandaloneCharacters as unknown as ProjectDataCharacter[]) : [],
+    assets: [],
+  };
+
+  let bridge: PreviewBridgeAdapter;
+
+  const assetResolver = new AssetResolverAdapter(
+    () => currentProjectData,
+    {
+      report: (diag) => {
+        if (bridge && typeof bridge.sendDiagnostic === 'function') {
+          bridge.sendDiagnostic(diag as any);
+        }
+      },
+    },
+  );
+
+  // 2. Khởi tạo Platform Adapters
+  const gameRenderer = new GameRenderer();
+  await gameRenderer.init();
+  const rendererAdapter = new RendererAdapter(gameRenderer, {
+    assetGraphicResolver: assetResolver.getAssetGraphicResolver(),
+    isPropChecker: (id: string) => assetResolver.checkIsProp(id),
+  });
+
+  const audioManager = new AudioManager();
+  const audioAdapter = new AudioAdapter(audioManager, {
+    assetResolver: assetResolver.getAssetAudioResolver(),
+  });
+
+  const storageAdapter = new StorageAdapter({
+    projectId,
+    isPreview: isEmbedded || isModePreview,
+  });
+
+  // 3. Biên dịch kịch bản mặc định nếu không phải chế độ Live Preview
+  let program: Instruction[] = [];
+  if (!isEmbedded && !isModePreview) {
+    try {
+      const compileResult = compileString(scenarioSource, 'scenario.vns');
+      if (compileResult.success && compileResult.program) {
+        program = compileResult.program;
+      } else {
+        console.error('[RuntimePlayer] Scenario compile error:', compileResult.errors);
+      }
+    } catch (err) {
+      console.error('[RuntimePlayer] Failed to compile scenario:', err);
     }
-  });
+  }
 
-  document.addEventListener('fullscreenchange', () => {
-    if (btnFullscreen) {
-      btnFullscreen.textContent = document.fullscreenElement
-        ? '[✕ Exit Fullscreen]'
-        : '[⛶ Fullscreen]';
-    }
-  });
+  // 4. Khởi tạo VNRuntimeKernel
+  const initialMode: PlayerMode = (isEmbedded || isModePreview) ? 'STANDBY' : 'TITLE';
+  const kernel = new VNRuntimeKernel(
+    program,
+    {
+      renderer: rendererAdapter,
+      audio: audioAdapter,
+      storage: storageAdapter,
+    },
+    {
+      initialMode,
+      projectId,
+      characters: (!isEmbedded && !isModePreview) ? defaultStandaloneCharacters : undefined,
+    },
+  );
 
-  document.getElementById('btn-public-report')?.addEventListener('click', () => {
-    player.showToast('Thank you! Feedback recorded for author.');
-  });
+  (window as unknown as { vnKernel: VNRuntimeKernel }).vnKernel = kernel;
 
-  // Báo cho parent (Editor / Live Preview Container) biết Player đã sẵn sàng
-  let targetOrigin =
-    window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-      ? `http://${window.location.hostname}:3001`
-      : window.location.origin;
-
+  // 5. Kết nối PreviewBridgeAdapter với Web Studio Editor
+  let targetEditorOrigin = '*';
   const editorOriginParam = urlParams.get('editorOrigin');
   if (editorOriginParam && isAllowedEditorOrigin(editorOriginParam)) {
-    targetOrigin = editorOriginParam;
+    targetEditorOrigin = editorOriginParam;
   } else if (document.referrer) {
     try {
       const refUrl = new URL(document.referrer);
       if (isAllowedEditorOrigin(refUrl.origin)) {
-        targetOrigin = refUrl.origin;
+        targetEditorOrigin = refUrl.origin;
       }
     } catch {
       // ignore
     }
   }
 
-  player.setEditorOrigin(targetOrigin);
+  bridge = new PreviewBridgeAdapter({
+    editorOrigin: targetEditorOrigin,
+    onHotReload: async (newProgram, opts) => {
+      if (opts?.characters || opts?.assets) {
+        currentProjectData = {
+          ...currentProjectData,
+          id: opts.projectId || currentProjectData.id,
+          characters: (opts.characters as unknown as ProjectDataCharacter[]) || currentProjectData.characters,
+          assets: (opts.assets as unknown as ProjectDataAsset[]) || currentProjectData.assets,
+        };
+        assetResolver.resetWarnedAssets();
+      }
+      await kernel.loadProgram(newProgram, opts);
+      if (kernel.getState().mode === 'STANDBY') {
+        await kernel.startNewGame();
+      }
+    },
+    onSetVariable: (name, value) => {
+      kernel.setVariable(name, value);
+    },
+  });
+  bridge.init();
 
-  if (isEmbedded) {
-    window.parent.postMessage({ type: 'PLAYER_READY' }, targetOrigin);
-  }
-  if (window.opener) {
-    window.opener.postMessage({ type: 'PLAYER_READY' }, targetOrigin);
-  }
-});
-
-// Lắng nghe sự kiện Hot Reload từ Editor có kiểm tra origin an toàn (SAD 3.6)
-window.addEventListener('message', async (event: MessageEvent) => {
-  if (!isAllowedEditorOrigin(event.origin)) {
-    return;
-  }
-
-  const player = (window as unknown as { vnPlayer?: VNPlayer }).vnPlayer;
-  if (player) {
-    player.setEditorOrigin(event.origin);
-  }
-
-  if (event.data?.type === 'HOT_RELOAD_PROGRAM') {
-    if (!isValidProgram(event.data.program)) {
-      const validation = validateProgram(event.data.program);
-      console.warn(
-        '[RuntimePlayer] Invalid program structure received in HOT_RELOAD_PROGRAM:',
-        validation.errors,
-      );
-      return;
+  // 6. Gắn canvas PixiJS khi chuyển sang GAMEPLAY mode
+  const attachCanvasToStage = () => {
+    const container = document.getElementById('pixi-canvas-container');
+    if (container && gameRenderer.app.canvas && !container.contains(gameRenderer.app.canvas)) {
+      container.innerHTML = '';
+      container.appendChild(gameRenderer.app.canvas);
+      gameRenderer.resizeToContainer(container);
     }
+  };
 
-    console.log(
-      `[RuntimePlayer] Received HOT_RELOAD_PROGRAM from ${event.origin} with ${event.data.program.length} instructions`,
+  kernel.subscribe((state) => {
+    if (state.mode === 'GAMEPLAY') {
+      requestAnimationFrame(attachCanvasToStage);
+    }
+    bridge.sendStateUpdate(kernel.getVariables());
+  });
+
+  // 6. Mount Preact UI Root vào #ui-root
+  const uiRoot = document.getElementById('ui-root');
+  if (uiRoot) {
+    render(
+      h(PlayerUIProvider, { kernel }, h(PlayerApp, null)),
+      uiRoot,
     );
-    const player = (window as unknown as { vnPlayer?: VNPlayer }).vnPlayer;
-    if (player) {
-      if (event.data.projectId) {
-        GameStorage.setProjectId(event.data.projectId);
-      }
-      if (event.data.characters || event.data.assets || event.data.projectId) {
-        player.updateProjectData({
-          id: event.data.projectId,
-          characters: event.data.characters,
-          assets: event.data.assets,
-        });
-      }
-      await player.reloadProgram(event.data.program, {
-        targetScene: event.data.targetScene,
-        targetLine: event.data.targetLine,
-        fileId: event.data.fileId,
-      });
-    }
-  }
-
-  if (event.data?.type === 'SET_VM_VARIABLE') {
-    const player = (window as unknown as { vnPlayer?: VNPlayer }).vnPlayer;
-    if (player && typeof event.data.name === 'string') {
-      console.log(
-        `[RuntimePlayer] Received SET_VM_VARIABLE for '${event.data.name}' from ${event.origin}`,
-      );
-      player.setVariable(event.data.name, event.data.value, event.data.scope);
-    }
   }
 });

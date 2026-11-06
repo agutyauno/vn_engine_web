@@ -16,9 +16,16 @@ import { VNSAstBuilder } from './ast_builder';
 import { runMergePass } from './merge_pass';
 import { validateSemantics, validateSceneStructure, type CompileError } from './semantic';
 import { generateBytecode } from './codegen';
+import {
+  formatLexerError,
+  formatParserError,
+  cleanMessage,
+  VNS_ERROR_CODES,
+} from './error_formatter';
 
 export interface CompilerOptions {
   characters?: Character[];
+  assets?: Array<{ id: string; name?: string; type?: string; category?: string }>;
 }
 
 export interface CompileResult {
@@ -43,14 +50,7 @@ export class Compiler {
         const lexResult = VNSLexer.tokenize(file.content);
         if (lexResult.errors.length > 0) {
           for (const err of lexResult.errors) {
-            errors.push({
-              message: `Lexer error: ${err.message}`,
-              loc: {
-                fileId: file.id,
-                line: typeof err.line === 'number' && Number.isFinite(err.line) ? err.line : 1,
-                col: typeof err.column === 'number' && Number.isFinite(err.column) ? err.column : 1,
-              },
-            });
+            errors.push(formatLexerError(err, file.content, file.id));
           }
           continue;
         }
@@ -61,17 +61,7 @@ export class Compiler {
 
         if (parserInstance.errors.length > 0) {
           for (const err of parserInstance.errors) {
-            const startLine = err.token?.startLine;
-            const startColumn = err.token?.startColumn;
-            errors.push({
-              message: `Syntax error: ${err.message}`,
-              loc: {
-                fileId: file.id,
-                line: typeof startLine === 'number' && Number.isFinite(startLine) ? startLine : 1,
-                col:
-                  typeof startColumn === 'number' && Number.isFinite(startColumn) ? startColumn : 1,
-              },
-            });
+            errors.push(formatParserError(err, file.content, file.id));
           }
           continue;
         }
@@ -90,7 +80,9 @@ export class Compiler {
         const lineMatch = msg.match(/at line (\d+)/i);
         const line = lineMatch ? parseInt(lineMatch[1]!, 10) : 1;
         errors.push({
-          message: msg,
+          code: VNS_ERROR_CODES.ERR_SYNTAX_GENERIC,
+          message: cleanMessage(msg),
+          rawMessage: msg,
           loc: {
             fileId: file.id,
             line: Number.isFinite(line) ? line : 1,
@@ -125,7 +117,7 @@ export class Compiler {
       const mergedAst = runMergePass(rawAst);
 
       // Stage 4: Kiểm tra ngữ nghĩa (Semantic Validation)
-      const semanticErrors = validateSemantics(mergedAst);
+      const semanticErrors = validateSemantics(mergedAst, options);
       if (semanticErrors.length > 0) {
         return {
           success: false,
@@ -146,7 +138,13 @@ export class Compiler {
       const msg = err instanceof Error ? err.message : String(err);
       return {
         success: false,
-        errors: [{ message: msg }],
+        errors: [
+          {
+            code: VNS_ERROR_CODES.ERR_SYNTAX_GENERIC,
+            message: cleanMessage(msg),
+            rawMessage: msg,
+          },
+        ],
       };
     }
   }

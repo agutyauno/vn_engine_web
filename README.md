@@ -1,4 +1,4 @@
-# VN Engine Web
+# TaleForge — Web Visual Novel Engine & Studio Platform
 
 > **Nền tảng sáng tác, mô phỏng và phát hành Visual Novel thế hệ mới hoàn toàn trên trình duyệt Web.**
 
@@ -11,7 +11,7 @@
 
 ## 📖 Giới Thiệu Dự Án
 
-**VN Engine Web** là một nền tảng mã nguồn mở hiện đại, cung cấp giải pháp toàn diện từ khâu viết kịch bản, quản lý tài nguyên (hình ảnh, âm thanh, biểu cảm), chạy thử nghiệm (Live Preview) cho đến phát hành trò chơi Visual Novel:
+**TaleForge** là một nền tảng mã nguồn mở hiện đại, cung cấp giải pháp toàn diện từ khâu viết kịch bản, quản lý tài nguyên (hình ảnh, âm thanh, biểu cảm), chạy thử nghiệm (Live Preview) cho đến phát hành trò chơi Visual Novel:
 
 - **Không cần cài đặt phức tạp**: Mọi thao tác biên kịch, dàn dựng và trải nghiệm đều chạy trực tiếp trên nền tảng Web tiêu chuẩn.
 - **Ngôn ngữ kịch bản trực quan (VNS DSL)**: Cú pháp ngắn gọn, dễ đọc, phù hợp cho cả nhà văn, biên kịch lẫn lập trình viên.
@@ -75,21 +75,109 @@
 
 ---
 
-## 🏗️ Cấu Trúc Monorepo
+## 🏛️ System Overview
 
+TaleForge is architected as a decoupled, multi-package monorepo organized around the **Single Runtime Core** and **Zero-Trust Content Model** principles:
+
+```mermaid
+flowchart TD
+    subgraph Studio ["apps/editor (Web Editor)"]
+        Monaco["Monaco VNS Editor"]
+        CompilerWorker["Compiler Worker"]
+        Store["Zustand Stores & Repo"]
+        BridgeHost["PreviewBridge (Host)"]
+        Monaco --> CompilerWorker
+        CompilerWorker --> Store
+        Store --> BridgeHost
+    end
+
+    subgraph SandboxedRuntime ["apps/runtime-player (Runtime Player)"]
+        BridgeClient["PreviewBridge (Client)"]
+        Kernel["VNRuntimeKernel"]
+        VM["@vn-engine/core-vm"]
+        Renderer["@vn-engine/renderer (PixiJS)"]
+        Audio["@vn-engine/audio (Howler)"]
+        PreactUI["Preact HUD & Modals"]
+
+        BridgeClient --> Kernel
+        Kernel --> VM
+        Kernel --> Renderer
+        Kernel --> Audio
+        Kernel --> PreactUI
+    end
+
+    subgraph Packages ["packages/*"]
+        Types["@vn-engine/shared-types"]
+        Compiler["@vn-engine/dsl-compiler"]
+        VM
+        Renderer
+        Audio
+        Compiler --> Types
+        VM --> Types
+        Renderer --> Types
+        Audio --> Types
+    end
+
+    BridgeHost -- "postMessage (Compiled IR + Assets)" --> BridgeClient
+    BridgeClient -- "postMessage (State + Diagnostics)" --> BridgeHost
 ```
-vn_engine_web/
-├── apps/
-│   ├── editor/              # Web Editor Studio (Monaco Editor, Asset Manager, Live Preview)
-│   └── runtime-player/      # Ứng dụng Player chạy game độc lập (Typewriter, Save/Load, HUD)
-├── packages/
-│   ├── shared-types/        # Định nghĩa kiểu dữ liệu chung (AST, Instructions, Runtime State, Schema)
-│   ├── dsl-compiler/        # Trình biên dịch VNS DSL (Chevrotain Lexer/Parser, Semantic Check, Codegen)
-│   ├── core-vm/             # Máy ảo thực thi Bytecode, Sandbox Evaluator, Rollback Buffer, Interpolation
-│   ├── renderer/            # Trình dựng hình 2D PixiJS v8 (Layers, Sprites, Background, Silhouettes)
-│   └── audio/               # Quản lý âm thanh Web Audio API (Kênh BGM, SFX, Voice, Fade-in/out)
-└── .github/workflows/       # Pipeline CI/CD tự động (Lint, Format, Typecheck, Test)
-```
+
+---
+
+## Local Interface & Invariants
+
+- `eslint.config.mjs`: Repository-level ESLint flat configuration file enforcing TypeScript strict rules, React hooks rules, and project formatting across all packages and applications.
+
+---
+
+## Subdirectories & System Boundaries
+
+- `apps`: [./apps/README.md](./apps/README.md) - Application implementations including the Web Studio Editor (`apps/editor`) and standalone Runtime Player (`apps/runtime-player`).
+- `packages`: [./packages/README.md](./packages/README.md) - Reusable engine packages: shared contracts (`shared-types`), compilation pipeline (`dsl-compiler`), headless bytecode VM (`core-vm`), hardware 2D renderer (`renderer`), and multi-channel audio (`audio`).
+- `db`: [./db/README.md](./db/README.md) - PostgreSQL database schema, Row-Level Security policies, and migration scripts for Supabase cloud persistence.
+
+---
+
+## Global Invariants
+
+1. **Single Runtime Core**: The core execution engine (`core-vm`, `renderer`, `audio`) is singular and behaves identically across Editor Preview, Standalone Web Player, and future Desktop wrappers.
+2. **Zero-Trust Content Model**: All user scripts, expressions, and UI definitions are treated as untrusted. Dynamic evaluation (`eval()`, `new Function()`) is strictly prohibited; all expressions execute through AST-evaluated sandboxes (`SandboxEvaluator`).
+3. **Decoupled Compiler & VM**: The `VisualNovelVM` consumes only pre-compiled `Instruction[]` bytecode arrays and never parses raw `.vns` text strings.
+4. **Strict Architecture Boundaries**:
+   - `shared-types` imports zero workspace packages.
+   - `core-vm` is pure TypeScript and never accesses DOM, browser `window`, or PixiJS elements.
+   - `renderer` consumes VM render commands without mutating VM internal state.
+5. **Clean Monochrome Iconography**: All user-facing UI components strictly use monochrome vector SVGs (`currentColor`), avoiding OS emojis and inline SVGs.
+
+---
+
+## Global Side Effects
+
+- **Web Storage & Database**: Manages game saves and seen dialogue in browser `localStorage` / `MemoryStorage`, local projects in IndexedDB, and remote projects in Supabase PostgreSQL.
+- **Hardware Acceleration**: Allocates WebGL/WebGPU graphics contexts via PixiJS and Web Audio contexts via Howler.js.
+- **Worker Execution**: Offloads `.vns` lexing and compilation to Web Workers with a 2000ms watchdog guard.
+- **Cross-Frame Communication**: Communicates between Editor host and Player sandbox iframe via origin-sanitized `postMessage`.
+
+---
+
+## System Verification
+
+- Run all monorepo tests:
+  ```bash
+  pnpm test
+  ```
+- Run smoke test:
+  ```bash
+  pnpm test:smoke
+  ```
+- Run TypeScript typecheck:
+  ```bash
+  pnpm typecheck
+  ```
+- Run package-specific test:
+  ```bash
+  pnpm --filter <package-name> test
+  ```
 
 ---
 
