@@ -39,7 +39,22 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): void {
 
       const suggestions: monaco.languages.CompletionItem[] = [];
 
-      // A. Gợi ý Scene sau goto hoặc call
+      // A0. Gợi ý khai báo Sub-scene khi gõ scene . (ADR-015 - TC-AUTO-SUBSCENE-02)
+      if (/^[ \t]*scene\s+\.[a-zA-Z0-9_]*$/.test(textUntilPosition)) {
+        suggestions.push({
+          label: 'scene .subname { ... }',
+          kind: monaco.languages.CompletionItemKind.Snippet,
+          detail: 'Declare local sub-scene block (ADR-015)',
+          documentation: 'Declare a local sub-scene nested within parent scene',
+          insertText: 'scene .${1:subname} {\n\t$0\n}',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          sortText: '00_scene_sub',
+          range,
+        });
+        return { suggestions };
+      }
+
+      // A. Gợi ý Scene sau goto hoặc call (kèm relative sub-scenes theo ADR-015)
       if (/\b(goto|call)\s+[a-zA-Z0-9_.]*$/.test(textUntilPosition)) {
         const scenes = context.getScenes();
         for (const item of scenes) {
@@ -49,6 +64,7 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): void {
               ? `Jump execution flow to scene "${scName}"`
               : `Jump execution flow to scene "${scName}"\n\nDeclared in: ${item.file} (line ${item.line})`;
 
+          // Canonical scene name
           suggestions.push({
             label: scName,
             kind: monaco.languages.CompletionItemKind.Function,
@@ -57,6 +73,24 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): void {
             sortText: `00_${scName}`,
             range,
           });
+
+          // ADR-015: Bổ sung gợi ý relative sub-scene (.sub) nếu scName chứa dấu chấm (TC-AUTO-SUBSCENE-01)
+          const dotIdx = scName.indexOf('.');
+          if (dotIdx !== -1) {
+            const relName = scName.substring(dotIdx); // ví dụ: ".intro"
+            suggestions.push({
+              label: relName,
+              kind: monaco.languages.CompletionItemKind.Function,
+              detail: `Local sub-scene in ${scName.substring(0, dotIdx)}`,
+              documentation:
+                typeof item === 'string'
+                  ? `Jump execution flow to local sub-scene "${relName}"`
+                  : `Jump execution flow to local sub-scene "${relName}"\n\nCanonical: ${scName}\nDeclared in: ${item.file} (line ${item.line})`,
+              insertText: relName,
+              sortText: `00_${relName}`,
+              range,
+            });
+          }
         }
         return { suggestions };
       }
