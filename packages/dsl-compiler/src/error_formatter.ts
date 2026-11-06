@@ -5,6 +5,7 @@
 
 import type { IRecognitionException } from 'chevrotain';
 import type { CompileError } from './semantic';
+import { VNSLexer, LCurly, RCurly } from './lexer';
 
 export const VNS_ERROR_CODES = {
   ERR_SYNTAX_MISSING_DIALOGUE: 'ERR_SYNTAX_MISSING_DIALOGUE',
@@ -19,62 +20,19 @@ export const VNS_ERROR_CODES = {
 export type VnsErrorCode = (typeof VNS_ERROR_CODES)[keyof typeof VNS_ERROR_CODES];
 
 /**
- * Quét chuỗi mã nguồn để tìm dấu mở ngoặc nhọn '{' chưa được đóng lại,
- * bỏ qua chú thích //, chú thích khối /* *\/ và chuỗi ký tự "..." / '...'.
+ * Quét token stream bằng Lexer để tìm dấu mở ngoặc nhọn '{' chưa được đóng lại.
+ * Bỏ qua hoàn toàn các comment (#) và string literal vì Lexer đã lọc hoặc token hóa chính xác.
  */
 export function findUnclosedBrace(fileContent: string): { line: number; col: number } | null {
-  const lines = fileContent.split('\n');
+  const lexResult = VNSLexer.tokenize(fileContent);
   const braceStack: Array<{ line: number; col: number }> = [];
-  let inBlockComment = false;
 
-  for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
-    const lineStr = lines[lineIdx]!;
-    let inString = false;
-    let stringChar = '';
-
-    for (let colIdx = 0; colIdx < lineStr.length; colIdx++) {
-      const ch = lineStr[colIdx];
-      const next = lineStr[colIdx + 1];
-
-      if (inBlockComment) {
-        if (ch === '*' && next === '/') {
-          inBlockComment = false;
-          colIdx++;
-        }
-        continue;
-      }
-
-      if (inString) {
-        if (ch === '\\') {
-          colIdx++; // Bỏ qua ký tự escape
-        } else if (ch === stringChar) {
-          inString = false;
-        }
-        continue;
-      }
-
-      if (ch === '/' && next === '*') {
-        inBlockComment = true;
-        colIdx++;
-        continue;
-      }
-
-      if (ch === '/' && next === '/') {
-        break; // Phần còn lại của dòng là comment
-      }
-
-      if (ch === '"' || ch === "'") {
-        inString = true;
-        stringChar = ch;
-        continue;
-      }
-
-      if (ch === '{') {
-        braceStack.push({ line: lineIdx + 1, col: colIdx + 1 });
-      } else if (ch === '}') {
-        if (braceStack.length > 0) {
-          braceStack.pop();
-        }
+  for (const token of lexResult.tokens) {
+    if (token.tokenType === LCurly) {
+      braceStack.push({ line: token.startLine ?? 1, col: token.startColumn ?? 1 });
+    } else if (token.tokenType === RCurly) {
+      if (braceStack.length > 0) {
+        braceStack.pop();
       }
     }
   }
@@ -100,18 +58,27 @@ export function cleanMessage(raw: string): string {
  * Định dạng lỗi từ tầng Lexer thành CompileError thân thiện
  */
 export function formatLexerError(
-  err: { message: string; line?: number; column?: number; offset?: number },
+  err: { message: string; line?: number; column?: number; offset?: number; length?: number },
   _fileContent: string,
   fileId: string,
 ): CompileError {
   const line = typeof err.line === 'number' && Number.isFinite(err.line) ? err.line : 1;
   const col = typeof err.column === 'number' && Number.isFinite(err.column) ? err.column : 1;
+  const endLine = line;
+  const endCol =
+    typeof err.length === 'number' && Number.isFinite(err.length) ? col + err.length : undefined;
 
   return {
     code: VNS_ERROR_CODES.ERR_SYNTAX_GENERIC,
     message: `Lexer error: ${err.message}`,
     rawMessage: err.message,
-    loc: { fileId, line, col },
+    loc: {
+      fileId,
+      line,
+      col,
+      endLine,
+      endCol,
+    },
   };
 }
 
@@ -126,6 +93,13 @@ export function formatParserError(
   const lines = fileContent.split('\n');
   const tokenLine = err.token?.startLine || 1;
   const tokenCol = err.token?.startColumn || 1;
+  const tokenEndLine = err.token?.endLine ?? tokenLine;
+  const tokenEndCol =
+    typeof err.token?.endColumn === 'number'
+      ? err.token.endColumn + 1
+      : typeof err.token?.image === 'string' && err.token.image.length > 0
+        ? tokenCol + err.token.image.length
+        : undefined;
 
   // 1. Kiểm tra thiếu chuỗi thoại sau dấu hai chấm (TC-FE-01)
   for (let l = 0; l < lines.length; l++) {
@@ -136,7 +110,7 @@ export function formatParserError(
         code: VNS_ERROR_CODES.ERR_SYNTAX_MISSING_DIALOGUE,
         message: `Missing dialogue text after character colon ':' on line ${l + 1}. Expected a string literal.`,
         rawMessage: err.message,
-        loc: { fileId, line: l + 1, col },
+        loc: { fileId, line: l + 1, col, endLine: l + 1, endCol: col + 1 },
       };
     }
   }
@@ -150,23 +124,29 @@ export function formatParserError(
         code: VNS_ERROR_CODES.ERR_SYNTAX_MISSING_SCENE_NAME,
         message: `Missing scene identifier after 'scene' keyword on line ${l + 1}.`,
         rawMessage: err.message,
-        loc: { fileId, line: l + 1, col },
+        loc: { fileId, line: l + 1, col, endLine: l + 1, endCol: col + 5 },
       };
     }
   }
 
-  // 3. Kiểm tra khối chưa đóng ngoặc nhọn '}' (TC-FE-03)
+  // 3. Kiểm tra khối chưa đóng ngoặc nhọn '}' (TC-FE-03, TC-FE-07, TC-FE-09)
   const unclosed = findUnclosedBrace(fileContent);
-  if (unclosed) {
+  if (unclosed && tokenLine >= unclosed.line) {
     return {
       code: VNS_ERROR_CODES.ERR_SYNTAX_UNCLOSED_BRACE,
       message: `Missing closing brace '}' for block starting on line ${unclosed.line}.`,
       rawMessage: err.message,
-      loc: { fileId, line: unclosed.line, col: unclosed.col },
+      loc: {
+        fileId,
+        line: unclosed.line,
+        col: unclosed.col,
+        endLine: unclosed.line,
+        endCol: unclosed.col + 1,
+      },
     };
   }
 
-  // 4. Dự phòng lỗi cú pháp chung (TC-FE-06)
+  // 4. Dự phòng lỗi cú pháp chung (TC-FE-06, TC-FE-08)
   return {
     code: VNS_ERROR_CODES.ERR_SYNTAX_GENERIC,
     message: cleanMessage(err.message || 'Syntax error encountered during parsing.'),
@@ -175,6 +155,8 @@ export function formatParserError(
       fileId,
       line: Number.isFinite(tokenLine) ? tokenLine : 1,
       col: Number.isFinite(tokenCol) ? tokenCol : 1,
+      endLine: Number.isFinite(tokenEndLine) ? tokenEndLine : undefined,
+      endCol: Number.isFinite(tokenEndCol) ? tokenEndCol : undefined,
     },
   };
 }
