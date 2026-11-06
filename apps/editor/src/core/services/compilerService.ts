@@ -88,6 +88,8 @@ export class CompilerService {
       fileId: err.loc?.fileId,
       line: err.loc?.line,
       col: err.loc?.col,
+      endLine: err.loc?.endLine,
+      endCol: err.loc?.endCol,
     }));
 
     return {

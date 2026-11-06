@@ -47,6 +47,8 @@ self.onmessage = (event: MessageEvent<CompilerWorkerRequest>) => {
         fileId: err.loc?.fileId,
         line: err.loc?.line,
         col: err.loc?.col,
+        endLine: err.loc?.endLine,
+        endCol: err.loc?.endCol,
       }));
 
       const response: CompilerWorkerResponse = {

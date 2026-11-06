@@ -46,7 +46,19 @@ export function syncMonacoMarkers(options: MonacoMarkerSyncOptions): void {
       typeof model.getLineMaxColumn === 'function' ? model.getLineMaxColumn(lineNumber) : 80;
     const rawCol = typeof d.col === 'number' && d.col > 0 ? d.col : 1;
     const startColumn = Math.min(Math.max(1, rawCol), maxColumn);
-    const endColumn = maxColumn;
+
+    const rawEndLine = typeof d.endLine === 'number' && d.endLine > 0 ? d.endLine : lineNumber;
+    const endLineNumber = Math.min(Math.max(1, rawEndLine), lineCount);
+    const endLineMaxCol =
+      typeof model.getLineMaxColumn === 'function' ? model.getLineMaxColumn(endLineNumber) : 80;
+
+    let endColumn: number;
+    if (typeof d.endCol === 'number' && d.endCol > 0) {
+      const minEndCol = endLineNumber === lineNumber ? startColumn : 1;
+      endColumn = Math.min(Math.max(minEndCol, d.endCol), endLineMaxCol);
+    } else {
+      endColumn = endLineMaxCol;
+    }
 
     return {
       severity,
@@ -54,7 +66,7 @@ export function syncMonacoMarkers(options: MonacoMarkerSyncOptions): void {
       message: d.message,
       startLineNumber: lineNumber,
       startColumn,
-      endLineNumber: lineNumber,
+      endLineNumber,
       endColumn,
     };
   });
