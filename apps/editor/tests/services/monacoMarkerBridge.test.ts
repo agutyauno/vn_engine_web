@@ -1,10 +1,15 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import type * as monaco from 'monaco-editor';
 import type { EngineDiagnostic } from '@vn-engine/shared-types';
 import { syncMonacoMarkers } from '../../src/core/services/monacoMarkerBridge';
 
 describe('monacoMarkerBridge (Phase 2)', () => {
-  let mockModel: any;
-  let mockMonaco: any;
+  let mockModel: monaco.editor.ITextModel;
+  let mockMonaco: typeof monaco & {
+    editor: {
+      setModelMarkers: ReturnType<typeof vi.fn>;
+    };
+  };
 
   beforeEach(() => {
     mockModel = {
@@ -15,7 +20,7 @@ describe('monacoMarkerBridge (Phase 2)', () => {
         return 80;
       }),
       uri: { toString: () => 'inmemory://model/test.vns' },
-    };
+    } as unknown as monaco.editor.ITextModel;
 
     mockMonaco = {
       MarkerSeverity: {
@@ -27,6 +32,10 @@ describe('monacoMarkerBridge (Phase 2)', () => {
       editor: {
         setModelMarkers: vi.fn(),
       },
+    } as unknown as typeof monaco & {
+      editor: {
+        setModelMarkers: ReturnType<typeof vi.fn>;
+      };
     };
   });
 
@@ -72,7 +81,7 @@ describe('monacoMarkerBridge (Phase 2)', () => {
     });
 
     expect(mockMonaco.editor.setModelMarkers).toHaveBeenCalledTimes(1);
-    const [modelArg, ownerArg, markersArg] = mockMonaco.editor.setModelMarkers.mock.calls[0];
+    const [modelArg, ownerArg, markersArg] = mockMonaco.editor.setModelMarkers.mock.calls[0]!;
 
     expect(modelArg).toBe(mockModel);
     expect(typeof ownerArg).toBe('string');
@@ -130,11 +139,11 @@ describe('monacoMarkerBridge (Phase 2)', () => {
       diagnostics,
     });
 
-    const markers = mockMonaco.editor.setModelMarkers.mock.calls[0][2];
+    const markers = mockMonaco.editor.setModelMarkers.mock.calls[0]![2];
     expect(markers.length).toBe(2);
-    expect(markers.some((m: any) => m.message === 'Error in current file')).toBe(true);
-    expect(markers.some((m: any) => m.message === 'Global warning without fileId')).toBe(true);
-    expect(markers.some((m: any) => m.message === 'Error in other chapter')).toBe(false);
+    expect(markers.some((m: monaco.editor.IMarkerData) => m.message === 'Error in current file')).toBe(true);
+    expect(markers.some((m: monaco.editor.IMarkerData) => m.message === 'Global warning without fileId')).toBe(true);
+    expect(markers.some((m: monaco.editor.IMarkerData) => m.message === 'Error in other chapter')).toBe(false);
   });
 
   it('clamps coordinates to valid model line lengths via getLineMaxColumn', () => {
@@ -159,7 +168,7 @@ describe('monacoMarkerBridge (Phase 2)', () => {
       diagnostics,
     });
 
-    const markers = mockMonaco.editor.setModelMarkers.mock.calls[0][2];
+    const markers = mockMonaco.editor.setModelMarkers.mock.calls[0]![2];
     expect(markers.length).toBe(1);
     expect(markers[0].startColumn).toBeLessThanOrEqual(10);
     expect(markers[0].endColumn).toBeLessThanOrEqual(10);

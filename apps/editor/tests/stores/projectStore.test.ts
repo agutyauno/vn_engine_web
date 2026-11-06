@@ -184,7 +184,7 @@ describe('projectStore', () => {
   });
 
   it('does not expose duplicateFile on project store (eliminated feature)', () => {
-    const state = useProjectStore.getState() as any;
+    const state = useProjectStore.getState() as unknown as Record<string, unknown>;
     expect(state.duplicateFile).toBeUndefined();
   });
 

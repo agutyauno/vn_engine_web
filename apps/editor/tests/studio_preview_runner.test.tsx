@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom';
 import 'fake-indexeddb/auto';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, type MockInstance } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import type { Project } from '@vn-engine/shared-types';
 import { StudioWorkspacePage } from '../src/components/studio/StudioWorkspacePage';
@@ -40,7 +40,7 @@ const testProject: Project = {
 
 describe('Decoupled Studio Preview Runner (TASK-decouple-preview-and-hotreload)', () => {
   let repo: IndexedDBProjectRepository;
-  let openSpy: any;
+  let openSpy: MockInstance;
 
   beforeEach(async () => {
     repo = new IndexedDBProjectRepository(`runner_test_${Date.now()}_${Math.random()}`);

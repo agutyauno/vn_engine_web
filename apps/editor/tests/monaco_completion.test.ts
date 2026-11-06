@@ -2,9 +2,9 @@
 // apps/editor/tests/monaco_completion.test.ts
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as monaco from 'monaco-editor';
-import type { Project, AssetRef } from '@vn-engine/shared-types';
+import type { Project, AssetRef, Character, VariableDeclaration } from '@vn-engine/shared-types';
 import { createVnsProjectContext } from '../src/core/services/vnsContextProvider';
-import { registerVnsLanguageFeatures } from '../src/vnsLanguageFeatures';
+import { registerVnsLanguageFeatures, type VnsProjectContext } from '../src/vnsLanguageFeatures';
 
 function createMockProject(options?: {
   assets?: AssetRef[];
@@ -18,8 +18,8 @@ function createMockProject(options?: {
     ownerId: 'owner-1',
     defaultLanguage: 'vi',
     files: [],
-    characters: (options?.characters as any) || [],
-    variables: (options?.variables as any) || [],
+    characters: (options?.characters as unknown as Character[]) || [],
+    variables: (options?.variables as unknown as VariableDeclaration[]) || [],
     assets: options?.assets || [],
     uiScreens: [],
     customScripts: [],
@@ -144,19 +144,27 @@ describe('Monaco DSL 1.1.0 Features, Scoped Interpolation & Hover Provider (TDD 
   let capturedCompletionProvider: monaco.languages.CompletionItemProvider | null = null;
   let capturedHoverProvider: monaco.languages.HoverProvider | null = null;
 
+  const dummyContext: monaco.languages.CompletionContext = {
+    triggerKind: monaco.languages.CompletionTriggerKind.Invoke,
+  };
+  const dummyToken: monaco.CancellationToken = {
+    isCancellationRequested: false,
+    onCancellationRequested: vi.fn(),
+  };
+
   beforeEach(() => {
     capturedCompletionProvider = null;
     capturedHoverProvider = null;
 
     vi.spyOn(monaco.languages, 'registerCompletionItemProvider').mockImplementation(
-      (_lang: any, provider: any) => {
+      (_lang, provider) => {
         capturedCompletionProvider = provider;
         return { dispose: () => {} };
       }
     );
 
-    vi.spyOn(monaco.languages, 'registerHoverProvider' as any).mockImplementation(
-      (_lang: any, provider: any) => {
+    vi.spyOn(monaco.languages, 'registerHoverProvider').mockImplementation(
+      (_lang, provider) => {
         capturedHoverProvider = provider;
         return { dispose: () => {} };
       }
@@ -169,7 +177,7 @@ describe('Monaco DSL 1.1.0 Features, Scoped Interpolation & Hover Provider (TDD 
 
   // TC-MC-01: Jump suggestions with source doc
   it('TC-MC-01: Jump suggestions display source file name and declaration line number in documentation', () => {
-    const mockContext: any = {
+    const mockContext: VnsProjectContext = {
       getFiles: () => ({}),
       getScenes: () => [
         { name: 'intro', file: 'prologue.vns', line: 12 },
@@ -186,17 +194,22 @@ describe('Monaco DSL 1.1.0 Features, Scoped Interpolation & Hover Provider (TDD 
 
     const model = createMockModel('goto ');
     const pos = { lineNumber: 1, column: 6 } as monaco.Position;
-    const result = capturedCompletionProvider!.provideCompletionItems(model, pos, {} as any, {} as any) as any;
+    const result = capturedCompletionProvider!.provideCompletionItems(
+      model,
+      pos,
+      dummyContext,
+      dummyToken,
+    ) as monaco.languages.CompletionList;
 
-    const introSuggestion = (result?.suggestions || []).find((s: any) => s.label === 'intro');
+    const introSuggestion = (result?.suggestions || []).find((s) => s.label === 'intro');
     expect(introSuggestion).toBeDefined();
-    expect(introSuggestion.documentation).toContain('prologue.vns');
-    expect(introSuggestion.documentation).toContain('12');
+    expect(introSuggestion?.documentation).toContain('prologue.vns');
+    expect(introSuggestion?.documentation).toContain('12');
   });
 
   // TC-MC-02: DSL 1.1.0 input snippet
   it('TC-MC-02: Suggests DSL 1.1.0 input snippet when typing input keyword', () => {
-    const mockContext: any = {
+    const mockContext: VnsProjectContext = {
       getFiles: () => ({}),
       getScenes: () => [],
       getCharacters: () => new Map(),
@@ -209,16 +222,21 @@ describe('Monaco DSL 1.1.0 Features, Scoped Interpolation & Hover Provider (TDD 
     registerVnsLanguageFeatures(mockContext);
     const model = createMockModel('input');
     const pos = { lineNumber: 1, column: 6 } as monaco.Position;
-    const result = capturedCompletionProvider!.provideCompletionItems(model, pos, {} as any, {} as any) as any;
+    const result = capturedCompletionProvider!.provideCompletionItems(
+      model,
+      pos,
+      dummyContext,
+      dummyToken,
+    ) as monaco.languages.CompletionList;
 
-    const inputSnippet = (result?.suggestions || []).find((s: any) => s.label === 'input');
+    const inputSnippet = (result?.suggestions || []).find((s) => s.label === 'input');
     expect(inputSnippet).toBeDefined();
-    expect(inputSnippet.insertText).toContain('input ${1:variable} "${2:Prompt question}" default: "${3:value}"');
+    expect(inputSnippet?.insertText).toContain('input ${1:variable} "${2:Prompt question}" default: "${3:value}"');
   });
 
   // TC-MC-03: DSL 1.1.0 play voice snippet
   it('TC-MC-03: Suggests voice assets from context.getAssets().voices after play voice', () => {
-    const mockContext: any = {
+    const mockContext: VnsProjectContext = {
       getFiles: () => ({}),
       getScenes: () => [],
       getCharacters: () => new Map(),
@@ -235,15 +253,20 @@ describe('Monaco DSL 1.1.0 Features, Scoped Interpolation & Hover Provider (TDD 
     registerVnsLanguageFeatures(mockContext);
     const model = createMockModel('play voice ');
     const pos = { lineNumber: 1, column: 12 } as monaco.Position;
-    const result = capturedCompletionProvider!.provideCompletionItems(model, pos, {} as any, {} as any) as any;
+    const result = capturedCompletionProvider!.provideCompletionItems(
+      model,
+      pos,
+      dummyContext,
+      dummyToken,
+    ) as monaco.languages.CompletionList;
 
-    const voiceItem = (result?.suggestions || []).find((s: any) => s.label === 'voice_alice_hello');
+    const voiceItem = (result?.suggestions || []).find((s) => s.label === 'voice_alice_hello');
     expect(voiceItem).toBeDefined();
   });
 
   // TC-MC-04: Scoped dialogue string interpolation
   it('TC-MC-04: Suggests variables and typewriter tags when typing { inside dialogue string', () => {
-    const mockContext: any = {
+    const mockContext: VnsProjectContext = {
       getFiles: () => ({}),
       getScenes: () => [],
       getCharacters: () => new Map(),
@@ -256,9 +279,14 @@ describe('Monaco DSL 1.1.0 Features, Scoped Interpolation & Hover Provider (TDD 
     registerVnsLanguageFeatures(mockContext);
     const model = createMockModel('alice: "Xin chao {');
     const pos = { lineNumber: 1, column: 19 } as monaco.Position;
-    const result = capturedCompletionProvider!.provideCompletionItems(model, pos, {} as any, {} as any) as any;
+    const result = capturedCompletionProvider!.provideCompletionItems(
+      model,
+      pos,
+      dummyContext,
+      dummyToken,
+    ) as monaco.languages.CompletionList;
 
-    const labels = (result?.suggestions || []).map((s: any) => s.label);
+    const labels = (result?.suggestions || []).map((s) => s.label);
     expect(labels).toContain('{playerName}');
     expect(labels).toContain('{pause:0.5s}');
     expect(labels).toContain('{speed:fast}');
@@ -267,7 +295,7 @@ describe('Monaco DSL 1.1.0 Features, Scoped Interpolation & Hover Provider (TDD 
 
   // TC-MC-05: Non-dialogue brace exclusion
   it('TC-MC-05: Does not suggest typewriter tags when typing { outside dialogue string', () => {
-    const mockContext: any = {
+    const mockContext: VnsProjectContext = {
       getFiles: () => ({}),
       getScenes: () => [],
       getCharacters: () => new Map(),
@@ -280,16 +308,21 @@ describe('Monaco DSL 1.1.0 Features, Scoped Interpolation & Hover Provider (TDD 
     registerVnsLanguageFeatures(mockContext);
     const model = createMockModel('background "bg_{');
     const pos = { lineNumber: 1, column: 17 } as monaco.Position;
-    const result = capturedCompletionProvider!.provideCompletionItems(model, pos, {} as any, {} as any) as any;
+    const result = capturedCompletionProvider!.provideCompletionItems(
+      model,
+      pos,
+      dummyContext,
+      dummyToken,
+    ) as monaco.languages.CompletionList;
 
-    const labels = (result?.suggestions || []).map((s: any) => s.label);
+    const labels = (result?.suggestions || []).map((s) => s.label);
     expect(labels).not.toContain('{pause:0.5s}');
     expect(labels).not.toContain('{speed:fast}');
   });
 
   // TC-MC-06: Monaco Hover Provider Zero-Trust
   it('TC-MC-06: Hover provider returns zero-trust Markdown card with character details', () => {
-    const mockContext: any = {
+    const mockContext: VnsProjectContext = {
       getFiles: () => ({}),
       getScenes: () => [],
       getCharacters: () =>
@@ -307,12 +340,16 @@ describe('Monaco DSL 1.1.0 Features, Scoped Interpolation & Hover Provider (TDD 
 
     const model = createMockModel('alice: "Hello!"');
     const pos = { lineNumber: 1, column: 3 } as monaco.Position;
-    const hover = capturedHoverProvider!.provideHover(model, pos, {} as any) as any;
+    const hover = capturedHoverProvider!.provideHover(
+      model,
+      pos,
+      dummyToken,
+    ) as monaco.languages.Hover;
 
     expect(hover).toBeDefined();
     expect(hover.contents).toBeDefined();
     expect(hover.contents.length).toBeGreaterThan(0);
-    const card = hover.contents[0];
+    const card = hover.contents[0] as monaco.IMarkdownString;
     expect(card.value).toContain('Alice Wonderland');
     expect(card.value).toContain('happy');
     expect(card.isTrusted).toBe(false);
@@ -321,7 +358,7 @@ describe('Monaco DSL 1.1.0 Features, Scoped Interpolation & Hover Provider (TDD 
 
   // TC-MC-07: Monaco Hover Asset details
   it('TC-MC-07: Hover provider displays asset details metadata including category, type, and size', () => {
-    const mockContext: any = {
+    const mockContext: VnsProjectContext = {
       getFiles: () => ({}),
       getScenes: () => [],
       getCharacters: () => new Map(),
@@ -339,10 +376,14 @@ describe('Monaco DSL 1.1.0 Features, Scoped Interpolation & Hover Provider (TDD 
 
     const model = createMockModel('background bg_classroom');
     const pos = { lineNumber: 1, column: 15 } as monaco.Position;
-    const hover = capturedHoverProvider!.provideHover(model, pos, {} as any) as any;
+    const hover = capturedHoverProvider!.provideHover(
+      model,
+      pos,
+      dummyToken,
+    ) as monaco.languages.Hover;
 
     expect(hover).toBeDefined();
-    const card = hover.contents[0];
+    const card = hover.contents[0] as monaco.IMarkdownString;
     expect(card.value).toContain('bg_classroom');
     expect(card.value).toContain('background');
     expect(card.value).toContain('image');

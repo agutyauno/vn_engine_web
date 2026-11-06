@@ -197,25 +197,31 @@ describe('@vn-engine/renderer - Coordinate Resolution & GameRenderer Setup', () 
   });
 
   describe('Phase 1: Transparent Fallbacks & Placeholder Modes (TASK-player-ui-and-scaler)', () => {
+    interface TestableRenderer {
+      currentBackgroundSprite?: { texture: { width: number } };
+      placeholderTextures?: Map<string, unknown>;
+      placeholderMode?: string;
+      options?: { placeholderMode?: string };
+      activeCharacters: Map<string, { sprite: { texture: { width: number } } }>;
+    }
+
     it('TEST-REND-01: placeholderMode: "transparent" (or default) should safely render missing background without procedural grid', async () => {
       const renderer = new GameRenderer({
         width: 1280,
         height: 720,
         placeholderMode: 'transparent',
-      } as any);
+      });
       // Missing asset: resolver returns undefined
       await renderer.setBackground('missing_bg_asset_01');
       expect(renderer.getCurrentBackgroundId()).toBe('missing_bg_asset_01');
 
       // In transparent mode, no procedural grid texture is generated
-      const currentSprite = (renderer as any).currentBackgroundSprite;
+      const priv = renderer as unknown as TestableRenderer;
+      const currentSprite = priv.currentBackgroundSprite;
       expect(currentSprite).toBeDefined();
-      const placeholderMap = (renderer as any).placeholderTextures as
-        Map<string, unknown> | undefined;
+      const placeholderMap = priv.placeholderTextures;
       expect(!placeholderMap?.has('bg_missing_bg_asset_01')).toBe(true);
-      expect((renderer as any).options?.placeholderMode ?? (renderer as any).placeholderMode).toBe(
-        'transparent',
-      );
+      expect(priv.options?.placeholderMode ?? priv.placeholderMode).toBe('transparent');
       renderer.destroy();
     });
 
@@ -224,7 +230,7 @@ describe('@vn-engine/renderer - Coordinate Resolution & GameRenderer Setup', () 
         width: 1280,
         height: 720,
         placeholderMode: 'transparent',
-      } as any);
+      });
       await renderer.showCharacter({
         type: 'SHOW',
         character: 'bob_ghost',
@@ -232,10 +238,10 @@ describe('@vn-engine/renderer - Coordinate Resolution & GameRenderer Setup', () 
       });
       expect(renderer.hasCharacter('bob_ghost')).toBe(true);
 
-      const charManaged = (renderer as any).activeCharacters.get('bob_ghost');
+      const priv = renderer as unknown as TestableRenderer;
+      const charManaged = priv.activeCharacters.get('bob_ghost');
       expect(charManaged).toBeDefined();
-      const placeholderMap = (renderer as any).placeholderTextures as
-        Map<string, unknown> | undefined;
+      const placeholderMap = priv.placeholderTextures;
       expect(!placeholderMap?.has('char_bob_ghost_disappeared_false')).toBe(true);
       renderer.destroy();
     });
@@ -245,10 +251,9 @@ describe('@vn-engine/renderer - Coordinate Resolution & GameRenderer Setup', () 
         width: 1280,
         height: 720,
         placeholderMode: 'procedural',
-      } as any);
-      expect((renderer as any).options?.placeholderMode ?? (renderer as any).placeholderMode).toBe(
-        'procedural',
-      );
+      });
+      const priv = renderer as unknown as TestableRenderer;
+      expect(priv.options?.placeholderMode ?? priv.placeholderMode).toBe('procedural');
 
       await renderer.setBackground('legacy_bg');
       await renderer.showCharacter({
@@ -257,13 +262,13 @@ describe('@vn-engine/renderer - Coordinate Resolution & GameRenderer Setup', () 
         sprite: 'normal',
       });
 
-      const bgSprite = (renderer as any).currentBackgroundSprite;
+      const bgSprite = priv.currentBackgroundSprite;
       expect(bgSprite).toBeDefined();
-      expect(bgSprite.texture.width).toBe(1280);
+      expect(bgSprite?.texture.width).toBe(1280);
 
-      const char = (renderer as any).activeCharacters.get('legacy_hero');
+      const char = priv.activeCharacters.get('legacy_hero');
       expect(char).toBeDefined();
-      expect(char.sprite.texture.width).toBe(320);
+      expect(char?.sprite.texture.width).toBe(320);
       renderer.destroy();
     });
   });

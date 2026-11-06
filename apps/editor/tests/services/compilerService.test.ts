@@ -4,7 +4,7 @@ import { CompilerService } from '../../src/core/services/compilerService';
 
 class MockWorker {
   public onmessage: ((e: MessageEvent) => void) | null = null;
-  public onerror: ((e: any) => void) | null = null;
+  public onerror: ((e: ErrorEvent | unknown) => void) | null = null;
   public postMessage = vi.fn();
   public terminate = vi.fn();
 }
@@ -133,12 +133,10 @@ describe('CompilerService (Phase 2)', () => {
     it('terminates hanging worker and generates diagnostic after 2000ms watchdog timeout', async () => {
       vi.useFakeTimers();
 
-      let workerCount = 0;
       const workers: MockWorker[] = [];
       const testWorkerFactory = () => {
         const w = new MockWorker();
         workers.push(w);
-        workerCount++;
         return w as unknown as Worker;
       };
 

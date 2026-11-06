@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import type { Project, AssetRef } from '@vn-engine/shared-types';
-import { createVnsProjectContext } from '../../src/core/services/vnsContextProvider';
+import type { Project, AssetRef, Character, VariableDeclaration, ScriptFile } from '@vn-engine/shared-types';
+import { createVnsProjectContext, type SceneItem } from '../../src/core/services/vnsContextProvider';
 
 function createMockProject(options?: {
   files?: Array<{ id: string; name: string; content: string; order: number; version: number }>;
@@ -14,9 +14,9 @@ function createMockProject(options?: {
     version: 1,
     ownerId: 'owner-1',
     defaultLanguage: 'vi',
-    files: options?.files || [],
-    characters: (options?.characters as any) || [],
-    variables: (options?.variables as any) || [],
+    files: (options?.files as unknown as ScriptFile[]) || [],
+    characters: (options?.characters as unknown as Character[]) || [],
+    variables: (options?.variables as unknown as VariableDeclaration[]) || [],
     assets: options?.assets || [],
     uiScreens: [],
     customScripts: [],
@@ -46,7 +46,7 @@ describe('VNS Project Context Provider (vnsContextProvider)', () => {
     });
 
     const context = createVnsProjectContext(() => project);
-    const scenes = context.getScenes() as any[];
+    const scenes = context.getScenes() as SceneItem[];
 
     expect(scenes).toHaveLength(2);
     expect(scenes.find((s) => s.name === 'intro')).toEqual({
@@ -76,7 +76,7 @@ describe('VNS Project Context Provider (vnsContextProvider)', () => {
     });
 
     const context = createVnsProjectContext(() => project);
-    const scenes = context.getScenes() as any[];
+    const scenes = context.getScenes() as SceneItem[];
 
     expect(scenes).toHaveLength(2);
     expect(scenes.find((s) => s.name === 'intro')).toBeDefined();
@@ -102,7 +102,7 @@ describe('VNS Project Context Provider (vnsContextProvider)', () => {
     });
 
     const context = createVnsProjectContext(() => project);
-    const scenes = context.getScenes() as any[];
+    const scenes = context.getScenes() as SceneItem[];
     const names = scenes.map((s) => s.name);
 
     expect(names).toContain('real_scene');
@@ -155,10 +155,10 @@ describe('VNS Project Context Provider (vnsContextProvider)', () => {
     });
 
     const context = createVnsProjectContext(() => project);
-    const assets = context.getAssets() as any;
+    const assets = context.getAssets();
 
     expect(assets.voices).toBeDefined();
-    expect(assets.voices.has('voice_alice_01')).toBe(true);
+    expect(assets.voices?.has('voice_alice_01')).toBe(true);
     expect(assets.audio.has('bgm_theme')).toBe(true);
   });
 
@@ -178,9 +178,9 @@ describe('VNS Project Context Provider (vnsContextProvider)', () => {
     });
 
     const context = createVnsProjectContext(() => project);
-    expect(typeof (context as any).getAssetDetails).toBe('function');
-    const details = (context as any).getAssetDetails();
-    expect(details.get('bg_classroom')).toEqual({
+    expect(typeof context.getAssetDetails).toBe('function');
+    const details = context.getAssetDetails?.();
+    expect(details?.get('bg_classroom')).toEqual({
       category: 'background',
       type: 'image',
       sizeBytes: 20480,

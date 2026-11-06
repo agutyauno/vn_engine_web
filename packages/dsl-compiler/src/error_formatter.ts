@@ -3,6 +3,7 @@
 // Tuân thủ Zero-Trust & Clean Plain English Error Reporting
 // ==========================================
 
+import type { IRecognitionException } from 'chevrotain';
 import type { CompileError } from './semantic';
 
 export const VNS_ERROR_CODES = {
@@ -118,7 +119,7 @@ export function formatLexerError(
  * Định dạng lỗi từ Chevrotain Parser thành thông điệp tiếng Anh rõ ràng kèm mã lỗi chuẩn
  */
 export function formatParserError(
-  err: any,
+  err: IRecognitionException,
   fileContent: string,
   fileId: string,
 ): CompileError {

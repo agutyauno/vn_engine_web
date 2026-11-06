@@ -174,17 +174,17 @@ describe('AudioAdapter', () => {
     it('TEST-AUD-02: should terminate all active channels and fade outs on stopAll()', () => {
       const adapter = new AudioAdapter(mockAudioManager, { assetResolver: mockAssetResolver });
 
-      (adapter as any).stopAll();
+      adapter.stopAll();
 
       expect(mockAudioManager.stopAll).toHaveBeenCalledTimes(1);
     });
 
     it('should verify DEFAULT_PLAYER_SETTINGS structure and default values per contract', async () => {
       // Dynamic import to cleanly verify contract export without module resolution crash
-      const contracts = await import('../src/core/contracts');
+      const { DEFAULT_PLAYER_SETTINGS } = await import('../src/core/contracts');
 
-      expect((contracts as any).DEFAULT_PLAYER_SETTINGS).toBeDefined();
-      const settings = (contracts as any).DEFAULT_PLAYER_SETTINGS;
+      expect(DEFAULT_PLAYER_SETTINGS).toBeDefined();
+      const settings = DEFAULT_PLAYER_SETTINGS;
 
       expect(settings).toEqual(
         expect.objectContaining({
@@ -283,7 +283,8 @@ describe('AudioAdapter', () => {
         expect.any(Function),
       );
 
-      const passedMap = (mockAudioManager.syncStateCatchUp as any).mock.calls[0][0] as Map<string, PlayInstruction>;
+      const syncCalls = vi.mocked(mockAudioManager.syncStateCatchUp).mock.calls;
+      const passedMap = syncCalls[0]?.[0] as Map<string, PlayInstruction>;
       expect(passedMap.has('music')).toBe(true);
       expect(passedMap.has('sound')).toBe(true);
       expect(passedMap.has('bgm')).toBe(false);

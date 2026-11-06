@@ -247,12 +247,12 @@ describe('Editor UX Enhancements (Batch 3) — Unit Tests (RED Phase)', () => {
           Warning: 2,
           Error: 3,
         },
-      } as any;
+      } as unknown as typeof import('monaco-editor');
 
       const mockModel = {
         getLineCount: vi.fn(() => 20),
         getLineMaxColumn: vi.fn(() => 80),
-      } as any;
+      } as unknown as import('monaco-editor').editor.ITextModel;
 
       const diagnostics: EngineDiagnostic[] = [
         {
@@ -306,7 +306,7 @@ describe('Editor UX Enhancements (Batch 3) — Unit Tests (RED Phase)', () => {
       expect(markersArg[0].startLineNumber).toBe(4);
 
       // Neither of the unused asset diagnostics should be in markers
-      const unusedMarkers = markersArg.filter((m: any) =>
+      const unusedMarkers = (markersArg as Array<{ message: string }>).filter((m) =>
         m.message.toLowerCase().includes('unused asset')
       );
       expect(unusedMarkers).toHaveLength(0);

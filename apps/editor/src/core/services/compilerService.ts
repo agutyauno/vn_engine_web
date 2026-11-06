@@ -126,7 +126,7 @@ export class CompilerService {
           this.handleWorkerMessage(event);
         };
 
-        this.worker.onerror = (errorEvent: ErrorEvent | any) => {
+        this.worker.onerror = (errorEvent: ErrorEvent | unknown) => {
           this.handleWorkerError(errorEvent);
         };
       }
@@ -164,9 +164,13 @@ export class CompilerService {
     }
   }
 
-  private handleWorkerError(errorEvent: ErrorEvent | any): void {
+  private handleWorkerError(errorEvent: ErrorEvent | unknown): void {
     const errorMsg =
-      errorEvent?.message || 'Compiler worker crashed or encountered an unhandled error';
+      (errorEvent instanceof Error ? errorEvent.message : null) ||
+      (typeof errorEvent === 'object' && errorEvent !== null && 'message' in errorEvent
+        ? String((errorEvent as { message: unknown }).message)
+        : null) ||
+      'Compiler worker crashed or encountered an unhandled error';
 
     // Terminate crashed worker
     if (this.worker) {

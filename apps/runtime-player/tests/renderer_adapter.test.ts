@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { RendererAdapter } from '../src/adapters/RendererAdapter';
 import type { GameRenderer, CatchUpVisualState } from '@vn-engine/renderer';
 import type { Instruction, ShowInstruction, BackgroundInstruction } from '@vn-engine/shared-types';
+import type { DiagnosticBus } from '../src/services/diagnosticBus';
 
 describe('RendererAdapter', () => {
   let mockGameRenderer: GameRenderer;
@@ -174,24 +175,24 @@ describe('RendererAdapter', () => {
 
   describe('Phase 1: Diagnostic Telemetry & Asset Error Correlation (TASK-player-ui-and-scaler)', () => {
     it('TEST-DIAG-01: should correlate async asset load failure via pendingAssetLocations and dispatch ERR_ASSET_LOAD_FAILED to DiagnosticBus', async () => {
-      const mockDiagnosticBus = {
+      const mockDiagnosticBus: DiagnosticBus = {
         report: vi.fn(),
       };
       const adapter = new RendererAdapter(mockGameRenderer, {
-        diagnosticBus: mockDiagnosticBus as any,
-      } as any);
+        diagnosticBus: mockDiagnosticBus,
+      });
 
       const showInstr: ShowInstruction = {
         type: 'SHOW',
         character: 'alice',
         sprite: 'happy',
         loc: { fileId: 'scenes/act1.vns', line: 120, col: 4 },
-      } as any;
+      };
 
       await adapter.applySideEffect(showInstr);
 
       // Trigger asset load failure callback on adapter
-      (adapter as any).handleAssetError('alice_happy', new Error('HTTP 404 Not Found'));
+      adapter.handleAssetError('alice_happy', new Error('HTTP 404 Not Found'));
 
       expect(mockDiagnosticBus.report).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -207,14 +208,14 @@ describe('RendererAdapter', () => {
     });
 
     it('TEST-DIAG-02: should report ERR_MISSING_GRAPHIC to DiagnosticBus when asset key does not exist in registry', () => {
-      const mockDiagnosticBus = {
+      const mockDiagnosticBus: DiagnosticBus = {
         report: vi.fn(),
       };
       const adapter = new RendererAdapter(mockGameRenderer, {
-        diagnosticBus: mockDiagnosticBus as any,
-      } as any);
+        diagnosticBus: mockDiagnosticBus,
+      });
 
-      (adapter as any).handleMissingGraphic('missing_bg_garden', {
+      adapter.handleMissingGraphic('missing_bg_garden', {
         fileId: 'scenes/prologue.vns',
         line: 15,
         col: 1,

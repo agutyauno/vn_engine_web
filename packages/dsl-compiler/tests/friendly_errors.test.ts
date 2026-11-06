@@ -58,7 +58,7 @@ describe('Friendly Diagnostics & Error Formatter (TDD RED)', () => {
     const code = 'scene intro {\n  play voice "unregistered_voice"\n}';
     const result = compileString(code, 'test.vns', {
       assets: [],
-    } as any);
+    });
     expect(result.success).toBe(false);
     expect(result.errors).toBeDefined();
     const err = result.errors!.find(
