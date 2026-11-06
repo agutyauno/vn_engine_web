@@ -145,10 +145,11 @@ export function createVnsProjectContext(
 
     getCharacters: () => {
       const proj = getCurProject();
-      const map = new Map<string, { displayName?: string; sprites: Set<string> }>();
+      const map = new Map<string, { displayName?: string; colorHex?: string; sprites: Set<string> }>();
       for (const c of proj?.characters || []) {
         map.set(c.id, {
           displayName: c.name,
+          colorHex: c.colorHex,
           sprites: new Set(Object.keys(c.sprites || {})),
         });
       }

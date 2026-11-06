@@ -15,7 +15,7 @@ export interface SceneItem {
 export interface VnsProjectContext {
   getFiles: () => Record<string, string>;
   getScenes: () => SceneItem[] | string[];
-  getCharacters: () => Map<string, { displayName?: string; sprites: Set<string> }>;
+  getCharacters: () => Map<string, { displayName?: string; colorHex?: string; sprites: Set<string> }>;
   getAssets: () => { backgrounds: Set<string>; audio: Set<string>; voices?: Set<string> };
   getAssetDetails?: () => Map<string, { category?: string; type: string; sizeBytes?: number }>;
   getVariables: () => string[];
@@ -387,7 +387,7 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): void {
       }
 
       // E1. Scoped dialogue string interpolation ({var} and typewriter tags)
-      const braceMatch = textUntilPosition.match(/\{([a-zA-Z0-9_:]*)$/);
+      const braceMatch = textUntilPosition.match(/\{([a-zA-Z0-9_:.\/#]*)$/);
       if (braceMatch) {
         // Chỉ kích hoạt khi con trỏ ở trong chuỗi thoại hoặc prompt input
         const isDialogueOrInput =
@@ -420,11 +420,17 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): void {
           // Gợi ý typewriter control tags
           const typewriterTags = [
             { tag: '{pause:0.5s}', doc: 'Pause typewriter rendering for 0.5 seconds' },
-            {
-              tag: '{speed:fast}',
-              doc: 'Change typewriter text rendering speed ("slow" | "normal" | "fast")',
-            },
-            { tag: '{color:#38bdf8}', doc: 'Colorize subsequent dialogue text' },
+            { tag: '{pause:300ms}', doc: 'Pause typewriter rendering for 300 milliseconds' },
+            { tag: '{wait:1.0s}', doc: 'Pause typewriter rendering for 1.0 second' },
+            { tag: '{speed:slow}', doc: 'Change typewriter text rendering speed to slow (0.5x)' },
+            { tag: '{speed:normal}', doc: 'Reset typewriter text rendering speed to normal (1.0x)' },
+            { tag: '{speed:fast}', doc: 'Change typewriter text rendering speed to fast (2.0x)' },
+            { tag: '{speed:2.0}', doc: 'Set custom numeric speed multiplier (e.g. 2.0x)' },
+            { tag: '{color:#38bdf8}', doc: 'Colorize subsequent dialogue text with HEX color' },
+            { tag: '{color:red}', doc: 'Colorize subsequent dialogue text with named color' },
+            { tag: '{color:default}', doc: 'Reset dialogue text color to default theme color' },
+            { tag: '{color:reset}', doc: 'Reset dialogue text color to default theme color' },
+            { tag: '{/color}', doc: 'Closing tag to restore previous dialogue text color' },
           ];
 
           for (const t of typewriterTags) {
@@ -437,6 +443,24 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): void {
               sortText: `01_${t.tag}`,
               range: braceRange,
             });
+          }
+
+          // Gợi ý thẻ màu sắc từ các nhân vật đã cấu hình (colorHex)
+          const projectChars = context.getCharacters();
+          for (const [charId, info] of projectChars) {
+            if (info.colorHex) {
+              const charTag = `{color:${info.colorHex}}`;
+              const charName = info.displayName ? `${info.displayName} (${charId})` : charId;
+              suggestions.push({
+                label: charTag,
+                kind: monaco.languages.CompletionItemKind.Snippet,
+                detail: `Character Color: ${charName}`,
+                documentation: `Colorize text with ${charName}'s theme color (${info.colorHex})`,
+                insertText: charTag,
+                sortText: `01_${charTag}`,
+                range: braceRange,
+              });
+            }
           }
 
           return { suggestions };
