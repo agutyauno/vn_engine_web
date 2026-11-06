@@ -102,7 +102,6 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
 
   // --- Live Preview Store Hook Injection ---
   const setIsPlaying = usePreviewStore((s) => s.setIsPlaying);
-  const connectionStatus = usePreviewStore((s) => s.connectionStatus);
 
   const currentProject = project ?? initialProject ?? null;
 
@@ -736,6 +735,8 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
           onBackToHub={handleBackToHub}
           onOpenSettings={handleOpenSettingsModal}
           onExport={handleOpenExportModal}
+          onQuickPlay={handleQuickPlayAction}
+          onRunFromCursor={handleRunFromCursorAction}
         />
       )}
 
@@ -820,9 +821,6 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
                   generateDefaultScriptName((currentProject.files || []).map((f) => f.name))
                 )
               }
-              onQuickPlay={handleQuickPlayAction}
-              onRunFromCursor={handleRunFromCursorAction}
-              connectionStatus={connectionStatus}
             />
 
             {/* Center Monaco Script Editor */}

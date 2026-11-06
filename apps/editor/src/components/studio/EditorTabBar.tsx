@@ -1,7 +1,7 @@
 import React from 'react';
 import type { ScriptFile } from '@vn-engine/shared-types';
 import { cleanChapterName } from './FileExplorerPane';
-import { CloseIcon, FileTextIcon, PlusIcon, PlayIcon, CrosshairIcon } from '../common/Icons';
+import { CloseIcon, FileTextIcon, PlusIcon } from '../common/Icons';
 
 export interface EditorTabBarProps {
   files: ScriptFile[];
@@ -11,9 +11,6 @@ export interface EditorTabBarProps {
   onSelectTab: (fileId: string) => void;
   onCloseTab: (fileId: string) => void;
   onNewFile?: () => void;
-  onQuickPlay?: () => void;
-  onRunFromCursor?: () => void;
-  connectionStatus?: 'connected' | 'disconnected' | 'standby';
 }
 
 export const EditorTabBar: React.FC<EditorTabBarProps> = ({
@@ -24,18 +21,8 @@ export const EditorTabBar: React.FC<EditorTabBarProps> = ({
   onSelectTab,
   onCloseTab,
   onNewFile,
-  onQuickPlay,
-  onRunFromCursor,
-  connectionStatus = 'standby',
 }) => {
   const fileMap = new Map(files.map((f) => [f.id, f]));
-  const currentStatus = connectionStatus || 'standby';
-  const statusDotClass =
-    currentStatus === 'connected'
-      ? 'bg-emerald-500'
-      : currentStatus === 'disconnected'
-      ? 'bg-rose-500'
-      : 'bg-neutral-500';
 
   return (
     <div
@@ -106,37 +93,6 @@ export const EditorTabBar: React.FC<EditorTabBarProps> = ({
             <PlusIcon size={14} />
           </button>
         )}
-      </div>
-
-      {/* Right: Runner Controls */}
-      <div className="flex items-center gap-1 px-2 shrink-0 border-l border-neutral-800 bg-neutral-900/90">
-        {/* Play (F5) button */}
-        <button
-          type="button"
-          data-testid="btn-tabbar-play"
-          title="Play (F5)"
-          onClick={onQuickPlay}
-          className="flex items-center gap-1.5 rounded px-2 py-1 text-xs font-medium text-neutral-400 hover:text-white hover:bg-neutral-800 transition"
-        >
-          <PlayIcon size={12} className="text-emerald-400" />
-          <span
-            data-testid="tabbar-preview-status"
-            data-status={currentStatus}
-            title={`Preview: ${currentStatus}`}
-            className={`inline-block h-2 w-2 rounded-full ${statusDotClass}`}
-          />
-        </button>
-
-        {/* Run from Cursor (Alt+F5) button */}
-        <button
-          type="button"
-          data-testid="btn-tabbar-run-cursor"
-          title="Run from Cursor (Alt+F5)"
-          onClick={onRunFromCursor}
-          className="flex items-center justify-center rounded p-1 text-xs font-medium text-neutral-400 hover:text-white hover:bg-neutral-800 transition"
-        >
-          <CrosshairIcon size={13} />
-        </button>
       </div>
     </div>
   );

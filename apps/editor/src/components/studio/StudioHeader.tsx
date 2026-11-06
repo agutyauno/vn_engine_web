@@ -4,6 +4,8 @@ import {
   EditIcon,
   SaveIcon,
   DownloadIcon,
+  PlayIcon,
+  CrosshairIcon,
 } from '../common/Icons';
 
 export interface StudioHeaderProps {
@@ -50,6 +52,8 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
   onTitleChange,
   onExport,
   onSave,
+  onQuickPlay,
+  onRunFromCursor,
 }) => {
   const resolvedTitle = projectTitle ?? title ?? '';
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -136,6 +140,36 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
 
       {/* Right: Actions */}
       <div className="flex items-center gap-2">
+        {onQuickPlay && (
+          <button
+            type="button"
+            data-testid="btn-header-play"
+            title="Play (F5)"
+            onClick={onQuickPlay}
+            className="flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium text-neutral-300 hover:text-white hover:bg-neutral-800 transition"
+          >
+            <PlayIcon size={13} className="text-emerald-400" />
+            <span>Play</span>
+          </button>
+        )}
+
+        {onRunFromCursor && (
+          <button
+            type="button"
+            data-testid="btn-header-run-cursor"
+            title="Run from Cursor (Alt+F5)"
+            onClick={onRunFromCursor}
+            className="flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium text-neutral-300 hover:text-white hover:bg-neutral-800 transition"
+          >
+            <CrosshairIcon size={13} />
+            <span>Run from Cursor</span>
+          </button>
+        )}
+
+        {(onQuickPlay || onRunFromCursor) && (
+          <div className="h-4 w-px bg-neutral-800 mx-0.5" />
+        )}
+
         {onExport && (
           <button
             type="button"
