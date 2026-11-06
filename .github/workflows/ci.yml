@@ -10,8 +10,6 @@ jobs:
   validate:
     name: Lint, Format, Typecheck & Test
     runs-on: windows-latest
-    env:
-      NODE_OPTIONS: '--no-webstorage'
 
     steps:
       - name: Checkout repository
