@@ -19,6 +19,12 @@ const mockLocalStorage = {
 };
 
 try {
+  delete (globalThis as unknown as Record<string, unknown>).localStorage;
+} catch {
+  // If property cannot be deleted
+}
+
+try {
   Object.defineProperty(globalThis, 'localStorage', {
     value: mockLocalStorage,
     writable: true,
@@ -29,6 +35,12 @@ try {
 }
 
 if (typeof window !== 'undefined') {
+  try {
+    delete (window as unknown as Record<string, unknown>).localStorage;
+  } catch {
+    // If property cannot be deleted
+  }
+
   try {
     Object.defineProperty(window, 'localStorage', {
       value: mockLocalStorage,

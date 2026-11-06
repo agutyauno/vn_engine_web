@@ -10,7 +10,7 @@
     "lint": "eslint .",
     "format": "prettier --write \"**/*.{ts,tsx,json,md,yml,yaml}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,json,md,yml,yaml}\"",
-    "test": "pnpm -r run test",
+    "test": "pnpm -r --workspace-concurrency=1 run test",
     "test:smoke": "vitest run packages/core-vm/tests/smoke.test.ts",
     "dev": "pnpm --filter @vn-engine/runtime-player --filter @vn-engine/editor --parallel dev",
     "dev:player": "pnpm --filter @vn-engine/runtime-player dev",
