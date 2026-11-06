@@ -94,6 +94,8 @@ export interface EngineDiagnostic {
   fileId?: string;
   line?: number;
   col?: number;
+  endLine?: number;
+  endCol?: number;
   details?: unknown;
 }
 

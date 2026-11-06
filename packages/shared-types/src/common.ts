@@ -44,4 +44,6 @@ export interface SourceLocation {
   fileId: string;
   line: number;
   col?: number;
+  endLine?: number;
+  endCol?: number;
 }
