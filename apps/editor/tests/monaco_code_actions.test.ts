@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as monaco from 'monaco-editor';
 import { registerVnsLanguageFeatures, type VnsProjectContext } from '../src/vnsLanguageFeatures';
 import { useDiagnosticsStore } from '../src/core/stores/diagnosticsStore';
+import { useEditorUIStore } from '../src/core/stores/uiStore';
 import type { EngineDiagnostic } from '@vn-engine/shared-types';
 
 describe('Integration Tests: Monaco CodeActionProvider (QuickFix Lightbulb & Ctrl+.)', () => {
@@ -256,5 +257,147 @@ describe('Integration Tests: Monaco CodeActionProvider (QuickFix Lightbulb & Ctr
     );
 
     expect(result?.actions).toEqual([]);
+  });
+
+  // TC-MONACO-QF-04: Line-level marker fallback when contextData.markers is empty (cursor offset)
+  it('TC-MONACO-QF-04: should fallback to line-level markers when contextData.markers is empty (cursor offset)', async () => {
+    registerVnsLanguageFeatures(mockContext);
+
+    const sampleDiag: EngineDiagnostic = {
+      id: 'diag-offset-1',
+      timestamp: Date.now(),
+      category: 'compiler',
+      severity: 'error',
+      code: 'ERR_SEMANTIC_UNDEFINED_VAR',
+      message: "Variable 'gold' is used before being defined",
+      fileId: 'file-1',
+      line: 2,
+      col: 5,
+      quickFix: {
+        type: 'define_variable',
+        targetId: 'gold',
+      },
+    };
+    useDiagnosticsStore.getState().setCompilerDiagnostics([sampleDiag]);
+
+    const mockModel = {
+      uri: { toString: () => 'inmemory://model/file-1', path: '/main.vns' },
+      getValue: () => 'scene intro {\n    gold = gold + 1\n}\n',
+      getLineContent: (line: number) => (line === 2 ? '    gold = gold + 1' : 'scene intro {'),
+    } as unknown as monaco.editor.ITextModel;
+
+    // Cursor at col 1 (offset from error at col 5)
+    const mockRange = {
+      startLineNumber: 2,
+      startColumn: 1,
+      endLineNumber: 2,
+      endColumn: 1,
+    } as monaco.Range;
+
+    // Monaco provides empty markers when cursor range is outside marker column range
+    const mockCodeActionContext: monaco.languages.CodeActionContext = {
+      markers: [],
+      only: undefined,
+      trigger: 1,
+    };
+
+    // Mock getModelMarkers to return the marker on line 2
+    const getModelMarkersSpy = vi.spyOn(monaco.editor, 'getModelMarkers').mockReturnValue([
+      {
+        severity: monaco.MarkerSeverity.Error,
+        code: 'ERR_SEMANTIC_UNDEFINED_VAR',
+        message: "Variable 'gold' is used before being defined",
+        startLineNumber: 2,
+        startColumn: 5,
+        endLineNumber: 2,
+        endColumn: 9,
+        resource: mockModel.uri,
+        owner: 'vns-compiler',
+      } as unknown as monaco.editor.IMarker,
+    ]);
+
+    const token = { isCancellationRequested: false, onCancellationRequested: vi.fn() } as unknown as monaco.CancellationToken;
+
+    const result = await codeActionProvider!.provideCodeActions(
+      mockModel,
+      mockRange,
+      mockCodeActionContext,
+      token,
+    );
+
+    expect(getModelMarkersSpy).toHaveBeenCalledWith({ resource: mockModel.uri });
+    expect(result).toBeDefined();
+    expect(result?.actions).toBeDefined();
+    expect(result!.actions.length).toBeGreaterThan(0);
+    expect(result!.actions.some(a => a.title.includes('gold'))).toBe(true);
+  });
+
+  // TC-MONACO-QF-05: Anonymous model URI matching via activeFileId
+  it('TC-MONACO-QF-05: should match diagnostic to active file via activeFileId when model URI is anonymous inmemory://model/1', async () => {
+    registerVnsLanguageFeatures(mockContext);
+
+    // Set active file in UI store
+    useEditorUIStore.setState({ activeFileId: 'file-1' });
+
+    const sampleDiag: EngineDiagnostic = {
+      id: 'diag-anon-1',
+      timestamp: Date.now(),
+      category: 'compiler',
+      severity: 'error',
+      code: 'ERR_SEMANTIC_UNDEFINED_VAR',
+      message: "Variable 'gold' is used before being defined",
+      fileId: 'file-1',
+      line: 2,
+      col: 5,
+      quickFix: {
+        type: 'define_variable',
+        targetId: 'gold',
+      },
+    };
+    useDiagnosticsStore.getState().setCompilerDiagnostics([sampleDiag]);
+
+    // Model URI is anonymous: inmemory://model/1
+    const mockModel = {
+      uri: { toString: () => 'inmemory://model/1', path: '/model/1' },
+      getValue: () => 'scene intro {\n    gold = gold + 1\n}\n',
+      getLineContent: (line: number) => (line === 2 ? '    gold = gold + 1' : 'scene intro {'),
+    } as unknown as monaco.editor.ITextModel;
+
+    const mockRange = {
+      startLineNumber: 2,
+      startColumn: 5,
+      endLineNumber: 2,
+      endColumn: 9,
+    } as monaco.Range;
+
+    const mockCodeActionContext: monaco.languages.CodeActionContext = {
+      markers: [
+        {
+          severity: monaco.MarkerSeverity.Error,
+          code: 'ERR_SEMANTIC_UNDEFINED_VAR',
+          message: "Variable 'gold' is used before being defined",
+          startLineNumber: 2,
+          startColumn: 5,
+          endLineNumber: 2,
+          endColumn: 9,
+        },
+      ],
+      only: undefined,
+      trigger: 1,
+    };
+
+    const token = { isCancellationRequested: false, onCancellationRequested: vi.fn() } as unknown as monaco.CancellationToken;
+
+    const result = await codeActionProvider!.provideCodeActions(
+      mockModel,
+      mockRange,
+      mockCodeActionContext,
+      token,
+    );
+
+    expect(result).toBeDefined();
+    expect(result?.actions).toBeDefined();
+    expect(result!.actions.length).toBeGreaterThan(0);
+    expect(result!.actions.some(a => a.title.includes('gold'))).toBe(true);
   });
 });

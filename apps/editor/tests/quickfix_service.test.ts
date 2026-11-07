@@ -283,6 +283,99 @@ describe('Unit Tests: QuickFix Service (Variable Insertion & Action Resolution)'
       expect(typoAction?.edit?.newText).toBe('score');
     });
 
+    it('TC-QF-ACTION-04: should prioritize declare-scene-var as first action with isPreferred=true when error is inside a scene, and only generate global action when outside scene', () => {
+      // 1. Error inside a scene block
+      const insideSceneContent = [
+        'scene intro {',
+        '    score = 1',
+        '}',
+      ].join('\n');
+
+      const varDiagInside: EditorDiagnostic = {
+        id: 'diag-var-inside',
+        category: 'compiler',
+        severity: 'error',
+        code: 'ERR_SEMANTIC_UNDEFINED_VAR',
+        message: "Variable 'score' is used before being defined",
+        fileName: 'main.vns',
+        fileId: 'file-main',
+        line: 2,
+        col: 5,
+        quickFix: {
+          type: 'define_variable',
+          targetId: 'score',
+        },
+      };
+
+      const contextInside: QuickFixContext = {
+        ...sampleContext,
+        fileContent: insideSceneContent,
+        cursorLine: 2,
+        diagnostics: [varDiagInside],
+        projectVariables: [],
+      };
+
+      const actionsInside = resolveQuickFixActions(contextInside);
+
+      expect(actionsInside.length).toBe(2);
+
+      // First action MUST be declare-scene-var with isPreferred: true
+      const firstAction = actionsInside[0]!;
+      expect(firstAction.id).toBe('declare-scene-var-score');
+      expect(firstAction.isPreferred).toBe(true);
+      expect(firstAction.title).toContain("Declare scene variable 'score'");
+      expect(firstAction.edit?.newText).toBe('    define score = 0\n');
+      expect(firstAction.edit?.range.startLine).toBe(2);
+
+      // Second action MUST be declare-global-var with isPreferred falsy
+      const secondAction = actionsInside[1]!;
+      expect(secondAction.id).toBe('declare-global-var-score');
+      expect(secondAction.isPreferred).toBeFalsy();
+      expect(secondAction.title).toContain("Declare global variable 'score'");
+      expect(secondAction.edit?.newText).toBe('define score = 0\n');
+      expect(secondAction.edit?.range.startLine).toBe(1);
+
+      // 2. Error outside any scene block (top-level)
+      const outsideSceneContent = [
+        'score = 1',
+        'scene intro {',
+        '    "Alice" "Hello"',
+        '}',
+      ].join('\n');
+
+      const varDiagOutside: EditorDiagnostic = {
+        id: 'diag-var-outside',
+        category: 'compiler',
+        severity: 'error',
+        code: 'ERR_SEMANTIC_UNDEFINED_VAR',
+        message: "Variable 'score' is used before being defined",
+        fileName: 'main.vns',
+        fileId: 'file-main',
+        line: 1,
+        col: 1,
+        quickFix: {
+          type: 'define_variable',
+          targetId: 'score',
+        },
+      };
+
+      const contextOutside: QuickFixContext = {
+        ...sampleContext,
+        fileContent: outsideSceneContent,
+        cursorLine: 1,
+        diagnostics: [varDiagOutside],
+        projectVariables: [],
+      };
+
+      const actionsOutside = resolveQuickFixActions(contextOutside);
+
+      // Must only generate 1 action: declare-global-var (no duplicate scene var)
+      expect(actionsOutside.length).toBe(1);
+      expect(actionsOutside[0]!.id).toBe('declare-global-var-score');
+      expect(actionsOutside[0]!.edit?.range.startLine).toBe(1);
+      expect(actionsOutside[0]!.edit?.newText).toBe('define score = 0\n');
+    });
+
     it('should ignore diagnostics on different lines than cursorLine', () => {
       const varDiagnostic: EditorDiagnostic = {
         id: 'diag-var-1',
