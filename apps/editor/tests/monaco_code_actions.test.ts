@@ -1,0 +1,268 @@
+// @vitest-environment jsdom
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import * as monaco from 'monaco-editor';
+import { registerVnsLanguageFeatures, type VnsProjectContext } from '../src/vnsLanguageFeatures';
+import { useDiagnosticsStore } from '../src/core/stores/diagnosticsStore';
+import type { EditorDiagnostic } from '../src/core/services/reconciliation';
+
+describe('Integration Tests: Monaco CodeActionProvider (QuickFix Lightbulb & Ctrl+.)', () => {
+  let mockContext: VnsProjectContext;
+  let codeActionProvider: monaco.languages.CodeActionProvider | null = null;
+  let registerCodeActionSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    useDiagnosticsStore.getState().clearDiagnostics();
+
+    // Capture the registered CodeActionProvider
+    codeActionProvider = null;
+    registerCodeActionSpy = vi.spyOn(monaco.languages, 'registerCodeActionProvider').mockImplementation(
+      (languageId: string, provider: monaco.languages.CodeActionProvider) => {
+        if (languageId === 'vns') {
+          codeActionProvider = provider;
+        }
+        return { dispose: vi.fn() };
+      },
+    );
+
+    mockContext = {
+      getFiles: () => ({
+        'file-1': 'scene intro {\n    gold = gold + 1\n}\n',
+      }),
+      getScenes: () => [{ name: 'intro', file: 'main.vns', line: 1 }],
+      getCharacters: () => new Map([['alice', { sprites: new Set(['happy']) }]]),
+      getAssets: () => ({ backgrounds: new Set(['bg_school.png']), audio: new Set() }),
+      getVariables: () => ['score'],
+      switchActiveFile: vi.fn(),
+    };
+  });
+
+  // TC-MONACO-QF-01: Provider registration and coordinate lookup
+  it('TC-MONACO-QF-01: should register CodeActionProvider for "vns" language and match diagnostics by coordinates', async () => {
+    registerVnsLanguageFeatures(mockContext);
+
+    expect(registerCodeActionSpy).toHaveBeenCalledWith('vns', expect.any(Object));
+    expect(codeActionProvider).not.toBeNull();
+
+    // Populate diagnosticsStore with a compiler diagnostic
+    const sampleDiag: EditorDiagnostic = {
+      id: 'diag-test-1',
+      category: 'compiler',
+      severity: 'error',
+      code: 'ERR_SEMANTIC_UNDEFINED_VAR',
+      message: "Variable 'gold' is used before being defined",
+      fileId: 'file-1',
+      fileName: 'main.vns',
+      line: 2,
+      col: 5,
+      quickFix: {
+        type: 'define_variable',
+        targetId: 'gold',
+      },
+    };
+    useDiagnosticsStore.getState().setCompilerDiagnostics([sampleDiag]);
+
+    const mockModel = {
+      uri: { toString: () => 'inmemory://model/file-1', path: '/main.vns' },
+      getValue: () => 'scene intro {\n    gold = gold + 1\n}\n',
+      getLineContent: (line: number) => (line === 2 ? '    gold = gold + 1' : 'scene intro {'),
+    } as unknown as monaco.editor.ITextModel;
+
+    const mockRange = {
+      startLineNumber: 2,
+      startColumn: 5,
+      endLineNumber: 2,
+      endColumn: 9,
+    } as monaco.Range;
+
+    const mockCodeActionContext: monaco.languages.CodeActionContext = {
+      markers: [
+        {
+          owner: 'vns-compiler',
+          resource: mockModel.uri,
+          severity: monaco.MarkerSeverity.Error,
+          code: 'ERR_SEMANTIC_UNDEFINED_VAR',
+          message: "Variable 'gold' is used before being defined",
+          startLineNumber: 2,
+          startColumn: 5,
+          endLineNumber: 2,
+          endColumn: 9,
+        },
+      ],
+      only: undefined,
+      trigger: 1,
+    };
+
+    const token = { isCancellationRequested: false, onCancellationRequested: vi.fn() } as unknown as monaco.CancellationToken;
+
+    const result = await codeActionProvider!.provideCodeActions(
+      mockModel,
+      mockRange,
+      mockCodeActionContext,
+      token,
+    );
+
+    expect(result).toBeDefined();
+    expect(result?.actions).toBeDefined();
+    expect(result!.actions.length).toBeGreaterThan(0);
+  });
+
+  // TC-MONACO-QF-02: Returns valid CodeAction objects with kind: 'quickfix'
+  it('TC-MONACO-QF-02: should return CodeAction items with kind: "quickfix" and appropriate titles', async () => {
+    registerVnsLanguageFeatures(mockContext);
+
+    const assetDiag: EditorDiagnostic = {
+      id: 'diag-ast-missing',
+      category: 'asset',
+      severity: 'warning',
+      message: "Uncreated asset 'bg_garden.png' referenced in script",
+      fileId: 'file-1',
+      fileName: 'main.vns',
+      line: 1,
+      col: 1,
+      quickFix: {
+        type: 'create_asset',
+        targetId: 'bg_garden.png',
+        prefillData: { name: 'bg_garden.png', category: 'background' },
+      },
+    };
+    useDiagnosticsStore.getState().setReconciliationDiagnostics([assetDiag]);
+
+    const mockModel = {
+      uri: { toString: () => 'inmemory://model/file-1', path: '/main.vns' },
+      getValue: () => 'scene intro {\n    background bg_garden.png\n}\n',
+      getLineContent: () => '    background bg_garden.png',
+    } as unknown as monaco.editor.ITextModel;
+
+    const mockRange = { startLineNumber: 1, startColumn: 1, endLineNumber: 1, endColumn: 20 } as monaco.Range;
+    const mockContextData: monaco.languages.CodeActionContext = {
+      markers: [
+        {
+          owner: 'vns-reconciliation',
+          resource: mockModel.uri,
+          severity: monaco.MarkerSeverity.Warning,
+          message: "Uncreated asset 'bg_garden.png' referenced in script",
+          startLineNumber: 1,
+          startColumn: 1,
+          endLineNumber: 1,
+          endColumn: 20,
+        },
+      ],
+      only: undefined,
+      trigger: 1,
+    };
+
+    const result = await codeActionProvider!.provideCodeActions(
+      mockModel,
+      mockRange,
+      mockContextData,
+      {} as monaco.CancellationToken,
+    );
+
+    expect(result?.actions).toBeDefined();
+    for (const action of result!.actions) {
+      expect(action.kind).toBe('quickfix');
+      expect(action.title).toBeTruthy();
+    }
+  });
+
+  // TC-MONACO-QF-03: In-place edit provides accurate WorkspaceEdit range and text
+  it('TC-MONACO-QF-03: should provide valid WorkspaceEdit edits for variable declaration and typo actions', async () => {
+    registerVnsLanguageFeatures(mockContext);
+
+    const varDiag: EditorDiagnostic = {
+      id: 'diag-var-def',
+      category: 'compiler',
+      severity: 'error',
+      code: 'ERR_SEMANTIC_UNDEFINED_VAR',
+      message: "Variable 'gold' is used before being defined",
+      fileId: 'file-1',
+      fileName: 'main.vns',
+      line: 2,
+      col: 5,
+      quickFix: {
+        type: 'define_variable',
+        targetId: 'gold',
+      },
+    };
+    useDiagnosticsStore.getState().setCompilerDiagnostics([varDiag]);
+
+    const mockModel = {
+      uri: { toString: () => 'inmemory://model/file-1', path: '/main.vns' },
+      getValue: () => 'scene intro {\n    gold = gold + 1\n}\n',
+      getLineContent: (line: number) => (line === 2 ? '    gold = gold + 1' : 'scene intro {'),
+    } as unknown as monaco.editor.ITextModel;
+
+    const mockRange = { startLineNumber: 2, startColumn: 5, endLineNumber: 2, endColumn: 9 } as monaco.Range;
+    const mockContextData: monaco.languages.CodeActionContext = {
+      markers: [
+        {
+          owner: 'vns-compiler',
+          resource: mockModel.uri,
+          severity: monaco.MarkerSeverity.Error,
+          code: 'ERR_SEMANTIC_UNDEFINED_VAR',
+          message: "Variable 'gold' is used before being defined",
+          startLineNumber: 2,
+          startColumn: 5,
+          endLineNumber: 2,
+          endColumn: 9,
+        },
+      ],
+      only: undefined,
+      trigger: 1,
+    };
+
+    const result = await codeActionProvider!.provideCodeActions(
+      mockModel,
+      mockRange,
+      mockContextData,
+      {} as monaco.CancellationToken,
+    );
+
+    expect(result?.actions).toBeDefined();
+    const editAction = result!.actions.find(a => a.edit && a.edit.edits && a.edit.edits.length > 0);
+    expect(editAction).toBeDefined();
+
+    const textEdit = editAction!.edit!.edits[0] as monaco.languages.IWorkspaceTextEdit;
+    expect(textEdit.resource).toEqual(mockModel.uri);
+    expect(textEdit.textEdit.text).toContain('define gold = 0');
+  });
+
+  // Edge Case: Marker with no matching diagnostic in store
+  it('should return empty actions when no matching diagnostic is found for marker', async () => {
+    registerVnsLanguageFeatures(mockContext);
+
+    const mockModel = {
+      uri: { toString: () => 'inmemory://model/file-1', path: '/main.vns' },
+      getValue: () => 'scene intro {}\n',
+      getLineContent: () => 'scene intro {}',
+    } as unknown as monaco.editor.ITextModel;
+
+    const mockRange = { startLineNumber: 99, startColumn: 1, endLineNumber: 99, endColumn: 10 } as monaco.Range;
+    const mockContextData: monaco.languages.CodeActionContext = {
+      markers: [
+        {
+          owner: 'unknown',
+          resource: mockModel.uri,
+          severity: monaco.MarkerSeverity.Warning,
+          message: 'Unknown warning',
+          startLineNumber: 99,
+          startColumn: 1,
+          endLineNumber: 99,
+          endColumn: 10,
+        },
+      ],
+      only: undefined,
+      trigger: 1,
+    };
+
+    const result = await codeActionProvider!.provideCodeActions(
+      mockModel,
+      mockRange,
+      mockContextData,
+      {} as monaco.CancellationToken,
+    );
+
+    expect(result?.actions).toEqual([]);
+  });
+});
