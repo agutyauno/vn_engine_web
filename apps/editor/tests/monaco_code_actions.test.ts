@@ -490,4 +490,92 @@ describe('Integration Tests: Monaco CodeActionProvider (QuickFix Lightbulb & Ctr
     );
     expect(createAssetActions).toHaveLength(1);
   });
+
+  // TC-MONACO-EDGE-01: Multi-entity distinct diagnostics on the same line
+  it('TC-MONACO-EDGE-01: should return actions for both entities when multiple distinct diagnostics exist on the same line in Monaco', async () => {
+    registerVnsLanguageFeatures(mockContext);
+
+    const assetDiag: EngineDiagnostic = {
+      id: 'diag-ast-1',
+      timestamp: Date.now(),
+      category: 'asset',
+      severity: 'warning',
+      message: "Uncreated asset 'bg_city.png' referenced in script",
+      fileId: 'file-1',
+      line: 1,
+      col: 1,
+      quickFix: {
+        type: 'create_asset',
+        targetId: 'bg_city.png',
+        prefillData: { name: 'bg_city.png', category: 'background' },
+      },
+    };
+
+    const varDiag: EngineDiagnostic = {
+      id: 'diag-var-1',
+      timestamp: Date.now(),
+      category: 'compiler',
+      severity: 'error',
+      code: 'ERR_SEMANTIC_UNDEFINED_VAR',
+      message: "Variable 'speed' is used before being defined",
+      fileId: 'file-1',
+      line: 1,
+      col: 15,
+      quickFix: {
+        type: 'define_variable',
+        targetId: 'speed',
+      },
+    };
+
+    useDiagnosticsStore.getState().setReconciliationDiagnostics([assetDiag]);
+    useDiagnosticsStore.getState().setCompilerDiagnostics([varDiag]);
+
+    const mockModel = {
+      uri: { toString: () => 'inmemory://model/file-1', path: '/main.vns' },
+      getValue: () => 'background bg_city.png speed = 10\n',
+      getLineContent: () => 'background bg_city.png speed = 10',
+    } as unknown as monaco.editor.ITextModel;
+
+    const mockRange = { startLineNumber: 1, startColumn: 1, endLineNumber: 1, endColumn: 30 } as monaco.Range;
+
+    const mockContextData: monaco.languages.CodeActionContext = {
+      markers: [
+        {
+          severity: monaco.MarkerSeverity.Warning,
+          message: "Uncreated asset 'bg_city.png' referenced in script",
+          startLineNumber: 1,
+          startColumn: 1,
+          endLineNumber: 1,
+          endColumn: 14,
+        },
+        {
+          severity: monaco.MarkerSeverity.Error,
+          code: 'ERR_SEMANTIC_UNDEFINED_VAR',
+          message: "Variable 'speed' is used before being defined",
+          startLineNumber: 1,
+          startColumn: 15,
+          endLineNumber: 1,
+          endColumn: 30,
+        },
+      ],
+      only: undefined,
+      trigger: 1,
+    };
+
+    const result = await codeActionProvider!.provideCodeActions(
+      mockModel,
+      mockRange,
+      mockContextData,
+      {} as monaco.CancellationToken,
+    );
+
+    expect(result?.actions).toBeDefined();
+
+    // Cả 2 action tạo asset và tạo biến đều có mặt
+    const createAsset = result!.actions.find(a => a.title === "Create asset 'bg_city.png'");
+    const createVar = result!.actions.find(a => a.title.includes('speed'));
+
+    expect(createAsset).toBeDefined();
+    expect(createVar).toBeDefined();
+  });
 });

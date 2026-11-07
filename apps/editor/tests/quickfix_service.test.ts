@@ -517,6 +517,195 @@ describe('Unit Tests: QuickFix Service (Variable Insertion & Action Resolution)'
       const uniqueActionIds = new Set(actionIds);
       expect(actionIds.length).toBe(uniqueActionIds.size);
     });
+
+    // TC-QF-EDGE-01: Multiple DISTINCT undeclared entities on the same line
+    it('TC-QF-EDGE-01: should preserve distinct actions when multiple different entities are undeclared on the same line', () => {
+      const assetDiag: EditorDiagnostic = {
+        id: 'diag-ast-1',
+        category: 'asset',
+        severity: 'warning',
+        message: "Uncreated asset 'bg_night' referenced in script",
+        fileName: 'main.vns',
+        fileId: 'file-main',
+        line: 2,
+        col: 5,
+        quickFix: {
+          type: 'create_asset',
+          targetId: 'bg_night',
+          prefillData: { name: 'bg_night', category: 'background' },
+        },
+      };
+
+      const varDiag: EditorDiagnostic = {
+        id: 'diag-var-1',
+        category: 'compiler',
+        severity: 'error',
+        code: 'ERR_SEMANTIC_UNDEFINED_VAR',
+        message: "Variable 'player_name' is used before being defined",
+        fileName: 'main.vns',
+        fileId: 'file-main',
+        line: 2,
+        col: 20,
+        quickFix: {
+          type: 'define_variable',
+          targetId: 'player_name',
+        },
+      };
+
+      const context: QuickFixContext = {
+        ...sampleContext,
+        cursorLine: 2,
+        diagnostics: [assetDiag, varDiag],
+      };
+
+      const actions = resolveQuickFixActions(context);
+
+      // Cả 2 action tạo asset và tạo biến đều phải xuất hiện đầy đủ
+      const hasCreateAsset = actions.some(a => a.id === 'create-asset-bg_night');
+      const hasSceneVar = actions.some(a => a.id === 'declare-scene-var-player_name');
+      const hasGlobalVar = actions.some(a => a.id === 'declare-global-var-player_name');
+
+      expect(hasCreateAsset).toBe(true);
+      expect(hasSceneVar).toBe(true);
+      expect(hasGlobalVar).toBe(true);
+    });
+
+    // TC-QF-EDGE-02: Audio category normalization for sfx and voice
+    it('TC-QF-EDGE-02: should correctly preserve sfx and voice audio categories in createAsset command', () => {
+      const sfxDiag: EditorDiagnostic = {
+        id: 'diag-sfx-1',
+        category: 'asset',
+        severity: 'warning',
+        message: "Uncreated sfx 'sfx_explosion' referenced in script",
+        fileName: 'main.vns',
+        fileId: 'file-main',
+        line: 2,
+        col: 5,
+        quickFix: {
+          type: 'create_asset',
+          targetId: 'sfx_explosion',
+          prefillData: { name: 'sfx_explosion', category: 'sfx' },
+        },
+      };
+
+      const voiceDiag: EditorDiagnostic = {
+        id: 'diag-voice-1',
+        category: 'asset',
+        severity: 'warning',
+        message: "Uncreated voice 'voice_alice_01' referenced in script",
+        fileName: 'main.vns',
+        fileId: 'file-main',
+        line: 3,
+        col: 5,
+        quickFix: {
+          type: 'create_asset',
+          targetId: 'voice_alice_01',
+          prefillData: { name: 'voice_alice_01', category: 'voice' },
+        },
+      };
+
+      const sfxContext: QuickFixContext = {
+        ...sampleContext,
+        cursorLine: 2,
+        diagnostics: [sfxDiag],
+      };
+      const sfxActions = resolveQuickFixActions(sfxContext);
+      expect(sfxActions[0]?.command?.arguments).toEqual(['sfx_explosion', 'sfx']);
+
+      const voiceContext: QuickFixContext = {
+        ...sampleContext,
+        cursorLine: 3,
+        diagnostics: [voiceDiag],
+      };
+      const voiceActions = resolveQuickFixActions(voiceContext);
+      expect(voiceActions[0]?.command?.arguments).toEqual(['voice_alice_01', 'voice']);
+    });
+
+    // TC-QF-EDGE-03: Hyphenated asset identifiers and fallback range finding
+    it('TC-QF-EDGE-03: should accurately find target range for hyphenated asset names and extensions', () => {
+      const customScript = [
+        'scene intro {',
+        '    background bg-forest-01.png',
+        '}',
+      ].join('\n');
+
+      const hyphenDiag: EditorDiagnostic = {
+        id: 'diag-hyphen-1',
+        category: 'asset',
+        severity: 'warning',
+        message: "Uncreated asset 'bg-forest-01.png' referenced in script",
+        fileName: 'main.vns',
+        fileId: 'file-main',
+        line: 2,
+        col: 16,
+        quickFix: {
+          type: 'create_asset',
+          targetId: 'bg-forest-01.png',
+          prefillData: { name: 'bg-forest-01.png', category: 'background' },
+        },
+      };
+
+      const context: QuickFixContext = {
+        ...sampleContext,
+        fileContent: customScript,
+        cursorLine: 2,
+        diagnostics: [hyphenDiag],
+        projectAssets: [{ id: 'bg-forest-02.png', name: 'bg-forest-02.png' }], // typo candidate dist 1
+      };
+
+      const actions = resolveQuickFixActions(context);
+
+      const typoAction = actions.find(a => a.isPreferred === true);
+      expect(typoAction).toBeDefined();
+      expect(typoAction?.edit?.range.startLine).toBe(2);
+      expect(typoAction?.edit?.range.startCol).toBe(16);
+      expect(typoAction?.edit?.range.endCol).toBe(16 + 'bg-forest-01.png'.length);
+      expect(typoAction?.edit?.newText).toBe('bg-forest-02.png');
+    });
+
+    // TC-QF-EDGE-04: Deduplicate character actions when duplicate character diagnostics exist
+    it('TC-QF-EDGE-04: should deduplicate create_character actions when duplicate diagnostics exist on the same line', () => {
+      const charDiag1: EditorDiagnostic = {
+        id: 'diag-char-dup-1',
+        category: 'character',
+        severity: 'warning',
+        message: "Uncreated character 'bob' referenced in script",
+        fileName: 'main.vns',
+        fileId: 'file-main',
+        line: 3,
+        col: 10,
+        quickFix: {
+          type: 'create_character',
+          targetId: 'bob',
+        },
+      };
+
+      const charDiag2: EditorDiagnostic = {
+        id: 'diag-char-dup-2',
+        category: 'character',
+        severity: 'warning',
+        message: "Uncreated character 'bob' referenced in script",
+        fileName: 'main.vns',
+        fileId: 'file-main',
+        line: 3,
+        col: 10,
+        quickFix: {
+          type: 'create_character',
+          targetId: 'bob',
+        },
+      };
+
+      const context: QuickFixContext = {
+        ...sampleContext,
+        cursorLine: 3,
+        diagnostics: [charDiag1, charDiag2],
+      };
+
+      const actions = resolveQuickFixActions(context);
+
+      const charActions = actions.filter(a => a.id === 'create-character-bob');
+      expect(charActions).toHaveLength(1);
+    });
   });
 });
 
