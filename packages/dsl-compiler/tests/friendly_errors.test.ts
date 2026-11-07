@@ -53,19 +53,15 @@ describe('Friendly Diagnostics & Error Formatter (TDD RED)', () => {
     expect(err?.message).toContain('non_existent');
   });
 
-  // TC-FE-05: Missing voice asset
-  it('TC-FE-05: Missing voice asset produces ERR_SEMANTIC_MISSING_AUDIO', () => {
+  // TC-FE-05: Missing voice asset (Decoupled: missing audio does not block compilation)
+  it('TC-FE-05: Missing voice asset does not block compilation and emits bytecode', () => {
     const code = 'scene intro {\n  play voice "unregistered_voice"\n}';
     const result = compileString(code, 'test.vns', {
       assets: [],
     });
-    expect(result.success).toBe(false);
-    expect(result.errors).toBeDefined();
-    const err = result.errors!.find(
-      e => e.code === 'ERR_SEMANTIC_MISSING_AUDIO' || e.message.includes('unregistered_voice'),
-    );
-    expect(err).toBeDefined();
-    expect(err?.code).toBe('ERR_SEMANTIC_MISSING_AUDIO');
+    expect(result.success).toBe(true);
+    expect(result.program).toBeDefined();
+    expect(result.errors).toBeUndefined();
   });
 
   // TC-FE-06: Generic fallback
