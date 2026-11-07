@@ -97,6 +97,11 @@ export interface EngineDiagnostic {
   endLine?: number;
   endCol?: number;
   details?: unknown;
+  quickFix?: {
+    type: 'create_asset' | 'create_character' | 'define_variable';
+    targetId: string;
+    prefillData?: Record<string, unknown>;
+  };
 }
 
 export interface EngineDiagnosticMessage {

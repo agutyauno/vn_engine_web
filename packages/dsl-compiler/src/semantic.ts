@@ -32,6 +32,7 @@ export interface CompileDiagnostic {
   code?: string;
   rawMessage?: string;
   severity?: 'error' | 'warning';
+  targetId?: string;
 }
 
 export type CompileError = CompileDiagnostic;
@@ -102,6 +103,7 @@ function checkInterpolatedVariables(
             code: VNS_ERROR_CODES.ERR_SEMANTIC_UNDEFINED_VAR,
             message: `Variable '${id}' in string interpolation "${m[0]}" has not been defined in scene '${sceneName}'.`,
             loc,
+            targetId: id,
           });
         }
       }
@@ -130,6 +132,7 @@ function validateExpressionAST(
             code: VNS_ERROR_CODES.ERR_SEMANTIC_UNDEFINED_VAR,
             message: `Variable '${expr.name}' in expression has not been defined in scene '${sceneName}'.`,
             loc,
+            targetId: expr.name,
           });
         }
       }
@@ -387,6 +390,7 @@ export function validateSemantics(
             code: VNS_ERROR_CODES.ERR_SEMANTIC_UNDEFINED_VAR,
             message: `Variable '${va.variable}' must be declared before assignment in scene '${sceneName}'. Please use 'define ${va.variable} = ...' first.`,
             loc: va.loc,
+            targetId: va.variable,
           });
         }
       } else if (stmt.type === 'IfStatement') {

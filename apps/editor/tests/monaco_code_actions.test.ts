@@ -3,12 +3,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as monaco from 'monaco-editor';
 import { registerVnsLanguageFeatures, type VnsProjectContext } from '../src/vnsLanguageFeatures';
 import { useDiagnosticsStore } from '../src/core/stores/diagnosticsStore';
-import type { EditorDiagnostic } from '../src/core/services/reconciliation';
+import type { EngineDiagnostic } from '@vn-engine/shared-types';
 
 describe('Integration Tests: Monaco CodeActionProvider (QuickFix Lightbulb & Ctrl+.)', () => {
   let mockContext: VnsProjectContext;
   let codeActionProvider: monaco.languages.CodeActionProvider | null = null;
-  let registerCodeActionSpy: ReturnType<typeof vi.spyOn>;
+  let registerCodeActionSpy: any;
 
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -17,12 +17,12 @@ describe('Integration Tests: Monaco CodeActionProvider (QuickFix Lightbulb & Ctr
     // Capture the registered CodeActionProvider
     codeActionProvider = null;
     registerCodeActionSpy = vi.spyOn(monaco.languages, 'registerCodeActionProvider').mockImplementation(
-      (languageId: string, provider: monaco.languages.CodeActionProvider) => {
+      ((languageId: string, provider: monaco.languages.CodeActionProvider) => {
         if (languageId === 'vns') {
           codeActionProvider = provider;
         }
         return { dispose: vi.fn() };
-      },
+      }) as any,
     );
 
     mockContext = {
@@ -45,14 +45,14 @@ describe('Integration Tests: Monaco CodeActionProvider (QuickFix Lightbulb & Ctr
     expect(codeActionProvider).not.toBeNull();
 
     // Populate diagnosticsStore with a compiler diagnostic
-    const sampleDiag: EditorDiagnostic = {
+    const sampleDiag: EngineDiagnostic = {
       id: 'diag-test-1',
+      timestamp: Date.now(),
       category: 'compiler',
       severity: 'error',
       code: 'ERR_SEMANTIC_UNDEFINED_VAR',
       message: "Variable 'gold' is used before being defined",
       fileId: 'file-1',
-      fileName: 'main.vns',
       line: 2,
       col: 5,
       quickFix: {
@@ -78,8 +78,6 @@ describe('Integration Tests: Monaco CodeActionProvider (QuickFix Lightbulb & Ctr
     const mockCodeActionContext: monaco.languages.CodeActionContext = {
       markers: [
         {
-          owner: 'vns-compiler',
-          resource: mockModel.uri,
           severity: monaco.MarkerSeverity.Error,
           code: 'ERR_SEMANTIC_UNDEFINED_VAR',
           message: "Variable 'gold' is used before being defined",
@@ -111,13 +109,13 @@ describe('Integration Tests: Monaco CodeActionProvider (QuickFix Lightbulb & Ctr
   it('TC-MONACO-QF-02: should return CodeAction items with kind: "quickfix" and appropriate titles', async () => {
     registerVnsLanguageFeatures(mockContext);
 
-    const assetDiag: EditorDiagnostic = {
+    const assetDiag: EngineDiagnostic = {
       id: 'diag-ast-missing',
+      timestamp: Date.now(),
       category: 'asset',
       severity: 'warning',
       message: "Uncreated asset 'bg_garden.png' referenced in script",
       fileId: 'file-1',
-      fileName: 'main.vns',
       line: 1,
       col: 1,
       quickFix: {
@@ -138,8 +136,6 @@ describe('Integration Tests: Monaco CodeActionProvider (QuickFix Lightbulb & Ctr
     const mockContextData: monaco.languages.CodeActionContext = {
       markers: [
         {
-          owner: 'vns-reconciliation',
-          resource: mockModel.uri,
           severity: monaco.MarkerSeverity.Warning,
           message: "Uncreated asset 'bg_garden.png' referenced in script",
           startLineNumber: 1,
@@ -170,14 +166,14 @@ describe('Integration Tests: Monaco CodeActionProvider (QuickFix Lightbulb & Ctr
   it('TC-MONACO-QF-03: should provide valid WorkspaceEdit edits for variable declaration and typo actions', async () => {
     registerVnsLanguageFeatures(mockContext);
 
-    const varDiag: EditorDiagnostic = {
+    const varDiag: EngineDiagnostic = {
       id: 'diag-var-def',
+      timestamp: Date.now(),
       category: 'compiler',
       severity: 'error',
       code: 'ERR_SEMANTIC_UNDEFINED_VAR',
       message: "Variable 'gold' is used before being defined",
       fileId: 'file-1',
-      fileName: 'main.vns',
       line: 2,
       col: 5,
       quickFix: {
@@ -197,8 +193,6 @@ describe('Integration Tests: Monaco CodeActionProvider (QuickFix Lightbulb & Ctr
     const mockContextData: monaco.languages.CodeActionContext = {
       markers: [
         {
-          owner: 'vns-compiler',
-          resource: mockModel.uri,
           severity: monaco.MarkerSeverity.Error,
           code: 'ERR_SEMANTIC_UNDEFINED_VAR',
           message: "Variable 'gold' is used before being defined",
@@ -242,8 +236,6 @@ describe('Integration Tests: Monaco CodeActionProvider (QuickFix Lightbulb & Ctr
     const mockContextData: monaco.languages.CodeActionContext = {
       markers: [
         {
-          owner: 'unknown',
-          resource: mockModel.uri,
           severity: monaco.MarkerSeverity.Warning,
           message: 'Unknown warning',
           startLineNumber: 99,

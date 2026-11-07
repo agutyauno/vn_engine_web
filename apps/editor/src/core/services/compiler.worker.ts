@@ -50,6 +50,14 @@ self.onmessage = (event: MessageEvent<CompilerWorkerRequest>) => {
         col: err.loc?.col,
         endLine: err.loc?.endLine,
         endCol: err.loc?.endCol,
+        ...(err.targetId
+          ? {
+              quickFix: {
+                type: 'define_variable' as const,
+                targetId: err.targetId,
+              },
+            }
+          : {}),
       })),
       ...(result.warnings || []).map((warn, idx) => ({
         id: `diag-compile-warn-${requestId}-${idx}`,
@@ -63,6 +71,14 @@ self.onmessage = (event: MessageEvent<CompilerWorkerRequest>) => {
         col: warn.loc?.col,
         endLine: warn.loc?.endLine,
         endCol: warn.loc?.endCol,
+        ...(warn.targetId
+          ? {
+              quickFix: {
+                type: 'define_variable' as const,
+                targetId: warn.targetId,
+              },
+            }
+          : {}),
       })),
     ];
 

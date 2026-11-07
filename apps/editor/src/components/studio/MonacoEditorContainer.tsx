@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import type { Project, ScriptFile } from '@vn-engine/shared-types';
+import type { AssetCategory, Project, ScriptFile } from '@vn-engine/shared-types';
 import type * as monacoType from 'monaco-editor';
 import { useProjectStore } from '../../core/stores/projectStore';
 import { useDiagnosticsStore } from '../../core/stores/diagnosticsStore';
@@ -11,6 +11,8 @@ export interface MonacoEditorContainerProps {
   cursorJumpTarget?: { line: number; col: number } | null;
   onChange?: (newContent: string) => void;
   onCursorChange?: (line: number, col: number) => void;
+  onRequestCreateAsset?: (targetId: string, category?: AssetCategory) => void;
+  onRequestCreateCharacter?: (targetId: string) => void;
   readOnly?: boolean;
 }
 
@@ -22,12 +24,20 @@ export const MonacoEditorContainer: React.FC<MonacoEditorContainerProps> = ({
   cursorJumpTarget,
   onChange,
   onCursorChange,
+  onRequestCreateAsset,
+  onRequestCreateCharacter,
   readOnly = false,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<monacoType.editor.IStandaloneCodeEditor | null>(null);
   const monacoInstanceRef = useRef<typeof monacoType | null>(null);
   const [isMonacoMounted, setIsMonacoMounted] = useState(false);
+
+  const onRequestCreateAssetRef = useRef(onRequestCreateAsset);
+  onRequestCreateAssetRef.current = onRequestCreateAsset;
+
+  const onRequestCreateCharacterRef = useRef(onRequestCreateCharacter);
+  onRequestCreateCharacterRef.current = onRequestCreateCharacter;
 
   const compilerDiagnostics = useDiagnosticsStore(s => s.compilerDiagnostics);
   const reconciliationDiagnostics = useDiagnosticsStore(s => s.reconciliationDiagnostics);
@@ -150,6 +160,37 @@ export const MonacoEditorContainer: React.FC<MonacoEditorContainerProps> = ({
       editorRef.current.focus();
     }
   }, [cursorJumpTarget]);
+
+  // Register Monaco Editor Commands for QuickFix actions
+  useEffect(() => {
+    if (!monacoInstanceRef.current || !isMonacoMounted) return;
+    let d1: monacoType.IDisposable | undefined;
+    let d2: monacoType.IDisposable | undefined;
+    try {
+      d1 = monacoInstanceRef.current.editor.registerCommand(
+        'vn.editor.createAsset',
+        (_accessor, targetId?: string, category?: AssetCategory) => {
+          if (targetId) {
+            onRequestCreateAssetRef.current?.(targetId, category);
+          }
+        },
+      );
+      d2 = monacoInstanceRef.current.editor.registerCommand(
+        'vn.editor.createCharacter',
+        (_accessor, targetId?: string) => {
+          if (targetId) {
+            onRequestCreateCharacterRef.current?.(targetId);
+          }
+        },
+      );
+    } catch {
+      // Ignored if already registered
+    }
+    return () => {
+      d1?.dispose();
+      d2?.dispose();
+    };
+  }, [isMonacoMounted]);
 
   if (!file) {
     return (

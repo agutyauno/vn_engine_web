@@ -5,6 +5,10 @@
 
 import * as monaco from 'monaco-editor';
 import { formatVns } from '@vn-engine/dsl-compiler';
+import { useDiagnosticsStore } from './core/stores/diagnosticsStore';
+import { resolveQuickFixActions, type QuickFixContext } from './core/services/quickFixService';
+import type { EditorDiagnostic } from './core/services/reconciliation';
+import type { AssetCategory } from '@vn-engine/shared-types';
 
 export interface SceneItem {
   name: string;
@@ -19,6 +23,7 @@ export interface VnsProjectContext {
   getAssets: () => { backgrounds: Set<string>; audio: Set<string>; voices?: Set<string> };
   getAssetDetails?: () => Map<string, { category?: string; type: string; sizeBytes?: number }>;
   getVariables: () => string[];
+  getDiagnostics?: () => EditorDiagnostic[];
   switchActiveFile: (fileName: string) => void;
 }
 
@@ -1147,6 +1152,136 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): monaco.
     },
   });
   featureDisposables.push(hoverDisposable);
+
+  // 5. CODE ACTION PROVIDER (QUICKFIX LIGHTBULB & CTRL+.)
+  const codeActionDisposable = monaco.languages.registerCodeActionProvider('vns', {
+    provideCodeActions: (model, range, contextData, _token) => {
+      const markers = contextData.markers || [];
+      if (markers.length === 0) {
+        return { actions: [], dispose: () => {} };
+      }
+
+      const store = useDiagnosticsStore.getState();
+      const allDiagnostics: EditorDiagnostic[] = context.getDiagnostics
+        ? context.getDiagnostics()
+        : [
+            ...store.compilerDiagnostics,
+            ...store.reconciliationDiagnostics,
+            ...store.runtimeDiagnostics,
+          ];
+
+      const modelUriStr = model.uri ? model.uri.toString() : '';
+      const modelUriPath = model.uri ? model.uri.path : '';
+
+      const matchDiagnosticToFile = (d: EditorDiagnostic): boolean => {
+        if (!d.fileId && !d.fileName) return true;
+        if (d.fileId && (modelUriStr.includes(d.fileId) || modelUriPath.includes(d.fileId))) return true;
+        if (d.fileName && (modelUriStr.includes(d.fileName) || modelUriPath.includes(d.fileName) || modelUriPath === `/${d.fileName}`)) return true;
+        return false;
+      };
+
+      const matchedDiagnostics: EditorDiagnostic[] = [];
+      for (const marker of markers) {
+        for (const d of allDiagnostics) {
+          if (!matchDiagnosticToFile(d)) continue;
+          if (d.line !== marker.startLineNumber) continue;
+          if (marker.code && d.code && marker.code !== d.code) continue;
+          if (!matchedDiagnostics.includes(d)) {
+            matchedDiagnostics.push(d);
+          }
+        }
+      }
+
+      if (matchedDiagnostics.length === 0) {
+        return { actions: [], dispose: () => {} };
+      }
+
+      // Chuẩn bị assets
+      const projectAssets: Array<{ id: string; name?: string; category?: AssetCategory }> = [];
+      const rawAssets = context.getAssets();
+      for (const bg of rawAssets.backgrounds || []) {
+        projectAssets.push({ id: bg, name: bg, category: 'background' });
+      }
+      for (const aud of rawAssets.audio || []) {
+        projectAssets.push({ id: aud, name: aud, category: 'bgm' });
+      }
+      if (context.getAssetDetails) {
+        const details = context.getAssetDetails();
+        for (const [id, det] of details.entries()) {
+          if (!projectAssets.some(a => a.id === id || a.name === id)) {
+            projectAssets.push({
+              id,
+              name: id,
+              category: (det.category as AssetCategory) || 'other',
+            });
+          }
+        }
+      }
+
+      const projectCharacters = Array.from(context.getCharacters().keys());
+      const projectVariables = context.getVariables ? context.getVariables() : [];
+      const cursorLine = range.startLineNumber;
+      const cursorCol = range.startColumn;
+      const fileId = modelUriStr.split('/').pop()?.replace(/\.vns$/, '') || 'active-file';
+
+      const qfContext: QuickFixContext = {
+        fileId,
+        fileContent: model.getValue(),
+        cursorLine,
+        cursorCol,
+        diagnostics: matchedDiagnostics,
+        projectCharacters,
+        projectAssets,
+        projectVariables,
+      };
+
+      const qfActions = resolveQuickFixActions(qfContext);
+
+      const monacoActions: monaco.languages.CodeAction[] = qfActions.map(action => {
+        const codeAction: monaco.languages.CodeAction = {
+          title: action.title,
+          kind: action.kind,
+          isPreferred: action.isPreferred,
+        };
+
+        if (action.edit) {
+          codeAction.edit = {
+            edits: [
+              {
+                resource: model.uri,
+                textEdit: {
+                  range: {
+                    startLineNumber: action.edit.range.startLine,
+                    startColumn: action.edit.range.startCol,
+                    endLineNumber: action.edit.range.endLine,
+                    endColumn: action.edit.range.endCol,
+                  },
+                  text: action.edit.newText,
+                },
+                versionId: undefined,
+              },
+            ],
+          };
+        }
+
+        if (action.command) {
+          codeAction.command = {
+            id: action.command.id,
+            title: action.title,
+            arguments: action.command.arguments,
+          };
+        }
+
+        return codeAction;
+      });
+
+      return {
+        actions: monacoActions,
+        dispose: () => {},
+      };
+    },
+  });
+  featureDisposables.push(codeActionDisposable);
 
   return {
     dispose: () => {

@@ -7,6 +7,8 @@ import { StudioHeader } from './StudioHeader';
 import { CharacterManagerPane } from '../characters/CharacterManagerPane';
 import { CharacterModal } from '../characters/CharacterModal';
 import { AssetLibraryPane } from './AssetLibraryPane';
+import { CreateAssetModal } from './CreateAssetModal';
+import { calculateVariableInsertion } from '../../core/services/quickFixService';
 import { EditorTabBar } from './EditorTabBar';
 import { MonacoEditorContainer } from './MonacoEditorContainer';
 import { DockDrawer } from './DockDrawer';
@@ -111,6 +113,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
   const [currentCursorLine, setCurrentCursorLine] = useState<number>(1);
   const [isCharModalOpen, setIsCharModalOpen] = useState<boolean>(false);
   const [editingCharacter, setEditingCharacter] = useState<Character | null>(null);
+  const [isAssetModalOpen, setIsAssetModalOpen] = useState<boolean>(false);
   const [isExportOpen, setIsExportOpen] = useState<boolean>(false);
   const [pendingQuickFixAsset, setPendingQuickFixAsset] = useState<{
     id: string;
@@ -610,12 +613,53 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
           id: editorDiag.quickFix.targetId,
           category: (editorDiag.quickFix.prefillData?.category as AssetCategory) || 'background',
         });
-        setActiveTab('assets');
+        setIsAssetModalOpen(true);
       } else if (editorDiag.quickFix?.type === 'create_character') {
         handleOpenCreateCharacter(editorDiag.quickFix.targetId);
+      } else if (editorDiag.quickFix?.type === 'define_variable') {
+        const varName = editorDiag.quickFix.targetId;
+        const currentProj = useProjectStore.getState().project;
+        let targetFile = currentProj?.files.find(f => f.id === editorDiag.fileId);
+        if (!targetFile && editorDiag.fileName && currentProj) {
+          targetFile = currentProj.files.find(f => f.name === editorDiag.fileName);
+        }
+        if (!targetFile && currentProj && currentProj.files.length > 0) {
+          const activeId = useEditorUIStore.getState().activeFileId;
+          targetFile = currentProj.files.find(f => f.id === activeId) || currentProj.files[0];
+        }
+        if (targetFile) {
+          const insResult = calculateVariableInsertion(
+            targetFile.content,
+            varName,
+            'global',
+            editorDiag.line || 1,
+          );
+          const lines = targetFile.content.split('\n');
+          lines.splice(insResult.insertLine - 1, 0, insResult.text.replace(/\n$/, ''));
+          const newContent = lines.join('\n');
+          updateFileContent(targetFile.id, newContent);
+          handleSelectTab(targetFile.id);
+          setCursorJumpTarget({ line: insResult.newCursorLine, col: 1 });
+          saveProject(repository).catch(err => console.error('Failed to save after quickfix:', err));
+        }
       }
     },
-    [setActiveTab, handleOpenCreateCharacter],
+    [handleOpenCreateCharacter, updateFileContent, handleSelectTab, setCursorJumpTarget, saveProject, repository],
+  );
+
+  const handleRequestCreateAsset = useCallback((targetId: string, category?: AssetCategory) => {
+    setPendingQuickFixAsset({
+      id: targetId,
+      category: category || 'background',
+    });
+    setIsAssetModalOpen(true);
+  }, []);
+
+  const handleRequestCreateCharacter = useCallback(
+    (targetId: string) => {
+      handleOpenCreateCharacter(targetId);
+    },
+    [handleOpenCreateCharacter],
   );
 
   // Settings & Export Handlers
@@ -828,6 +872,8 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
               cursorJumpTarget={cursorJumpTarget}
               onChange={handleContentChange}
               onCursorChange={line => setCurrentCursorLine(line)}
+              onRequestCreateAsset={handleRequestCreateAsset}
+              onRequestCreateCharacter={handleRequestCreateCharacter}
             />
 
             {/* Resizable Drawer Splitter */}
@@ -869,6 +915,26 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
             setEditingCharacter(null);
           }}
           onSave={handleSaveCharacter}
+        />
+      )}
+
+      {/* QuickFix Create Asset Modal Dialog */}
+      {currentProject && isAssetModalOpen && (
+        <CreateAssetModal
+          isOpen={isAssetModalOpen}
+          initialFile={null}
+          initialAssetId={pendingQuickFixAsset?.id}
+          initialCategory={pendingQuickFixAsset?.category}
+          existingAssetIds={(currentProject.assets || []).map(a => a.id)}
+          onClose={() => {
+            setIsAssetModalOpen(false);
+            setPendingQuickFixAsset(null);
+          }}
+          onSave={async (newAsset, fileBlob) => {
+            await handleAddAsset(newAsset, fileBlob);
+            setIsAssetModalOpen(false);
+            setPendingQuickFixAsset(null);
+          }}
         />
       )}
 

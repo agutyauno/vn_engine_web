@@ -4,7 +4,6 @@ import {
   calculateVariableInsertion,
   resolveQuickFixActions,
   type QuickFixContext,
-  type QuickFixAction,
   type VariableInsertionResult,
 } from '../src/core/services/quickFixService';
 
@@ -289,6 +288,7 @@ describe('Unit Tests: QuickFix Service (Variable Insertion & Action Resolution)'
         id: 'diag-var-1',
         category: 'compiler',
         severity: 'error',
+        message: 'Variable not found',
         line: 10,
         col: 1,
         quickFix: { type: 'define_variable', targetId: 'other_var' },
