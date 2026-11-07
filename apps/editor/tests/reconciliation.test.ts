@@ -547,4 +547,70 @@ describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () 
       category: 'audio',
     });
   });
+
+  // ==========================================
+  // PRECISE MARKER SPANS (PHASE 1 - RED)
+  // ==========================================
+
+  // TC-REC-SPAN-01: generated asset diagnostics should have precise col and endCol matching the asset identifier, not col: 1
+  it('TC-REC-SPAN-01: generated asset diagnostics should have precise col and endCol matching the asset identifier, not col: 1', () => {
+    const project = createMockProject({
+      files: [
+        {
+          id: 'file-1',
+          name: 'chapter1.vns',
+          content: [
+            'scene classroom {',
+            '  background bg_room',
+            '}',
+          ].join('\n'),
+          order: 0,
+          version: 1,
+        },
+      ],
+      assets: [],
+    });
+
+    const diagnostics = generateDiagnostics(project);
+    const bgDiag = diagnostics.find(d => d.category === 'asset' && d.assetKey === 'bg_room');
+
+    expect(bgDiag).toBeDefined();
+    expect(bgDiag?.line).toBe(2);
+    expect(bgDiag?.col).not.toBe(1);
+    // In "  background bg_room", "bg_room" starts at col 14, length 7 -> endCol 21
+    expect(bgDiag?.col).toBe(14);
+    expect(bgDiag?.endCol).toBe(21);
+  });
+
+  // TC-REC-SPAN-02: generated character diagnostics should have precise col and endCol matching character identifier
+  it('TC-REC-SPAN-02: generated character diagnostics should have precise col and endCol matching character identifier', () => {
+    const project = createMockProject({
+      files: [
+        {
+          id: 'file-1',
+          name: 'show_test.vns',
+          content: [
+            'scene visual_scene {',
+            '  show charlie.happy',
+            '}',
+          ].join('\n'),
+          order: 0,
+          version: 1,
+        },
+      ],
+      characters: [],
+    });
+
+    const diagnostics = generateDiagnostics(project);
+    const charlieDiag = diagnostics.find(
+      d => d.category === 'character' && d.assetKey === 'charlie',
+    );
+
+    expect(charlieDiag).toBeDefined();
+    expect(charlieDiag?.line).toBe(2);
+    expect(charlieDiag?.col).not.toBe(1);
+    // In "  show charlie.happy", "charlie" starts at col 8, length 7 -> endCol 15
+    expect(charlieDiag?.col).toBe(8);
+    expect(charlieDiag?.endCol).toBe(15);
+  });
 });

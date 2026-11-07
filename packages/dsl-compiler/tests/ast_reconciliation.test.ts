@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest';
 import {
   compileString,
   extractScriptReferences,
+  extractLocation,
   type ScriptReferences,
   type AssetReference,
   type CharacterReference,
@@ -261,5 +262,71 @@ scene next_scene {
       fileId: 'custom/folder/scene.vns',
       line: 2,
     });
+  });
+
+  // ==========================================
+  // PRECISE MARKER SPANS (PHASE 1 - RED)
+  // ==========================================
+
+  it('TC-AST-SPAN-01: extractLocation should populate precise endLine and endCol matching token span', () => {
+    const mockTokenWithChevrotainEnd = {
+      image: 'bg_room',
+      startLine: 3,
+      startColumn: 5,
+      endLine: 3,
+      endColumn: 11, // Chevrotain endColumn is inclusive
+    } as any;
+
+    const loc1 = extractLocation(mockTokenWithChevrotainEnd, 'scene1.vns');
+    expect(loc1).toBeDefined();
+    expect(loc1).toEqual({
+      fileId: 'scene1.vns',
+      line: 3,
+      col: 5,
+      endLine: 3,
+      endCol: 12, // endColumn + 1
+    });
+
+    const mockTokenWithoutEndColumn = {
+      image: 'alice',
+      startLine: 1,
+      startColumn: 10,
+    } as any;
+
+    const loc2 = extractLocation(mockTokenWithoutEndColumn, 'scene1.vns');
+    expect(loc2).toBeDefined();
+    expect(loc2).toEqual({
+      fileId: 'scene1.vns',
+      line: 1,
+      col: 10,
+      endLine: 1,
+      endCol: 15, // col + image.length (10 + 5)
+    });
+  });
+
+  it('TC-AST-SPAN-02: extractScriptReferences should extract loc with endCol for background and character statements', () => {
+    const dsl = `scene intro {
+  background bg_room
+  show alice.happy
+}`;
+    const result = compileString(dsl, 'intro.vns');
+    expect(result.success).toBe(true);
+    expect(result.ast).toBeDefined();
+
+    const refs: ScriptReferences = extractScriptReferences(result.ast!);
+
+    expect(refs.assets).toHaveLength(1);
+    expect(refs.assets[0]?.loc).toBeDefined();
+    expect(refs.assets[0]?.loc?.col).toBe(14);
+    expect(refs.assets[0]?.loc?.endLine).toBe(2);
+    expect(refs.assets[0]?.loc?.endCol).toBeDefined();
+    expect(refs.assets[0]?.loc?.endCol).toBeGreaterThan(refs.assets[0]!.loc!.col!);
+
+    expect(refs.characters).toHaveLength(1);
+    expect(refs.characters[0]?.loc).toBeDefined();
+    expect(refs.characters[0]?.loc?.col).toBe(8);
+    expect(refs.characters[0]?.loc?.endLine).toBe(3);
+    expect(refs.characters[0]?.loc?.endCol).toBeDefined();
+    expect(refs.characters[0]?.loc?.endCol).toBeGreaterThan(refs.characters[0]!.loc!.col!);
   });
 });

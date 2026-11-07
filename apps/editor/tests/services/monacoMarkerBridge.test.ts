@@ -290,4 +290,117 @@ describe('monacoMarkerBridge', () => {
     expect(markers[0].endLineNumber).toBe(2);
     expect(markers[0].endColumn).toBe(10); // Clamped to line 2 maxColumn
   });
+
+  // ==========================================
+  // INTELLIGENT TOKEN SPAN LOCATOR (PHASE 1 - RED)
+  // ==========================================
+
+  it('TC-BRIDGE-SPAN-01: should locate precise token span using quickFix.targetId when endCol is missing', () => {
+    (mockModel as any).getLineContent = vi.fn((line: number) => {
+      if (line === 1) return '  background bg_sunset transition: "dissolve"';
+      return '';
+    });
+
+    const diagnostics: EngineDiagnostic[] = [
+      {
+        id: 'diag-target-id',
+        timestamp: Date.now(),
+        category: 'asset',
+        severity: 'warning',
+        message: "Uncreated asset 'bg_sunset'",
+        fileId: 'file-1',
+        line: 1,
+        col: 1, // Fallback col 1 from legacy diagnostics
+        quickFix: {
+          type: 'create_asset',
+          targetId: 'bg_sunset',
+        },
+      },
+    ];
+
+    syncMonacoMarkers({
+      monacoInstance: mockMonaco,
+      model: mockModel,
+      activeFileId: 'file-1',
+      diagnostics,
+    });
+
+    const markers = mockMonaco.editor.setModelMarkers.mock.calls[0]![2];
+    expect(markers.length).toBe(1);
+    expect(markers[0].startLineNumber).toBe(1);
+    // '  background bg_sunset transition: "dissolve"'
+    // index of 'bg_sunset' is 13 -> startColumn = 14
+    // length of 'bg_sunset' is 9 -> endColumn = 14 + 9 = 23
+    expect(markers[0].startColumn).toBe(14);
+    expect(markers[0].endColumn).toBe(23);
+  });
+
+  it('TC-BRIDGE-SPAN-02: should locate word span at startColumn when endCol is missing and col > 1', () => {
+    (mockModel as any).getLineContent = vi.fn((line: number) => {
+      if (line === 1) return '  jump invalid_label';
+      return '';
+    });
+
+    const diagnostics: EngineDiagnostic[] = [
+      {
+        id: 'diag-word-span',
+        timestamp: Date.now(),
+        category: 'compiler',
+        severity: 'error',
+        message: 'Unknown scene label',
+        fileId: 'file-1',
+        line: 1,
+        col: 8, // Points to 'invalid_label' at col 8
+      },
+    ];
+
+    syncMonacoMarkers({
+      monacoInstance: mockMonaco,
+      model: mockModel,
+      activeFileId: 'file-1',
+      diagnostics,
+    });
+
+    const markers = mockMonaco.editor.setModelMarkers.mock.calls[0]![2];
+    expect(markers.length).toBe(1);
+    expect(markers[0].startLineNumber).toBe(1);
+    // 'invalid_label' has length 13. col: 8 -> endColumn = 8 + 13 = 21
+    expect(markers[0].startColumn).toBe(8);
+    expect(markers[0].endColumn).toBe(21);
+  });
+
+  it('TC-BRIDGE-SPAN-03: should skip leading indentation when col is 1 on indented lines', () => {
+    (mockModel as any).getLineContent = vi.fn((line: number) => {
+      if (line === 1) return '    show alice.happy';
+      return '';
+    });
+
+    const diagnostics: EngineDiagnostic[] = [
+      {
+        id: 'diag-indent',
+        timestamp: Date.now(),
+        category: 'compiler',
+        severity: 'error',
+        message: 'Syntax error in statement',
+        fileId: 'file-1',
+        line: 1,
+        col: 1, // Fallback col 1 on indented line
+      },
+    ];
+
+    syncMonacoMarkers({
+      monacoInstance: mockMonaco,
+      model: mockModel,
+      activeFileId: 'file-1',
+      diagnostics,
+    });
+
+    const markers = mockMonaco.editor.setModelMarkers.mock.calls[0]![2];
+    expect(markers.length).toBe(1);
+    expect(markers[0].startLineNumber).toBe(1);
+    // '    show alice.happy': 4 spaces -> starts at col 5 ('show')
+    // first word 'show' has length 4 -> endColumn = 5 + 4 = 9
+    expect(markers[0].startColumn).toBe(5);
+    expect(markers[0].endColumn).toBe(9);
+  });
 });
