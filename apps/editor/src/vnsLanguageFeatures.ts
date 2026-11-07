@@ -1189,15 +1189,23 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): monaco.
         return false;
       };
 
+      // Lớp 2: Khử trùng lặp chẩn đoán ngữ nghĩa (Semantic Diagnostic Deduplication)
       const matchedDiagnostics: EditorDiagnostic[] = [];
+      const seenDiagKeys = new Set<string>();
+
       for (const marker of markers) {
         for (const d of allDiagnostics) {
           if (!matchDiagnosticToFile(d)) continue;
           if (d.line !== marker.startLineNumber) continue;
           if (marker.code && d.code && marker.code !== d.code) continue;
-          if (!matchedDiagnostics.includes(d)) {
-            matchedDiagnostics.push(d);
+
+          const diagKey = `${d.fileId || d.fileName || ''}:${d.line}:${d.code || d.message || ''}:${d.quickFix?.type || ''}:${d.quickFix?.targetId || ''}`;
+          if (seenDiagKeys.has(diagKey)) {
+            continue;
           }
+
+          seenDiagKeys.add(diagKey);
+          matchedDiagnostics.push(d);
         }
       }
 
@@ -1284,8 +1292,28 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): monaco.
         return codeAction;
       });
 
+      // Lớp 3: Khử trùng lặp cuối cùng trên danh sách CodeAction trước khi trả về cho Monaco
+      const seenMonacoActionKeys = new Set<string>();
+      const deduplicatedMonacoActions: monaco.languages.CodeAction[] = [];
+
+      for (const action of monacoActions) {
+        let key: string;
+        if (action.command) {
+          key = `cmd:${action.command.id}:${action.title}:${JSON.stringify(action.command.arguments || [])}`;
+        } else if (action.edit && action.edit.edits && action.edit.edits.length > 0) {
+          key = `edit:${action.title}:${JSON.stringify(action.edit.edits)}`;
+        } else {
+          key = action.title;
+        }
+
+        if (!seenMonacoActionKeys.has(key)) {
+          seenMonacoActionKeys.add(key);
+          deduplicatedMonacoActions.push(action);
+        }
+      }
+
       return {
-        actions: monacoActions,
+        actions: deduplicatedMonacoActions,
         dispose: () => {},
       };
     },

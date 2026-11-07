@@ -217,6 +217,7 @@ function findTargetRangeOnLine(
 
 /**
  * Sinh danh sách QuickFixAction từ chẩn đoán lỗi tại vị trí con trỏ.
+ * Áp dụng Triple-Layer Deduplication (Lớp 1: Action-level & Asset-target deduplication).
  */
 export function resolveQuickFixActions(context: QuickFixContext): QuickFixAction[] {
   if (!context.diagnostics || context.diagnostics.length === 0) {
@@ -224,6 +225,7 @@ export function resolveQuickFixActions(context: QuickFixContext): QuickFixAction
   }
 
   const actions: QuickFixAction[] = [];
+  const seenAssetTargets = new Set<string>();
   const lineDiags = context.diagnostics.filter(
     d => d.line !== undefined && d.line === context.cursorLine,
   );
@@ -242,15 +244,19 @@ export function resolveQuickFixActions(context: QuickFixContext): QuickFixAction
         const rawCat = (qf.prefillData?.category as string) || 'background';
         const category = rawCat === 'audio' ? 'bgm' : rawCat === 'backgrounds' ? 'background' : rawCat;
 
-        actions.push({
-          id: `create-asset-${targetId}`,
-          title: `Create asset '${targetId}'`,
-          kind: 'quickfix',
-          command: {
-            id: 'vn.editor.createAsset',
-            arguments: [targetId, category],
-          },
-        });
+        // Lớp 1a: Chỉ sinh tối đa 1 action tạo asset cho mỗi targetId duy nhất
+        if (!seenAssetTargets.has(targetId)) {
+          seenAssetTargets.add(targetId);
+          actions.push({
+            id: `create-asset-${targetId}`,
+            title: `Create asset '${targetId}'`,
+            kind: 'quickfix',
+            command: {
+              id: 'vn.editor.createAsset',
+              arguments: [targetId, category],
+            },
+          });
+        }
 
         // So khớp typo tương tự trong projectAssets
         const assetMap = new Map<string, string>();
@@ -443,6 +449,36 @@ export function resolveQuickFixActions(context: QuickFixContext): QuickFixAction
     }
   }
 
-  return actions;
+  // Lớp 1b: Khử trùng lặp danh sách actions (Generic Deduplication cho Command & Edit actions)
+  const seenActionKeys = new Set<string>();
+  const seenActionIds = new Set<string>();
+  const deduplicatedActions: QuickFixAction[] = [];
+
+  for (const action of actions) {
+    if (action.id && seenActionIds.has(action.id)) {
+      continue;
+    }
+
+    let actionKey: string;
+    if (action.command) {
+      actionKey = `cmd:${action.command.id}:${action.title}:${JSON.stringify(action.command.arguments || [])}`;
+    } else if (action.edit) {
+      actionKey = `edit:${action.title}:${action.edit.fileId}:${action.edit.range.startLine}:${action.edit.range.startCol}:${action.edit.range.endLine}:${action.edit.range.endCol}:${action.edit.newText}`;
+    } else {
+      actionKey = action.id || action.title;
+    }
+
+    if (seenActionKeys.has(actionKey)) {
+      continue;
+    }
+
+    if (action.id) {
+      seenActionIds.add(action.id);
+    }
+    seenActionKeys.add(actionKey);
+    deduplicatedActions.push(action);
+  }
+
+  return deduplicatedActions;
 }
 
