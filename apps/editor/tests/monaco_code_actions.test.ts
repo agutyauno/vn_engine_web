@@ -400,4 +400,94 @@ describe('Integration Tests: Monaco CodeActionProvider (QuickFix Lightbulb & Ctr
     expect(result!.actions.length).toBeGreaterThan(0);
     expect(result!.actions.some(a => a.title.includes('gold'))).toBe(true);
   });
+
+  // TC-MONACO-QF-06: Duplicate Actions Deduplication for Undeclared Assets
+  it('TC-MONACO-QF-06: should return only one CodeAction when multiple markers or duplicate diagnostics exist for the same undeclared asset on the same line', async () => {
+    registerVnsLanguageFeatures(mockContext);
+
+    // Diagnostic 1 từ reconciliation (ví dụ Asset scanner)
+    const assetDiag1: EngineDiagnostic = {
+      id: 'diag-ast-missing-1',
+      timestamp: Date.now(),
+      category: 'asset',
+      severity: 'warning',
+      message: "Uncreated asset 'bg_garden.png' referenced in script",
+      fileId: 'file-1',
+      line: 1,
+      col: 1,
+      quickFix: {
+        type: 'create_asset',
+        targetId: 'bg_garden.png',
+        prefillData: { name: 'bg_garden.png', category: 'background' },
+      },
+    };
+
+    // Diagnostic 2 từ compiler check cùng trỏ vào asset chưa khai báo 'bg_garden.png' trên line 1
+    const assetDiag2: EngineDiagnostic = {
+      id: 'diag-ast-missing-2',
+      timestamp: Date.now(),
+      category: 'compiler',
+      severity: 'error',
+      message: "Asset 'bg_garden.png' does not exist in project assets",
+      fileId: 'file-1',
+      line: 1,
+      col: 1,
+      quickFix: {
+        type: 'create_asset',
+        targetId: 'bg_garden.png',
+        prefillData: { name: 'bg_garden.png', category: 'background' },
+      },
+    };
+
+    // Nạp cả 2 diagnostics vào store
+    useDiagnosticsStore.getState().setReconciliationDiagnostics([assetDiag1]);
+    useDiagnosticsStore.getState().setCompilerDiagnostics([assetDiag2]);
+
+    const mockModel = {
+      uri: { toString: () => 'inmemory://model/file-1', path: '/main.vns' },
+      getValue: () => 'background bg_garden.png\n',
+      getLineContent: () => 'background bg_garden.png',
+    } as unknown as monaco.editor.ITextModel;
+
+    const mockRange = { startLineNumber: 1, startColumn: 1, endLineNumber: 1, endColumn: 24 } as monaco.Range;
+
+    // Monaco truyền 2 markers trên cùng dòng 1
+    const mockContextData: monaco.languages.CodeActionContext = {
+      markers: [
+        {
+          severity: monaco.MarkerSeverity.Warning,
+          message: "Uncreated asset 'bg_garden.png' referenced in script",
+          startLineNumber: 1,
+          startColumn: 1,
+          endLineNumber: 1,
+          endColumn: 24,
+        },
+        {
+          severity: monaco.MarkerSeverity.Error,
+          message: "Asset 'bg_garden.png' does not exist in project assets",
+          startLineNumber: 1,
+          startColumn: 1,
+          endLineNumber: 1,
+          endColumn: 24,
+        },
+      ],
+      only: undefined,
+      trigger: 1,
+    };
+
+    const result = await codeActionProvider!.provideCodeActions(
+      mockModel,
+      mockRange,
+      mockContextData,
+      {} as monaco.CancellationToken,
+    );
+
+    expect(result?.actions).toBeDefined();
+
+    // Khẳng định action "Create asset 'bg_garden.png'" chỉ xuất hiện đúng 1 lần duy nhất
+    const createAssetActions = result!.actions.filter(
+      a => a.title === "Create asset 'bg_garden.png'",
+    );
+    expect(createAssetActions).toHaveLength(1);
+  });
 });

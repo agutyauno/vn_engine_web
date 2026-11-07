@@ -406,6 +406,117 @@ describe('Unit Tests: QuickFix Service (Variable Insertion & Action Resolution)'
       const actions = resolveQuickFixActions(context);
       expect(actions).toEqual([]);
     });
+
+    // TC-QF-ACTION-05: Action Deduplication for Undeclared Assets
+    it('TC-QF-ACTION-05: should deduplicate create_asset actions when multiple diagnostics exist for the same asset on the same line', () => {
+      const diag1: EditorDiagnostic = {
+        id: 'diag-ast-dup-1',
+        category: 'asset',
+        severity: 'warning',
+        message: "Uncreated asset 'bg_forest.png' referenced in script",
+        fileName: 'main.vns',
+        fileId: 'file-main',
+        line: 2,
+        col: 10,
+        quickFix: {
+          type: 'create_asset',
+          targetId: 'bg_forest.png',
+          prefillData: { name: 'bg_forest.png', category: 'background' },
+        },
+      };
+
+      const diag2: EditorDiagnostic = {
+        id: 'diag-ast-dup-2',
+        category: 'compiler',
+        severity: 'error',
+        message: "Asset 'bg_forest.png' was not declared in project manifest",
+        fileName: 'main.vns',
+        fileId: 'file-main',
+        line: 2,
+        col: 10,
+        quickFix: {
+          type: 'create_asset',
+          targetId: 'bg_forest.png',
+          prefillData: { name: 'bg_forest.png', category: 'background' },
+        },
+      };
+
+      const context: QuickFixContext = {
+        ...sampleContext,
+        cursorLine: 2,
+        diagnostics: [diag1, diag2],
+      };
+
+      const actions = resolveQuickFixActions(context);
+
+      const createActions = actions.filter(
+        a => a.id === 'create-asset-bg_forest.png' || a.title === "Create asset 'bg_forest.png'",
+      );
+      expect(createActions).toHaveLength(1);
+      expect(createActions[0]!.id).toBe('create-asset-bg_forest.png');
+      expect(createActions[0]!.command?.id).toBe('vn.editor.createAsset');
+      expect(createActions[0]!.command?.arguments).toEqual(['bg_forest.png', 'background']);
+    });
+
+    // TC-QF-ACTION-05 (Generic Deduplication for Command and Edit Actions)
+    it('TC-QF-ACTION-05 (Generic Deduplication): should deduplicate identical command and edit actions when multiple diagnostics trigger same quickfix mutations on the same line', () => {
+      const varDiag1: EditorDiagnostic = {
+        id: 'diag-var-dup-1',
+        category: 'compiler',
+        severity: 'error',
+        code: 'ERR_SEMANTIC_UNDEFINED_VAR',
+        message: "Variable 'scrore' is used before being defined",
+        fileName: 'main.vns',
+        fileId: 'file-main',
+        line: 4,
+        col: 5,
+        quickFix: {
+          type: 'define_variable',
+          targetId: 'scrore',
+        },
+      };
+
+      const varDiag2: EditorDiagnostic = {
+        id: 'diag-var-dup-2',
+        category: 'compiler',
+        severity: 'error',
+        code: 'ERR_SEMANTIC_UNDEFINED_VAR',
+        message: "Variable 'scrore' is used before being defined",
+        fileName: 'main.vns',
+        fileId: 'file-main',
+        line: 4,
+        col: 14,
+        quickFix: {
+          type: 'define_variable',
+          targetId: 'scrore',
+        },
+      };
+
+      const context: QuickFixContext = {
+        ...sampleContext,
+        cursorLine: 4,
+        diagnostics: [varDiag1, varDiag2],
+      };
+
+      const actions = resolveQuickFixActions(context);
+
+      // 1. Kiểm tra không bị duplicate Scene Variable Action
+      const sceneVarActions = actions.filter(a => a.id === 'declare-scene-var-scrore');
+      expect(sceneVarActions).toHaveLength(1);
+
+      // 2. Kiểm tra không bị duplicate Global Variable Action
+      const globalVarActions = actions.filter(a => a.id === 'declare-global-var-scrore');
+      expect(globalVarActions).toHaveLength(1);
+
+      // 3. Kiểm tra không bị duplicate Typo Correction Action
+      const typoActions = actions.filter(a => a.id.startsWith('fix-typo-var-scrore'));
+      expect(typoActions).toHaveLength(1);
+
+      // 4. Đảm bảo toàn bộ ID của các action sinh ra không có bất kỳ phần tử nào trùng nhau
+      const actionIds = actions.map(a => a.id);
+      const uniqueActionIds = new Set(actionIds);
+      expect(actionIds.length).toBe(uniqueActionIds.size);
+    });
   });
 });
 
