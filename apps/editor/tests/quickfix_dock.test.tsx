@@ -4,7 +4,7 @@ import 'fake-indexeddb/auto';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import type { EditorDiagnostic } from '../src/core/services/reconciliation';
-import type { Project } from '@vn-engine/shared-types';
+import type { Project, EngineDiagnostic } from '@vn-engine/shared-types';
 import { DockProblemsTable } from '../src/components/studio/DockProblemsTable';
 import { StudioWorkspacePage } from '../src/components/studio/StudioWorkspacePage';
 import { useProjectStore } from '../src/core/stores/projectStore';
@@ -20,7 +20,6 @@ describe('Integration Tests: Dock Problems Table QuickFix (TC-DRAWER-QF-01 & 02)
       severity: 'error',
       code: 'ERR_SEMANTIC_UNDEFINED_VAR',
       message: "Variable 'score' is used before being defined",
-      fileName: 'main.vns',
       fileId: 'file-1',
       line: 4,
       col: 5,
@@ -113,13 +112,13 @@ describe('Integration Tests: Dock Problems Table QuickFix (TC-DRAWER-QF-01 & 02)
       assets: [],
     };
 
-    const varDiag: EditorDiagnostic = {
+    const varDiag: EngineDiagnostic = {
       id: 'diag-var-scene-score',
+      timestamp: Date.now(),
       category: 'compiler',
       severity: 'error',
       code: 'ERR_SEMANTIC_UNDEFINED_VAR',
       message: "Variable 'score' is used before being defined",
-      fileName: 'main.vns',
       fileId: 'file-1',
       line: 2,
       col: 5,

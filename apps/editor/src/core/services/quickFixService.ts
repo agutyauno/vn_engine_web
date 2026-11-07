@@ -332,55 +332,92 @@ export function resolveQuickFixActions(context: QuickFixContext): QuickFixAction
       }
 
       case 'define_variable': {
-        // 1. Declare global variable
-        const globalInsert = calculateVariableInsertion(
-          context.fileContent,
-          targetId,
-          'global',
-          diagLine,
+        const lines = context.fileContent.split('\n');
+        const scenes = parseScenes(lines);
+        const enclosingScenes = scenes.filter(
+          s => s.startLine <= diagLine && diagLine <= s.endLine,
         );
-        actions.push({
-          id: `declare-global-var-${targetId}`,
-          title: `Declare global variable '${targetId}'`,
-          kind: 'quickfix',
-          edit: {
-            fileId: context.fileId,
-            range: {
-              startLine: globalInsert.insertLine,
-              startCol: globalInsert.insertCol,
-              endLine: globalInsert.insertLine,
-              endCol: globalInsert.insertCol,
-            },
-            newText: globalInsert.text,
-          },
-        });
+        const isInsideScene = enclosingScenes.length > 0;
 
-        // 2. Declare scene variable
-        const sceneInsert = calculateVariableInsertion(
-          context.fileContent,
-          targetId,
-          'scene',
-          diagLine,
-        );
-        actions.push({
-          id: `declare-scene-var-${targetId}`,
-          title: `Declare scene variable '${targetId}'`,
-          kind: 'quickfix',
-          edit: {
-            fileId: context.fileId,
-            range: {
-              startLine: sceneInsert.insertLine,
-              startCol: sceneInsert.insertCol,
-              endLine: sceneInsert.insertLine,
-              endCol: sceneInsert.insertCol,
+        const matches = findClosestMatches(targetId, context.projectVariables || [], 2, 1);
+        const hasTypoMatch = matches.length > 0;
+
+        if (isInsideScene) {
+          // 1. Declare scene variable (preferred for inside scene if no typo match)
+          const sceneInsert = calculateVariableInsertion(
+            context.fileContent,
+            targetId,
+            'scene',
+            diagLine,
+          );
+          actions.push({
+            id: `declare-scene-var-${targetId}`,
+            title: `Declare scene variable '${targetId}'`,
+            kind: 'quickfix',
+            isPreferred: !hasTypoMatch,
+            edit: {
+              fileId: context.fileId,
+              range: {
+                startLine: sceneInsert.insertLine,
+                startCol: sceneInsert.insertCol,
+                endLine: sceneInsert.insertLine,
+                endCol: sceneInsert.insertCol,
+              },
+              newText: sceneInsert.text,
             },
-            newText: sceneInsert.text,
-          },
-        });
+          });
+
+          // 2. Declare global variable (secondary choice)
+          const globalInsert = calculateVariableInsertion(
+            context.fileContent,
+            targetId,
+            'global',
+            diagLine,
+          );
+          actions.push({
+            id: `declare-global-var-${targetId}`,
+            title: `Declare global variable '${targetId}'`,
+            kind: 'quickfix',
+            isPreferred: false,
+            edit: {
+              fileId: context.fileId,
+              range: {
+                startLine: globalInsert.insertLine,
+                startCol: globalInsert.insertCol,
+                endLine: globalInsert.insertLine,
+                endCol: globalInsert.insertCol,
+              },
+              newText: globalInsert.text,
+            },
+          });
+        } else {
+          // Top-level (outside scene): only declare global variable
+          const globalInsert = calculateVariableInsertion(
+            context.fileContent,
+            targetId,
+            'global',
+            diagLine,
+          );
+          actions.push({
+            id: `declare-global-var-${targetId}`,
+            title: `Declare global variable '${targetId}'`,
+            kind: 'quickfix',
+            isPreferred: !hasTypoMatch,
+            edit: {
+              fileId: context.fileId,
+              range: {
+                startLine: globalInsert.insertLine,
+                startCol: globalInsert.insertCol,
+                endLine: globalInsert.insertLine,
+                endCol: globalInsert.insertCol,
+              },
+              newText: globalInsert.text,
+            },
+          });
+        }
 
         // 3. Typo correction
-        const matches = findClosestMatches(targetId, context.projectVariables || [], 2, 1);
-        if (matches.length > 0) {
+        if (hasTypoMatch) {
           const bestMatch = matches[0]!;
           const targetRange = findTargetRangeOnLine(
             context.fileContent,

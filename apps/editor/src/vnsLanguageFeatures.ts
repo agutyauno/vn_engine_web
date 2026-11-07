@@ -6,6 +6,7 @@
 import * as monaco from 'monaco-editor';
 import { formatVns } from '@vn-engine/dsl-compiler';
 import { useDiagnosticsStore } from './core/stores/diagnosticsStore';
+import { useEditorUIStore } from './core/stores/uiStore';
 import { resolveQuickFixActions, type QuickFixContext } from './core/services/quickFixService';
 import type { EditorDiagnostic } from './core/services/reconciliation';
 import type { AssetCategory } from '@vn-engine/shared-types';
@@ -1156,7 +1157,13 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): monaco.
   // 5. CODE ACTION PROVIDER (QUICKFIX LIGHTBULB & CTRL+.)
   const codeActionDisposable = monaco.languages.registerCodeActionProvider('vns', {
     provideCodeActions: (model, range, contextData, _token) => {
-      const markers = contextData.markers || [];
+      let markers = contextData.markers || [];
+      if (markers.length === 0) {
+        const allModelMarkers = monaco.editor.getModelMarkers({ resource: model.uri });
+        markers = allModelMarkers.filter(
+          m => m.startLineNumber <= range.endLineNumber && m.endLineNumber >= range.startLineNumber,
+        );
+      }
       if (markers.length === 0) {
         return { actions: [], dispose: () => {} };
       }
@@ -1170,11 +1177,13 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): monaco.
             ...store.runtimeDiagnostics,
           ];
 
+      const activeFileId = useEditorUIStore.getState().activeFileId;
       const modelUriStr = model.uri ? model.uri.toString() : '';
       const modelUriPath = model.uri ? model.uri.path : '';
 
       const matchDiagnosticToFile = (d: EditorDiagnostic): boolean => {
         if (!d.fileId && !d.fileName) return true;
+        if (activeFileId && (d.fileId === activeFileId || d.fileName === activeFileId)) return true;
         if (d.fileId && (modelUriStr.includes(d.fileId) || modelUriPath.includes(d.fileId))) return true;
         if (d.fileName && (modelUriStr.includes(d.fileName) || modelUriPath.includes(d.fileName) || modelUriPath === `/${d.fileName}`)) return true;
         return false;
@@ -1222,7 +1231,7 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): monaco.
       const projectVariables = context.getVariables ? context.getVariables() : [];
       const cursorLine = range.startLineNumber;
       const cursorCol = range.startColumn;
-      const fileId = modelUriStr.split('/').pop()?.replace(/\.vns$/, '') || 'active-file';
+      const fileId = activeFileId || modelUriStr.split('/').pop()?.replace(/\.vns$/, '') || 'active-file';
 
       const qfContext: QuickFixContext = {
         fileId,

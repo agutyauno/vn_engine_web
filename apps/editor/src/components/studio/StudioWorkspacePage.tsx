@@ -631,7 +631,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
           const insResult = calculateVariableInsertion(
             targetFile.content,
             varName,
-            'global',
+            'scene',
             editorDiag.line || 1,
           );
           const lines = targetFile.content.split('\n');
