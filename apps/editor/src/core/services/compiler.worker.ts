@@ -37,21 +37,12 @@ self.onmessage = (event: MessageEvent<CompilerWorkerRequest>) => {
       assets: options?.assets,
     });
 
-    if (result.success && result.program) {
-      const response: CompilerWorkerResponse = {
-        requestId,
-        success: true,
-        bytecode: result.program,
-        diagnostics: [],
-        reconciliationDiagnostics,
-      };
-      self.postMessage(response);
-    } else {
-      const diagnostics: EngineDiagnostic[] = (result.errors || []).map((err, idx) => ({
+    const compilerDiagnostics: EngineDiagnostic[] = [
+      ...(result.errors || []).map((err, idx) => ({
         id: `diag-compile-${requestId}-${idx}`,
         timestamp: Date.now(),
-        category: 'compiler',
-        severity: 'error',
+        category: 'compiler' as const,
+        severity: 'error' as const,
         code: err.code,
         message: err.message,
         fileId: err.loc?.fileId,
@@ -59,13 +50,37 @@ self.onmessage = (event: MessageEvent<CompilerWorkerRequest>) => {
         col: err.loc?.col,
         endLine: err.loc?.endLine,
         endCol: err.loc?.endCol,
-      }));
+      })),
+      ...(result.warnings || []).map((warn, idx) => ({
+        id: `diag-compile-warn-${requestId}-${idx}`,
+        timestamp: Date.now(),
+        category: 'compiler' as const,
+        severity: 'warning' as const,
+        code: warn.code,
+        message: warn.message,
+        fileId: warn.loc?.fileId,
+        line: warn.loc?.line,
+        col: warn.loc?.col,
+        endLine: warn.loc?.endLine,
+        endCol: warn.loc?.endCol,
+      })),
+    ];
 
+    if (result.success && result.program) {
+      const response: CompilerWorkerResponse = {
+        requestId,
+        success: true,
+        bytecode: result.program,
+        diagnostics: compilerDiagnostics,
+        reconciliationDiagnostics,
+      };
+      self.postMessage(response);
+    } else {
       const response: CompilerWorkerResponse = {
         requestId,
         success: false,
         bytecode: undefined,
-        diagnostics,
+        diagnostics: compilerDiagnostics,
         reconciliationDiagnostics,
       };
       self.postMessage(response);

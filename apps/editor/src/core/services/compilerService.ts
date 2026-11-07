@@ -77,36 +77,51 @@ export class CompilerService {
       assets: options?.assets,
     });
 
+    const compilerDiagnostics: EngineDiagnostic[] = [
+      ...(result.errors || []).map((err, idx) => ({
+        id: `diag-compile-${requestId}-${idx}`,
+        timestamp: Date.now(),
+        category: 'compiler' as const,
+        severity: 'error' as const,
+        code: err.code,
+        message: err.message,
+        fileId: err.loc?.fileId,
+        line: err.loc?.line,
+        col: err.loc?.col,
+        endLine: err.loc?.endLine,
+        endCol: err.loc?.endCol,
+      })),
+      ...(result.warnings || []).map((warn, idx) => ({
+        id: `diag-compile-warn-${requestId}-${idx}`,
+        timestamp: Date.now(),
+        category: 'compiler' as const,
+        severity: 'warning' as const,
+        code: warn.code,
+        message: warn.message,
+        fileId: warn.loc?.fileId,
+        line: warn.loc?.line,
+        col: warn.loc?.col,
+        endLine: warn.loc?.endLine,
+        endCol: warn.loc?.endCol,
+      })),
+    ];
+
     if (result.success && result.program) {
       this.latestProgram = result.program;
       return {
         requestId,
         success: true,
         bytecode: result.program,
-        diagnostics: [],
+        diagnostics: compilerDiagnostics,
         reconciliationDiagnostics,
       };
     }
-
-    const diagnostics: EngineDiagnostic[] = (result.errors || []).map((err, idx) => ({
-      id: `diag-compile-${requestId}-${idx}`,
-      timestamp: Date.now(),
-      category: 'compiler',
-      severity: 'error',
-      code: err.code,
-      message: err.message,
-      fileId: err.loc?.fileId,
-      line: err.loc?.line,
-      col: err.loc?.col,
-      endLine: err.loc?.endLine,
-      endCol: err.loc?.endCol,
-    }));
 
     return {
       requestId,
       success: false,
       bytecode: undefined,
-      diagnostics,
+      diagnostics: compilerDiagnostics,
       reconciliationDiagnostics,
     };
   }

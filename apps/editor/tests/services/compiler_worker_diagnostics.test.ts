@@ -300,3 +300,4 @@ describe('Compiler Worker Diagnostics & Audio Decoupling (TDD Phase 2)', () => {
     });
   });
 });
+
