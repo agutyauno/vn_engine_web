@@ -1,9 +1,46 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useImperativeHandle, useRef, useState } from 'react';
 import type { AssetCategory, Project, ScriptFile } from '@vn-engine/shared-types';
 import type * as monacoType from 'monaco-editor';
 import { useProjectStore } from '../../core/stores/projectStore';
 import { useDiagnosticsStore } from '../../core/stores/diagnosticsStore';
 import { syncMonacoMarkers } from '../../core/services/monacoMarkerBridge';
+
+export interface MonacoEditorHandle {
+  insertSnippet: (snippet: string) => void;
+}
+
+export function insertSnippetAtCursor(
+  editor: monacoType.editor.IStandaloneCodeEditor,
+  snippet: string,
+): void {
+  const position = editor.getPosition() || { lineNumber: 1, column: 1 };
+  const model = editor.getModel();
+  if (!model) return;
+  const lineContent = model.getLineContent(position.lineNumber);
+  const textToInsert = lineContent.trim().length > 0 ? `\n${snippet}\n` : `${snippet}\n`;
+  const range =
+    typeof window !== 'undefined' && (window as any).monaco?.Range
+      ? new (window as any).monaco.Range(
+          position.lineNumber,
+          position.column,
+          position.lineNumber,
+          position.column,
+        )
+      : {
+          startLineNumber: position.lineNumber,
+          startColumn: position.column,
+          endLineNumber: position.lineNumber,
+          endColumn: position.column,
+        };
+  editor.executeEdits('snippet-insert', [
+    {
+      range,
+      text: textToInsert,
+      forceMoveMarkers: true,
+    },
+  ]);
+  editor.focus();
+}
 
 export interface MonacoEditorContainerProps {
   file: ScriptFile | null;
@@ -18,20 +55,42 @@ export interface MonacoEditorContainerProps {
 
 let vnsRegistered = false;
 
-export const MonacoEditorContainer: React.FC<MonacoEditorContainerProps> = ({
-  file,
-  project,
-  cursorJumpTarget,
-  onChange,
-  onCursorChange,
-  onRequestCreateAsset,
-  onRequestCreateCharacter,
-  readOnly = false,
-}) => {
+export const MonacoEditorContainer = React.forwardRef<
+  MonacoEditorHandle,
+  MonacoEditorContainerProps
+>(function MonacoEditorContainer(
+  {
+    file,
+    project,
+    cursorJumpTarget,
+    onChange,
+    onCursorChange,
+    onRequestCreateAsset,
+    onRequestCreateCharacter,
+    readOnly = false,
+  },
+  ref,
+) {
   const containerRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<monacoType.editor.IStandaloneCodeEditor | null>(null);
   const monacoInstanceRef = useRef<typeof monacoType | null>(null);
   const [isMonacoMounted, setIsMonacoMounted] = useState(false);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      insertSnippet: (snippet: string) => {
+        if (editorRef.current) {
+          insertSnippetAtCursor(editorRef.current, snippet);
+        } else if (file) {
+          const newContent = file.content ? `${file.content}\n${snippet}\n` : `${snippet}\n`;
+          useProjectStore.getState().updateFileContent(file.id, newContent);
+          onChange?.(newContent);
+        }
+      },
+    }),
+    [file, onChange],
+  );
 
   const onRequestCreateAssetRef = useRef(onRequestCreateAsset);
   onRequestCreateAssetRef.current = onRequestCreateAsset;
@@ -230,4 +289,4 @@ export const MonacoEditorContainer: React.FC<MonacoEditorContainerProps> = ({
       )}
     </div>
   );
-};
+});

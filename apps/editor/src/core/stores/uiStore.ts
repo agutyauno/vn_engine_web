@@ -5,6 +5,8 @@ export type PendingNavigationTarget =
   | { type: 'close-tab'; fileId: string }
   | { type: 'switch-tab'; fileId: string };
 
+export type ViewMode = 'list' | 'grid';
+
 export interface EditorUIStoreState {
   // Layout Dimensions (Persisted in localStorage)
   navWidth: number; // Default: 260px (Range: 200px - 450px)
@@ -14,6 +16,8 @@ export interface EditorUIStoreState {
   // Workspace Navigation
   activeTab: 'scripts' | 'characters' | 'assets' | null;
   lastAssetCategory: string; // Default: 'all'
+  assetViewMode: ViewMode;
+  characterViewMode: ViewMode;
   openFileIds: string[];
   activeFileId: string | null;
   isDrawerOpen: boolean;
@@ -35,6 +39,8 @@ export interface EditorUIStoreState {
 
   setActiveTab: (tab: 'scripts' | 'characters' | 'assets' | null) => void;
   setLastAssetCategory: (category: string) => void;
+  setAssetViewMode: (mode: ViewMode) => void;
+  setCharacterViewMode: (mode: ViewMode) => void;
   selectTab: (fileId: string) => void;
   closeTab: (fileId: string) => void;
 
@@ -54,6 +60,18 @@ export interface EditorUIStoreState {
 
 const STORAGE_KEY = 'vn_editor_layout_dims';
 const ASSET_CATEGORY_STORAGE_KEY = 'vn_editor_last_asset_category';
+const ASSET_VIEW_MODE_STORAGE_KEY = 'vn_editor_asset_view_mode';
+const CHARACTER_VIEW_MODE_STORAGE_KEY = 'vn_editor_character_view_mode';
+
+function getInitialViewMode(key: string): ViewMode {
+  if (typeof window === 'undefined' || !window.localStorage) return 'list';
+  try {
+    const val = localStorage.getItem(key);
+    return val === 'grid' || val === 'list' ? val : 'list';
+  } catch {
+    return 'list';
+  }
+}
 
 function getInitialAssetCategory(): string {
   if (typeof window === 'undefined' || !window.localStorage) {
@@ -110,6 +128,8 @@ export const initialUIState: Omit<
   | 'resetDimensions'
   | 'setActiveTab'
   | 'setLastAssetCategory'
+  | 'setAssetViewMode'
+  | 'setCharacterViewMode'
   | 'selectTab'
   | 'closeTab'
   | 'toggleDrawer'
@@ -125,6 +145,8 @@ export const initialUIState: Omit<
 > = {
   ...getInitialDimensions(),
   lastAssetCategory: getInitialAssetCategory(),
+  assetViewMode: getInitialViewMode(ASSET_VIEW_MODE_STORAGE_KEY),
+  characterViewMode: getInitialViewMode(CHARACTER_VIEW_MODE_STORAGE_KEY),
   activeTab: 'scripts',
   openFileIds: [],
   activeFileId: null,
@@ -236,6 +258,28 @@ export const useEditorUIStore = create<EditorUIStoreState>((set, get) => ({
         // Ignore storage errors in restricted contexts
       }
     }
+  },
+
+  setAssetViewMode: (mode: ViewMode) => {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.setItem(ASSET_VIEW_MODE_STORAGE_KEY, mode);
+      }
+    } catch {
+      // ignore
+    }
+    set({ assetViewMode: mode });
+  },
+
+  setCharacterViewMode: (mode: ViewMode) => {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.setItem(CHARACTER_VIEW_MODE_STORAGE_KEY, mode);
+      }
+    } catch {
+      // ignore
+    }
+    set({ characterViewMode: mode });
   },
 
   selectTab: fileId =>
