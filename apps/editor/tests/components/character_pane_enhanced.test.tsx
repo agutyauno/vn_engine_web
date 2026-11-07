@@ -32,18 +32,18 @@ describe('Phase 2: CharacterManagerPane Enhanced (Grid/List & Expression Accordi
     {
       id: 'asset-smile-uuid',
       name: 'alice_smile.png',
+      type: 'image',
       category: 'sprite',
       storageUrl: 'https://cdn.example.com/alice_smile.png',
       sizeBytes: 1024,
-      updatedAt: 1000,
     },
     {
       id: 'asset-angry-uuid',
       name: 'alice_angry.png',
+      type: 'image',
       category: 'sprite',
       storageUrl: 'https://cdn.example.com/alice_angry.png',
       sizeBytes: 2048,
-      updatedAt: 1000,
     },
   ];
 

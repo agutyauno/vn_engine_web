@@ -10,7 +10,7 @@ import { AssetLibraryPane } from './AssetLibraryPane';
 import { CreateAssetModal } from './CreateAssetModal';
 import { calculateVariableInsertion } from '../../core/services/quickFixService';
 import { EditorTabBar } from './EditorTabBar';
-import { MonacoEditorContainer } from './MonacoEditorContainer';
+import { MonacoEditorContainer, type MonacoEditorHandle } from './MonacoEditorContainer';
 import { DockDrawer } from './DockDrawer';
 import { DockProblemsTable, type DiagnosticItem } from './DockProblemsTable';
 import { ProjectSettingsModal } from './ProjectSettingsModal';
@@ -125,6 +125,12 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
 
   // Pending navigation target callback for unsaved guard
   const pendingNavRef = useRef<(() => void) | null>(null);
+
+  // Monaco Editor Container Handle
+  const editorContainerRef = useRef<MonacoEditorHandle>(null);
+  const handleInsertSnippet = useCallback((snippet: string) => {
+    editorContainerRef.current?.insertSnippet(snippet);
+  }, []);
 
   // --- Compiler Service & Preview Bridge Instances ---
   const compilerService = useMemo(() => new CompilerService(), []);
@@ -812,10 +818,12 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
             {activeTab === 'characters' && (
               <CharacterManagerPane
                 characters={currentProject.characters || []}
+                assets={currentProject.assets || []}
                 uncreatedIds={uncreatedCharacterIds}
                 onCreateCharacter={handleOpenCreateCharacter}
                 onEditCharacter={handleOpenEditCharacter}
                 onDeleteCharacter={handleDeleteCharacter}
+                onInsertSnippet={handleInsertSnippet}
               />
             )}
 
@@ -867,6 +875,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
 
             {/* Center Monaco Script Editor */}
             <MonacoEditorContainer
+              ref={editorContainerRef}
               file={activeFile}
               project={currentProject}
               cursorJumpTarget={cursorJumpTarget}

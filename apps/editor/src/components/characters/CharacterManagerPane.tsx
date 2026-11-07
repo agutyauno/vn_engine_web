@@ -1,23 +1,72 @@
 import React, { useState, useMemo } from 'react';
-import type { Character } from '@vn-engine/shared-types';
-import { EditIcon, PlusIcon, SearchIcon, TrashIcon, UserIcon } from '../common/Icons';
+import type { AssetRef, Character } from '@vn-engine/shared-types';
+import { useEditorUIStore } from '../../core/stores/uiStore';
+import {
+  CheckIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+  CopyIcon,
+  EditIcon,
+  GridIcon,
+  ImageIcon,
+  ListIcon,
+  PlusIcon,
+  SearchIcon,
+  TrashIcon,
+  UserIcon,
+} from '../common/Icons';
 
 export interface CharacterManagerPaneProps {
   characters: Character[];
+  assets?: AssetRef[];
   uncreatedIds?: string[];
   onCreateCharacter: (prefillId?: string) => void;
   onEditCharacter: (character: Character) => void;
   onDeleteCharacter: (characterId: string) => void;
+  onInsertSnippet?: (snippet: string) => void;
 }
 
 export const CharacterManagerPane: React.FC<CharacterManagerPaneProps> = ({
   characters = [],
+  assets = [],
   uncreatedIds = [],
   onCreateCharacter,
   onEditCharacter,
   onDeleteCharacter,
+  onInsertSnippet,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [expandedCharIds, setExpandedCharIds] = useState<Record<string, boolean>>({});
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  const characterViewMode = useEditorUIStore(s => s.characterViewMode);
+  const setCharacterViewMode = useEditorUIStore(s => s.setCharacterViewMode);
+
+  // Map assets by ID and Name for fast sprite resolution
+  const assetMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const a of assets) {
+      if (a.storageUrl) {
+        map.set(a.id, a.storageUrl);
+        map.set(a.name, a.storageUrl);
+      }
+    }
+    return map;
+  }, [assets]);
+
+  const resolveSpriteUrl = (spriteRef?: string): string | undefined => {
+    if (!spriteRef) return undefined;
+    if (
+      spriteRef.startsWith('data:') ||
+      spriteRef.startsWith('http://') ||
+      spriteRef.startsWith('https://') ||
+      spriteRef.startsWith('/') ||
+      spriteRef.startsWith('blob:')
+    ) {
+      return spriteRef;
+    }
+    return assetMap.get(spriteRef);
+  };
 
   const filteredCharacters = useMemo(() => {
     if (!searchQuery.trim()) return characters;
@@ -26,6 +75,29 @@ export const CharacterManagerPane: React.FC<CharacterManagerPaneProps> = ({
       c => c.name.toLowerCase().includes(q) || c.id.toLowerCase().includes(q),
     );
   }, [characters, searchQuery]);
+
+  const toggleAccordion = (charId: string) => {
+    setExpandedCharIds(prev => ({
+      ...prev,
+      [charId]: !prev[charId],
+    }));
+  };
+
+  const handleCopy = (key: string, snippet: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(snippet);
+      setCopiedKey(key);
+      setTimeout(() => {
+        setCopiedKey(curr => (curr === key ? null : curr));
+      }, 1500);
+    }
+  };
+
+  const handleInsert = (snippet: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    onInsertSnippet?.(snippet);
+  };
 
   return (
     <div
@@ -42,15 +114,52 @@ export const CharacterManagerPane: React.FC<CharacterManagerPaneProps> = ({
             {characters.length}
           </span>
         </div>
-        <button
-          type="button"
-          data-testid="btn-add-character"
-          onClick={() => onCreateCharacter()}
-          title="Create New Character"
-          className="flex h-6 w-6 items-center justify-center rounded border border-neutral-700 bg-neutral-800 text-neutral-300 hover:bg-neutral-700 hover:text-white transition"
-        >
-          <PlusIcon size={12} />
-        </button>
+
+        <div className="flex items-center gap-1">
+          {/* View Mode Toggle */}
+          <div className="flex items-center rounded border border-neutral-800 bg-neutral-950/60 p-0.5">
+            <button
+              type="button"
+              aria-label="List view"
+              title="List view"
+              draggable={false}
+              onClick={() => setCharacterViewMode('list')}
+              className={`flex h-5 w-5 items-center justify-center rounded transition ${
+                characterViewMode === 'list'
+                  ? 'bg-neutral-800 text-neutral-100 shadow-sm'
+                  : 'text-neutral-500 hover:text-neutral-300'
+              }`}
+            >
+              <ListIcon size={12} />
+            </button>
+            <button
+              type="button"
+              aria-label="Grid view"
+              title="Grid view"
+              draggable={false}
+              onClick={() => setCharacterViewMode('grid')}
+              className={`flex h-5 w-5 items-center justify-center rounded transition ${
+                characterViewMode === 'grid'
+                  ? 'bg-neutral-800 text-neutral-100 shadow-sm'
+                  : 'text-neutral-500 hover:text-neutral-300'
+              }`}
+            >
+              <GridIcon size={12} />
+            </button>
+          </div>
+
+          {/* Add Character Button */}
+          <button
+            type="button"
+            data-testid="btn-add-character"
+            onClick={() => onCreateCharacter()}
+            title="Create New Character"
+            draggable={false}
+            className="flex h-6 w-6 items-center justify-center rounded border border-neutral-700 bg-neutral-800 text-neutral-300 hover:bg-neutral-700 hover:text-white transition"
+          >
+            <PlusIcon size={12} />
+          </button>
+        </div>
       </div>
 
       {/* Search Input (visible if there are characters) */}
@@ -97,6 +206,7 @@ export const CharacterManagerPane: React.FC<CharacterManagerPaneProps> = ({
                   data-testid={`btn-quickfix-character-${id}`}
                   onClick={() => onCreateCharacter(id)}
                   title="Quick Fix: Create Character"
+                  draggable={false}
                   className="rounded border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-300 hover:bg-amber-500/20 transition shrink-0"
                 >
                   Create
@@ -123,6 +233,7 @@ export const CharacterManagerPane: React.FC<CharacterManagerPaneProps> = ({
               type="button"
               data-testid="btn-add-character-empty"
               onClick={() => onCreateCharacter()}
+              draggable={false}
               className="mt-4 flex items-center gap-1.5 rounded border border-neutral-700 bg-neutral-800 px-3 py-1.5 text-xs font-medium text-neutral-200 hover:bg-neutral-700 hover:text-white transition"
             >
               <PlusIcon size={12} />
@@ -134,47 +245,70 @@ export const CharacterManagerPane: React.FC<CharacterManagerPaneProps> = ({
             No characters matching "{searchQuery}"
           </div>
         ) : (
-          /* Character Cards List */
-          <div className="p-2 space-y-1.5">
+          /* Character Cards Container */
+          <div
+            data-testid="char-list-container"
+            data-view-mode={characterViewMode}
+            className={
+              characterViewMode === 'grid'
+                ? 'grid grid-cols-2 gap-2 p-2'
+                : 'p-2 space-y-1.5'
+            }
+          >
             {filteredCharacters.map(char => {
               const defaultKey = char.defaultExpression || 'default';
-              const avatarUrl = char.sprites?.[defaultKey] || Object.values(char.sprites || {})[0];
+              const rawAvatarRef =
+                char.sprites?.[defaultKey] || Object.values(char.sprites || {})[0];
+              const resolvedAvatarUrl = resolveSpriteUrl(rawAvatarRef);
               const spriteCount = Object.keys(char.sprites || {}).length;
+              const isExpanded = !!expandedCharIds[char.id];
+              const isCharCopied = copiedKey === `char-${char.id}`;
 
-              return (
-                <div
-                  key={char.id}
-                  data-testid={`character-card-${char.id}`}
-                  className="group relative flex items-center justify-between rounded border border-neutral-800/80 bg-neutral-900/50 p-2 text-xs transition hover:border-neutral-700 hover:bg-neutral-800/40"
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    {/* Avatar Preview */}
-                    {avatarUrl ? (
-                      <img
-                        src={avatarUrl}
-                        alt={char.name}
-                        data-testid={`char-avatar-${char.id}`}
-                        className="h-8 w-8 rounded border border-neutral-700 bg-neutral-950 object-cover shrink-0"
-                      />
-                    ) : (
-                      <div
-                        data-testid={`char-avatar-fallback-${char.id}`}
-                        className="flex h-8 w-8 items-center justify-center rounded border border-neutral-700 bg-neutral-800 text-xs font-bold text-neutral-300 shrink-0"
-                        style={{ borderColor: char.colorHex || '#38bdf8' }}
+              if (characterViewMode === 'grid') {
+                return (
+                  <div
+                    key={char.id}
+                    data-testid={`character-card-${char.id}`}
+                    draggable
+                    onDragStart={e => {
+                      e.dataTransfer.setData('text/plain', `show ${char.id}\n`);
+                    }}
+                    onClick={() => onEditCharacter(char)}
+                    className="group relative flex flex-col rounded-lg border bg-neutral-900/70 p-2 text-xs transition cursor-pointer hover:border-neutral-600 hover:bg-neutral-850"
+                    style={{ borderColor: char.colorHex ? `${char.colorHex}66` : '#38bdf844' }}
+                  >
+                    {/* Large Avatar Thumbnail */}
+                    <div className="relative aspect-square w-full rounded overflow-hidden bg-neutral-950 border border-neutral-800 mb-2 flex items-center justify-center">
+                      {resolvedAvatarUrl ? (
+                        <img
+                          src={resolvedAvatarUrl}
+                          alt={char.name}
+                          data-testid={`char-avatar-${char.id}`}
+                          loading="lazy"
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div
+                          data-testid={`char-avatar-fallback-${char.id}`}
+                          className="flex h-full w-full items-center justify-center text-xl font-bold text-neutral-300"
+                          style={{ color: char.colorHex || '#38bdf8' }}
+                        >
+                          {(char.name || char.id).charAt(0).toUpperCase()}
+                        </div>
+                      )}
+
+                      {/* Expressions badge */}
+                      <span
+                        data-testid={`char-expressions-count-${char.id}`}
+                        className="absolute bottom-1 right-1 rounded bg-neutral-900/90 px-1 py-0.5 text-[9px] font-mono text-neutral-400 border border-neutral-800"
                       >
-                        {(char.name || char.id).charAt(0).toUpperCase()}
-                      </div>
-                    )}
+                        {spriteCount} {spriteCount === 1 ? 'expr' : 'exprs'}
+                      </span>
+                    </div>
 
                     {/* Info */}
                     <div className="flex flex-col min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span
-                          data-testid={`char-name-${char.id}`}
-                          className="truncate font-medium text-neutral-200"
-                        >
-                          {char.name || char.id}
-                        </span>
+                      <div className="flex items-center gap-1">
                         {char.colorHex && (
                           <span
                             data-testid={`char-color-badge-${char.id}`}
@@ -183,38 +317,306 @@ export const CharacterManagerPane: React.FC<CharacterManagerPaneProps> = ({
                             title={char.colorHex}
                           />
                         )}
-                      </div>
-                      <div className="flex items-center gap-1.5 text-[10px] text-neutral-500 font-mono">
-                        <span data-testid={`char-id-${char.id}`}>{char.id}</span>
-                        <span>•</span>
-                        <span data-testid={`char-expressions-count-${char.id}`}>
-                          {spriteCount} {spriteCount === 1 ? 'expression' : 'expressions'}
+                        <span
+                          data-testid={`char-name-${char.id}`}
+                          className="truncate font-medium text-neutral-200"
+                        >
+                          {char.name || char.id}
                         </span>
+                      </div>
+                      <span
+                        data-testid={`char-id-${char.id}`}
+                        className="truncate text-[10px] text-neutral-500 font-mono"
+                      >
+                        {char.id}
+                      </span>
+                    </div>
+
+                    {/* Quick Action Overlay on hover */}
+                    <div className="mt-2 flex items-center justify-between border-t border-neutral-800/60 pt-1.5 opacity-80 group-hover:opacity-100 transition">
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          data-testid={`btn-copy-char-${char.id}`}
+                          data-copied={isCharCopied ? 'true' : 'false'}
+                          onClick={e => handleCopy(`char-${char.id}`, `show ${char.id}`, e)}
+                          title="Copy DSL snippet"
+                          draggable={false}
+                          className="rounded border border-neutral-800 bg-neutral-800/80 p-1 text-neutral-400 hover:border-neutral-600 hover:text-white transition"
+                        >
+                          {isCharCopied ? (
+                            <CheckIcon size={11} className="text-emerald-400" />
+                          ) : (
+                            <CopyIcon size={11} />
+                          )}
+                        </button>
+                        {onInsertSnippet && (
+                          <button
+                            type="button"
+                            data-testid={`btn-insert-char-${char.id}`}
+                            onClick={e => handleInsert(`show ${char.id}`, e)}
+                            title="Insert at cursor"
+                            draggable={false}
+                            className="rounded border border-neutral-800 bg-neutral-800/80 p-1 text-neutral-400 hover:border-neutral-600 hover:text-white transition"
+                          >
+                            <PlusIcon size={11} />
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          data-testid={`btn-edit-char-${char.id}`}
+                          onClick={e => {
+                            e.stopPropagation();
+                            onEditCharacter(char);
+                          }}
+                          title="Edit Character"
+                          draggable={false}
+                          className="rounded border border-neutral-800 bg-neutral-800/80 p-1 text-neutral-400 hover:border-neutral-600 hover:text-white transition"
+                        >
+                          <EditIcon size={11} />
+                        </button>
+                        <button
+                          type="button"
+                          data-testid={`btn-delete-char-${char.id}`}
+                          onClick={e => {
+                            e.stopPropagation();
+                            onDeleteCharacter(char.id);
+                          }}
+                          title="Delete Character"
+                          draggable={false}
+                          className="rounded border border-neutral-800 bg-neutral-800/80 p-1 text-neutral-400 hover:border-red-900/50 hover:bg-red-950/40 hover:text-red-400 transition"
+                        >
+                          <TrashIcon size={11} />
+                        </button>
                       </div>
                     </div>
                   </div>
+                );
+              }
 
-                  {/* Actions */}
-                  <div className="flex items-center gap-1 shrink-0 opacity-80 group-hover:opacity-100 transition">
-                    <button
-                      type="button"
-                      data-testid={`btn-edit-char-${char.id}`}
-                      onClick={() => onEditCharacter(char)}
-                      title="Edit Character"
-                      className="rounded border border-neutral-800 bg-neutral-800/80 p-1 text-neutral-400 hover:border-neutral-600 hover:text-white transition"
-                    >
-                      <EditIcon size={12} />
-                    </button>
-                    <button
-                      type="button"
-                      data-testid={`btn-delete-char-${char.id}`}
-                      onClick={() => onDeleteCharacter(char.id)}
-                      title="Delete Character"
-                      className="rounded border border-neutral-800 bg-neutral-800/80 p-1 text-neutral-400 hover:border-red-900/50 hover:bg-red-950/40 hover:text-red-400 transition"
-                    >
-                      <TrashIcon size={12} />
-                    </button>
+              // List View Card (with Accordion)
+              return (
+                <div
+                  key={char.id}
+                  className="rounded border border-neutral-800/80 bg-neutral-900/50 text-xs transition hover:border-neutral-700"
+                >
+                  {/* Card Row */}
+                  <div
+                    data-testid={`character-card-${char.id}`}
+                    draggable
+                    onDragStart={e => {
+                      e.dataTransfer.setData('text/plain', `show ${char.id}\n`);
+                    }}
+                    className="group relative flex items-center justify-between p-2 cursor-grab active:cursor-grabbing"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      {/* Accordion Toggle Chevron */}
+                      <button
+                        type="button"
+                        data-testid={`btn-accordion-${char.id}`}
+                        onClick={e => {
+                          e.stopPropagation();
+                          toggleAccordion(char.id);
+                        }}
+                        title={isExpanded ? 'Collapse expressions' : 'Expand expressions'}
+                        draggable={false}
+                        className="flex h-5 w-5 items-center justify-center rounded text-neutral-400 hover:bg-neutral-800 hover:text-neutral-200 transition shrink-0"
+                      >
+                        {isExpanded ? (
+                          <ChevronDownIcon size={12} />
+                        ) : (
+                          <ChevronRightIcon size={12} />
+                        )}
+                      </button>
+
+                      {/* Avatar Preview */}
+                      {resolvedAvatarUrl ? (
+                        <img
+                          src={resolvedAvatarUrl}
+                          alt={char.name}
+                          data-testid={`char-avatar-${char.id}`}
+                          loading="lazy"
+                          className="h-8 w-8 rounded border border-neutral-700 bg-neutral-950 object-cover shrink-0"
+                        />
+                      ) : (
+                        <div
+                          data-testid={`char-avatar-fallback-${char.id}`}
+                          className="flex h-8 w-8 items-center justify-center rounded border border-neutral-700 bg-neutral-800 text-xs font-bold text-neutral-300 shrink-0"
+                          style={{ borderColor: char.colorHex || '#38bdf8' }}
+                        >
+                          {(char.name || char.id).charAt(0).toUpperCase()}
+                        </div>
+                      )}
+
+                      {/* Info */}
+                      <div className="flex flex-col min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            data-testid={`char-name-${char.id}`}
+                            className="truncate font-medium text-neutral-200"
+                          >
+                            {char.name || char.id}
+                          </span>
+                          {char.colorHex && (
+                            <span
+                              data-testid={`char-color-badge-${char.id}`}
+                              className="h-2 w-2 rounded-full shrink-0"
+                              style={{ backgroundColor: char.colorHex }}
+                              title={char.colorHex}
+                            />
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5 text-[10px] text-neutral-500 font-mono">
+                          <span data-testid={`char-id-${char.id}`}>{char.id}</span>
+                          <span>•</span>
+                          <span data-testid={`char-expressions-count-${char.id}`}>
+                            {spriteCount} {spriteCount === 1 ? 'expression' : 'expressions'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-1 shrink-0 opacity-80 group-hover:opacity-100 transition">
+                      <button
+                        type="button"
+                        data-testid={`btn-copy-char-${char.id}`}
+                        data-copied={isCharCopied ? 'true' : 'false'}
+                        onClick={e => handleCopy(`char-${char.id}`, `show ${char.id}`, e)}
+                        title="Copy DSL snippet"
+                        draggable={false}
+                        className="rounded border border-neutral-800 bg-neutral-800/80 p-1 text-neutral-400 hover:border-neutral-600 hover:text-white transition"
+                      >
+                        {isCharCopied ? (
+                          <CheckIcon size={12} className="text-emerald-400" />
+                        ) : (
+                          <CopyIcon size={12} />
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        data-testid={`btn-insert-char-${char.id}`}
+                        onClick={e => handleInsert(`show ${char.id}`, e)}
+                        title="Insert at cursor"
+                        draggable={false}
+                        className="rounded border border-neutral-800 bg-neutral-800/80 p-1 text-neutral-400 hover:border-neutral-600 hover:text-white transition"
+                      >
+                        <PlusIcon size={12} />
+                      </button>
+                      <button
+                        type="button"
+                        data-testid={`btn-edit-char-${char.id}`}
+                        onClick={e => {
+                          e.stopPropagation();
+                          onEditCharacter(char);
+                        }}
+                        title="Edit Character"
+                        draggable={false}
+                        className="rounded border border-neutral-800 bg-neutral-800/80 p-1 text-neutral-400 hover:border-neutral-600 hover:text-white transition"
+                      >
+                        <EditIcon size={12} />
+                      </button>
+                      <button
+                        type="button"
+                        data-testid={`btn-delete-char-${char.id}`}
+                        onClick={e => {
+                          e.stopPropagation();
+                          onDeleteCharacter(char.id);
+                        }}
+                        title="Delete Character"
+                        draggable={false}
+                        className="rounded border border-neutral-800 bg-neutral-800/80 p-1 text-neutral-400 hover:border-red-900/50 hover:bg-red-950/40 hover:text-red-400 transition"
+                      >
+                        <TrashIcon size={12} />
+                      </button>
+                    </div>
                   </div>
+
+                  {/* Accordion Content: Child Expressions List */}
+                  {isExpanded && (
+                    <div
+                      data-testid={`accordion-content-${char.id}`}
+                      className="border-t border-neutral-800/80 bg-neutral-950/50 p-2 space-y-1"
+                    >
+                      {spriteCount === 0 ? (
+                        <div className="py-1 text-center text-[10px] text-neutral-500 italic">
+                          No expressions configured
+                        </div>
+                      ) : (
+                        Object.entries(char.sprites || {}).map(([exprKey, spriteRef]) => {
+                          const resolvedExprUrl = resolveSpriteUrl(spriteRef);
+                          const isExprCopied = copiedKey === `expr-${char.id}-${exprKey}`;
+                          const snippet = `show ${char.id}.${exprKey}`;
+
+                          return (
+                            <div
+                              key={exprKey}
+                              data-testid={`expr-item-${char.id}-${exprKey}`}
+                              draggable
+                              onDragStart={e => {
+                                e.dataTransfer.setData('text/plain', `${snippet}\n`);
+                              }}
+                              className="group/expr flex items-center justify-between rounded px-2 py-1 bg-neutral-900/40 border border-neutral-850 hover:border-neutral-750 hover:bg-neutral-850/60 transition cursor-grab active:cursor-grabbing"
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                {resolvedExprUrl ? (
+                                  <img
+                                    src={resolvedExprUrl}
+                                    alt={exprKey}
+                                    data-testid={`expr-img-${char.id}-${exprKey}`}
+                                    loading="lazy"
+                                    className="h-6 w-6 rounded border border-neutral-700/80 bg-neutral-950 object-cover shrink-0"
+                                  />
+                                ) : (
+                                  <div
+                                    data-testid={`expr-fallback-${char.id}-${exprKey}`}
+                                    className="flex h-6 w-6 items-center justify-center rounded border border-neutral-800 bg-neutral-900 text-neutral-500 shrink-0"
+                                  >
+                                    <ImageIcon size={12} />
+                                  </div>
+                                )}
+                                <span className="font-mono text-[11px] text-neutral-300 truncate">
+                                  {exprKey}
+                                </span>
+                              </div>
+
+                              <div className="flex items-center gap-1 opacity-70 group-hover/expr:opacity-100 transition">
+                                <button
+                                  type="button"
+                                  data-testid={`btn-copy-expr-${char.id}-${exprKey}`}
+                                  data-copied={isExprCopied ? 'true' : 'false'}
+                                  onClick={e =>
+                                    handleCopy(`expr-${char.id}-${exprKey}`, snippet, e)
+                                  }
+                                  title="Copy expression snippet"
+                                  draggable={false}
+                                  className="rounded border border-neutral-800 bg-neutral-800/80 p-0.5 text-neutral-400 hover:border-neutral-600 hover:text-white transition"
+                                >
+                                  {isExprCopied ? (
+                                    <CheckIcon size={10} className="text-emerald-400" />
+                                  ) : (
+                                    <CopyIcon size={10} />
+                                  )}
+                                </button>
+                                <button
+                                  type="button"
+                                  data-testid={`btn-insert-expr-${char.id}-${exprKey}`}
+                                  onClick={e => handleInsert(snippet, e)}
+                                  title="Insert at cursor"
+                                  draggable={false}
+                                  className="rounded border border-neutral-800 bg-neutral-800/80 p-0.5 text-neutral-400 hover:border-neutral-600 hover:text-white transition"
+                                >
+                                  <PlusIcon size={10} />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
