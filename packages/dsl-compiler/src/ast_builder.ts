@@ -90,10 +90,16 @@ export function extractLocation(
   if (!token) return undefined;
   const line = Number.isFinite(token.startLine) ? (token.startLine as number) : 1;
   const col = Number.isFinite(token.startColumn) ? (token.startColumn as number) : 1;
+  const endLine = Number.isFinite(token.endLine) ? (token.endLine as number) : line;
+  const endCol = Number.isFinite(token.endColumn)
+    ? (token.endColumn as number) + 1
+    : col + (token.image ? token.image.length : 1);
   return {
     fileId,
     line,
     col,
+    endLine,
+    endCol,
   };
 }
 
@@ -800,7 +806,7 @@ export class VNSAstBuilder extends BaseVNSVisitor {
       ? this.visit(ctx.variableIdentifier[0])
       : ctx.Identifier[0];
     const exprStr = this.visit(ctx.value[0]);
-    const loc = extractLocation(ctx.Tilde[0], this.currentFileId);
+    const loc = extractLocation(varToken, this.currentFileId);
     const value = parseExpression(exprStr, loc);
 
     return {

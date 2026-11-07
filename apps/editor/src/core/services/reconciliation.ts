@@ -25,6 +25,9 @@ export type GeneratedEditorDiagnostic = EditorDiagnostic & EngineDiagnostic;
 export interface ScriptReference {
   file: string;
   line: number;
+  col?: number;
+  endLine?: number;
+  endCol?: number;
   type?: 'background' | 'audio' | 'inspect' | 'character';
 }
 
@@ -230,13 +233,44 @@ export function checkAssetDeletionSafety(
   };
 }
 
+function escapeRegExp(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function resolveSpanFromLine(
+  lineText: string | undefined,
+  targetId: string,
+  fallbackLine: number,
+): { col: number; endLine: number; endCol: number } {
+  if (!lineText) return { col: 1, endLine: fallbackLine, endCol: 1 };
+  const cleanTarget = targetId.trim();
+  if (cleanTarget) {
+    const wordMatch = new RegExp(`\\b${escapeRegExp(cleanTarget)}\\b`).exec(lineText);
+    if (wordMatch) {
+      const col = wordMatch.index + 1;
+      return { col, endLine: fallbackLine, endCol: col + cleanTarget.length };
+    }
+    const idx = lineText.indexOf(cleanTarget);
+    if (idx !== -1) {
+      const col = idx + 1;
+      return { col, endLine: fallbackLine, endCol: col + cleanTarget.length };
+    }
+  }
+  return { col: 1, endLine: fallbackLine, endCol: 1 };
+}
+
 export function generateDiagnostics(project: Project): GeneratedEditorDiagnostic[] {
   const report = scanActiveReconciliation(project);
   const diagnostics: GeneratedEditorDiagnostic[] = [];
 
   const fileMap = new Map<string, string>();
+  const fileLinesMap = new Map<string, string[]>();
   for (const f of project.files || []) {
     fileMap.set(f.name, f.id);
+    fileLinesMap.set(f.name, (f.content || '').split('\n'));
+    if (f.id) {
+      fileLinesMap.set(f.id, (f.content || '').split('\n'));
+    }
   }
 
   for (const assetName of report.uncreatedAssets) {
@@ -244,6 +278,10 @@ export function generateDiagnostics(project: Project): GeneratedEditorDiagnostic
       report.assetReferences[assetName] || report.assetReferences[assetName.toLowerCase()] || [];
     if (refs.length > 0) {
       for (const ref of refs) {
+        const lines = fileLinesMap.get(ref.file);
+        const rawLine =
+          lines && ref.line > 0 && ref.line <= lines.length ? lines[ref.line - 1] : undefined;
+        const span = resolveSpanFromLine(rawLine, assetName, ref.line);
         diagnostics.push({
           id: `diag-asset-${assetName}-${ref.file}-${ref.line}`,
           timestamp: Date.now(),
@@ -254,7 +292,9 @@ export function generateDiagnostics(project: Project): GeneratedEditorDiagnostic
           fileName: ref.file,
           fileId: fileMap.get(ref.file),
           line: ref.line,
-          col: 1,
+          col: typeof ref.col === 'number' && ref.col > 0 ? ref.col : span.col,
+          endLine: typeof ref.endLine === 'number' && ref.endLine > 0 ? ref.endLine : span.endLine,
+          endCol: typeof ref.endCol === 'number' && ref.endCol > 0 ? ref.endCol : span.endCol,
           quickFix: {
             type: 'create_asset',
             targetId: assetName,
@@ -288,6 +328,10 @@ export function generateDiagnostics(project: Project): GeneratedEditorDiagnostic
       report.characterReferences[charId] || report.characterReferences[charId.toLowerCase()] || [];
     if (refs.length > 0) {
       for (const ref of refs) {
+        const lines = fileLinesMap.get(ref.file);
+        const rawLine =
+          lines && ref.line > 0 && ref.line <= lines.length ? lines[ref.line - 1] : undefined;
+        const span = resolveSpanFromLine(rawLine, charId, ref.line);
         diagnostics.push({
           id: `diag-char-${charId}-${ref.file}-${ref.line}`,
           timestamp: Date.now(),
@@ -298,7 +342,9 @@ export function generateDiagnostics(project: Project): GeneratedEditorDiagnostic
           fileName: ref.file,
           fileId: fileMap.get(ref.file),
           line: ref.line,
-          col: 1,
+          col: typeof ref.col === 'number' && ref.col > 0 ? ref.col : span.col,
+          endLine: typeof ref.endLine === 'number' && ref.endLine > 0 ? ref.endLine : span.endLine,
+          endCol: typeof ref.endCol === 'number' && ref.endCol > 0 ? ref.endCol : span.endCol,
           quickFix: {
             type: 'create_character',
             targetId: charId,
@@ -356,59 +402,80 @@ function extractReferencesViaRegex(content: string, fileId: string): ScriptRefer
       continue;
     }
 
+    const getSpan = (target: string): { col: number; endCol: number } => {
+      const escaped = target.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const match = new RegExp(`\\b${escaped}\\b`).exec(rawLine);
+      if (match) {
+        const col = match.index + 1;
+        return { col, endCol: col + target.length };
+      }
+      const idx = rawLine.indexOf(target);
+      if (idx !== -1) {
+        const col = idx + 1;
+        return { col, endCol: col + target.length };
+      }
+      return { col: 1, endCol: 1 + target.length };
+    };
+
     const bgMatch = trimmed.match(/^background\s+([a-zA-Z0-9_]+)(?:\s*\(|\s+transition:|\s*$)/i);
     if (bgMatch && bgMatch[1]) {
+      const span = getSpan(bgMatch[1]);
       assets.push({
         assetKey: bgMatch[1],
         category: 'background',
         expectedType: 'image',
-        loc: { fileId, line: lineNum },
+        loc: { fileId, line: lineNum, col: span.col, endLine: lineNum, endCol: span.endCol },
       });
     }
 
     const legacySceneMatch = trimmed.match(/^scene\s+["']([^"']+\.[a-zA-Z0-9]+)["']/i);
     if (legacySceneMatch && legacySceneMatch[1]) {
+      const span = getSpan(legacySceneMatch[1]);
       assets.push({
         assetKey: legacySceneMatch[1],
         category: 'background',
         expectedType: 'image',
-        loc: { fileId, line: lineNum },
+        loc: { fileId, line: lineNum, col: span.col, endLine: lineNum, endCol: span.endCol },
       });
     }
 
     const showMatch = trimmed.match(/^show\s+([a-zA-Z0-9_]+)(?:\.([a-zA-Z0-9_]+))?/i);
     if (showMatch && showMatch[1]) {
+      const span = getSpan(showMatch[1]);
       characters.push({
         characterId: showMatch[1],
-        loc: { fileId, line: lineNum },
+        loc: { fileId, line: lineNum, col: span.col, endLine: lineNum, endCol: span.endCol },
       });
     }
 
     const hideMatch = trimmed.match(/^hide\s+([a-zA-Z0-9_]+)/i);
     if (hideMatch && hideMatch[1]) {
+      const span = getSpan(hideMatch[1]);
       characters.push({
         characterId: hideMatch[1],
-        loc: { fileId, line: lineNum },
+        loc: { fileId, line: lineNum, col: span.col, endLine: lineNum, endCol: span.endCol },
       });
     }
 
     const playMatch = trimmed.match(/^play\s+(?:music|sound|voice|bgs)\s+["']?([^"'\s]+)["']?/i);
     if (playMatch && playMatch[1]) {
+      const span = getSpan(playMatch[1]);
       assets.push({
         assetKey: playMatch[1],
         category: 'audio',
         expectedType: 'audio',
-        loc: { fileId, line: lineNum },
+        loc: { fileId, line: lineNum, col: span.col, endLine: lineNum, endCol: span.endCol },
       });
     }
 
     const inspectMatch = trimmed.match(/^inspect\s+["']?([^"'\s]+)["']?/i);
     if (inspectMatch && inspectMatch[1]) {
+      const span = getSpan(inspectMatch[1]);
       assets.push({
         assetKey: inspectMatch[1],
         category: 'inspect',
         expectedType: 'image',
-        loc: { fileId, line: lineNum },
+        loc: { fileId, line: lineNum, col: span.col, endLine: lineNum, endCol: span.endCol },
       });
     }
   }
@@ -493,6 +560,9 @@ export function computeReconciliationDiagnostics(
       charRefMap[cleanId]!.push({
         file: fileName,
         line: charRef.loc?.line ?? 1,
+        col: charRef.loc?.col,
+        endLine: charRef.loc?.endLine,
+        endCol: charRef.loc?.endCol,
         type: 'character',
       });
     }
@@ -506,6 +576,9 @@ export function computeReconciliationDiagnostics(
       assetRefMap[cleanKey]!.push({
         file: fileName,
         line: assetRef.loc?.line ?? 1,
+        col: assetRef.loc?.col,
+        endLine: assetRef.loc?.endLine,
+        endCol: assetRef.loc?.endCol,
         type: assetRef.category ?? 'background',
       });
     }
@@ -549,7 +622,9 @@ export function computeReconciliationDiagnostics(
           fileName: ref.file,
           fileId: fileMap.get(ref.file),
           line: ref.line,
-          col: 1,
+          col: typeof ref.col === 'number' && ref.col > 0 ? ref.col : 1,
+          endLine: typeof ref.endLine === 'number' && ref.endLine > 0 ? ref.endLine : ref.line,
+          endCol: typeof ref.endCol === 'number' && ref.endCol > 0 ? ref.endCol : undefined,
           quickFix: {
             type: 'create_asset',
             targetId: assetRef,
@@ -583,7 +658,9 @@ export function computeReconciliationDiagnostics(
           fileName: ref.file,
           fileId: fileMap.get(ref.file),
           line: ref.line,
-          col: 1,
+          col: typeof ref.col === 'number' && ref.col > 0 ? ref.col : 1,
+          endLine: typeof ref.endLine === 'number' && ref.endLine > 0 ? ref.endLine : ref.line,
+          endCol: typeof ref.endCol === 'number' && ref.endCol > 0 ? ref.endCol : undefined,
           quickFix: {
             type: 'create_character',
             targetId: charId,
