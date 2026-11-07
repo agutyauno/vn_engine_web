@@ -507,4 +507,44 @@ describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () 
 
     expect(unusedDiags).toHaveLength(0);
   });
+
+  // TC-REC-AUDIO-01: Reconciliation detects uncreated audio with warning and audio category quickFix
+  it('TC-REC-AUDIO-01: should generate warning diagnostic with audio category quickFix for missing audio in play statement', () => {
+    const project = createMockProject({
+      files: [
+        {
+          id: 'file-1',
+          name: 'main.vns',
+          content: [
+            'scene lab {',
+            '  play music "bgm_lab"',
+            '  "Welcome to the lab"',
+            '}',
+          ].join('\n'),
+          order: 0,
+          version: 1,
+        },
+      ],
+      assets: [],
+    });
+
+    const report = scanActiveReconciliation(project);
+    expect(report.uncreatedAssets).toContain('bgm_lab');
+
+    const diagnostics = generateDiagnostics(project);
+    const audioWarning = diagnostics.find(
+      d => d.category === 'asset' && d.assetKey === 'bgm_lab',
+    );
+
+    expect(audioWarning).toBeDefined();
+    expect(audioWarning?.severity).toBe('warning');
+    expect(audioWarning?.message).toBe("Uncreated asset 'bgm_lab' referenced in script");
+    expect(audioWarning?.quickFix).toBeDefined();
+    expect(audioWarning?.quickFix?.type).toBe('create_asset');
+    expect(audioWarning?.quickFix?.targetId).toBe('bgm_lab');
+    expect(audioWarning?.quickFix?.prefillData).toMatchObject({
+      name: 'bgm_lab',
+      category: 'audio',
+    });
+  });
 });
