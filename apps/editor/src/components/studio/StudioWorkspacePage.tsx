@@ -837,6 +837,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
                   onAddAsset={handleAddAsset}
                   onReplaceAsset={handleReplaceAsset}
                   onDeleteAsset={handleDeleteAsset}
+                  onInsertSnippet={handleInsertSnippet}
                 />
               </div>
             )}

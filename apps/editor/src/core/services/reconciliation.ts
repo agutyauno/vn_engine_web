@@ -71,6 +71,26 @@ export function scanActiveReconciliation(project: Project): ReconciliationReport
     }
     charRefMap[cleanId]!.push({ file, line, type: 'character' });
   };
+  const knownCharIds = new Set(
+    (project.characters || []).map(c => (c.id || '').trim().toLowerCase()),
+  );
+
+  const knownAssetKeys = new Set<string>();
+  for (const asset of project.assets || []) {
+    if (asset.id) {
+      knownAssetKeys.add(asset.id.trim());
+      knownAssetKeys.add(asset.id.trim().toLowerCase());
+    }
+    if (asset.name) {
+      knownAssetKeys.add(asset.name.trim());
+      knownAssetKeys.add(asset.name.trim().toLowerCase());
+      const cleanName = asset.name.replace(/\.[^/.]+$/, '').trim();
+      if (cleanName) {
+        knownAssetKeys.add(cleanName);
+        knownAssetKeys.add(cleanName.toLowerCase());
+      }
+    }
+  }
 
   for (const file of project.files || []) {
     const fileName = file.name || 'unnamed.vns';
@@ -97,10 +117,13 @@ export function scanActiveReconciliation(project: Project): ReconciliationReport
         recordAssetRef(legacySceneMatch[1], fileName, lineNum, 'background');
       }
 
-      // Show character: show <char_id>.<expression> or show <char_id>
+      // Show character or sprite asset: show <id>.<expression> or show <id>
       const showMatch = trimmed.match(/^show\s+([a-zA-Z0-9_]+)(?:\.([a-zA-Z0-9_]+))?/i);
       if (showMatch && showMatch[1]) {
         recordCharRef(showMatch[1], fileName, lineNum);
+        if (knownAssetKeys.has(showMatch[1]) || knownAssetKeys.has(showMatch[1].toLowerCase())) {
+          recordAssetRef(showMatch[1], fileName, lineNum, 'background');
+        }
       }
 
       // Hide character: hide <char_id>
@@ -127,21 +150,7 @@ export function scanActiveReconciliation(project: Project): ReconciliationReport
     }
   }
 
-  const knownCharIds = new Set(
-    (project.characters || []).map(c => (c.id || '').trim().toLowerCase()),
-  );
 
-  const knownAssetKeys = new Set<string>();
-  for (const asset of project.assets || []) {
-    if (asset.id) {
-      knownAssetKeys.add(asset.id.trim());
-      knownAssetKeys.add(asset.id.trim().toLowerCase());
-    }
-    if (asset.name) {
-      knownAssetKeys.add(asset.name.trim());
-      knownAssetKeys.add(asset.name.trim().toLowerCase());
-    }
-  }
 
   const uncreatedCharacters: string[] = [];
   for (const charId of Object.keys(charRefMap)) {
@@ -159,7 +168,11 @@ export function scanActiveReconciliation(project: Project): ReconciliationReport
 
   const unusedAssets: string[] = [];
   for (const asset of project.assets || []) {
-    const nameMatches = assetRefMap[asset.name] || assetRefMap[asset.name.toLowerCase()];
+    const cleanName = asset.name ? asset.name.replace(/\.[^/.]+$/, '').toLowerCase() : '';
+    const nameMatches =
+      assetRefMap[asset.name] ||
+      assetRefMap[asset.name.toLowerCase()] ||
+      (cleanName ? assetRefMap[cleanName] : undefined);
     const idMatches = assetRefMap[asset.id] || assetRefMap[asset.id.toLowerCase()];
     if ((!nameMatches || nameMatches.length === 0) && (!idMatches || idMatches.length === 0)) {
       unusedAssets.push(asset.name);
@@ -196,10 +209,14 @@ export function checkAssetDeletionSafety(
   let refsByMatchedId: ScriptReference[] = [];
 
   if (matchedAsset) {
-    refsByMatchedName =
-      report.assetReferences[matchedAsset.name] ||
-      report.assetReferences[matchedAsset.name.toLowerCase()] ||
-      [];
+    const cleanName = matchedAsset.name
+      ? matchedAsset.name.replace(/\.[^/.]+$/, '').toLowerCase()
+      : '';
+    refsByMatchedName = [
+      ...(report.assetReferences[matchedAsset.name] || []),
+      ...(report.assetReferences[matchedAsset.name.toLowerCase()] || []),
+      ...(cleanName ? report.assetReferences[cleanName] || [] : []),
+    ];
     refsByMatchedId =
       report.assetReferences[matchedAsset.id] ||
       report.assetReferences[matchedAsset.id.toLowerCase()] ||
@@ -597,6 +614,11 @@ export function computeReconciliationDiagnostics(
     if (asset.name) {
       knownAssetKeys.add(asset.name.trim());
       knownAssetKeys.add(asset.name.trim().toLowerCase());
+      const cleanName = asset.name.replace(/\.[^/.]+$/, '').trim();
+      if (cleanName) {
+        knownAssetKeys.add(cleanName);
+        knownAssetKeys.add(cleanName.toLowerCase());
+      }
     }
   }
 

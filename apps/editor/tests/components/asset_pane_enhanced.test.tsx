@@ -56,20 +56,21 @@ describe('Phase 3: AssetLibraryPane Enhanced (Grid/List, Filter/Sort & Sticky Au
   const mockProject: Project = {
     id: 'proj-1',
     title: 'Test Visual Novel',
-    createdAt: 1000,
-    updatedAt: 2000,
-    version: '1.0.0',
+    version: 1,
+    ownerId: 'owner-1',
+    defaultLanguage: 'en',
     assets: mockAssets,
     characters: [],
-    scenes: [],
     variables: [],
+    uiScreens: [],
+    customScripts: [],
     files: [
       {
         id: 'main-vns',
         name: 'main.vns',
-        path: 'main.vns',
         content: 'background bg_forest\nshow char_alice_smile\n"Hello world"',
-        isEntry: true,
+        order: 0,
+        version: 1,
       },
     ],
   };
