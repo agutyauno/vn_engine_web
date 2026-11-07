@@ -14,7 +14,12 @@ import { VNSLexer } from './lexer';
 import { parserInstance } from './parser';
 import { VNSAstBuilder } from './ast_builder';
 import { runMergePass } from './merge_pass';
-import { validateSemantics, validateSceneStructure, type CompileError } from './semantic';
+import {
+  validateSemantics,
+  validateSceneStructure,
+  type CompileError,
+  type CompileWarning,
+} from './semantic';
 import { generateBytecode } from './codegen';
 import {
   formatLexerError,
@@ -33,6 +38,7 @@ export interface CompileResult {
   program?: Instruction[];
   ast?: ProgramAST;
   errors?: CompileError[];
+  warnings?: CompileWarning[];
   bytecodeChecksum?: string;
 }
 
@@ -173,12 +179,16 @@ export class Compiler {
       const mergedAst = runMergePass(rawAst);
 
       // Stage 4: Kiểm tra ngữ nghĩa (Semantic Validation)
-      const semanticErrors = validateSemantics(mergedAst, options);
+      const { errors: semanticErrors, warnings: semanticWarnings } = validateSemantics(
+        mergedAst,
+        options,
+      );
       if (semanticErrors.length > 0) {
         return {
           success: false,
           ast: mergedAst,
           errors: semanticErrors,
+          warnings: semanticWarnings,
         };
       }
 
@@ -190,6 +200,7 @@ export class Compiler {
         success: true,
         program,
         ast: mergedAst,
+        warnings: semanticWarnings,
         bytecodeChecksum,
       };
     } catch (err: unknown) {

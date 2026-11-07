@@ -21,10 +21,10 @@ scene intro {
   });
 
   // TC-CMP-ASSET-01: Missing audio asset does not trigger ERR_SEMANTIC_MISSING_AUDIO and generates PLAY instruction
-  it('TC-CMP-ASSET-01: play music bgm_missing compiles successfully without ERR_SEMANTIC_MISSING_AUDIO and emits PLAY instruction', () => {
+  it('TC-CMP-ASSET-01: play music "bgm_missing" compiles successfully without ERR_SEMANTIC_MISSING_AUDIO and emits PLAY instruction', () => {
     const code = `
 scene intro {
-  play music bgm_missing
+  play music "bgm_missing"
   "Background music should play even if asset is not registered"
 }
 `;
@@ -48,9 +48,9 @@ scene intro {
   it('TC-CMP-ASSET-02: Multiple audio channels (music, sound, voice) with missing assets decouple properly', () => {
     const code = `
 scene intro {
-  play music bgm_unregistered
-  play sound sfx_missing
-  play voice voice_unregistered
+  play music "bgm_unregistered"
+  play sound "sfx_missing"
+  play voice "voice_unregistered"
   "All audio commands should produce instructions"
 }
 `;
@@ -90,3 +90,4 @@ scene intro {
     expect(Array.isArray(validationResult.warnings)).toBe(true);
   });
 });
+

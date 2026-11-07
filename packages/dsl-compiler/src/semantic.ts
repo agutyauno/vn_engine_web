@@ -26,11 +26,20 @@ import {
 } from '@vn-engine/shared-types';
 import { VNS_ERROR_CODES } from './error_formatter';
 
-export interface CompileError {
+export interface CompileDiagnostic {
   message: string;
   loc?: SourceLocation;
   code?: string;
   rawMessage?: string;
+  severity?: 'error' | 'warning';
+}
+
+export type CompileError = CompileDiagnostic;
+export type CompileWarning = CompileDiagnostic;
+
+export interface SemanticValidationResult {
+  errors: CompileDiagnostic[];
+  warnings: CompileDiagnostic[];
 }
 
 const VALID_TRANSITION_SET = new Set<string>(SUPPORTED_TRANSITIONS);
@@ -254,12 +263,13 @@ export interface SemanticOptions {
   assets?: Array<{ id: string; name?: string; type?: string; category?: string }>;
 }
 
-export function validateSemantics(ast: ProgramAST, options?: SemanticOptions): CompileError[] {
-  const errors: CompileError[] = [];
+export function validateSemantics(
+  ast: ProgramAST,
+  _options?: SemanticOptions,
+): SemanticValidationResult {
+  const errors: CompileDiagnostic[] = [];
+  const warnings: CompileDiagnostic[] = [];
   const definedSceneNames = new Set<string>();
-  const registeredAssetIds = options?.assets
-    ? new Set(options.assets.flatMap(a => [a.id, a.name]).filter((x): x is string => Boolean(x)))
-    : null;
 
   // 1. Kiểm tra biến Global ở top-level
   const globals = new Set<string>();
@@ -450,14 +460,6 @@ export function validateSemantics(ast: ProgramAST, options?: SemanticOptions): C
             loc: bgStmt.loc,
           });
         }
-      } else if (stmt.type === 'PlayStatement') {
-        if (registeredAssetIds && !registeredAssetIds.has(stmt.assetId)) {
-          errors.push({
-            code: VNS_ERROR_CODES.ERR_SEMANTIC_MISSING_AUDIO,
-            message: `Audio asset "${stmt.assetId}" played on channel '${stmt.channel}' was not found in registered project assets.`,
-            loc: stmt.loc,
-          });
-        }
       }
     }
   }
@@ -467,5 +469,5 @@ export function validateSemantics(ast: ProgramAST, options?: SemanticOptions): C
     checkStatements(scene.name, scene.body, sceneLocals);
   }
 
-  return errors;
+  return { errors, warnings };
 }
