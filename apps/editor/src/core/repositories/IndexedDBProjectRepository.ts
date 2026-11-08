@@ -97,7 +97,7 @@ export class IndexedDBProjectRepository implements ProjectRepository {
 
   async getProject(id: string): Promise<Project | null> {
     const db = await this.getDB();
-    return new Promise((resolve, reject) => {
+    const project = await new Promise<Project | null>((resolve, reject) => {
       const tx = db.transaction('projects', 'readonly');
       const store = tx.objectStore('projects');
       const request = store.get(id);
@@ -110,6 +110,42 @@ export class IndexedDBProjectRepository implements ProjectRepository {
         reject(request.error || new Error(`Failed to get project ${id}`));
       };
     });
+
+    if (!project || !project.assets || project.assets.length === 0) {
+      return project;
+    }
+
+    // Automatically hydrate storageUrl for local assets with binary blobs in asset_blobs
+    try {
+      const tx = db.transaction('asset_blobs', 'readonly');
+      const blobStore = tx.objectStore('asset_blobs');
+
+      await Promise.all(
+        project.assets.map(async asset => {
+          try {
+            const blobRecord = await new Promise<AssetBlobRecord | undefined>(resolve => {
+              const req = blobStore.get(asset.id);
+              req.onsuccess = () => resolve(req.result as AssetBlobRecord | undefined);
+              req.onerror = () => resolve(undefined);
+            });
+
+            if (
+              blobRecord?.blob &&
+              typeof URL !== 'undefined' &&
+              typeof URL.createObjectURL === 'function'
+            ) {
+              asset.storageUrl = URL.createObjectURL(blobRecord.blob);
+            }
+          } catch {
+            // Keep existing storageUrl on error
+          }
+        }),
+      );
+    } catch {
+      // Return project as-is if asset_blobs transaction fails
+    }
+
+    return project;
   }
 
   async createProject(params: CreateProjectParams): Promise<Project> {

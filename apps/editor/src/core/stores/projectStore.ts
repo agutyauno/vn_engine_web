@@ -421,16 +421,24 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     const currentProject = get().project;
     if (!currentProject) return;
 
-    if (activeRepository && blob) {
-      await activeRepository.saveAssetBlob(asset.id, blob);
+    let storageUrl = asset.storageUrl;
+    if (blob) {
+      if (activeRepository) {
+        await activeRepository.saveAssetBlob(asset.id, blob);
+      }
+      if (typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function') {
+        storageUrl = URL.createObjectURL(blob);
+      }
     }
+
+    const assetToSave = { ...asset, storageUrl };
 
     const index = currentProject.assets.findIndex(a => a.id === asset.id);
     const updated = [...currentProject.assets];
     if (index >= 0) {
-      updated[index] = asset;
+      updated[index] = assetToSave;
     } else {
-      updated.push(asset);
+      updated.push(assetToSave);
     }
 
     set({
