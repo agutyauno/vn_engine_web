@@ -216,19 +216,47 @@ function findTargetRangeOnLine(
 }
 
 /**
- * Sinh danh sách QuickFixAction từ chẩn đoán lỗi tại vị trí con trỏ.
+ * Sinh danh sách QuickFixAction từ chẩn đoán lỗi tại vị trí con trỏ hoặc từ mảng diagnostics.
  * Áp dụng Triple-Layer Deduplication (Lớp 1: Action-level & Asset-target deduplication).
  */
-export function resolveQuickFixActions(context: QuickFixContext): QuickFixAction[] {
-  if (!context.diagnostics || context.diagnostics.length === 0) {
+export function resolveQuickFixActions(context: QuickFixContext): QuickFixAction[];
+export function resolveQuickFixActions(diagnostics: EditorDiagnostic[]): QuickFixAction[];
+export function resolveQuickFixActions(
+  contextOrDiagnostics: QuickFixContext | EditorDiagnostic[],
+): QuickFixAction[] {
+  let context: QuickFixContext;
+  let lineDiags: EditorDiagnostic[];
+
+  if (Array.isArray(contextOrDiagnostics)) {
+    const diags = contextOrDiagnostics;
+    const firstDiag = diags[0];
+    context = {
+      fileId: firstDiag?.fileId || '',
+      fileContent: '',
+      cursorLine: firstDiag?.line ?? 1,
+      cursorCol: firstDiag?.col ?? 1,
+      diagnostics: diags,
+      projectCharacters: [],
+      projectAssets: [],
+      projectVariables: [],
+    };
+    lineDiags = diags;
+  } else {
+    context = contextOrDiagnostics;
+    if (!context.diagnostics || context.diagnostics.length === 0) {
+      return [];
+    }
+    lineDiags = context.diagnostics.filter(
+      d => d.line !== undefined && d.line === context.cursorLine,
+    );
+  }
+
+  if (lineDiags.length === 0) {
     return [];
   }
 
   const actions: QuickFixAction[] = [];
   const seenAssetTargets = new Set<string>();
-  const lineDiags = context.diagnostics.filter(
-    d => d.line !== undefined && d.line === context.cursorLine,
-  );
 
   for (const diag of lineDiags) {
     const qf = diag.quickFix;
@@ -240,6 +268,22 @@ export function resolveQuickFixActions(context: QuickFixContext): QuickFixAction
     const diagLine = diag.line ?? context.cursorLine;
 
     switch (qf.type) {
+      case 'create_expression': {
+        const prefill = qf.prefillData as { charId?: string; expressionKey?: string } | undefined;
+        const charId = prefill?.charId || targetId.split('.')[0] || '';
+        const exprKey = prefill?.expressionKey || targetId.split('.')[1] || '';
+        actions.push({
+          id: `create-expression-${charId}-${exprKey}`,
+          title: `Create expression '${exprKey}' for character '${charId}'`,
+          kind: 'quickfix',
+          isPreferred: true,
+          command: {
+            id: 'vn.editor.createExpression',
+            arguments: [charId, exprKey],
+          },
+        });
+        break;
+      }
       case 'create_asset': {
         const rawCat = (qf.prefillData?.category as string) || 'background';
         const category = rawCat === 'audio' ? 'bgm' : rawCat === 'backgrounds' ? 'background' : rawCat;

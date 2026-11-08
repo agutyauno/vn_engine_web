@@ -138,6 +138,7 @@ export interface MonacoEditorContainerProps {
   onCursorChange?: (line: number, col: number) => void;
   onRequestCreateAsset?: (targetId: string, category?: AssetCategory) => void;
   onRequestCreateCharacter?: (targetId: string) => void;
+  onRequestCreateExpression?: (charId: string, expressionKey: string) => void;
   readOnly?: boolean;
 }
 
@@ -155,6 +156,7 @@ export const MonacoEditorContainer = React.forwardRef<
     onCursorChange,
     onRequestCreateAsset,
     onRequestCreateCharacter,
+    onRequestCreateExpression,
     readOnly = false,
   },
   ref,
@@ -185,6 +187,9 @@ export const MonacoEditorContainer = React.forwardRef<
 
   const onRequestCreateCharacterRef = useRef(onRequestCreateCharacter);
   onRequestCreateCharacterRef.current = onRequestCreateCharacter;
+
+  const onRequestCreateExpressionRef = useRef(onRequestCreateExpression);
+  onRequestCreateExpressionRef.current = onRequestCreateExpression;
 
   const compilerDiagnostics = useDiagnosticsStore(s => s.compilerDiagnostics);
   const reconciliationDiagnostics = useDiagnosticsStore(s => s.reconciliationDiagnostics);
@@ -306,6 +311,7 @@ export const MonacoEditorContainer = React.forwardRef<
     if (!monacoInstanceRef.current || !isMonacoMounted) return;
     let d1: monacoType.IDisposable | undefined;
     let d2: monacoType.IDisposable | undefined;
+    let d3: monacoType.IDisposable | undefined;
     try {
       d1 = monacoInstanceRef.current.editor.registerCommand(
         'vn.editor.createAsset',
@@ -323,12 +329,21 @@ export const MonacoEditorContainer = React.forwardRef<
           }
         },
       );
+      d3 = monacoInstanceRef.current.editor.registerCommand(
+        'vn.editor.createExpression',
+        (_accessor, charId?: string, expressionKey?: string) => {
+          if (charId && expressionKey) {
+            onRequestCreateExpressionRef.current?.(charId, expressionKey);
+          }
+        },
+      );
     } catch {
       // Ignored if already registered
     }
     return () => {
       d1?.dispose();
       d2?.dispose();
+      d3?.dispose();
     };
   }, [isMonacoMounted]);
 

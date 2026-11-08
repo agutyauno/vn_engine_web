@@ -119,6 +119,10 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
     id: string;
     category?: AssetCategory;
   } | null>(null);
+  const [pendingPrefillExpression, setPendingPrefillExpression] = useState<{
+    charId: string;
+    expressionKey: string;
+  } | null>(null);
 
   // Pop-out Window Reference
   const popoutWindowRef = useRef<Window | null>(null);
@@ -518,6 +522,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
       saveCharacter(savedChar);
       setIsCharModalOpen(false);
       setEditingCharacter(null);
+      setPendingPrefillExpression(null);
       try {
         await saveProject(repository);
       } catch (err) {
@@ -611,6 +616,18 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
     [project, handleSelectTab, setCursorJumpTarget],
   );
 
+  const handleRequestCreateExpression = useCallback((charId: string, expressionKey: string) => {
+    const currentProj = useProjectStore.getState().project;
+    const targetChar = (currentProj?.characters || []).find(
+      c => c.id.toLowerCase() === charId.toLowerCase(),
+    );
+    if (targetChar) {
+      setPendingPrefillExpression({ charId: targetChar.id, expressionKey });
+      setEditingCharacter(targetChar);
+      setIsCharModalOpen(true);
+    }
+  }, []);
+
   const handleQuickFix = useCallback(
     (diag: DiagnosticItem) => {
       const editorDiag = diag as EditorDiagnostic;
@@ -622,6 +639,13 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
         setIsAssetModalOpen(true);
       } else if (editorDiag.quickFix?.type === 'create_character') {
         handleOpenCreateCharacter(editorDiag.quickFix.targetId);
+      } else if (editorDiag.quickFix?.type === 'create_expression') {
+        const prefill = editorDiag.quickFix.prefillData as { charId?: string; expressionKey?: string } | undefined;
+        const charId = prefill?.charId || editorDiag.quickFix.targetId?.split('.')[0] || '';
+        const exprKey = prefill?.expressionKey || editorDiag.quickFix.targetId?.split('.')[1] || '';
+        if (charId && exprKey) {
+          handleRequestCreateExpression(charId, exprKey);
+        }
       } else if (editorDiag.quickFix?.type === 'define_variable') {
         const varName = editorDiag.quickFix.targetId;
         const currentProj = useProjectStore.getState().project;
@@ -650,7 +674,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
         }
       }
     },
-    [handleOpenCreateCharacter, updateFileContent, handleSelectTab, setCursorJumpTarget, saveProject, repository],
+    [handleOpenCreateCharacter, handleRequestCreateExpression, updateFileContent, handleSelectTab, setCursorJumpTarget, saveProject, repository],
   );
 
   const handleRequestCreateAsset = useCallback((targetId: string, category?: AssetCategory) => {
@@ -885,6 +909,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
               onCursorChange={line => setCurrentCursorLine(line)}
               onRequestCreateAsset={handleRequestCreateAsset}
               onRequestCreateCharacter={handleRequestCreateCharacter}
+              onRequestCreateExpression={handleRequestCreateExpression}
             />
 
             {/* Resizable Drawer Splitter */}
@@ -918,12 +943,14 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
         <CharacterModal
           isOpen={isCharModalOpen}
           initialData={editingCharacter}
+          prefillExpressionKey={pendingPrefillExpression?.expressionKey}
           existingIds={(currentProject.characters || [])
             .filter(c => !editingCharacter || c.id !== editingCharacter.id)
             .map(c => c.id)}
           onClose={() => {
             setIsCharModalOpen(false);
             setEditingCharacter(null);
+            setPendingPrefillExpression(null);
           }}
           onSave={handleSaveCharacter}
         />

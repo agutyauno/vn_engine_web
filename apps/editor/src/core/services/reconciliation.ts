@@ -15,7 +15,7 @@ export interface EditorDiagnostic extends Omit<EngineDiagnostic, 'timestamp'> {
   timestamp?: number;
   fileName?: string;
   quickFix?: {
-    type: 'create_asset' | 'create_character' | 'define_variable';
+    type: 'create_asset' | 'create_character' | 'define_variable' | 'create_expression';
     targetId: string;
     prefillData?: Record<string, unknown>;
   };
@@ -32,12 +32,24 @@ export interface ScriptReference {
   type?: 'background' | 'audio' | 'inspect' | 'character';
 }
 
+export interface UncreatedExpressionRef {
+  charId: string;
+  expressionKey: string;
+  file: string;
+  line: number;
+  col?: number;
+  endLine?: number;
+  endCol?: number;
+}
+
 export interface ReconciliationReport {
   uncreatedCharacters: string[];
   uncreatedAssets: string[];
   unusedAssets: string[];
   assetReferences: Record<string, ScriptReference[]>;
   characterReferences: Record<string, ScriptReference[]>;
+  uncreatedExpressions?: UncreatedExpressionRef[];
+  expressionReferences?: Record<string, ScriptReference[]>;
 }
 
 export interface DeletionSafetyResult {
@@ -46,9 +58,43 @@ export interface DeletionSafetyResult {
   error?: string;
 }
 
+function escapeRegExp(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function resolveExpressionSpan(
+  rawLine: string | undefined,
+  charId: string,
+  expressionKey: string,
+  fallbackLine: number,
+): { col: number; endLine: number; endCol: number } {
+  if (!rawLine) return { col: 1, endLine: fallbackLine, endCol: 1 };
+  const regex = new RegExp(`\\b${escapeRegExp(charId)}\\.(${escapeRegExp(expressionKey)})\\b`);
+  const match = regex.exec(rawLine);
+  if (match) {
+    const col = match.index + charId.length + 1 + 1;
+    return { col, endLine: fallbackLine, endCol: col + expressionKey.length };
+  }
+  const dotIdx = rawLine.indexOf(`.${expressionKey}`);
+  if (dotIdx !== -1) {
+    const col = dotIdx + 1 + 1;
+    return { col, endLine: fallbackLine, endCol: col + expressionKey.length };
+  }
+  return { col: 1, endLine: fallbackLine, endCol: 1 };
+}
+
 export function scanActiveReconciliation(project: Project): ReconciliationReport {
   const assetRefMap: Record<string, ScriptReference[]> = {};
   const charRefMap: Record<string, ScriptReference[]> = {};
+  const exprRefMap: Record<string, ScriptReference[]> = {};
+  const uncreatedExpressions: UncreatedExpressionRef[] = [];
+
+  const charMap = new Map<string, Character>();
+  for (const c of project.characters || []) {
+    if (c.id) {
+      charMap.set(c.id.trim().toLowerCase(), c);
+    }
+  }
 
   const recordAssetRef = (
     assetName: string,
@@ -121,9 +167,47 @@ export function scanActiveReconciliation(project: Project): ReconciliationReport
       // Show character or sprite asset: show <id>.<expression> or show <id>
       const showMatch = trimmed.match(/^show\s+([a-zA-Z0-9_]+)(?:\.([a-zA-Z0-9_]+))?/i);
       if (showMatch && showMatch[1]) {
-        recordCharRef(showMatch[1], fileName, lineNum);
+        const charId = showMatch[1];
+        const charIdLower = charId.toLowerCase();
+        recordCharRef(charId, fileName, lineNum);
         if (knownAssetKeys.has(showMatch[1]) || knownAssetKeys.has(showMatch[1].toLowerCase())) {
           recordAssetRef(showMatch[1], fileName, lineNum, 'background');
+        }
+
+        if (showMatch[2]) {
+          const exprKey = showMatch[2];
+          const span = resolveExpressionSpan(rawLine, charId, exprKey, lineNum);
+          const exprCompositeKey = `${charIdLower}.${exprKey}`;
+          if (!exprRefMap[exprCompositeKey]) {
+            exprRefMap[exprCompositeKey] = [];
+          }
+          exprRefMap[exprCompositeKey]!.push({
+            file: fileName,
+            line: lineNum,
+            col: span.col,
+            endLine: span.endLine,
+            endCol: span.endCol,
+            type: 'character',
+          });
+
+          // Uncreated expression detection: character must already exist, but sprite key is missing
+          if (knownCharIds.has(charIdLower)) {
+            const charObj = charMap.get(charIdLower);
+            const hasSprite = Boolean(
+              charObj?.sprites && Object.prototype.hasOwnProperty.call(charObj.sprites, exprKey),
+            );
+            if (!hasSprite) {
+              uncreatedExpressions.push({
+                charId: charObj?.id || charId,
+                expressionKey: exprKey,
+                file: fileName,
+                line: lineNum,
+                col: span.col,
+                endLine: span.endLine,
+                endCol: span.endCol,
+              });
+            }
+          }
         }
       }
 
@@ -186,6 +270,8 @@ export function scanActiveReconciliation(project: Project): ReconciliationReport
     unusedAssets,
     assetReferences: assetRefMap,
     characterReferences: charRefMap,
+    uncreatedExpressions,
+    expressionReferences: exprRefMap,
   };
 }
 
@@ -292,10 +378,6 @@ export function checkAssetDeletionSafety(
     safe: true,
     references: [],
   };
-}
-
-function escapeRegExp(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function resolveSpanFromLine(
@@ -441,6 +523,33 @@ export function generateDiagnostics(project: Project): GeneratedEditorDiagnostic
       assetKey: assetName,
       col: 1,
     });
+  }
+
+  if (report.uncreatedExpressions) {
+    for (const uncreated of report.uncreatedExpressions) {
+      diagnostics.push({
+        id: `diag-char-expr-${uncreated.charId}-${uncreated.expressionKey}-${uncreated.file}-${uncreated.line}`,
+        timestamp: Date.now(),
+        category: 'character',
+        severity: 'warning',
+        message: `Uncreated expression '${uncreated.expressionKey}' for character '${uncreated.charId}' referenced in script`,
+        assetKey: `${uncreated.charId}.${uncreated.expressionKey}`,
+        fileName: uncreated.file,
+        fileId: fileMap.get(uncreated.file),
+        line: uncreated.line,
+        col: uncreated.col,
+        endLine: uncreated.endLine ?? uncreated.line,
+        endCol: uncreated.endCol,
+        quickFix: {
+          type: 'create_expression',
+          targetId: `${uncreated.charId}.${uncreated.expressionKey}`,
+          prefillData: {
+            charId: uncreated.charId,
+            expressionKey: uncreated.expressionKey,
+          },
+        },
+      });
+    }
   }
 
   return diagnostics;
@@ -757,6 +866,59 @@ export function computeReconciliationDiagnostics(
         assetKey: assetName,
         col: 1,
       });
+    }
+  }
+
+  // Uncreated Expressions
+  for (const file of files) {
+    const fileName = fileNameMap.get(file.id || file.name) || file.name || 'unnamed.vns';
+    const lines = (file.content || '').split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      const lineNum = i + 1;
+      const rawLine = lines[i]!;
+      const trimmed = rawLine.trim();
+      if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith('//')) {
+        continue;
+      }
+      const showMatch = trimmed.match(/^show\s+([a-zA-Z0-9_]+)(?:\.([a-zA-Z0-9_]+))?/i);
+      if (showMatch && showMatch[1] && showMatch[2]) {
+        const charId = showMatch[1];
+        const exprKey = showMatch[2];
+        const charIdLower = charId.toLowerCase();
+        if (knownCharIds.has(charIdLower)) {
+          const charObj = (options?.characters || []).find(
+            c => (c.id || '').trim().toLowerCase() === charIdLower,
+          );
+          const hasSprite = Boolean(
+            charObj?.sprites && Object.prototype.hasOwnProperty.call(charObj.sprites, exprKey),
+          );
+          if (!hasSprite) {
+            const span = resolveExpressionSpan(rawLine, charId, exprKey, lineNum);
+            diagnostics.push({
+              id: `diag-char-expr-${charObj?.id || charId}-${exprKey}-${fileName}-${lineNum}`,
+              timestamp: Date.now(),
+              category: 'character',
+              severity: 'warning',
+              message: `Uncreated expression '${exprKey}' for character '${charObj?.id || charId}' referenced in script`,
+              assetKey: `${charObj?.id || charId}.${exprKey}`,
+              fileName,
+              fileId: fileMap.get(fileName) || file.id,
+              line: lineNum,
+              col: span.col,
+              endLine: span.endLine,
+              endCol: span.endCol,
+              quickFix: {
+                type: 'create_expression',
+                targetId: `${charObj?.id || charId}.${exprKey}`,
+                prefillData: {
+                  charId: charObj?.id || charId,
+                  expressionKey: exprKey,
+                },
+              },
+            });
+          }
+        }
+      }
     }
   }
 

@@ -16,6 +16,7 @@ export interface CharacterModalProps {
   isOpen: boolean;
   initialData?: Character | null;
   existingIds?: string[];
+  prefillExpressionKey?: string;
   onClose: () => void;
   onSave: (character: Character) => void;
 }
@@ -72,6 +73,7 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
   isOpen,
   initialData,
   existingIds = [],
+  prefillExpressionKey,
   onClose,
   onSave,
 }) => {
@@ -135,6 +137,27 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
     setIsDragging(false);
     setLightboxImage(null);
   }, [isOpen, initialData]);
+
+  // Handle prefillExpressionKey when opened via QuickFix
+  useEffect(() => {
+    if (!isOpen || !prefillExpressionKey) return;
+    const cleanKey = prefillExpressionKey.trim().toLowerCase();
+    if (!cleanKey) return;
+
+    setExpressions(prev => {
+      const exists = prev.some(r => r.expressionKey.trim().toLowerCase() === cleanKey);
+      if (exists) return prev;
+      return [
+        ...prev,
+        {
+          id: `expr-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          expressionKey: cleanKey,
+          imageUrl: '',
+          isDefault: prev.length === 0,
+        },
+      ];
+    });
+  }, [isOpen, prefillExpressionKey]);
 
   // Validate ID
   useEffect(() => {
@@ -363,9 +386,7 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
     for (const row of expressions) {
       const k = row.expressionKey.trim().toLowerCase();
       if (k) {
-        if (row.imageUrl) {
-          spritesMap[k] = row.imageUrl;
-        }
+        spritesMap[k] = row.imageUrl || '';
         if (row.isDefault) {
           defaultExpr = k;
         }
