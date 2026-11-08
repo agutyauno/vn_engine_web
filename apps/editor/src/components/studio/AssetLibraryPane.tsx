@@ -28,6 +28,10 @@ import {
 import { validateAssetFile } from '../../core/utils/assetValidation';
 import { generateDslSnippet } from '../../core/utils/dslSnippetGenerator';
 import { useEditorUIStore } from '../../core/stores/uiStore';
+import {
+  normalizeCategoryTab,
+  type ConsolidatedCategory,
+} from '../../core/utils/assetCategories';
 
 export interface AssetLibraryPaneProps {
   project: Project;
@@ -40,17 +44,6 @@ export interface AssetLibraryPaneProps {
   onDeleteAsset?: (assetId: string) => void;
   onInsertSnippet?: (snippet: string) => void;
 }
-
-type ConsolidatedCategory =
-  | 'all'
-  | 'backgrounds'
-  | 'sprites'
-  | 'audio'
-  | 'bgm'
-  | 'sfx'
-  | 'voice'
-  | 'ui'
-  | 'other';
 
 export type StatusFilter = 'all' | 'in_use' | 'unused';
 export type SortOption = 'name_asc' | 'name_desc' | 'size_desc' | 'size_asc';
@@ -66,23 +59,24 @@ export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
   onDeleteAsset,
   onInsertSnippet,
 }) => {
-  const lastAssetCategory = useEditorUIStore(s => s.lastAssetCategory) as ConsolidatedCategory;
+  const lastAssetCategory = useEditorUIStore(s => s.lastAssetCategory);
   const setLastAssetCategory = useEditorUIStore(s => s.setLastAssetCategory);
   const assetViewMode = useEditorUIStore(s => s.assetViewMode);
   const setAssetViewMode = useEditorUIStore(s => s.setAssetViewMode);
 
-  const [activeTab, setActiveTab] = useState<ConsolidatedCategory>(lastAssetCategory || 'all');
+  const [activeTab, setActiveTab] = useState<ConsolidatedCategory>(
+    normalizeCategoryTab(lastAssetCategory),
+  );
   const [editingAsset, setEditingAsset] = useState<AssetRef | null>(null);
 
   useEffect(() => {
-    if (lastAssetCategory) {
-      setActiveTab(lastAssetCategory as ConsolidatedCategory);
-    }
+    setActiveTab(normalizeCategoryTab(lastAssetCategory));
   }, [lastAssetCategory]);
 
-  const handleCategoryFilterChange = (cat: ConsolidatedCategory) => {
-    setActiveTab(cat);
-    setLastAssetCategory(cat);
+  const handleCategoryFilterChange = (cat: string) => {
+    const normalized = normalizeCategoryTab(cat);
+    setActiveTab(normalized);
+    setLastAssetCategory(normalized);
   };
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -142,10 +136,12 @@ export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
       } else if (activeTab === 'backgrounds') {
         matchesCategory =
           asset.category === 'background' ||
+          (asset.category as string) === 'backgrounds' ||
           (!asset.category && asset.type === 'image' && !asset.name.startsWith('char_'));
       } else if (activeTab === 'sprites') {
         matchesCategory =
           asset.category === 'sprite' ||
+          (asset.category as string) === 'sprites' ||
           (!asset.category && asset.type === 'image' && asset.name.startsWith('char_'));
       } else if (activeTab === 'audio') {
         matchesCategory =
@@ -471,7 +467,7 @@ export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
           id="select-asset-category-filter"
           data-testid="select-asset-category-filter"
           value={activeTab}
-          onChange={e => handleCategoryFilterChange(e.target.value as ConsolidatedCategory)}
+          onChange={e => handleCategoryFilterChange(e.target.value)}
           className="w-full rounded border border-neutral-800 bg-neutral-950 px-2.5 py-1.5 text-xs text-neutral-200 focus:border-neutral-700 focus:outline-none transition cursor-pointer font-sans"
         >
           <option value="all">All Categories</option>
@@ -484,39 +480,39 @@ export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
           <option value="other">Other</option>
         </select>
         <div className="hidden" aria-hidden="true">
-          <button data-testid="tab-asset-all" type="button" onClick={() => setActiveTab('all')}>
+          <button data-testid="tab-asset-all" type="button" onClick={() => handleCategoryFilterChange('all')}>
             All
           </button>
           <button
             data-testid="tab-asset-backgrounds"
             type="button"
-            onClick={() => setActiveTab('backgrounds')}
+            onClick={() => handleCategoryFilterChange('backgrounds')}
           >
             Backgrounds
           </button>
           <button
             data-testid="tab-asset-sprites"
             type="button"
-            onClick={() => setActiveTab('sprites')}
+            onClick={() => handleCategoryFilterChange('sprites')}
           >
             Sprites
           </button>
-          <button data-testid="tab-asset-bgm" type="button" onClick={() => setActiveTab('bgm')}>
+          <button data-testid="tab-asset-bgm" type="button" onClick={() => handleCategoryFilterChange('bgm')}>
             BGM
           </button>
-          <button data-testid="tab-asset-sfx" type="button" onClick={() => setActiveTab('sfx')}>
+          <button data-testid="tab-asset-sfx" type="button" onClick={() => handleCategoryFilterChange('sfx')}>
             SFX
           </button>
-          <button data-testid="tab-asset-voice" type="button" onClick={() => setActiveTab('voice')}>
+          <button data-testid="tab-asset-voice" type="button" onClick={() => handleCategoryFilterChange('voice')}>
             Voice
           </button>
-          <button data-testid="tab-asset-ui" type="button" onClick={() => setActiveTab('ui')}>
+          <button data-testid="tab-asset-ui" type="button" onClick={() => handleCategoryFilterChange('ui')}>
             UI
           </button>
-          <button data-testid="tab-asset-other" type="button" onClick={() => setActiveTab('other')}>
+          <button data-testid="tab-asset-other" type="button" onClick={() => handleCategoryFilterChange('other')}>
             Other
           </button>
-          <button data-testid="tab-asset-audio" type="button" onClick={() => setActiveTab('audio')}>
+          <button data-testid="tab-asset-audio" type="button" onClick={() => handleCategoryFilterChange('audio')}>
             Audio
           </button>
         </div>

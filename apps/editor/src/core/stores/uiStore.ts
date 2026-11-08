@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { normalizeCategoryTab } from '../utils/assetCategories';
 
 export type PendingNavigationTarget =
   | { type: 'project-hub' }
@@ -78,7 +79,8 @@ function getInitialAssetCategory(): string {
     return 'all';
   }
   try {
-    return localStorage.getItem(ASSET_CATEGORY_STORAGE_KEY) || 'all';
+    const stored = localStorage.getItem(ASSET_CATEGORY_STORAGE_KEY);
+    return normalizeCategoryTab(stored);
   } catch {
     return 'all';
   }
@@ -250,10 +252,11 @@ export const useEditorUIStore = create<EditorUIStoreState>((set, get) => ({
   setActiveTab: activeTab => set({ activeTab }),
 
   setLastAssetCategory: category => {
-    set({ lastAssetCategory: category });
+    const normalized = normalizeCategoryTab(category);
+    set({ lastAssetCategory: normalized });
     if (typeof window !== 'undefined' && window.localStorage) {
       try {
-        localStorage.setItem(ASSET_CATEGORY_STORAGE_KEY, category);
+        localStorage.setItem(ASSET_CATEGORY_STORAGE_KEY, normalized);
       } catch {
         // Ignore storage errors in restricted contexts
       }

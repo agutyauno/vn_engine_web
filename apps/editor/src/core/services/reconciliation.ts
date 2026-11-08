@@ -6,6 +6,7 @@ import {
   extractScriptReferences,
   type ScriptReferences,
 } from '@vn-engine/dsl-compiler';
+export type { ScriptReferences };
 
 export type DiagnosticSeverity = 'error' | 'warning' | 'info';
 export type DiagnosticCategory = 'compiler' | 'asset' | 'character' | 'runtime' | 'storage';
@@ -317,7 +318,7 @@ export function generateDiagnostics(project: Project): GeneratedEditorDiagnostic
             targetId: assetName,
             prefillData: {
               name: assetName,
-              category: ref.type === 'audio' ? 'audio' : 'backgrounds',
+              category: ref.type === 'audio' ? 'audio' : 'background',
             },
           },
         });
@@ -334,7 +335,7 @@ export function generateDiagnostics(project: Project): GeneratedEditorDiagnostic
         quickFix: {
           type: 'create_asset',
           targetId: assetName,
-          prefillData: { name: assetName, category: 'backgrounds' },
+          prefillData: { name: assetName, category: 'background' },
         },
       });
     }
@@ -652,7 +653,7 @@ export function computeReconciliationDiagnostics(
             targetId: assetRef,
             prefillData: {
               name: assetRef,
-              category: ref.type === 'audio' ? 'audio' : 'backgrounds',
+              category: ref.type === 'audio' ? 'audio' : 'background',
             },
           },
         });
