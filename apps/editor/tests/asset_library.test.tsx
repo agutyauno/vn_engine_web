@@ -155,14 +155,15 @@ play music "bg_rain.mp3"
       expect(result.error).toBeUndefined();
     });
 
-    it('SafeDeleteModal renders dependency block and disables delete button when asset is referenced', () => {
+    it('SafeDeleteModal renders dependency warning but allows deletion with "Delete Anyway" button when asset is referenced', () => {
       const handleDelete = vi.fn();
       const handleClose = vi.fn();
+      const targetAsset = sampleProject.assets.find(a => a.name === 'bg_school.png')!;
 
       render(
         <SafeDeleteModal
           isOpen={true}
-          asset={sampleProject.assets.find(a => a.name === 'bg_school.png')!}
+          asset={targetAsset}
           project={sampleProject}
           onClose={handleClose}
           onConfirmDelete={handleDelete}
@@ -171,15 +172,17 @@ play music "bg_rain.mp3"
 
       // Warning should be displayed
       expect(screen.getByTestId('safe-delete-modal')).toBeInTheDocument();
-      expect(screen.getAllByText(/Cannot delete asset/i).length).toBeGreaterThanOrEqual(1);
       expect(screen.getByText(/chapter2.vns/i)).toBeInTheDocument();
 
-      // Delete button must be disabled
+      // Delete button must NOT be disabled and should display "Delete Anyway"
       const deleteBtn = screen.getByTestId('btn-confirm-delete-asset');
-      expect(deleteBtn).toBeDisabled();
+      expect(deleteBtn).toHaveTextContent(/Delete Anyway/i);
+      expect(deleteBtn).not.toBeDisabled();
 
+      // Clicking "Delete Anyway" must execute handleDelete with target asset
       fireEvent.click(deleteBtn);
-      expect(handleDelete).not.toHaveBeenCalled();
+      expect(handleDelete).toHaveBeenCalledTimes(1);
+      expect(handleDelete).toHaveBeenCalledWith(targetAsset);
     });
 
     it('SafeDeleteModal allows deletion when asset is unused', () => {
