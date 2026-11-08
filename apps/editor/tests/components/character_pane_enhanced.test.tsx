@@ -203,4 +203,109 @@ describe('Phase 2: CharacterManagerPane Enhanced (Grid/List & Expression Accordi
     fireEvent.click(btnInsertSmile);
     expect(onInsertSnippetMock).toHaveBeenCalledWith('show alice.smile');
   });
+
+  // --- Character Sidebar Image Preview (Phase 2 RED Test Suite) ---
+
+  it('TC-CHAR-PREVIEW-01: clicking avatar in grid view opens image lightbox modal and does not trigger onEditCharacter', () => {
+    const onEditCharacterMock = vi.fn();
+    render(<CharacterManagerPane {...defaultProps} onEditCharacter={onEditCharacterMock} />);
+
+    // Switch to grid view
+    const btnGrid = screen.getByRole('button', { name: /grid view/i });
+    fireEvent.click(btnGrid);
+
+    // Find Alice's avatar image in grid card
+    const aliceAvatar = screen.getByTestId('char-avatar-alice');
+    expect(aliceAvatar).toBeInTheDocument();
+
+    // Click Alice's avatar
+    fireEvent.click(aliceAvatar);
+
+    // Lightbox modal should be opened
+    const lightboxModal = screen.getByTestId(/^(image-lightbox-modal|modal-image-lightbox)$/);
+    expect(lightboxModal).toBeInTheDocument();
+
+    // Lightbox image should display Alice's default smile storageUrl
+    const lightboxImg = screen.getByTestId(/^(lightbox-img|lightbox-image)$/) as HTMLImageElement;
+    expect(lightboxImg.src).toBe('https://cdn.example.com/alice_smile.png');
+
+    // Title contains character name + (Default) and subtitle contains character id
+    const title = screen.getByTestId('lightbox-title');
+    expect(title).toHaveTextContent('Alice Margatroid (Default)');
+    const subtitle = screen.getByTestId('lightbox-subtitle');
+    expect(subtitle).toHaveTextContent('alice');
+
+    // Crucial: onEditCharacter must NOT be called (propagation stopped)
+    expect(onEditCharacterMock).not.toHaveBeenCalled();
+  });
+
+  it('TC-CHAR-PREVIEW-02: clicking avatar in list view opens image lightbox modal', () => {
+    const onEditCharacterMock = vi.fn();
+    render(<CharacterManagerPane {...defaultProps} onEditCharacter={onEditCharacterMock} />);
+
+    // In default list view, find Alice's avatar
+    const aliceAvatar = screen.getByTestId('char-avatar-alice');
+    expect(aliceAvatar).toBeInTheDocument();
+
+    // Click Alice's avatar
+    fireEvent.click(aliceAvatar);
+
+    // Lightbox modal should be opened
+    const lightboxModal = screen.getByTestId(/^(image-lightbox-modal|modal-image-lightbox)$/);
+    expect(lightboxModal).toBeInTheDocument();
+
+    // Lightbox image src verification
+    const lightboxImg = screen.getByTestId(/^(lightbox-img|lightbox-image)$/) as HTMLImageElement;
+    expect(lightboxImg.src).toBe('https://cdn.example.com/alice_smile.png');
+
+    // onEditCharacter must not be called
+    expect(onEditCharacterMock).not.toHaveBeenCalled();
+  });
+
+  it('TC-CHAR-PREVIEW-03: clicking expression thumbnail in accordion opens image lightbox modal with expression details', () => {
+    render(<CharacterManagerPane {...defaultProps} />);
+
+    // Expand Alice accordion
+    const btnAccordion = screen.getByTestId('btn-accordion-alice');
+    fireEvent.click(btnAccordion);
+
+    // Find smile expression thumbnail
+    const exprImgSmile = screen.getByTestId('expr-img-alice-smile');
+    expect(exprImgSmile).toBeInTheDocument();
+
+    // Click expression thumbnail
+    fireEvent.click(exprImgSmile);
+
+    // Lightbox modal should be opened
+    const lightboxModal = screen.getByTestId(/^(image-lightbox-modal|modal-image-lightbox)$/);
+    expect(lightboxModal).toBeInTheDocument();
+
+    // Verify title and subtitle for expression
+    const title = screen.getByTestId('lightbox-title');
+    expect(title).toHaveTextContent('Alice Margatroid — smile');
+    const subtitle = screen.getByTestId('lightbox-subtitle');
+    expect(subtitle).toHaveTextContent('smile');
+
+    // Lightbox image should have smile sprite URL
+    const lightboxImg = screen.getByTestId(/^(lightbox-img|lightbox-image)$/) as HTMLImageElement;
+    expect(lightboxImg.src).toBe('https://cdn.example.com/alice_smile.png');
+  });
+
+  it('TC-CHAR-PREVIEW-04: closing lightbox clears preview modal', () => {
+    render(<CharacterManagerPane {...defaultProps} />);
+
+    // Click Alice's avatar to open lightbox
+    const aliceAvatar = screen.getByTestId('char-avatar-alice');
+    fireEvent.click(aliceAvatar);
+
+    // Verify lightbox is open
+    expect(screen.getByTestId(/^(image-lightbox-modal|modal-image-lightbox)$/)).toBeInTheDocument();
+
+    // Click close button on lightbox
+    const btnClose = screen.getByTestId('btn-close-lightbox');
+    fireEvent.click(btnClose);
+
+    // Verify lightbox is removed from the document
+    expect(screen.queryByTestId(/^(image-lightbox-modal|modal-image-lightbox)$/)).not.toBeInTheDocument();
+  });
 });
