@@ -23,6 +23,7 @@ export function ControlBar(): JSX.Element {
       id="control-bar"
       className={`control-bar ${isControlsHidden ? 'hidden' : ''}`}
       style={isControlsHidden ? { display: 'none' } : undefined}
+      onClick={e => e.stopPropagation()}
     >
       <button
         id="btn-back"

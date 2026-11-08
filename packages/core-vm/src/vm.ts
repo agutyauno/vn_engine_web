@@ -231,6 +231,16 @@ export class VisualNovelVM {
         this.state.activeInspect = { assetId: instr.assetId, title: instr.title };
       } else if (instr.type === 'INSPECT_END') {
         this.state.activeInspect = null;
+      } else if (instr.type === 'REVEAL') {
+        if (!this.state.characterDisplayOverrides) {
+          this.state.characterDisplayOverrides = {};
+        }
+        const evalContext = this.getEvalContext();
+        this.state.characterDisplayOverrides[instr.characterId] = interpolate(
+          instr.displayName,
+          evalContext,
+          this.evaluator,
+        );
       }
     }
   }

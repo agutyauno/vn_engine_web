@@ -105,7 +105,7 @@ describe('VNRuntimeKernel: Nameplate Reveal Resolution (TASK-player-core-bugs)',
   it('TC-REV-03: should fallback to configured Character Studio name when no reveal or inline override exists', async () => {
     const { mockRenderer, mockAudio, mockStorage } = createMockAdapters();
     const characters: Character[] = [
-      { id: 'bob', name: 'Robert', colorHex: '#10b981' },
+      { id: 'bob', name: 'Robert', colorHex: '#10b981', sprites: {} },
     ];
     const program: Instruction[] = [
       { type: 'SCENE', name: 'intro' },
@@ -214,3 +214,4 @@ describe('VNRuntimeKernel: Nameplate Reveal Resolution (TASK-player-core-bugs)',
     expect(state.quickSaveSlot?.speakerName).toBe('Alice - Hội phó');
   });
 });
+

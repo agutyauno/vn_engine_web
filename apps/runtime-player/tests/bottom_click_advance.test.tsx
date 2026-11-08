@@ -323,3 +323,4 @@ describe('Bottom Click Zone & DialogueGroup Visibility (TASK-player-core-bugs)',
     expect((dialogueGroupVisible as HTMLElement).style.display).not.toBe('none');
   });
 });
+

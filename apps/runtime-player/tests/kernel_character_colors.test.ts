@@ -74,19 +74,19 @@ describe('VNRuntimeKernel Character Color Resolution (TASK-player-typewriter-and
 
       // Alice line
       const state1 = kernel.getState();
-      expect(state1.dialogue.speakerName).toBe('alice');
+      expect(state1.dialogue.speakerName).toBe('Alice Carroll');
       expect(state1.dialogue.speakerColorHex).toBe('#38bdf8');
       expect(state1.backlog).toHaveLength(1);
-      expect(state1.backlog[0]?.speakerName).toBe('alice');
+      expect(state1.backlog[0]?.speakerName).toBe('Alice Carroll');
       expect(state1.backlog[0]?.speakerColorHex).toBe('#38bdf8');
 
       // Advance to Bob line
       await kernel.advance();
       const state2 = kernel.getState();
-      expect(state2.dialogue.speakerName).toBe('bob');
+      expect(state2.dialogue.speakerName).toBe('Bob Smith');
       expect(state2.dialogue.speakerColorHex).toBe('#f43f5e');
       expect(state2.backlog).toHaveLength(2);
-      expect(state2.backlog[1]?.speakerName).toBe('bob');
+      expect(state2.backlog[1]?.speakerName).toBe('Bob Smith');
       expect(state2.backlog[1]?.speakerColorHex).toBe('#f43f5e');
     });
 
@@ -177,7 +177,7 @@ describe('VNRuntimeKernel Character Color Resolution (TASK-player-typewriter-and
 
       const rollbackState = kernel.getState();
       expect(rollbackState.dialogue.rawText).toBe('Line 1 by Alice.');
-      expect(rollbackState.dialogue.speakerName).toBe('alice');
+      expect(rollbackState.dialogue.speakerName).toBe('Alice Carroll');
       expect(rollbackState.dialogue.speakerColorHex).toBe('#38bdf8');
     });
   });

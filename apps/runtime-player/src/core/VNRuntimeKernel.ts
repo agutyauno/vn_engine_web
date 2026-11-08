@@ -254,6 +254,9 @@ export class VNRuntimeKernel {
         if (this.state.activeModal === 'inspect') {
           this.state.activeModal = 'none';
         }
+      } else if (sideEffect.type === 'HIDE_DIALOGUE') {
+        this.state.dialogue.isVisible = false;
+        this.emit();
       }
     }
 
@@ -287,6 +290,19 @@ export class VNRuntimeKernel {
     return char?.colorHex;
   }
 
+  private resolveSpeakerName(instruction?: DialogueInstruction | null): string | undefined {
+    if (!instruction) return undefined;
+    if (instruction.displayNameOverride) return instruction.displayNameOverride;
+    const charId = instruction.character;
+    if (!charId) return undefined;
+    const vmState = this.vm.getState();
+    const revealedName = vmState.characterDisplayOverrides?.[charId];
+    if (revealedName) return revealedName;
+    const configuredChar = this.charactersMap.get(charId);
+    if (configuredChar?.name?.trim()) return configuredChar.name.trim();
+    return charId;
+  }
+
   private handleDialogue(instruction: DialogueInstruction): void {
     const dialogueKey = this.vm.getCurrentDialogueKey();
     const isSeen = dialogueKey ? this.seenDialogues.has(dialogueKey) : false;
@@ -300,7 +316,7 @@ export class VNRuntimeKernel {
       this.adapters.storage?.saveSeenDialogue?.(dialogueKey);
     }
 
-    const speakerName = instruction.displayNameOverride ?? instruction.character ?? undefined;
+    const speakerName = this.resolveSpeakerName(instruction);
     const speakerColorHex = this.resolveSpeakerColor(instruction.character);
 
     this.state.dialogue = {
@@ -368,15 +384,14 @@ export class VNRuntimeKernel {
       this.state.dialogue = {
         isVisible: true,
         rawText: catchUp.currentDialogue.text,
-        speakerName:
-          catchUp.currentDialogue.displayNameOverride ??
-          catchUp.currentDialogue.character ??
-          undefined,
+        speakerName: this.resolveSpeakerName(catchUp.currentDialogue),
         speakerColorHex: this.resolveSpeakerColor(catchUp.currentDialogue.character),
         isComplete: true,
         canAdvance: true,
         isSeen: true,
       };
+    } else {
+      this.state.dialogue.isVisible = false;
     }
 
     if (catchUp.activeInspect) {
@@ -490,7 +505,7 @@ export class VNRuntimeKernel {
       thumbnailDataUrl,
       currentScene,
       previewText: currentDialogue?.text ? stripControlTags(currentDialogue.text) : '',
-      speakerName: currentDialogue?.displayNameOverride ?? currentDialogue?.character ?? undefined,
+      speakerName: this.resolveSpeakerName(currentDialogue),
       dialogueCounter: this.vm.getState().instructionPointer,
       serializedState,
       scriptHash: this.vm.getScriptHash(),
@@ -531,7 +546,7 @@ export class VNRuntimeKernel {
       thumbnailDataUrl,
       currentScene,
       previewText: currentDialogue?.text ? stripControlTags(currentDialogue.text) : '',
-      speakerName: currentDialogue?.displayNameOverride ?? currentDialogue?.character ?? undefined,
+      speakerName: this.resolveSpeakerName(currentDialogue),
       dialogueCounter: this.vm.getState().instructionPointer,
       serializedState,
       scriptHash: this.vm.getScriptHash(),

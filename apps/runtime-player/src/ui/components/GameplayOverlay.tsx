@@ -119,6 +119,27 @@ export function GameplayOverlay(): JSX.Element {
     actions,
   ]);
 
+  const handleBottomZoneClick = (e: JSX.TargetedMouseEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+
+    if (isCleanArtMode) return;
+
+    const activeModal = state?.activeModal ?? 'none';
+    if (activeModal !== 'none') return;
+
+    const choices = state?.activeChoices ?? [];
+    if (choices.length > 0) return;
+
+    const isVisible = state?.dialogue?.isVisible ?? false;
+    const isComplete = state?.dialogue?.isComplete ?? false;
+
+    if (isVisible && !isComplete) {
+      actions.completeDialogue();
+    } else {
+      actions.advance();
+    }
+  };
+
   return (
     <div
       id="gameplay-overlay"
@@ -128,6 +149,11 @@ export function GameplayOverlay(): JSX.Element {
         actions.toggleHideControls();
       }}
     >
+      <div
+        id="bottom-click-zone"
+        className="bottom-click-zone"
+        onClick={handleBottomZoneClick}
+      />
       <ChoiceOverlay />
       <DialogueGroup />
     </div>
