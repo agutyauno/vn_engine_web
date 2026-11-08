@@ -189,6 +189,22 @@ export function scanActiveReconciliation(project: Project): ReconciliationReport
   };
 }
 
+export function checkCharacterDeletionSafety(
+  characterId: string,
+  project: Project,
+): DeletionSafetyResult {
+  if (!characterId || !characterId.trim()) {
+    return { safe: true, references: [] };
+  }
+  const cleanId = characterId.trim().toLowerCase();
+  const res = scanActiveReconciliation(project);
+  const refs = res.characterReferences[cleanId] || [];
+  return {
+    safe: refs.length === 0,
+    references: refs,
+  };
+}
+
 export function checkAssetDeletionSafety(
   assetIdOrName: string,
   project: Project,
@@ -236,12 +252,39 @@ export function checkAssetDeletionSafety(
     }
   }
 
-  if (uniqueRefs.length > 0) {
+  // Quét thêm tham chiếu chéo từ Character Sprites
+  const clean = target.toLowerCase();
+  const matchedId = matchedAsset?.id?.toLowerCase();
+  const matchedName = matchedAsset?.name?.toLowerCase();
+  const spriteRefs: ScriptReference[] = [];
+
+  for (const char of project.characters || []) {
+    for (const [, spriteRef] of Object.entries(char.sprites || {})) {
+      if (!spriteRef) continue;
+      const refLower = spriteRef.trim().toLowerCase();
+      if (
+        spriteRef === target ||
+        refLower === clean ||
+        (matchedId && refLower === matchedId) ||
+        (matchedName && refLower === matchedName)
+      ) {
+        spriteRefs.push({
+          file: `Character: ${char.name || char.id}`,
+          line: 1,
+          type: 'inspect',
+        });
+      }
+    }
+  }
+
+  const totalRefs = [...uniqueRefs, ...spriteRefs];
+
+  if (totalRefs.length > 0) {
     const assetDisplayName = matchedAsset?.name || target;
     return {
       safe: false,
-      references: uniqueRefs,
-      error: `Cannot delete asset '${assetDisplayName}': it is referenced in ${uniqueRefs.length} place(s).`,
+      references: totalRefs,
+      error: `Cannot delete asset '${assetDisplayName}': it is referenced in ${totalRefs.length} place(s).`,
     };
   }
 

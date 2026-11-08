@@ -38,7 +38,7 @@ export const SafeDeleteModal: React.FC<SafeDeleteModalProps> = ({
               <TrashIcon size={16} className="text-red-400" />
             )}
             <span className="font-semibold text-sm tracking-wide text-neutral-200">
-              {isBlocked ? 'Cannot Delete Asset' : 'Delete Asset'}
+              {isBlocked ? 'Delete Asset (In Use)' : 'Delete Asset'}
             </span>
           </div>
           <button
@@ -104,24 +104,19 @@ export const SafeDeleteModal: React.FC<SafeDeleteModalProps> = ({
             onClick={onClose}
             className="rounded border border-neutral-700 bg-neutral-800 px-3 py-1.5 text-xs text-neutral-300 hover:bg-neutral-700 hover:text-white transition"
           >
-            {isBlocked ? 'Close' : 'Cancel'}
+            Cancel
           </button>
           <button
             type="button"
             data-testid="btn-confirm-delete-asset"
-            disabled={isBlocked}
-            onClick={() => {
-              if (!isBlocked) {
-                onConfirmDelete(asset);
-              }
-            }}
+            onClick={() => onConfirmDelete(asset)}
             className={`rounded px-3 py-1.5 text-xs font-medium transition ${
               isBlocked
-                ? 'bg-neutral-800 text-neutral-600 cursor-not-allowed'
-                : 'bg-red-600 text-white hover:bg-red-500'
+                ? 'bg-amber-600 hover:bg-amber-500 text-white'
+                : 'bg-red-600 hover:bg-red-500 text-white'
             }`}
           >
-            Delete Asset
+            {isBlocked ? 'Delete Anyway' : 'Delete Asset'}
           </button>
         </div>
       </div>

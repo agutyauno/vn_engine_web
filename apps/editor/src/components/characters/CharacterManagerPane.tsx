@@ -1,10 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import type { AssetRef, Character } from '@vn-engine/shared-types';
+import type { AssetRef, Character, Project } from '@vn-engine/shared-types';
 import { useEditorUIStore } from '../../core/stores/uiStore';
 import {
+  AlertTriangleIcon,
   CheckIcon,
   ChevronDownIcon,
   ChevronRightIcon,
+  CloseIcon,
   CopyIcon,
   EditIcon,
   GridIcon,
@@ -16,11 +18,16 @@ import {
   UserIcon,
 } from '../common/Icons';
 import { ImageLightboxModal } from '../common/ImageLightboxModal';
+import {
+  checkCharacterDeletionSafety,
+  type ScriptReference,
+} from '../../core/services/reconciliation';
 
 export interface CharacterManagerPaneProps {
   characters: Character[];
   assets?: AssetRef[];
   uncreatedIds?: string[];
+  project?: Project;
   onCreateCharacter: (prefillId?: string) => void;
   onEditCharacter: (character: Character) => void;
   onDeleteCharacter: (characterId: string) => void;
@@ -31,12 +38,28 @@ export const CharacterManagerPane: React.FC<CharacterManagerPaneProps> = ({
   characters = [],
   assets = [],
   uncreatedIds = [],
+  project,
   onCreateCharacter,
   onEditCharacter,
   onDeleteCharacter,
   onInsertSnippet,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [pendingDeleteChar, setPendingDeleteChar] = useState<{
+    char: Character;
+    references: ScriptReference[];
+  } | null>(null);
+
+  const handleDeleteCharacterClick = (char: Character) => {
+    if (project) {
+      const safety = checkCharacterDeletionSafety(char.id, project);
+      if (!safety.safe) {
+        setPendingDeleteChar({ char, references: safety.references });
+        return;
+      }
+    }
+    onDeleteCharacter(char.id);
+  };
   const [expandedCharIds, setExpandedCharIds] = useState<Record<string, boolean>>({});
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<{
@@ -397,7 +420,7 @@ export const CharacterManagerPane: React.FC<CharacterManagerPaneProps> = ({
                           data-testid={`btn-delete-char-${char.id}`}
                           onClick={e => {
                             e.stopPropagation();
-                            onDeleteCharacter(char.id);
+                            handleDeleteCharacterClick(char);
                           }}
                           title="Delete Character"
                           draggable={false}
@@ -547,7 +570,7 @@ export const CharacterManagerPane: React.FC<CharacterManagerPaneProps> = ({
                         data-testid={`btn-delete-char-${char.id}`}
                         onClick={e => {
                           e.stopPropagation();
-                          onDeleteCharacter(char.id);
+                          handleDeleteCharacterClick(char);
                         }}
                         title="Delete Character"
                         draggable={false}
@@ -666,6 +689,91 @@ export const CharacterManagerPane: React.FC<CharacterManagerPaneProps> = ({
         zIndexClass="z-50"
         onClose={() => setPreviewImage(null)}
       />
+
+      {/* Safe Delete Character Modal */}
+      {pendingDeleteChar && (
+        <div
+          data-testid="safe-delete-character-modal"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-xs p-4 select-none"
+        >
+          <div className="flex w-full max-w-md flex-col rounded-lg border border-neutral-800 bg-neutral-900 shadow-2xl">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-neutral-800 px-5 py-3">
+              <div className="flex items-center gap-2">
+                <AlertTriangleIcon size={16} className="text-amber-400" />
+                <span className="font-semibold text-sm tracking-wide text-neutral-200">
+                  Delete Character (In Use)
+                </span>
+              </div>
+              <button
+                type="button"
+                data-testid="btn-close-delete-character"
+                onClick={() => setPendingDeleteChar(null)}
+                className="rounded p-1 text-neutral-400 hover:bg-neutral-800 hover:text-white transition"
+              >
+                <CloseIcon size={16} />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-5 space-y-4">
+              <div className="space-y-3">
+                <div className="rounded border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-300">
+                  <p className="font-medium mb-1">
+                    Deleting character &apos;{pendingDeleteChar.char.name || pendingDeleteChar.char.id}&apos;
+                  </p>
+                  <p className="text-neutral-300">
+                    This character is currently referenced in script statements. Deleting this
+                    character will cause uncreated character warnings.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-neutral-400 mb-1.5">
+                    Script References ({pendingDeleteChar.references.length})
+                  </label>
+                  <div className="max-h-36 overflow-y-auto rounded border border-neutral-800 bg-neutral-950 p-2 space-y-1">
+                    {pendingDeleteChar.references.map((ref, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between rounded px-2 py-1 text-xs text-neutral-300 bg-neutral-900/60"
+                      >
+                        <span className="font-mono">{ref.file}</span>
+                        <span className="font-mono text-neutral-400 text-[11px]">
+                          Line {ref.line}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-2 border-t border-neutral-800 px-5 py-3">
+              <button
+                type="button"
+                data-testid="btn-cancel-delete-character"
+                onClick={() => setPendingDeleteChar(null)}
+                className="rounded border border-neutral-700 bg-neutral-800 px-3 py-1.5 text-xs text-neutral-300 hover:bg-neutral-700 hover:text-white transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                data-testid="btn-confirm-delete-character"
+                onClick={() => {
+                  onDeleteCharacter(pendingDeleteChar.char.id);
+                  setPendingDeleteChar(null);
+                }}
+                className="rounded bg-amber-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-500 transition"
+              >
+                Delete Anyway
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

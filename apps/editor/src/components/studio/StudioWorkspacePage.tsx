@@ -817,6 +817,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
 
             {activeTab === 'characters' && (
               <CharacterManagerPane
+                project={currentProject}
                 characters={currentProject.characters || []}
                 assets={currentProject.assets || []}
                 uncreatedIds={uncreatedCharacterIds}

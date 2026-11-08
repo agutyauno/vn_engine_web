@@ -424,6 +424,8 @@ scene "bg_classroom.png"
             name: 'char_alice_happy.png',
             type: 'image',
             category: 'sprite',
+            storageUrl: 'blob:char-alice-happy',
+            sizeBytes: 81920,
           },
         ],
       });
@@ -454,6 +456,8 @@ scene "bg_classroom.png"
             id: 'ast-lonely',
             name: 'lonely_asset.png',
             type: 'image',
+            storageUrl: 'blob:lonely',
+            sizeBytes: 1024,
           },
         ],
       });
@@ -465,3 +469,4 @@ scene "bg_classroom.png"
     });
   });
 });
+
