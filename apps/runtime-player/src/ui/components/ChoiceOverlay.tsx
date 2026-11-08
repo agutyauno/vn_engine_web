@@ -8,6 +8,10 @@ export function ChoiceOverlay(): JSX.Element | null {
   const [focusedIndex, setFocusedIndex] = useState<number>(0);
 
   useEffect(() => {
+    setFocusedIndex(0);
+  }, [activeChoices]);
+
+  useEffect(() => {
     if (!activeChoices || activeChoices.length === 0) return undefined;
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -18,6 +22,8 @@ export function ChoiceOverlay(): JSX.Element | null {
       ) {
         return;
       }
+
+      if (e.repeat) return;
 
       if (e.key === 'ArrowDown') {
         e.preventDefault();

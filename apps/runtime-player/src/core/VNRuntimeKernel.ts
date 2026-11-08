@@ -31,6 +31,7 @@ export class VNRuntimeKernel {
   private pendingVoiceAssetId: string | null = null;
   private pendingRestoreSnapshot: string | null = null;
   private pendingDesyncSlot: SaveSlotData | null = null;
+  private isAdvancing = false;
 
   constructor(program: Instruction[], adapters?: KernelAdapters, options?: VNRuntimeKernelOptions) {
     this.adapters = adapters ?? {};
@@ -139,10 +140,15 @@ export class VNRuntimeKernel {
   }
 
   public async advance(): Promise<void> {
-    if (this.state.mode !== 'GAMEPLAY') return;
-    this.clearTimers();
-    this.adapters.audio?.stopVoice();
-    await this.runForward();
+    if (this.state.mode !== 'GAMEPLAY' || this.isAdvancing) return;
+    this.isAdvancing = true;
+    try {
+      this.clearTimers();
+      this.adapters.audio?.stopVoice();
+      await this.runForward();
+    } finally {
+      this.isAdvancing = false;
+    }
   }
 
   public completeDialogue(): void {
@@ -160,8 +166,14 @@ export class VNRuntimeKernel {
   }
 
   public async selectChoice(index: number): Promise<void> {
-    if (!this.state.activeChoices || !this.state.activeChoices[index]) {
-      throw new Error(`Choice index ${index} is out of bounds or no active choices`);
+    if (!this.state.activeChoices) {
+      return;
+    }
+
+    if (index < 0 || !this.state.activeChoices[index]) {
+      throw new Error(
+        `Choice index ${index} is out of bounds (total choices: ${this.state.activeChoices.length})`
+      );
     }
 
     const choice = this.state.activeChoices[index]!;
@@ -169,18 +181,28 @@ export class VNRuntimeKernel {
       throw new Error(`Choice condition is not satisfied for option: ${choice.text}`);
     }
 
-    this.clearTimers();
-    this.adapters.audio?.stopVoice();
-
-    this.vm.choose(index);
-    this.state.activeChoices = null;
-
-    if (this.isAutoPaused) {
-      this.state.playbackMode = 'AUTO';
-      this.isAutoPaused = false;
+    if (this.isAdvancing) {
+      return;
     }
+    this.isAdvancing = true;
 
-    await this.runForward();
+    try {
+      this.clearTimers();
+      this.adapters.audio?.stopVoice();
+
+      this.vm.choose(index);
+      this.state.activeChoices = null;
+      this.emit();
+
+      if (this.isAutoPaused) {
+        this.state.playbackMode = 'AUTO';
+        this.isAutoPaused = false;
+      }
+
+      await this.runForward();
+    } finally {
+      this.isAdvancing = false;
+    }
   }
 
   public rollback(): boolean {

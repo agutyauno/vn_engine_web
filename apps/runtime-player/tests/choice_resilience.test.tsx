@@ -103,7 +103,7 @@ describe('Player Choice Resilience & Safe Re-entrancy (RED Phase)', () => {
       applySideEffect: vi.fn(),
       syncStateCatchUp: vi.fn(),
       stopVoice: vi.fn(),
-      setAudioVolume: vi.fn(),
+      setVolume: vi.fn(),
       setMute: vi.fn(),
       playVoice: vi.fn(),
     };
@@ -172,13 +172,19 @@ describe('Player Choice Resilience & Safe Re-entrancy (RED Phase)', () => {
 
   // Test 2: Immediate state emission on choice selection
   it('Test 2: should emit state with activeChoices set to null immediately upon choice selection before renderer side effects complete', async () => {
+    let delaySideEffect = false;
     let sideEffectResolver: (() => void) | null = null;
     const delayedRenderer: NonNullable<KernelAdapters['renderer']> = {
       applySideEffect: vi.fn(
-        () =>
-          new Promise<void>((resolve) => {
-            sideEffectResolver = resolve;
-          })
+        (effect: { type: string }) => {
+          if (delaySideEffect && effect.type === 'SCENE') {
+            delaySideEffect = false;
+            return new Promise<void>((resolve) => {
+              sideEffectResolver = resolve;
+            });
+          }
+          return Promise.resolve();
+        }
       ),
       syncStateCatchUp: vi.fn().mockResolvedValue(undefined),
       captureThumbnail: vi.fn().mockResolvedValue('data:image/jpeg;base64,mockthumb'),
@@ -210,6 +216,9 @@ describe('Player Choice Resilience & Safe Re-entrancy (RED Phase)', () => {
     kernel.subscribe((state) => {
       emittedChoiceStates.push(state.activeChoices);
     });
+
+    // Enable delay for BACKGROUND side-effect after game starts
+    delaySideEffect = true;
 
     // Start choice selection without awaiting completion yet
     const selectionPromise = kernel.selectChoice(0);

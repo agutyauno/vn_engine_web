@@ -44,7 +44,11 @@ export function PlayerUIProvider({
       returnToTitle: () => kernel.returnToTitle(),
       advance: () => void kernel.advance(),
       completeDialogue: () => kernel.completeDialogue(),
-      selectChoice: (index: number) => void kernel.selectChoice(index),
+      selectChoice: (index: number) => {
+        void kernel.selectChoice(index).catch(err => {
+          console.error('[VNRuntimeKernel] selectChoice error:', err);
+        });
+      },
       rollback: () => kernel.rollback(),
       toggleAuto: () => kernel.toggleAuto(),
       toggleSkip: () => kernel.toggleSkip(),

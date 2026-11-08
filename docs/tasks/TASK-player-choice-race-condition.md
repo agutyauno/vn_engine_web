@@ -1,7 +1,7 @@
 # TASK-player-choice-race-condition: Player Choice Race Condition & Safe Re-entrancy
 
 ## 1. Metadata
-- **Status:** PLANNING (Phase 0)
+- **Status:** COMPLETED & VERIFIED (Phase 4)
 - **Scope:** `apps/runtime-player`
 - **Component:** `VNRuntimeKernel`, `ChoiceOverlay`, `PlayerUIContext`
 - **Issue:**
