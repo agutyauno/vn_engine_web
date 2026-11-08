@@ -10,6 +10,93 @@ export interface MonacoEditorHandle {
   insertSnippet: (snippet: string) => void;
 }
 
+export function cleanDropText(text: string): string {
+  return text.replace(/\$0/g, '');
+}
+
+export const DEFAULT_MONACO_OPTIONS: monacoType.editor.IStandaloneEditorConstructionOptions = {
+  theme: 'vs-dark',
+  automaticLayout: true,
+  minimap: { enabled: true },
+  scrollBeyondLastLine: false,
+  fontSize: 13,
+  lineNumbers: 'on',
+  renderWhitespace: 'selection',
+  fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+  tabSize: 2,
+  dropIntoEditor: { enabled: false },
+};
+
+export function getMonacoEditorOptions(
+  readOnly = false,
+): monacoType.editor.IStandaloneEditorConstructionOptions {
+  return {
+    ...DEFAULT_MONACO_OPTIONS,
+    readOnly,
+  };
+}
+
+export function handleContainerDragOver(e: {
+  preventDefault: () => void;
+  dataTransfer?: { dropEffect: string } | null;
+}): void {
+  e.preventDefault();
+  if (e.dataTransfer) {
+    e.dataTransfer.dropEffect = 'copy';
+  }
+}
+
+export function handleEditorDrop(
+  editor: {
+    executeEdits: (source: string, edits: any[]) => void;
+    focus?: () => void;
+    getPosition?: () => { lineNumber: number; column: number } | null;
+    getTargetAtClientPoint?: (
+      x: number,
+      y: number,
+    ) => { position: { lineNumber: number; column: number } } | null;
+  },
+  event: {
+    clientX?: number;
+    clientY?: number;
+    dataTransfer?: {
+      getData: (format: string) => string;
+      dropEffect?: string;
+    } | null;
+    preventDefault?: () => void;
+    stopPropagation?: () => void;
+  },
+): boolean {
+  const rawText = event.dataTransfer?.getData('text/plain');
+  if (!rawText) return false;
+
+  event.preventDefault?.();
+  event.stopPropagation?.();
+
+  const cleaned = cleanDropText(rawText);
+  const target =
+    typeof event.clientX === 'number' && typeof event.clientY === 'number'
+      ? editor.getTargetAtClientPoint?.(event.clientX, event.clientY)
+      : null;
+
+  const position = target?.position || editor.getPosition?.() || { lineNumber: 1, column: 1 };
+
+  editor.executeEdits('drag-drop-insert', [
+    {
+      range: {
+        startLineNumber: position.lineNumber,
+        startColumn: position.column,
+        endLineNumber: position.lineNumber,
+        endColumn: position.column,
+      },
+      text: cleaned.endsWith('\n') ? cleaned : `${cleaned}\n`,
+      forceMoveMarkers: true,
+    },
+  ]);
+  editor.focus?.();
+  return true;
+}
+
 export function insertSnippetAtCursor(
   editor: monacoType.editor.IStandaloneCodeEditor,
   snippet: string,
@@ -143,18 +230,9 @@ export const MonacoEditorContainer = React.forwardRef<
       if (disposed || !containerRef.current) return;
 
       const editor = monacoModule.editor.create(containerRef.current, {
+        ...getMonacoEditorOptions(readOnly),
         value: file?.content || '',
         language: 'vns',
-        theme: 'vs-dark',
-        automaticLayout: true,
-        readOnly,
-        minimap: { enabled: true },
-        scrollBeyondLastLine: false,
-        fontSize: 13,
-        lineNumbers: 'on',
-        renderWhitespace: 'selection',
-        fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-        tabSize: 2,
       });
 
       editor.onDidChangeModelContent(() => {
@@ -251,6 +329,30 @@ export const MonacoEditorContainer = React.forwardRef<
     return () => {
       d1?.dispose();
       d2?.dispose();
+    };
+  }, [isMonacoMounted]);
+
+  // Handle HTML5 Drag and Drop into Monaco
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || !isMonacoMounted) return;
+
+    const onDragOver = (e: DragEvent) => {
+      handleContainerDragOver(e);
+    };
+
+    const onDrop = (e: DragEvent) => {
+      if (editorRef.current) {
+        handleEditorDrop(editorRef.current as any, e);
+      }
+    };
+
+    container.addEventListener('dragover', onDragOver);
+    container.addEventListener('drop', onDrop);
+
+    return () => {
+      container.removeEventListener('dragover', onDragOver);
+      container.removeEventListener('drop', onDrop);
     };
   }, [isMonacoMounted]);
 

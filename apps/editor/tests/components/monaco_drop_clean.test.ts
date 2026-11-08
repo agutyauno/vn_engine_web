@@ -255,7 +255,7 @@ describe('Phase 2.3: Monaco Drop Text Cleaner & Container Drop Handler (RED Phas
       ]);
 
       // Crucial verification: $0 must NOT be present anywhere in the inserted text
-      const insertedText = executeEditsMock.mock.calls[0][1][0].text;
+      const insertedText = executeEditsMock.mock.calls[0]![1][0].text;
       expect(insertedText).not.toContain('$0');
       expect(insertedText).toBe('show alice.smile\n');
       expect(focusMock).toHaveBeenCalledTimes(1);
@@ -279,7 +279,7 @@ describe('Phase 2.3: Monaco Drop Text Cleaner & Container Drop Handler (RED Phas
 
       expect(result).toBe(true);
       expect(executeEditsMock).toHaveBeenCalledTimes(1);
-      const insertedText = executeEditsMock.mock.calls[0][1][0].text;
+      const insertedText = executeEditsMock.mock.calls[0]![1][0].text;
       expect(insertedText).toBe('show bob.happy\n');
       expect(insertedText).not.toContain('$0');
     });
@@ -395,3 +395,4 @@ describe('Phase 2.3: Monaco Drop Text Cleaner & Container Drop Handler (RED Phas
     });
   });
 });
+
