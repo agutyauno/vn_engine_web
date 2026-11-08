@@ -56,6 +56,13 @@ export class PreviewBridgeAdapter {
   private throttleTimer: ReturnType<typeof setTimeout> | null = null;
   private pendingVariables: Record<string, unknown> | null = null;
   private messageListener: ((event: MessageEvent) => void) | null = null;
+  private pendingBlobRequests = new Map<
+    string,
+    {
+      resolve: (blob: Blob | null) => void;
+      timer: ReturnType<typeof setTimeout>;
+    }
+  >();
 
   constructor(options?: PreviewBridgeOptions) {
     this.options = options ?? {};
@@ -137,6 +144,24 @@ export class PreviewBridgeAdapter {
         }
         break;
       }
+      case 'ASSET_BLOB_RESPONSE': {
+        const requestId = data.requestId;
+        if (typeof requestId === 'string' && this.pendingBlobRequests.has(requestId)) {
+          const entry = this.pendingBlobRequests.get(requestId)!;
+          clearTimeout(entry.timer);
+          this.pendingBlobRequests.delete(requestId);
+
+          if (data.error || !data.buffer) {
+            entry.resolve(null);
+          } else {
+            const blob = new Blob([data.buffer], {
+              type: data.mimeType || 'application/octet-stream',
+            });
+            entry.resolve(blob);
+          }
+        }
+        break;
+      }
       default:
         break;
     }
@@ -170,6 +195,24 @@ export class PreviewBridgeAdapter {
     });
   }
 
+  public requestAssetBlob(assetId: string, timeoutMs = 5000): Promise<Blob | null> {
+    return new Promise((resolve) => {
+      const requestId = 'blob_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
+      const timer = setTimeout(() => {
+        this.pendingBlobRequests.delete(requestId);
+        resolve(null);
+      }, timeoutMs);
+
+      this.pendingBlobRequests.set(requestId, { resolve, timer });
+
+      this.postToEditor({
+        type: 'ASSET_BLOB_REQUEST',
+        assetId,
+        requestId,
+      });
+    });
+  }
+
   private postToEditor(message: unknown): void {
     const targetWin = this.options.targetWindow
       ? this.options.targetWindow()
@@ -189,9 +232,50 @@ export class PreviewBridgeAdapter {
     }
     this.pendingVariables = null;
 
+    for (const entry of this.pendingBlobRequests.values()) {
+      clearTimeout(entry.timer);
+    }
+    this.pendingBlobRequests.clear();
+
     if (this.messageListener && typeof window !== 'undefined') {
       window.removeEventListener('message', this.messageListener);
       this.messageListener = null;
     }
   }
+}
+
+export async function hydrateForeignAssetBlobs(
+  assets: AssetRef[],
+  bridge: { requestAssetBlob(assetId: string): Promise<Blob | null> },
+  currentOrigin: string = typeof window !== 'undefined' ? window.location.origin : '',
+): Promise<AssetRef[]> {
+  if (!assets || assets.length === 0) return [];
+  const localBlobPrefix = currentOrigin
+    ? currentOrigin.startsWith('blob:')
+      ? currentOrigin
+      : 'blob:' + currentOrigin
+    : '';
+
+  return Promise.all(
+    assets.map(async (asset) => {
+      const url = asset.storageUrl;
+      const isForeignBlob =
+        typeof url === 'string' &&
+        url.startsWith('blob:') &&
+        (!localBlobPrefix || !url.startsWith(localBlobPrefix));
+
+      if (isForeignBlob) {
+        try {
+          const blob = await bridge.requestAssetBlob(asset.id);
+          if (blob) {
+            const localUrl = URL.createObjectURL(blob);
+            return { ...asset, storageUrl: localUrl };
+          }
+        } catch (err) {
+          console.warn(`[hydrateForeignAssetBlobs] Failed to hydrate asset ${asset.id}:`, err);
+        }
+      }
+      return asset;
+    }),
+  );
 }

@@ -20,7 +20,11 @@ import {
   type ProjectDataCharacter,
   type ProjectDataAsset,
 } from './adapters/AssetResolverAdapter';
-import { PreviewBridgeAdapter, isAllowedEditorOrigin } from './adapters/PreviewBridgeAdapter';
+import {
+  PreviewBridgeAdapter,
+  isAllowedEditorOrigin,
+  hydrateForeignAssetBlobs,
+} from './adapters/PreviewBridgeAdapter';
 import { PlayerUIProvider } from './ui/context/PlayerUIContext';
 import { PlayerApp } from './ui/components/PlayerApp';
 
@@ -138,17 +142,21 @@ window.addEventListener('DOMContentLoaded', async () => {
   bridge = new PreviewBridgeAdapter({
     editorOrigin: targetEditorOrigin,
     onHotReload: async (newProgram, opts) => {
-      if (opts?.characters || opts?.assets) {
+      let effectiveAssets = opts?.assets;
+      if (opts?.assets && opts.assets.length > 0) {
+        effectiveAssets = await hydrateForeignAssetBlobs(opts.assets, bridge);
+      }
+      if (opts?.characters || effectiveAssets) {
         currentProjectData = {
           ...currentProjectData,
-          id: opts.projectId || currentProjectData.id,
+          id: opts?.projectId || currentProjectData.id,
           characters:
-            (opts.characters as unknown as ProjectDataCharacter[]) || currentProjectData.characters,
-          assets: (opts.assets as unknown as ProjectDataAsset[]) || currentProjectData.assets,
+            (opts?.characters as unknown as ProjectDataCharacter[]) || currentProjectData.characters,
+          assets: (effectiveAssets as unknown as ProjectDataAsset[]) || currentProjectData.assets,
         };
         assetResolver.resetWarnedAssets();
       }
-      await kernel.loadProgram(newProgram, opts);
+      await kernel.loadProgram(newProgram, opts ? { ...opts, assets: effectiveAssets } : undefined);
       if (kernel.getState().mode === 'STANDBY') {
         await kernel.startNewGame();
       }

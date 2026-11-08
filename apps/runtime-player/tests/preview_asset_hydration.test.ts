@@ -40,6 +40,9 @@ describe('Cross-Origin Asset Blob Hydration & Preview Bridge', () => {
         postedMessages.push({ message, targetOrigin });
       }),
     };
+    if (typeof URL.createObjectURL !== 'function') {
+      URL.createObjectURL = vi.fn();
+    }
   });
 
   afterEach(() => {
@@ -62,13 +65,13 @@ describe('Cross-Origin Asset Blob Hydration & Preview Bridge', () => {
 
       const dispatched = postedMessages[0];
       expect(dispatched).toBeDefined();
-      expect(dispatched.targetOrigin).toBe('http://localhost:3001');
-      expect(dispatched.message).toMatchObject({
+      expect(dispatched!.targetOrigin).toBe('http://localhost:3001');
+      expect(dispatched!.message).toMatchObject({
         type: 'ASSET_BLOB_REQUEST',
         assetId: 'asset-classroom-bg',
       });
-      expect(typeof dispatched.message.requestId).toBe('string');
-      expect(dispatched.message.requestId.length).toBeGreaterThan(0);
+      expect(typeof dispatched!.message.requestId).toBe('string');
+      expect(dispatched!.message.requestId.length).toBeGreaterThan(0);
     });
 
     it('resolves Promise with Blob when ASSET_BLOB_RESPONSE arrives from Editor', async () => {
@@ -78,7 +81,7 @@ describe('Cross-Origin Asset Blob Hydration & Preview Bridge', () => {
       }) as ExtendedPreviewBridgeAdapter;
 
       const requestPromise = adapter.requestAssetBlob('asset-alice-sprite');
-      const sentRequestId = postedMessages[0].message.requestId;
+      const sentRequestId = postedMessages[0]!.message.requestId;
 
       // Simulate Editor replying with binary ArrayBuffer
       const payloadBytes = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]); // PNG Magic Bytes
@@ -108,7 +111,7 @@ describe('Cross-Origin Asset Blob Hydration & Preview Bridge', () => {
       }) as ExtendedPreviewBridgeAdapter;
 
       const requestPromise = adapter.requestAssetBlob('asset-sound-sfx');
-      const sentRequestId = postedMessages[0].message.requestId;
+      const sentRequestId = postedMessages[0]!.message.requestId;
 
       const rawBytes = new Uint8Array([1, 2, 3, 4]);
       adapter.handleMessage(
@@ -135,7 +138,7 @@ describe('Cross-Origin Asset Blob Hydration & Preview Bridge', () => {
       }) as ExtendedPreviewBridgeAdapter;
 
       const requestPromise = adapter.requestAssetBlob('asset-missing');
-      const sentRequestId = postedMessages[0].message.requestId;
+      const sentRequestId = postedMessages[0]!.message.requestId;
 
       adapter.handleMessage(
         new MessageEvent('message', {
@@ -177,7 +180,7 @@ describe('Cross-Origin Asset Blob Hydration & Preview Bridge', () => {
       }) as ExtendedPreviewBridgeAdapter;
 
       const requestPromise = adapter.requestAssetBlob('asset-security-check');
-      const sentRequestId = postedMessages[0].message.requestId;
+      const sentRequestId = postedMessages[0]!.message.requestId;
 
       // Event from spoofed origin
       adapter.handleMessage(
@@ -277,11 +280,11 @@ describe('Cross-Origin Asset Blob Hydration & Preview Bridge', () => {
       expect(createObjectURLSpy).toHaveBeenCalledWith(sampleBinaryBlob);
 
       // 3. foreign blob storageUrl must be updated to local origin blob URL
-      expect(result[0].storageUrl).toBe(newLocalBlobUrl);
+      expect(result[0]!.storageUrl).toBe(newLocalBlobUrl);
 
       // 4. local blob and CDN URLs must remain untouched
-      expect(result[1].storageUrl).toBe(localBlobUrl);
-      expect(result[2].storageUrl).toBe(cdnUrl);
+      expect(result[1]!.storageUrl).toBe(localBlobUrl);
+      expect(result[2]!.storageUrl).toBe(cdnUrl);
     });
 
     it('safely preserves original storageUrl if bridge returns null (asset not found in Editor)', async () => {
@@ -306,7 +309,7 @@ describe('Cross-Origin Asset Blob Hydration & Preview Bridge', () => {
 
       expect(mockBridge.requestAssetBlob).toHaveBeenCalledWith('asset-missing-in-editor');
       // Fallback: storageUrl is not overwritten with empty or broken value
-      expect(result[0].storageUrl).toBe(deadBlobUrl);
+      expect(result[0]!.storageUrl).toBe(deadBlobUrl);
     });
 
     it('handles empty asset lists and assets with undefined/empty storageUrl without throwing', async () => {
@@ -330,7 +333,7 @@ describe('Cross-Origin Asset Blob Hydration & Preview Bridge', () => {
       ];
 
       const res = await hydrateForeignAssetBlobs(assetsWithEmptyUrl, mockBridge, 'http://localhost:3000');
-      expect(res[0].storageUrl).toBe('');
+      expect(res[0]!.storageUrl).toBe('');
       expect(mockBridge.requestAssetBlob).not.toHaveBeenCalled();
     });
   });
