@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { Character } from '@vn-engine/shared-types';
 import { AlertTriangleIcon, CloseIcon, ImageIcon, PlusIcon, TrashIcon } from '../common/Icons';
+import { ImageLightboxModal } from '../common/ImageLightboxModal';
 
 export interface CharacterSpriteRow {
   id: string;
@@ -86,6 +87,11 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
   const [idError, setIdError] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [lightboxImage, setLightboxImage] = useState<{
+    url: string;
+    title: string;
+    subtitle?: string;
+  } | null>(null);
 
   // Initialize or reset form when initialData or isOpen changes
   useEffect(() => {
@@ -127,6 +133,7 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
     setIdError(null);
     setWarnings([]);
     setIsDragging(false);
+    setLightboxImage(null);
   }, [isOpen, initialData]);
 
   // Validate ID
@@ -695,7 +702,21 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
                               src={row.imageUrl}
                               alt={row.expressionKey}
                               data-testid={`expr-thumbnail-${idx}`}
-                              className="h-8 w-8 rounded border border-neutral-700 bg-neutral-900 object-cover shrink-0"
+                              draggable={false}
+                              onClick={() => {
+                                if (row.imageUrl) {
+                                  setLightboxImage({
+                                    url: row.imageUrl,
+                                    title: `${displayName || charId || 'Character'} — ${row.expressionKey}`,
+                                    subtitle:
+                                      row.fileName ||
+                                      (row.sizeBytes
+                                        ? `${(row.sizeBytes / 1024).toFixed(1)} KB`
+                                        : undefined),
+                                  });
+                                }
+                              }}
+                              className="h-8 w-8 rounded border border-neutral-700 bg-neutral-900 object-cover shrink-0 cursor-pointer hover:border-neutral-400 hover:opacity-90 transition"
                             />
                           ) : (
                             <div
@@ -788,6 +809,15 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
           </div>
         </form>
       </div>
+
+      <ImageLightboxModal
+        isOpen={lightboxImage !== null}
+        imageUrl={lightboxImage?.url || null}
+        title={lightboxImage?.title}
+        subtitle={lightboxImage?.subtitle}
+        zIndexClass="z-60"
+        onClose={() => setLightboxImage(null)}
+      />
     </div>
   );
 };
