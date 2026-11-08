@@ -260,9 +260,10 @@ export class GameRenderer {
       return;
     }
 
-    const texture = await this.resolveOrGenerateBackgroundTexture(assetId, assetResolver);
-    const texWidth = texture.width || this.baseWidth;
-    const texHeight = texture.height || this.baseHeight;
+    const texture =
+      (await this.resolveOrGenerateBackgroundTexture(assetId, assetResolver)) || Texture.EMPTY;
+    const texWidth = texture?.width || this.baseWidth;
+    const texHeight = texture?.height || this.baseHeight;
     const baseCoverScale = Math.max(this.baseWidth / texWidth, this.baseHeight / texHeight);
     const finalScaleX = baseCoverScale * targetScaleX;
     const finalScaleY = baseCoverScale * targetScaleY;
@@ -375,12 +376,13 @@ export class GameRenderer {
     const easingFn: EasingFunction = EASING_FUNCTIONS[easingKey] ?? defaultEaseOut;
 
     const existing = this.activeCharacters.get(instr.character);
-    const texture = await this.resolveOrGenerateCharacterTexture(
-      instr.character,
-      instr.sprite,
-      assetResolver,
-      isProp,
-    );
+    const texture =
+      (await this.resolveOrGenerateCharacterTexture(
+        instr.character,
+        instr.sprite,
+        assetResolver,
+        isProp,
+      )) || Texture.EMPTY;
 
     if (existing) {
       if (existing.cancelAnimation) {
@@ -691,12 +693,13 @@ export class GameRenderer {
       const targetRotation = computeTargetRotation(showInstr.rotate);
       const targetAlpha = showInstr.alpha ?? 1.0;
 
-      const texture = await this.resolveOrGenerateCharacterTexture(
-        charId,
-        showInstr.sprite,
-        assetResolver,
-        isProp,
-      );
+      const texture =
+        (await this.resolveOrGenerateCharacterTexture(
+          charId,
+          showInstr.sprite,
+          assetResolver,
+          isProp,
+        )) || Texture.EMPTY;
 
       const existing = this.activeCharacters.get(charId);
       if (existing) {
@@ -778,8 +781,13 @@ export class GameRenderer {
     const url = assetResolver?.(assetId);
     if (url) {
       try {
-        const tex = await Assets.load<Texture>(url);
-        return tex;
+        const loadParam = url.startsWith('blob:')
+          ? { src: url, parser: 'loadTextures' }
+          : url;
+        const tex = await Assets.load<Texture>(loadParam);
+        if (tex) {
+          return tex;
+        }
       } catch {
         // Fallback về phác thảo nếu tải ảnh thất bại
       }
@@ -897,8 +905,13 @@ export class GameRenderer {
     const url = assetResolver?.(fullAssetId) ?? assetResolver?.(characterId);
     if (url) {
       try {
-        const tex = await Assets.load<Texture>(url);
-        return tex;
+        const loadParam = url.startsWith('blob:')
+          ? { src: url, parser: 'loadTextures' }
+          : url;
+        const tex = await Assets.load<Texture>(loadParam);
+        if (tex) {
+          return tex;
+        }
       } catch {
         // Fallback về wireframe silhouette
       }
