@@ -4,6 +4,7 @@ import type * as monacoType from 'monaco-editor';
 import { useProjectStore } from '../../core/stores/projectStore';
 import { useDiagnosticsStore } from '../../core/stores/diagnosticsStore';
 import { syncMonacoMarkers } from '../../core/services/monacoMarkerBridge';
+import { setupMonacoEnvironment } from '../../monacoEnvironment';
 
 export interface MonacoEditorHandle {
   insertSnippet: (snippet: string) => void;
@@ -116,6 +117,8 @@ export const MonacoEditorContainer = React.forwardRef<
       if (typeof document !== 'undefined' && !document.queryCommandSupported) {
         document.queryCommandSupported = () => false;
       }
+
+      setupMonacoEnvironment();
 
       const monacoModule = await import('monaco-editor');
       const { registerVnsLanguage } = await import('../../vnsLanguage');

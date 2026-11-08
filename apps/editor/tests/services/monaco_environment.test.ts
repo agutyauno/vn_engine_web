@@ -1,47 +1,51 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 // Mock Web Worker constructors returned by Vite's native `?worker` query
-class MockEditorWorker {
-  public readonly type = 'editor';
-}
+const { MockEditorWorker, MockJsonWorker, MockCssWorker, MockHtmlWorker, MockTsWorker } =
+  vi.hoisted(() => {
+    class MockEditorWorker {
+      public readonly type = 'editor';
+    }
 
-class MockJsonWorker {
-  public readonly type = 'json';
-}
+    class MockJsonWorker {
+      public readonly type = 'json';
+    }
 
-class MockCssWorker {
-  public readonly type = 'css';
-}
+    class MockCssWorker {
+      public readonly type = 'css';
+    }
 
-class MockHtmlWorker {
-  public readonly type = 'html';
-}
+    class MockHtmlWorker {
+      public readonly type = 'html';
+    }
 
-class MockTsWorker {
-  public readonly type = 'typescript';
-}
+    class MockTsWorker {
+      public readonly type = 'typescript';
+    }
 
-vi.mock('monaco-editor/esm/vs/editor/editor.worker?worker', () => ({
+    return { MockEditorWorker, MockJsonWorker, MockCssWorker, MockHtmlWorker, MockTsWorker };
+  });
+
+vi.mock('monaco-editor/editor/editor.worker?worker', () => ({
   default: MockEditorWorker,
 }));
 
-vi.mock('monaco-editor/esm/vs/language/json/json.worker?worker', () => ({
+vi.mock('monaco-editor/language/json/json.worker?worker', () => ({
   default: MockJsonWorker,
 }));
 
-vi.mock('monaco-editor/esm/vs/language/css/css.worker?worker', () => ({
+vi.mock('monaco-editor/language/css/css.worker?worker', () => ({
   default: MockCssWorker,
 }));
 
-vi.mock('monaco-editor/esm/vs/language/html/html.worker?worker', () => ({
+vi.mock('monaco-editor/language/html/html.worker?worker', () => ({
   default: MockHtmlWorker,
 }));
 
-vi.mock('monaco-editor/esm/vs/language/typescript/ts.worker?worker', () => ({
+vi.mock('monaco-editor/language/typescript/ts.worker?worker', () => ({
   default: MockTsWorker,
 }));
 
-// Import target under test (does not exist yet in src/, guaranteeing RED failure)
 import { setupMonacoEnvironment } from '../../src/monacoEnvironment';
 
 describe('setupMonacoEnvironment', () => {
@@ -80,7 +84,7 @@ describe('setupMonacoEnvironment', () => {
     const worker = env.getWorker('worker-editor-1', 'editorWorkerService');
 
     expect(worker).toBeInstanceOf(MockEditorWorker);
-    expect((worker as MockEditorWorker).type).toBe('editor');
+    expect((worker as { type: string }).type).toBe('editor');
   });
 
   // Test 3: Phục vụ các ngôn ngữ built-in
@@ -94,7 +98,7 @@ describe('setupMonacoEnvironment', () => {
     // JSON
     const jsonInstance = env.getWorker('json-id', 'json');
     expect(jsonInstance).toBeInstanceOf(MockJsonWorker);
-    expect((jsonInstance as MockJsonWorker).type).toBe('json');
+    expect((jsonInstance as { type: string }).type).toBe('json');
 
     // CSS family
     const cssInstance = env.getWorker('css-id', 'css');
