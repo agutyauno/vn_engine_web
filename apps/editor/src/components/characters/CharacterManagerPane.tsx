@@ -15,6 +15,7 @@ import {
   TrashIcon,
   UserIcon,
 } from '../common/Icons';
+import { ImageLightboxModal } from '../common/ImageLightboxModal';
 
 export interface CharacterManagerPaneProps {
   characters: Character[];
@@ -38,6 +39,11 @@ export const CharacterManagerPane: React.FC<CharacterManagerPaneProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedCharIds, setExpandedCharIds] = useState<Record<string, boolean>>({});
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [previewImage, setPreviewImage] = useState<{
+    url: string;
+    title: string;
+    subtitle?: string;
+  } | null>(null);
 
   const characterViewMode = useEditorUIStore(s => s.characterViewMode);
   const setCharacterViewMode = useEditorUIStore(s => s.setCharacterViewMode);
@@ -285,7 +291,16 @@ export const CharacterManagerPane: React.FC<CharacterManagerPaneProps> = ({
                           alt={char.name}
                           data-testid={`char-avatar-${char.id}`}
                           loading="lazy"
-                          className="h-full w-full object-cover"
+                          draggable={false}
+                          onClick={e => {
+                            e.stopPropagation();
+                            setPreviewImage({
+                              url: resolvedAvatarUrl,
+                              title: `${char.name || char.id} (Default)`,
+                              subtitle: char.id,
+                            });
+                          }}
+                          className="h-full w-full object-cover cursor-pointer hover:opacity-90 transition"
                         />
                       ) : (
                         <div
@@ -300,7 +315,7 @@ export const CharacterManagerPane: React.FC<CharacterManagerPaneProps> = ({
                       {/* Expressions badge */}
                       <span
                         data-testid={`char-expressions-count-${char.id}`}
-                        className="absolute bottom-1 right-1 rounded bg-neutral-900/90 px-1 py-0.5 text-[9px] font-mono text-neutral-400 border border-neutral-800"
+                        className="absolute bottom-1 right-1 rounded bg-neutral-900/90 px-1 py-0.5 text-[9px] font-mono text-neutral-400 border border-neutral-800 pointer-events-none"
                       >
                         {spriteCount} {spriteCount === 1 ? 'expr' : 'exprs'}
                       </span>
@@ -438,7 +453,16 @@ export const CharacterManagerPane: React.FC<CharacterManagerPaneProps> = ({
                           alt={char.name}
                           data-testid={`char-avatar-${char.id}`}
                           loading="lazy"
-                          className="h-8 w-8 rounded border border-neutral-700 bg-neutral-950 object-cover shrink-0"
+                          draggable={false}
+                          onClick={e => {
+                            e.stopPropagation();
+                            setPreviewImage({
+                              url: resolvedAvatarUrl,
+                              title: `${char.name || char.id} (Default)`,
+                              subtitle: char.id,
+                            });
+                          }}
+                          className="h-8 w-8 rounded border border-neutral-700 bg-neutral-950 object-cover shrink-0 cursor-pointer hover:opacity-90 transition"
                         />
                       ) : (
                         <div
@@ -567,7 +591,16 @@ export const CharacterManagerPane: React.FC<CharacterManagerPaneProps> = ({
                                     alt={exprKey}
                                     data-testid={`expr-img-${char.id}-${exprKey}`}
                                     loading="lazy"
-                                    className="h-6 w-6 rounded border border-neutral-700/80 bg-neutral-950 object-cover shrink-0"
+                                    draggable={false}
+                                    onClick={e => {
+                                      e.stopPropagation();
+                                      setPreviewImage({
+                                        url: resolvedExprUrl,
+                                        title: `${char.name || char.id} — ${exprKey}`,
+                                        subtitle: exprKey,
+                                      });
+                                    }}
+                                    className="h-6 w-6 rounded border border-neutral-700/80 bg-neutral-950 object-cover shrink-0 cursor-pointer hover:opacity-90 transition"
                                   />
                                 ) : (
                                   <div
@@ -582,7 +615,7 @@ export const CharacterManagerPane: React.FC<CharacterManagerPaneProps> = ({
                                 </span>
                               </div>
 
-                              <div className="flex items-center gap-1 opacity-70 group-hover/expr:opacity-100 transition">
+                              <div className="flex items-center gap-1 opacity-70 group/expr:opacity-100 transition">
                                 <button
                                   type="button"
                                   data-testid={`btn-copy-expr-${char.id}-${exprKey}`}
@@ -623,6 +656,16 @@ export const CharacterManagerPane: React.FC<CharacterManagerPaneProps> = ({
           </div>
         )}
       </div>
+
+      {/* Lightbox Modal Preview */}
+      <ImageLightboxModal
+        isOpen={previewImage !== null}
+        imageUrl={previewImage?.url || null}
+        title={previewImage?.title}
+        subtitle={previewImage?.subtitle}
+        zIndexClass="z-50"
+        onClose={() => setPreviewImage(null)}
+      />
     </div>
   );
 };
