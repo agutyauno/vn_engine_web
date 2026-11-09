@@ -225,6 +225,10 @@ export function scanActiveReconciliation(project: Project): ReconciliationReport
       const playMatch = trimmed.match(/^play\s+(?:music|sound|voice|bgs)\s+["']?([^"'\s]+)["']?/i);
       if (playMatch && playMatch[1]) {
         recordAssetRef(playMatch[1], fileName, lineNum, 'audio');
+        const introMatch = trimmed.match(/\bintro\s*:\s*["']([^"'\s]+)["']/i);
+        if (introMatch && introMatch[1]) {
+          recordAssetRef(introMatch[1], fileName, lineNum, 'audio');
+        }
       }
 
       // Inspect statements
@@ -636,6 +640,16 @@ function extractReferencesViaRegex(content: string, fileId: string): ScriptRefer
         expectedType: 'audio',
         loc: { fileId, line: lineNum, col: span.col, endLine: lineNum, endCol: span.endCol },
       });
+      const introMatch = trimmed.match(/\bintro\s*:\s*["']([^"'\s]+)["']/i);
+      if (introMatch && introMatch[1]) {
+        const introSpan = getSpan(introMatch[1]);
+        assets.push({
+          assetKey: introMatch[1],
+          category: 'audio',
+          expectedType: 'audio',
+          loc: { fileId, line: lineNum, col: introSpan.col, endLine: lineNum, endCol: introSpan.endCol },
+        });
+      }
     }
 
     const inspectMatch = trimmed.match(/^inspect\s+["']?([^"'\s]+)["']?/i);

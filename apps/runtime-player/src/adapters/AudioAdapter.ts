@@ -75,11 +75,17 @@ export class AudioAdapter {
       const url = this.options.assetResolver
         ? this.options.assetResolver(playInstr.assetId)
         : playInstr.assetId;
+      const introUrl =
+        playInstr.intro && this.options.assetResolver
+          ? this.options.assetResolver(playInstr.intro)
+          : playInstr.intro;
       if (url) {
         this.audioManager.play(targetChannel, playInstr.assetId, url, {
           volume: playInstr.volume,
           loop: playInstr.loop,
           fadeIn: playInstr.fadeIn,
+          introAssetId: playInstr.intro,
+          introUrl: introUrl ?? undefined,
         });
       }
     } else if (instr.type === 'STOP') {

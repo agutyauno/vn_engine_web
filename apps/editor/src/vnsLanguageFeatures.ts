@@ -857,6 +857,11 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): monaco.
           snippet: 'play music "${1:bgm_asset}" volume: ${2:0.8} loop: true',
         },
         {
+          label: 'play music (with intro)',
+          doc: 'Play music with non-looping intro before looping main track: play music "loop_id" intro: "intro_id" volume: 0.8 loop: true',
+          snippet: 'play music "${1:bgm_loop}" intro: "${2:bgm_intro}" volume: ${3:0.8} loop: true',
+        },
+        {
           label: 'play sound',
           doc: 'Play sound effect once: play sound "sfx_id" volume: 0.8',
           snippet: 'play sound "${1:sfx_asset}" volume: ${2:0.8}',
