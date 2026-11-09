@@ -187,6 +187,43 @@ describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () 
     expect(report.uncreatedAssets).toContain('ambient_rain');
   });
 
+  it('TC-RECON-INTRO-01: should record audio asset reference for both main track and intro in play music statement', () => {
+    const project = createMockProject({
+      files: [
+        {
+          id: 'audio_intro.vns',
+          name: 'audio_intro.vns',
+          content: [
+            'scene battle {',
+            '  play music "bgm_battle_loop.mp3" intro: "bgm_battle_intro.mp3" volume: 0.8 loop: true',
+            '}',
+          ].join('\n'),
+          order: 0,
+          version: 1,
+        },
+      ],
+      assets: [
+        {
+          id: 'bgm_battle_loop.mp3',
+          name: 'bgm_battle_loop.mp3',
+          type: 'audio',
+          storageUrl: '/assets/bgm_battle_loop.mp3',
+          sizeBytes: 5000,
+        },
+      ],
+    });
+
+    const report = scanActiveReconciliation(project);
+
+    expect(report.assetReferences['bgm_battle_loop.mp3']).toEqual([
+      { file: 'audio_intro.vns', line: 2, type: 'audio' },
+    ]);
+    expect(report.assetReferences['bgm_battle_intro.mp3']).toEqual([
+      { file: 'audio_intro.vns', line: 2, type: 'audio' },
+    ]);
+    expect(report.uncreatedAssets).toContain('bgm_battle_intro.mp3');
+  });
+
   // TC-RECON-05: Dialogue alice: "Xin chào" does NOT flag uncreated character warning for speakers
   it('TC-RECON-05: should NOT record uncreated character for dialogue lines alice: "Xin chào" or bob: "Chào bạn"', () => {
     const project = createMockProject({

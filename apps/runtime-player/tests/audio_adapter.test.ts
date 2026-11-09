@@ -7,6 +7,7 @@ describe('AudioAdapter', () => {
   let mockAudioManager: AudioManager;
   const mockAssetResolver = vi.fn((key: string) => {
     if (key === 'bgm_theme') return 'https://cdn.example.com/theme.mp3';
+    if (key === 'bgm_intro') return 'https://cdn.example.com/intro.mp3';
     if (key === 'v_alice_01') return 'https://cdn.example.com/v_alice_01.mp3';
     if (key === 'se_click') return 'https://cdn.example.com/click.wav';
     if (key === 'amb_rain') return 'https://cdn.example.com/rain.ogg';
@@ -122,6 +123,33 @@ describe('AudioAdapter', () => {
           volume: 0.85,
           loop: true,
           fadeIn: 1.5,
+        }),
+      );
+    });
+
+    it('TC-ADAPT-INTRO-01: should resolve intro URL and pass introAssetId & introUrl to AudioManager.play', () => {
+      const adapter = new AudioAdapter(mockAudioManager, { assetResolver: mockAssetResolver });
+      const playInstr: PlayInstruction = {
+        type: 'PLAY',
+        channel: 'music',
+        assetId: 'bgm_theme',
+        intro: 'bgm_intro',
+        volume: 0.8,
+        loop: true,
+      };
+
+      adapter.applySideEffect(playInstr);
+      expect(mockAssetResolver).toHaveBeenCalledWith('bgm_theme');
+      expect(mockAssetResolver).toHaveBeenCalledWith('bgm_intro');
+      expect(mockAudioManager.play).toHaveBeenCalledWith(
+        'music',
+        'bgm_theme',
+        'https://cdn.example.com/theme.mp3',
+        expect.objectContaining({
+          volume: 0.8,
+          loop: true,
+          introAssetId: 'bgm_intro',
+          introUrl: 'https://cdn.example.com/intro.mp3',
         }),
       );
     });
