@@ -59,6 +59,7 @@ export interface PlayInstruction extends BaseInstruction {
   type: 'PLAY';
   channel: string;
   assetId: string;
+  intro?: string;
   volume?: number;
   fadeIn?: number;
   loop?: boolean;

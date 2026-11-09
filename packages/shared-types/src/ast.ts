@@ -137,6 +137,7 @@ export interface PlayStatement extends BaseASTNode {
   type: 'PlayStatement';
   channel: string; // "music", "sound", "voice", ...
   assetId: string;
+  intro?: string;
   volume?: number;
   fadeIn?: number;
   loop?: boolean;
