@@ -529,6 +529,7 @@ export class VNSAstBuilder extends BaseVNSVisitor {
     let volume: number | undefined;
     let loop: boolean | undefined;
     let fadeIn: number | undefined;
+    let intro: string | undefined;
 
     if (ctx.playArgument) {
       for (const argCst of ctx.playArgument) {
@@ -536,6 +537,7 @@ export class VNSAstBuilder extends BaseVNSVisitor {
         if (argRes.volume !== undefined) volume = argRes.volume;
         if (argRes.loop !== undefined) loop = argRes.loop;
         if (argRes.fadeIn !== undefined) fadeIn = argRes.fadeIn;
+        if (argRes.intro !== undefined) intro = argRes.intro;
       }
     }
 
@@ -543,6 +545,7 @@ export class VNSAstBuilder extends BaseVNSVisitor {
       type: 'PlayStatement',
       channel: channelToken.image,
       assetId: cleanString(assetToken.image),
+      intro,
       volume,
       loop,
       fadeIn,
@@ -560,6 +563,9 @@ export class VNSAstBuilder extends BaseVNSVisitor {
     if (ctx.FadeIn) {
       const token = ctx.DurationLiteral ? ctx.DurationLiteral[0] : ctx.NumberLiteral[0];
       return { fadeIn: parseDurationSeconds(token.image) };
+    }
+    if (ctx.Intro) {
+      return { intro: cleanString(ctx.StringLiteral[0].image) };
     }
     return {};
   }

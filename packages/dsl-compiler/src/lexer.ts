@@ -39,8 +39,13 @@ export const StringLiteral = createToken({
 });
 
 // -----------------------------------------------------------------------------
-// 3. Từ khóa (Keywords) - Phải định nghĩa trước Identifier
+// 3. Từ khóa (Keywords) - Phải định nghĩa trước Identifier trong allTokens
 // -----------------------------------------------------------------------------
+export const Identifier = createToken({
+  name: 'Identifier',
+  pattern: /[a-zA-Z_][a-zA-Z0-9_]*/,
+});
+
 export const Scene = createToken({ name: 'Scene', pattern: /\bscene\b/ });
 export const As = createToken({ name: 'As', pattern: /\bas\b/ });
 export const Reveal = createToken({ name: 'Reveal', pattern: /\breveal\b/ });
@@ -71,6 +76,11 @@ export const Position = createToken({ name: 'Position', pattern: /\bposition\b/ 
 export const Transition = createToken({ name: 'Transition', pattern: /\btransition\b/ });
 export const Duration = createToken({ name: 'Duration', pattern: /\bduration\b/ });
 export const Loop = createToken({ name: 'Loop', pattern: /\bloop\b/ });
+export const Intro = createToken({
+  name: 'Intro',
+  pattern: /\bintro\b/,
+  categories: Identifier,
+});
 export const Ui = createToken({ name: 'Ui', pattern: /\bui\b/ });
 export const True = createToken({ name: 'True', pattern: /\btrue\b/ });
 export const False = createToken({ name: 'False', pattern: /\bfalse\b/ });
@@ -132,11 +142,6 @@ export const AlphanumericIdentifier = createToken({
   pattern: /[0-9]+[a-zA-Z_][a-zA-Z0-9_]*/,
 });
 
-export const Identifier = createToken({
-  name: 'Identifier',
-  pattern: /[a-zA-Z_][a-zA-Z0-9_]*/,
-});
-
 // Thứ tự ưu tiên của Tokens
 export const allTokens: TokenType[] = [
   WhiteSpace,
@@ -177,6 +182,7 @@ export const allTokens: TokenType[] = [
   Transition,
   Duration,
   Loop,
+  Intro,
   Ui,
   True,
   False,

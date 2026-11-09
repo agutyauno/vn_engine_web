@@ -79,6 +79,14 @@ export function extractScriptReferences(ast: ProgramAST): ScriptReferences {
             loc: stmt.loc,
           });
         }
+        if (stmt.intro) {
+          assets.push({
+            assetKey: stmt.intro,
+            category: 'audio',
+            expectedType: 'audio',
+            loc: stmt.loc,
+          });
+        }
         break;
 
       case 'InspectStatement':

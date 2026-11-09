@@ -33,6 +33,7 @@ import {
   Transition,
   Duration,
   Loop,
+  Intro,
   Ui,
   True,
   False,
@@ -405,6 +406,13 @@ export class VNSParser extends CstParser {
             { ALT: () => this.CONSUME(DurationLiteral) },
             { ALT: () => this.CONSUME2(NumberLiteral) },
           ]);
+        },
+      },
+      {
+        ALT: () => {
+          this.CONSUME(Intro);
+          this.CONSUME4(Colon);
+          this.CONSUME(StringLiteral);
         },
       },
     ]);

@@ -239,6 +239,7 @@ export class CodeGenerator {
           type: 'PLAY',
           channel: p.channel,
           assetId: p.assetId,
+          intro: p.intro,
           volume: p.volume,
           loop: p.loop,
           fadeIn: p.fadeIn,
