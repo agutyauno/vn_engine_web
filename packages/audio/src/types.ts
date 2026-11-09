@@ -9,6 +9,8 @@ export interface AudioPlayOptions {
   loop?: boolean;
   fadeIn?: number; // thời gian tính bằng giây
   fadeOut?: number; // thời gian fade out bài cũ trước khi vào bài mới
+  introAssetId?: string; // ID asset của intro
+  introUrl?: string; // URL đã resolve của intro
 }
 
 export interface AudioStopOptions {

@@ -12,11 +12,15 @@ import type {
   AssetAudioResolver,
 } from './types';
 
+export type ChannelPhase = 'idle' | 'intro' | 'loop';
+
 interface InternalChannel {
   name: string;
   currentAssetId: string | null;
   currentUrl: string | null;
   howl: Howl | null;
+  introHowl: Howl | null;
+  phase: ChannelPhase;
   volume: number; // Volume người dùng chỉnh (0..1)
   scriptVolume: number; // Hệ số âm lượng do script chỉ định (mặc định: 1.0)
   loop: boolean;
@@ -80,6 +84,8 @@ export class AudioManager {
         currentAssetId: null,
         currentUrl: null,
         howl: null,
+        introHowl: null,
+        phase: 'idle',
         volume: preset.defaultVolume,
         scriptVolume: 1.0,
         loop: preset.defaultLoop,
@@ -110,27 +116,66 @@ export class AudioManager {
     channel.scriptVolume = scriptVolume;
     const targetVolume = Math.max(0, Math.min(1, channel.volume * channel.scriptVolume));
 
-    // Nếu bài này đang phát chính xác trên kênh này, chỉ cần cập nhật volume / loop nếu cần
-    if (channel.isPlaying && channel.currentAssetId === assetId && channel.howl) {
+    // Nếu bài này đang phát chính xác trên kênh này (không có intro mới), chỉ cần cập nhật volume / loop nếu cần
+    if (
+      !options?.introUrl &&
+      channel.isPlaying &&
+      channel.currentAssetId === assetId &&
+      channel.howl
+    ) {
       channel.howl.loop(targetLoop);
       channel.howl.volume(targetVolume);
       channel.loop = targetLoop;
       return;
     }
 
-    // Dọn dẹp bài cũ nếu đang có trên kênh này
+    // Dọn dẹp Howl cũ nếu đang có trên kênh này
+    if (channel.introHowl) {
+      const oldIntroHowl = channel.introHowl;
+      channel.introHowl = null;
+      if (options?.fadeOut && options.fadeOut > 0) {
+        try {
+          oldIntroHowl.fade(oldIntroHowl.volume(), 0, options.fadeOut * 1000);
+          setTimeout(() => {
+            try {
+              oldIntroHowl.stop();
+              oldIntroHowl.unload();
+            } catch {
+              // Bỏ qua
+            }
+          }, options.fadeOut * 1000);
+        } catch {
+          oldIntroHowl.stop();
+          oldIntroHowl.unload();
+        }
+      } else {
+        try {
+          oldIntroHowl.stop();
+          oldIntroHowl.unload();
+        } catch {
+          // Bỏ qua
+        }
+      }
+    }
+
     if (channel.howl) {
       const oldHowl = channel.howl;
+      channel.howl = null;
       if (options?.fadeOut && options.fadeOut > 0) {
-        oldHowl.fade(oldHowl.volume(), 0, options.fadeOut * 1000);
-        setTimeout(() => {
-          try {
-            oldHowl.stop();
-            oldHowl.unload();
-          } catch {
-            // Howl đã unload trước đó
-          }
-        }, options.fadeOut * 1000);
+        try {
+          oldHowl.fade(oldHowl.volume(), 0, options.fadeOut * 1000);
+          setTimeout(() => {
+            try {
+              oldHowl.stop();
+              oldHowl.unload();
+            } catch {
+              // Howl đã unload trước đó
+            }
+          }, options.fadeOut * 1000);
+        } catch {
+          oldHowl.stop();
+          oldHowl.unload();
+        }
       } else {
         try {
           oldHowl.stop();
@@ -141,44 +186,117 @@ export class AudioManager {
       }
     }
 
-    // Tạo đối tượng Howl mới
-    try {
-      const isHtml5 = channelName === 'music'; // Dùng HTML5 Audio cho nhạc nền dung lượng lớn
-      const howl = new Howl({
-        src: [url],
-        html5: isHtml5,
-        loop: targetLoop,
-        volume: targetVolume,
-      });
+    const isHtml5 = channelName === 'music'; // Dùng HTML5 Audio cho nhạc nền dung lượng lớn
 
-      channel.currentAssetId = assetId;
-      channel.currentUrl = url;
-      channel.howl = howl;
-      channel.loop = targetLoop;
-      channel.isPlaying = true;
+    if (options?.introUrl && typeof options.introUrl === 'string' && options.introUrl.trim().length > 0) {
+      // LUỒNG PHÁT INTRO + LOOP (CHAINING)
+      try {
+        const introHowl = new Howl({
+          src: [options.introUrl],
+          html5: isHtml5,
+          loop: false,
+          volume: targetVolume,
+        });
 
-      if (options?.fadeIn && options.fadeIn > 0) {
-        howl.volume(0);
-        howl.play();
-        howl.fade(0, targetVolume, options.fadeIn * 1000);
-      } else {
-        howl.play();
-      }
+        const loopHowl = new Howl({
+          src: [url],
+          html5: isHtml5,
+          loop: targetLoop,
+          volume: targetVolume,
+        });
 
-      howl.on('end', () => {
-        if (!targetLoop) {
-          channel.isPlaying = false;
+        channel.currentAssetId = assetId;
+        channel.currentUrl = url;
+        channel.introHowl = introHowl;
+        channel.howl = loopHowl;
+        channel.phase = 'intro';
+        channel.loop = targetLoop;
+        channel.isPlaying = true;
+
+        if (options.fadeIn && options.fadeIn > 0) {
+          introHowl.volume(0);
+          introHowl.play();
+          introHowl.fade(0, targetVolume, options.fadeIn * 1000);
+        } else {
+          introHowl.play();
         }
-      });
 
-      howl.on('loaderror', (_id: number, err: unknown) => {
-        // Warning when audio asset fails to load
-        console.warn(`[AudioManager] Failed to load audio asset "${assetId}" from ${url}:`, err);
+        introHowl.once('end', () => {
+          if (channel.phase === 'intro' && channel.introHowl === introHowl) {
+            channel.phase = 'loop';
+            try {
+              introHowl.unload();
+            } catch {
+              // Bỏ qua
+            }
+            channel.introHowl = null;
+            loopHowl.play();
+          }
+        });
+
+        introHowl.on('loaderror', (_id: number, err: unknown) => {
+          console.warn(
+            `[AudioManager] Failed to load intro audio asset "${options.introAssetId ?? ''}" from ${options.introUrl}:`,
+            err,
+          );
+        });
+
+        loopHowl.on('end', () => {
+          if (!targetLoop) {
+            channel.isPlaying = false;
+          }
+        });
+
+        loopHowl.on('loaderror', (_id: number, err: unknown) => {
+          console.warn(`[AudioManager] Failed to load audio asset "${assetId}" from ${url}:`, err);
+          channel.isPlaying = false;
+        });
+      } catch (e) {
+        console.warn(`[AudioManager] Error initializing Howl with intro for "${assetId}":`, e);
         channel.isPlaying = false;
-      });
-    } catch (e) {
-      console.warn(`[AudioManager] Error initializing Howl for "${assetId}":`, e);
-      channel.isPlaying = false;
+        channel.phase = 'idle';
+      }
+    } else {
+      // LUỒNG PHÁT THƯỜNG (LOOP / SINGLE TRACK)
+      try {
+        const howl = new Howl({
+          src: [url],
+          html5: isHtml5,
+          loop: targetLoop,
+          volume: targetVolume,
+        });
+
+        channel.currentAssetId = assetId;
+        channel.currentUrl = url;
+        channel.introHowl = null;
+        channel.howl = howl;
+        channel.phase = 'loop';
+        channel.loop = targetLoop;
+        channel.isPlaying = true;
+
+        if (options?.fadeIn && options.fadeIn > 0) {
+          howl.volume(0);
+          howl.play();
+          howl.fade(0, targetVolume, options.fadeIn * 1000);
+        } else {
+          howl.play();
+        }
+
+        howl.on('end', () => {
+          if (!targetLoop) {
+            channel.isPlaying = false;
+          }
+        });
+
+        howl.on('loaderror', (_id: number, err: unknown) => {
+          console.warn(`[AudioManager] Failed to load audio asset "${assetId}" from ${url}:`, err);
+          channel.isPlaying = false;
+        });
+      } catch (e) {
+        console.warn(`[AudioManager] Error initializing Howl for "${assetId}":`, e);
+        channel.isPlaying = false;
+        channel.phase = 'idle';
+      }
     }
   }
 
@@ -187,32 +305,50 @@ export class AudioManager {
    */
   public stop(channelName: string, options?: AudioStopOptions): void {
     const channel = this.channels.get(channelName);
-    if (!channel || !channel.howl) return;
+    if (!channel || (!channel.howl && !channel.introHowl)) return;
 
     const howl = channel.howl;
+    const introHowl = channel.introHowl;
     channel.currentAssetId = null;
     channel.currentUrl = null;
     channel.isPlaying = false;
+    channel.phase = 'idle';
     channel.howl = null;
+    channel.introHowl = null;
 
     if (options?.fadeOut && options.fadeOut > 0) {
-      try {
-        howl.fade(howl.volume(), 0, options.fadeOut * 1000);
-        setTimeout(() => {
-          try {
-            howl.stop();
-            howl.unload();
-          } catch {
-            // Bỏ qua
-          }
-        }, options.fadeOut * 1000);
-      } catch {
-        howl.stop();
+      const activeHowl = introHowl ?? howl;
+      if (activeHowl) {
+        try {
+          activeHowl.fade(activeHowl.volume(), 0, options.fadeOut * 1000);
+        } catch {
+          // Bỏ qua
+        }
       }
+      setTimeout(() => {
+        try {
+          introHowl?.stop();
+          introHowl?.unload();
+        } catch {
+          // Bỏ qua
+        }
+        try {
+          howl?.stop();
+          howl?.unload();
+        } catch {
+          // Bỏ qua
+        }
+      }, options.fadeOut * 1000);
     } else {
       try {
-        howl.stop();
-        howl.unload();
+        introHowl?.stop();
+        introHowl?.unload();
+      } catch {
+        // Bỏ qua
+      }
+      try {
+        howl?.stop();
+        howl?.unload();
       } catch {
         // Bỏ qua
       }
@@ -224,7 +360,12 @@ export class AudioManager {
    */
   public pause(channelName: string): void {
     const channel = this.channels.get(channelName);
-    if (channel?.howl && channel.isPlaying) {
+    if (!channel || !channel.isPlaying) return;
+
+    if (channel.phase === 'intro' && channel.introHowl) {
+      channel.introHowl.pause();
+      channel.isPlaying = false;
+    } else if (channel.phase === 'loop' && channel.howl) {
       channel.howl.pause();
       channel.isPlaying = false;
     }
@@ -235,7 +376,12 @@ export class AudioManager {
    */
   public resume(channelName: string): void {
     const channel = this.channels.get(channelName);
-    if (channel?.howl && !channel.isPlaying) {
+    if (!channel || channel.isPlaying) return;
+
+    if (channel.phase === 'intro' && channel.introHowl) {
+      channel.introHowl.play();
+      channel.isPlaying = true;
+    } else if (channel.phase === 'loop' && channel.howl) {
       channel.howl.play();
       channel.isPlaying = true;
     }
@@ -248,8 +394,12 @@ export class AudioManager {
     const clamped = Math.max(0, Math.min(1, volume));
     const channel = this.getOrCreateChannel(channelName);
     channel.volume = clamped;
+    const effectiveVolume = clamped * channel.scriptVolume;
+    if (channel.introHowl) {
+      channel.introHowl.volume(effectiveVolume);
+    }
     if (channel.howl) {
-      channel.howl.volume(clamped * channel.scriptVolume);
+      channel.howl.volume(effectiveVolume);
     }
   }
 
@@ -324,6 +474,7 @@ export class AudioManager {
 
   /**
    * Đồng bộ hóa trạng thái âm thanh khi Rollback hoặc Load Game (State Catch-up)
+   * Lưu ý: State Catch-up bỏ qua introUrl, phát thẳng đoạn loop bài chính
    */
   public syncStateCatchUp(
     audioMap: Map<string, PlayInstruction>,
@@ -336,7 +487,7 @@ export class AudioManager {
       }
     }
 
-    // 2. Đồng bộ các kênh có trong audioMap
+    // 2. Đồng bộ các kênh có trong audioMap (phát thẳng main loop, không resolve hay truyền intro)
     for (const [channelName, playInstr] of audioMap.entries()) {
       const isPersistent =
         playInstr.loop === true || channelName === 'music' || channelName === 'ambience';
