@@ -264,4 +264,49 @@ export class AssetResolverAdapter {
       return undefined;
     };
   }
+
+  /**
+   * Trả về resolver phân giải asset key thành định dạng âm thanh (format string, ví dụ: 'mp3', 'wav', 'ogg')
+   * Ưu tiên trích xuất từ metadata asset (asset.name), sau đó là asset.id hoặc trực tiếp từ key (TASK-audio-format-resolution)
+   */
+  public getAssetAudioFormatResolver(): (assetKey: string) => string | undefined {
+    return (assetKey: string): string | undefined => {
+      if (!assetKey || !assetKey.trim()) {
+        return undefined;
+      }
+
+      const trimmedKey = assetKey.trim();
+      const lowerKey = trimmedKey.toLowerCase();
+      const data = this.getProjectData();
+
+      // 1. Tìm asset trong danh sách assets theo ID hoặc Name
+      const asset = data.assets?.find(
+        a => a.id.toLowerCase() === lowerKey || a.name?.toLowerCase() === lowerKey,
+      );
+
+      // 2. Ưu tiên trích xuất từ asset.name nếu có đuôi mở rộng file
+      if (asset?.name) {
+        const match = /\.([a-zA-Z0-9]+)$/.exec(asset.name.trim());
+        if (match && match[1]) {
+          return match[1].toLowerCase();
+        }
+      }
+
+      // 3. Fallback trích xuất từ asset.id
+      if (asset?.id) {
+        const match = /\.([a-zA-Z0-9]+)$/.exec(asset.id.trim());
+        if (match && match[1]) {
+          return match[1].toLowerCase();
+        }
+      }
+
+      // 4. Fallback trích xuất trực tiếp từ assetKey
+      const keyMatch = /\.([a-zA-Z0-9]+)$/.exec(trimmedKey);
+      if (keyMatch && keyMatch[1]) {
+        return keyMatch[1].toLowerCase();
+      }
+
+      return undefined;
+    };
+  }
 }

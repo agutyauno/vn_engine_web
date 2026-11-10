@@ -83,6 +83,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   const audioManager = new AudioManager();
   const audioAdapter = new AudioAdapter(audioManager, {
     assetResolver: assetResolver.getAssetAudioResolver(),
+    audioFormatResolver: assetResolver.getAssetAudioFormatResolver(),
   });
 
   const storageAdapter = new StorageAdapter({

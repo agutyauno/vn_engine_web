@@ -14,6 +14,41 @@ import type {
 
 export type ChannelPhase = 'idle' | 'intro' | 'loop';
 
+/**
+ * Phân giải định dạng âm thanh (format) truyền cho Howler.js (TASK-audio-format-resolution)
+ * - Ưu tiên explicitFormat nếu được chỉ định
+ * - Trích xuất extension từ assetId nếu có (VD: "sfx_laser.wav" -> ['wav'])
+ * - Tự động áp dụng danh sách format fallback nếu là URL blob: hoặc không có extension: ['mp3', 'wav', 'ogg', 'webm', 'aac']
+ * - Trả về undefined nếu là URL HTTP thông thường có đuôi file rõ ràng để Howler tự trích xuất
+ */
+export function resolveAudioFormat(
+  url: string,
+  assetId?: string,
+  explicitFormat?: string | string[],
+): string[] | undefined {
+  // 1. Ưu tiên format tường minh từ options
+  if (explicitFormat) {
+    return Array.isArray(explicitFormat) ? explicitFormat : [explicitFormat];
+  }
+
+  // 2. Trích xuất từ assetId nếu assetId có extension (ví dụ: "sound.mp3")
+  if (assetId) {
+    const match = /\.([a-zA-Z0-9]+)$/.exec(assetId.trim());
+    if (match && match[1]) {
+      return [match[1].toLowerCase()];
+    }
+  }
+
+  // 3. Nếu URL là blob: hoặc không có extension trong pathname
+  const isBlobUrl = url.startsWith('blob:');
+  const hasExtensionInUrl = /\.([a-zA-Z0-9]+)(?:[\?#].*)?$/.test(url);
+  if (isBlobUrl || !hasExtensionInUrl) {
+    return ['mp3', 'wav', 'ogg', 'webm', 'aac'];
+  }
+
+  return undefined; // Để Howler tự trích xuất từ URL thông thường
+}
+
 interface InternalChannel {
   name: string;
   currentAssetId: string | null;
@@ -191,18 +226,33 @@ export class AudioManager {
     if (options?.introUrl && typeof options.introUrl === 'string' && options.introUrl.trim().length > 0) {
       // LUỒNG PHÁT INTRO + LOOP (CHAINING)
       try {
+        const introExplicitFormat =
+          options?.introFormat ??
+          (options?.introAssetId && /\.([a-zA-Z0-9]+)$/.test(options.introAssetId.trim())
+            ? undefined
+            : options?.format);
+        const introFormat = resolveAudioFormat(
+          options.introUrl,
+          options.introAssetId,
+          introExplicitFormat,
+        );
+
         const introHowl = new Howl({
           src: [options.introUrl],
           html5: isHtml5,
           loop: false,
           volume: targetVolume,
+          ...(introFormat ? { format: introFormat } : {}),
         });
+
+        const loopFormat = resolveAudioFormat(url, assetId, options?.format);
 
         const loopHowl = new Howl({
           src: [url],
           html5: isHtml5,
           loop: targetLoop,
           volume: targetVolume,
+          ...(loopFormat ? { format: loopFormat } : {}),
         });
 
         channel.currentAssetId = assetId;
@@ -259,11 +309,14 @@ export class AudioManager {
     } else {
       // LUỒNG PHÁT THƯỜNG (LOOP / SINGLE TRACK)
       try {
+        const loopFormat = resolveAudioFormat(url, assetId, options?.format);
+
         const howl = new Howl({
           src: [url],
           html5: isHtml5,
           loop: targetLoop,
           volume: targetVolume,
+          ...(loopFormat ? { format: loopFormat } : {}),
         });
 
         channel.currentAssetId = assetId;

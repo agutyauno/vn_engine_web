@@ -11,6 +11,8 @@ export interface AudioPlayOptions {
   fadeOut?: number; // thời gian fade out bài cũ trước khi vào bài mới
   introAssetId?: string; // ID asset của intro
   introUrl?: string; // URL đã resolve của intro
+  format?: string | string[]; // Định dạng âm thanh chỉ định cho Howler (VD: 'mp3', ['mp3', 'wav'])
+  introFormat?: string | string[]; // Định dạng âm thanh chỉ định cho đoạn intro
 }
 
 export interface AudioStopOptions {

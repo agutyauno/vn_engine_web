@@ -8,6 +8,7 @@ import type { Instruction, PlayInstruction, StopInstruction } from '@vn-engine/s
 
 export interface AudioAdapterOptions {
   assetResolver?: (key: string) => string | undefined;
+  audioFormatResolver?: (key: string) => string | undefined;
 }
 
 const CANONICAL_CHANNELS: Record<string, string> = {
@@ -60,10 +61,14 @@ export class AudioAdapter {
    */
   public playVoice(assetId: string): void {
     const url = this.options.assetResolver ? this.options.assetResolver(assetId) : assetId;
+    const format = this.options.audioFormatResolver
+      ? this.options.audioFormatResolver(assetId)
+      : undefined;
     if (url) {
       this.audioManager.play('voice', assetId, url, {
         loop: false,
         volume: 1.0,
+        format,
       });
     }
   }
@@ -79,6 +84,13 @@ export class AudioAdapter {
         playInstr.intro && this.options.assetResolver
           ? this.options.assetResolver(playInstr.intro)
           : playInstr.intro;
+      const format = this.options.audioFormatResolver
+        ? this.options.audioFormatResolver(playInstr.assetId)
+        : undefined;
+      const introFormat =
+        playInstr.intro && this.options.audioFormatResolver
+          ? this.options.audioFormatResolver(playInstr.intro)
+          : undefined;
       if (url) {
         this.audioManager.play(targetChannel, playInstr.assetId, url, {
           volume: playInstr.volume,
@@ -86,6 +98,8 @@ export class AudioAdapter {
           fadeIn: playInstr.fadeIn,
           introAssetId: playInstr.intro,
           introUrl: introUrl ?? undefined,
+          format,
+          introFormat,
         });
       }
     } else if (instr.type === 'STOP') {

@@ -2,13 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AudioManager } from '../src/manager';
 import type { AudioPlayOptions } from '../src/types';
 
-// Module augmentation: Khai báo mở rộng AudioPlayOptions trong test suite (Pha RED trước khi types.ts được cập nhật ở Pha GREEN)
-declare module '../src/types' {
-  interface AudioPlayOptions {
-    format?: string | string[];
-  }
-}
-
 interface MockHowlOptions {
   src?: string[];
   html5?: boolean;
@@ -174,3 +167,4 @@ describe('@vn-engine/audio - Audio Format Resolution (TASK-audio-format-resoluti
     expect(mockHowlInstances[0].options.format).toBeUndefined();
   });
 });
+
