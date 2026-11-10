@@ -2,8 +2,13 @@ import { describe, it, expect } from 'vitest';
 import type {
   Project,
   Instruction,
+  PauseInstruction,
+  StatementAST,
+  PauseStatement,
+  StepResult,
   VMState,
   VMSnapshot,
+  RollbackResult,
   SaveFileData,
   ExpressionAST,
   LiteralExpression,
@@ -137,7 +142,7 @@ describe('Shared Types & Data Contracts', () => {
     });
   });
 
-  it('should cover all 16 standardized Instruction types with full properties and source locations', () => {
+  it('should cover all 17 standardized Instruction types with full properties and source locations', () => {
     const instructions: Instruction[] = [
       {
         type: 'SCENE',
@@ -256,11 +261,15 @@ describe('Shared Types & Data Contracts', () => {
         targetScene: 'quest_reward',
         loc: { fileId: 'file-1', line: 16, col: 3 },
       },
+      {
+        type: 'PAUSE',
+        loc: { fileId: 'file-1', line: 17, col: 3 },
+      },
     ];
 
-    expect(instructions).toHaveLength(16);
+    expect(instructions).toHaveLength(17);
     const types = new Set(instructions.map(i => i.type));
-    expect(types.size).toBe(16);
+    expect(types.size).toBe(17);
 
     instructions.forEach(instr => {
       expect(instr.loc).toBeDefined();
@@ -268,6 +277,90 @@ describe('Shared Types & Data Contracts', () => {
       const cloned = JSON.parse(JSON.stringify(instr)) as Instruction;
       expect(cloned.type).toBe(instr.type);
     });
+  });
+
+  it('should support PauseStatement as part of StatementAST contract', () => {
+    const pauseStmt: PauseStatement = {
+      type: 'PauseStatement',
+      loc: { fileId: 'file-1', line: 10, col: 1 },
+    };
+
+    const stmt: StatementAST = pauseStmt;
+    expect(stmt.type).toBe('PauseStatement');
+    expect(stmt.loc?.fileId).toBe('file-1');
+
+    const serialized = JSON.stringify(stmt);
+    const parsed = JSON.parse(serialized) as StatementAST;
+    expect(parsed.type).toBe('PauseStatement');
+  });
+
+  it('should support SUSPEND_PAUSE in StepResult contract', () => {
+    const pauseInstr: PauseInstruction = {
+      type: 'PAUSE',
+      loc: { fileId: 'file-1', line: 10, col: 5 },
+    };
+
+    const stepResult: StepResult = {
+      type: 'SUSPEND_PAUSE',
+      instruction: pauseInstr,
+    };
+
+    expect(stepResult.type).toBe('SUSPEND_PAUSE');
+    expect(stepResult.instruction.type).toBe('PAUSE');
+    expect(stepResult.instruction.loc?.line).toBe(10);
+  });
+
+  it('should support interactionType PAUSE in VMSnapshot and preserve in serialization', () => {
+    const state: VMState = {
+      currentScene: 'cg_gallery',
+      instructionPointer: 3,
+      callStack: [],
+      variables: {},
+      localVariables: {},
+      characterDisplayOverrides: {},
+      customScriptState: {},
+    };
+
+    const pauseSnapshot: VMSnapshot = {
+      timestamp: 1710000005000,
+      dialogueIndex: 2,
+      interactionType: 'PAUSE',
+      state,
+    };
+
+    const serialized = JSON.stringify(pauseSnapshot);
+    const restored = JSON.parse(serialized) as VMSnapshot;
+
+    expect(restored.interactionType).toBe('PAUSE');
+    expect(restored.dialogueIndex).toBe(2);
+  });
+
+  it('should validate RollbackResult schema with interaction types', () => {
+    const successResult: RollbackResult = {
+      success: true,
+      poppedInteractionType: 'PAUSE',
+      restoredInteractionType: 'DIALOGUE',
+    };
+
+    const failedResult: RollbackResult = {
+      success: false,
+    };
+
+    const choiceToPauseResult: RollbackResult = {
+      success: true,
+      poppedInteractionType: 'CHOICE',
+      restoredInteractionType: 'PAUSE',
+    };
+
+    expect(successResult.success).toBe(true);
+    expect(successResult.poppedInteractionType).toBe('PAUSE');
+    expect(successResult.restoredInteractionType).toBe('DIALOGUE');
+
+    expect(failedResult.success).toBe(false);
+    expect(failedResult.poppedInteractionType).toBeUndefined();
+
+    expect(choiceToPauseResult.poppedInteractionType).toBe('CHOICE');
+    expect(choiceToPauseResult.restoredInteractionType).toBe('PAUSE');
   });
 
   it('should handle edge cases in Project schema (empty files, assets, and unicode)', () => {
