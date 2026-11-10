@@ -5,6 +5,7 @@
 import type {
   Instruction,
   WaitInstruction,
+  PauseInstruction,
   BackgroundInstruction,
   ShowInstruction,
   PlayInstruction,
@@ -38,6 +39,7 @@ export type StepResult =
   | { type: 'SUSPEND_DIALOGUE'; instruction: Instruction }
   | { type: 'SUSPEND_CHOICE'; instruction: Instruction }
   | { type: 'SUSPEND_WAIT'; instruction: WaitInstruction; duration: number }
+  | { type: 'SUSPEND_PAUSE'; instruction: PauseInstruction }
   | { type: 'SIDE_EFFECT'; instruction: Instruction }
   | { type: 'HALTED' };
 
@@ -45,7 +47,13 @@ export interface VMSnapshot {
   timestamp: number;
   dialogueIndex: number; // Chỉ mục câu thoại
   state: VMState; // Clone sâu (JSON pure)
-  interactionType?: 'DIALOGUE' | 'CHOICE';
+  interactionType?: 'DIALOGUE' | 'CHOICE' | 'PAUSE';
+}
+
+export interface RollbackResult {
+  success: boolean;
+  poppedInteractionType?: 'DIALOGUE' | 'CHOICE' | 'PAUSE';
+  restoredInteractionType?: 'DIALOGUE' | 'CHOICE' | 'PAUSE';
 }
 
 export const CURRENT_SAVE_VERSION = 2;

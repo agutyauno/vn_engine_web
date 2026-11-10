@@ -65,6 +65,7 @@ export type StatementAST =
   | ReturnStatement
   | EndStatement
   | WaitStatement
+  | PauseStatement
   | IfStatement
   | WhileStatement
   | VarDefineStatement
@@ -76,6 +77,10 @@ export type StatementAST =
 export interface WaitStatement extends BaseASTNode {
   type: 'WaitStatement';
   duration: number; // in seconds
+}
+
+export interface PauseStatement extends BaseASTNode {
+  type: 'PauseStatement';
 }
 
 export interface DialogueStatement extends BaseASTNode {
