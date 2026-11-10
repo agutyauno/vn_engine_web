@@ -822,6 +822,11 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): monaco.
           snippet: 'wait ${1:0.5s}',
         },
         {
+          label: 'pause',
+          doc: 'Tạm dừng kịch bản và chờ người chơi click chuột/nhấn phím để tiếp tục',
+          snippet: 'pause',
+        },
+        {
           label: 'show',
           doc: 'Show character on stage: show charId.sprite',
           snippet: 'show ${1:character}.${2:sprite}',
@@ -949,6 +954,7 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): monaco.
         'stop voice',
         'inspect',
         'wait',
+        'pause',
         'input',
       ]);
 

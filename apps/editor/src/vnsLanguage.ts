@@ -49,6 +49,7 @@ export function registerVnsLanguage(): void {
       'else',
       'while',
       'wait',
+      'pause',
       'dialogue',
       'inspect',
       'title',
