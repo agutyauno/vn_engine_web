@@ -42,8 +42,8 @@ describe('Bug 3.2 & 3.4: SFX Persistence and Choice Rollback Behavior', () => {
       expect(res2.stepResult.type).toBe('SUSPEND_DIALOGUE');
 
       // Rollback to Line 1
-      const rollbackOk = vm.rollback();
-      expect(rollbackOk).toBe(true);
+      const rollbackOk = vm.rollback() as any;
+      expect(rollbackOk.success).toBe(true);
 
       const catchUp = vm.getStateCatchUp();
       expect(catchUp.audio.has('music')).toBe(true);
@@ -91,15 +91,15 @@ describe('Bug 3.2 & 3.4: SFX Persistence and Choice Rollback Behavior', () => {
 
       // Now player is looking at the choice menu with Line 2 on screen.
       // Pressing Rollback should rewind to Line 2 (not Line 1).
-      const rollbackFromChoice = vm.rollback();
-      expect(rollbackFromChoice).toBe(true);
+      const rollbackFromChoice = vm.rollback() as any;
+      expect(rollbackFromChoice.success).toBe(true);
 
       // Verify that after rolling back from Choice, currentDialogue is Line 2!
       expect(vm.getState().currentDialogue?.text).toBe('Line 2');
 
       // Pressing Rollback a SECOND time should now rewind to Line 1
-      const rollbackSecondTime = vm.rollback();
-      expect(rollbackSecondTime).toBe(true);
+      const rollbackSecondTime = vm.rollback() as any;
+      expect(rollbackSecondTime.success).toBe(true);
       expect(vm.getState().currentDialogue?.text).toBe('Line 1');
     });
   });

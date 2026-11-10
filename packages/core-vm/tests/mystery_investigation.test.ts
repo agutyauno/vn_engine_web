@@ -252,7 +252,7 @@ describe('Mystery Investigation Scenario E2E Simulation', () => {
     // Kiểm tra Rollback hoạt động tốt trên kịch bản phức tạp
     // -------------------------------------------------------------------------
     expect(vm.canRollback()).toBe(true);
-    expect(vm.rollback()).toBe(true);
+    expect((vm.rollback() as any).success).toBe(true);
     expect(vm.canRollforward()).toBe(true);
     expect(vm.rollforward()).toBe(true);
 

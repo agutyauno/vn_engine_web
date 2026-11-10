@@ -91,11 +91,11 @@ describe('Dialogue Key & Read Text Tracking in VisualNovelVM', () => {
     expect(vm.getCurrentDialogueKey()).toBe('scene_a#2:hero:Line 3');
 
     // Rollback to Line 2
-    expect(vm.rollback()).toBe(true);
+    expect((vm.rollback() as any).success).toBe(true);
     expect(vm.getCurrentDialogueKey()).toBe('scene_a#1:hero:Line 2');
 
     // Rollback to Line 1
-    expect(vm.rollback()).toBe(true);
+    expect((vm.rollback() as any).success).toBe(true);
     expect(vm.getCurrentDialogueKey()).toBe('scene_a#0:hero:Line 1');
 
     // Rollforward to Line 2

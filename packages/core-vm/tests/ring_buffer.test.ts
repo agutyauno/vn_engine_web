@@ -2,7 +2,11 @@ import { describe, it, expect } from 'vitest';
 import { SnapshotRingBuffer } from '../src/ring_buffer';
 import type { VMSnapshot, VMState } from '@vn-engine/shared-types';
 
-function createMockSnapshot(dialogueIndex: number, affection: number): VMSnapshot {
+function createMockSnapshot(
+  dialogueIndex: number,
+  affection: number,
+  interactionType?: 'DIALOGUE' | 'CHOICE' | 'PAUSE',
+): VMSnapshot {
   const state: VMState = {
     currentScene: 'intro',
     instructionPointer: dialogueIndex,
@@ -16,6 +20,7 @@ function createMockSnapshot(dialogueIndex: number, affection: number): VMSnapsho
   return {
     timestamp: 1000 + dialogueIndex,
     dialogueIndex,
+    interactionType,
     state,
   };
 }
@@ -76,17 +81,21 @@ describe('SnapshotRingBuffer (Rollback Engine ADR-022)', () => {
     expect(buffer.canRollforward()).toBe(false);
 
     // Rollback lần 1: từ snapshot 3 quay về snapshot 2
-    const prev1 = buffer.rollback();
+    const prev1 = buffer.rollback() as any;
     expect(prev1).toBeDefined();
-    expect(prev1?.dialogueIndex).toBe(2);
-    expect(prev1?.state.variables['affection']).toBe(20);
+    expect(prev1?.restored.dialogueIndex).toBe(2);
+    expect(prev1?.restored.state.variables['affection']).toBe(20);
+    expect(prev1?.popped.dialogueIndex).toBe(3);
+    expect(prev1?.popped.state.variables['affection']).toBe(30);
     expect(buffer.canRollforward()).toBe(true);
 
     // Rollback lần 2: từ snapshot 2 quay về snapshot 1
-    const prev2 = buffer.rollback();
+    const prev2 = buffer.rollback() as any;
     expect(prev2).toBeDefined();
-    expect(prev2?.dialogueIndex).toBe(1);
-    expect(prev2?.state.variables['affection']).toBe(10);
+    expect(prev2?.restored.dialogueIndex).toBe(1);
+    expect(prev2?.restored.state.variables['affection']).toBe(10);
+    expect(prev2?.popped.dialogueIndex).toBe(2);
+    expect(prev2?.popped.state.variables['affection']).toBe(20);
     expect(buffer.canRollback()).toBe(false); // Đã về đầu lịch sử
 
     // Rollback lần 3: khi đã ở đầu lịch sử -> trả về undefined
@@ -136,12 +145,13 @@ describe('SnapshotRingBuffer (Rollback Engine ADR-022)', () => {
 
     // Push second snapshot and rollback
     buffer.push(createMockSnapshot(2, 200));
-    const rolled = buffer.rollback();
-    expect(rolled?.state.variables['affection']).toBe(100);
+    const rolled = buffer.rollback() as any;
+    expect(rolled?.restored.state.variables['affection']).toBe(100);
+    expect(rolled?.popped.state.variables['affection']).toBe(200);
 
     // Mutate returned snapshot
     if (rolled) {
-      rolled.state.variables['affection'] = 555;
+      rolled.restored.state.variables['affection'] = 555;
     }
 
     // Buffer internal state must remain 100
@@ -161,5 +171,29 @@ describe('SnapshotRingBuffer (Rollback Engine ADR-022)', () => {
     buffer.clear();
     expect(buffer.size()).toBe(0);
     expect(buffer.canRollback()).toBe(false);
+  });
+
+  it('TC-RING-BUFFER-01: preserves interactionType in cloned snapshots and returns { restored, popped } on rollback', () => {
+    const buffer = new SnapshotRingBuffer(5);
+    buffer.push(createMockSnapshot(1, 10, 'DIALOGUE'));
+    buffer.push(createMockSnapshot(2, 20, 'PAUSE'));
+    buffer.push(createMockSnapshot(3, 30, 'CHOICE'));
+
+    const history = buffer.getHistory();
+    expect(history[0]?.interactionType).toBe('DIALOGUE');
+    expect(history[1]?.interactionType).toBe('PAUSE');
+    expect(history[2]?.interactionType).toBe('CHOICE');
+
+    const rollbackResult1 = buffer.rollback() as any;
+    expect(rollbackResult1).toBeDefined();
+    expect(rollbackResult1?.popped.interactionType).toBe('CHOICE');
+    expect(rollbackResult1?.restored.interactionType).toBe('PAUSE');
+    expect(rollbackResult1?.restored.dialogueIndex).toBe(2);
+
+    const rollbackResult2 = buffer.rollback() as any;
+    expect(rollbackResult2).toBeDefined();
+    expect(rollbackResult2?.popped.interactionType).toBe('PAUSE');
+    expect(rollbackResult2?.restored.interactionType).toBe('DIALOGUE');
+    expect(rollbackResult2?.restored.dialogueIndex).toBe(1);
   });
 });
