@@ -140,6 +140,9 @@ export function GameplayOverlay(): JSX.Element {
     }
   };
 
+  const isAwaitingPauseAdvance = state?.isAwaitingPauseAdvance ?? false;
+  const isFullScreenClick = !state?.dialogue?.isVisible || isAwaitingPauseAdvance;
+
   return (
     <div
       id="gameplay-overlay"
@@ -151,7 +154,7 @@ export function GameplayOverlay(): JSX.Element {
     >
       <div
         id="bottom-click-zone"
-        className="bottom-click-zone"
+        className={`bottom-click-zone ${isFullScreenClick ? 'full-screen' : ''}`}
         onClick={handleBottomZoneClick}
       />
       <ChoiceOverlay />

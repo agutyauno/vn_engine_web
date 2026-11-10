@@ -1202,6 +1202,11 @@ body.is-embedded #game-stage {
   cursor: pointer;
 }
 
+#bottom-click-zone.full-screen,
+.bottom-click-zone.full-screen {
+  height: 100%;
+}
+
 #dialogue-group,
 .dialogue-group {
   pointer-events: auto;

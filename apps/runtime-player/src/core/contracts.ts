@@ -2,6 +2,7 @@ import type {
   DialogueInstruction,
   ChoiceInstruction,
   WaitInstruction,
+  PauseInstruction,
   Instruction,
   PlayInstruction,
   Character,
@@ -47,6 +48,7 @@ export type StepResult =
   | { type: 'SUSPEND_DIALOGUE'; instruction: DialogueInstruction }
   | { type: 'SUSPEND_CHOICE'; instruction: ChoiceInstruction }
   | { type: 'SUSPEND_WAIT'; instruction: WaitInstruction; duration: number }
+  | { type: 'SUSPEND_PAUSE'; instruction: PauseInstruction }
   | { type: 'SIDE_EFFECT'; instruction: Instruction }
   | { type: 'HALTED' };
 
@@ -102,6 +104,7 @@ export interface PlayerViewState {
   playbackMode: TextPlaybackMode;
   isControlsHidden: boolean;
   isCleanArtMode: boolean;
+  isAwaitingPauseAdvance: boolean;
   dialogue: {
     isVisible: boolean;
     speakerName?: string;

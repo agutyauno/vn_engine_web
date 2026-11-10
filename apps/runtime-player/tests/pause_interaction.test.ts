@@ -3,13 +3,6 @@ import type { Instruction } from '@vn-engine/shared-types';
 import { VNRuntimeKernel } from '../src/core/VNRuntimeKernel';
 import type { KernelAdapters, SaveSlotData } from '../src/core/contracts';
 
-// Type declaration augmentation to support isAwaitingPauseAdvance before & after contracts.ts is updated
-declare module '../src/core/contracts' {
-  interface PlayerViewState {
-    isAwaitingPauseAdvance: boolean;
-  }
-}
-
 describe('Pause Interaction & Runtime Player Integration (TASK-pause-statement)', () => {
   let mockRenderer: NonNullable<KernelAdapters['renderer']>;
   let mockAudio: NonNullable<KernelAdapters['audio']>;
@@ -420,3 +413,4 @@ describe('Pause Interaction & Runtime Player Integration (TASK-pause-statement)'
     expect(postLoadState.dialogue.rawText).toBe('Resumed after load');
   });
 });
+

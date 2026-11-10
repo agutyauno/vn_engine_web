@@ -2,6 +2,7 @@ import type {
   Instruction,
   DialogueInstruction,
   ChoiceInstruction,
+  PauseInstruction,
   PlayInstruction,
   Character,
 } from '@vn-engine/shared-types';
@@ -27,6 +28,7 @@ export class VNRuntimeKernel {
   private isAutoPaused = false;
   private autoAdvanceTimer: ReturnType<typeof setTimeout> | null = null;
   private waitTimer: ReturnType<typeof setTimeout> | null = null;
+  private skipTimer: ReturnType<typeof setTimeout> | null = null;
   private toastTimer: ReturnType<typeof setTimeout> | null = null;
   private pendingVoiceAssetId: string | null = null;
   private pendingRestoreSnapshot: string | null = null;
@@ -56,6 +58,7 @@ export class VNRuntimeKernel {
       playbackMode: 'NORMAL',
       isControlsHidden: false,
       isCleanArtMode: false,
+      isAwaitingPauseAdvance: false,
       dialogue: {
         isVisible: false,
         rawText: '',
@@ -118,12 +121,24 @@ export class VNRuntimeKernel {
       clearTimeout(this.waitTimer);
       this.waitTimer = null;
     }
+    if (this.skipTimer) {
+      clearTimeout(this.skipTimer);
+      this.skipTimer = null;
+    }
+  }
+
+  private scheduleAutoAdvance(): void {
+    if (this.autoAdvanceTimer) clearTimeout(this.autoAdvanceTimer);
+    this.autoAdvanceTimer = setTimeout(() => {
+      this.autoAdvanceTimer = null;
+      void this.advance();
+    }, this.state.settings.autoDelayMs);
   }
 
   public async startNewGame(): Promise<void> {
     this.clearTimers();
     this.state.mode = 'GAMEPLAY';
-    this.state.playbackMode = 'NORMAL';
+    this.state.isAwaitingPauseAdvance = false;
     this.isAutoPaused = false;
     await this.runForward();
   }
@@ -133,6 +148,7 @@ export class VNRuntimeKernel {
     this.adapters.audio?.stopVoice();
     this.state.mode = 'TITLE';
     this.state.playbackMode = 'NORMAL';
+    this.state.isAwaitingPauseAdvance = false;
     this.state.dialogue.isVisible = false;
     this.state.activeChoices = null;
     this.state.activeModal = 'none';
@@ -143,6 +159,7 @@ export class VNRuntimeKernel {
     if (this.state.mode !== 'GAMEPLAY' || this.isAdvancing) return;
     this.isAdvancing = true;
     try {
+      this.state.isAwaitingPauseAdvance = false;
       this.clearTimers();
       this.adapters.audio?.stopVoice();
       await this.runForward();
@@ -156,12 +173,7 @@ export class VNRuntimeKernel {
     this.emit();
 
     if (this.state.playbackMode === 'AUTO') {
-      if (this.autoAdvanceTimer) {
-        clearTimeout(this.autoAdvanceTimer);
-      }
-      this.autoAdvanceTimer = setTimeout(() => {
-        void this.advance();
-      }, this.state.settings.autoDelayMs);
+      this.scheduleAutoAdvance();
     }
   }
 
@@ -207,16 +219,31 @@ export class VNRuntimeKernel {
 
   public rollback(): boolean {
     this.clearTimers();
-    const rolled = this.vm.rollback();
-    if (!rolled) {
+    const result = this.vm.rollback();
+    if (!result.success) {
       return false;
     }
 
     this.adapters.audio?.stopVoice();
     this.applyCatchUpSync();
 
-    if (this.state.backlog.length > 0) {
+    // Chỉ pop backlog khi tương tác bị hoàn tác là thoại
+    if (result.poppedInteractionType === 'DIALOGUE' && this.state.backlog.length > 0) {
       this.state.backlog.pop();
+    }
+
+    // Khôi phục trạng thái chờ tương tác nếu tua ngược vào điểm Pause
+    if (result.restoredInteractionType === 'PAUSE') {
+      this.state.isAwaitingPauseAdvance = true;
+      this.state.dialogue.isComplete = true;
+      this.state.dialogue.canAdvance = true;
+      if (this.state.playbackMode === 'AUTO') {
+        this.scheduleAutoAdvance();
+      } else if (this.state.playbackMode === 'SKIP') {
+        this.skipTimer = setTimeout(() => void this.advance(), 0);
+      }
+    } else {
+      this.state.isAwaitingPauseAdvance = false;
     }
 
     this.emit();
@@ -271,6 +298,8 @@ export class VNRuntimeKernel {
       }
     } else if (step.type === 'SUSPEND_WAIT') {
       this.handleWait(step.duration);
+    } else if (step.type === 'SUSPEND_PAUSE') {
+      this.handlePause(step.instruction);
     } else if (step.type === 'HALTED') {
       this.state.mode = 'HALTED';
       this.state.dialogue.isVisible = false;
@@ -368,6 +397,22 @@ export class VNRuntimeKernel {
     }, duration * 1000);
   }
 
+  private handlePause(_instruction: PauseInstruction): void {
+    this.state.isAwaitingPauseAdvance = true;
+    this.state.dialogue.isComplete = true;
+    this.state.dialogue.canAdvance = true;
+
+    if (this.state.playbackMode === 'SKIP') {
+      this.skipTimer = setTimeout(() => {
+        void this.advance();
+      }, 0);
+    } else if (this.state.playbackMode === 'AUTO') {
+      this.scheduleAutoAdvance();
+    }
+
+    this.emit();
+  }
+
   private applyCatchUpSync(): void {
     const catchUp = this.vm.getStateCatchUp();
     if (this.adapters.renderer?.syncStateCatchUp) {
@@ -411,12 +456,28 @@ export class VNRuntimeKernel {
       this.clearTimers();
     } else {
       this.state.playbackMode = 'AUTO';
+      if (this.state.isAwaitingPauseAdvance) {
+        this.scheduleAutoAdvance();
+      }
     }
     this.emit();
   }
 
   public toggleSkip(): void {
-    this.state.playbackMode = this.state.playbackMode === 'SKIP' ? 'NORMAL' : 'SKIP';
+    if (this.state.playbackMode === 'SKIP') {
+      this.state.playbackMode = 'NORMAL';
+      if (this.skipTimer) {
+        clearTimeout(this.skipTimer);
+        this.skipTimer = null;
+      }
+    } else {
+      this.state.playbackMode = 'SKIP';
+      if (this.state.isAwaitingPauseAdvance) {
+        this.skipTimer = setTimeout(() => {
+          void this.advance();
+        }, 0);
+      }
+    }
     this.emit();
   }
 
@@ -584,7 +645,21 @@ export class VNRuntimeKernel {
       return;
     }
 
+    this.clearTimers();
     this.applyCatchUpSync();
+
+    const activeInstr = this.vm.getActiveInstruction();
+    if (activeInstr && activeInstr.type === 'PAUSE') {
+      this.state.isAwaitingPauseAdvance = true;
+      this.state.dialogue.isComplete = true;
+      this.state.dialogue.canAdvance = true;
+      if (this.state.playbackMode === 'AUTO') {
+        this.scheduleAutoAdvance();
+      }
+    } else {
+      this.state.isAwaitingPauseAdvance = false;
+    }
+
     this.state.mode = 'GAMEPLAY';
     this.state.activeModal = 'none';
     this.pendingRestoreSnapshot = null;
@@ -597,14 +672,38 @@ export class VNRuntimeKernel {
       if (this.pendingRestoreSnapshot) {
         this.vm.restore(this.pendingRestoreSnapshot);
       }
+      this.clearTimers();
       this.applyCatchUpSync();
+      const activeInstr = this.vm.getActiveInstruction();
+      if (activeInstr && activeInstr.type === 'PAUSE') {
+        this.state.isAwaitingPauseAdvance = true;
+        this.state.dialogue.isComplete = true;
+        this.state.dialogue.canAdvance = true;
+        if (this.state.playbackMode === 'AUTO') {
+          this.scheduleAutoAdvance();
+        }
+      } else {
+        this.state.isAwaitingPauseAdvance = false;
+      }
       this.state.activeModal = 'none';
       this.state.desyncData = undefined;
       this.pendingRestoreSnapshot = null;
       this.pendingDesyncSlot = null;
       this.emit();
     } else if (choice === 'continue') {
+      this.clearTimers();
       this.applyCatchUpSync();
+      const activeInstr = this.vm.getActiveInstruction();
+      if (activeInstr && activeInstr.type === 'PAUSE') {
+        this.state.isAwaitingPauseAdvance = true;
+        this.state.dialogue.isComplete = true;
+        this.state.dialogue.canAdvance = true;
+        if (this.state.playbackMode === 'AUTO') {
+          this.scheduleAutoAdvance();
+        }
+      } else {
+        this.state.isAwaitingPauseAdvance = false;
+      }
       this.state.mode = 'GAMEPLAY';
       this.state.activeModal = 'none';
       this.state.desyncData = undefined;
@@ -617,7 +716,9 @@ export class VNRuntimeKernel {
           seedCatchUp: true,
         });
       }
+      this.clearTimers();
       this.applyCatchUpSync();
+      this.state.isAwaitingPauseAdvance = false;
       this.state.mode = 'GAMEPLAY';
       this.state.activeModal = 'none';
       this.state.desyncData = undefined;
@@ -639,6 +740,9 @@ export class VNRuntimeKernel {
   }
 
   public async loadProgram(program: Instruction[], options?: LoadProgramOptions): Promise<void> {
+    this.clearTimers();
+    this.state.isAwaitingPauseAdvance = false;
+
     if (options?.characters) {
       this.registerCharacters(options.characters);
     }

@@ -11,6 +11,7 @@ function createMockState(overrides: Partial<PlayerViewState> = {}): PlayerViewSt
     playbackMode: 'NORMAL',
     isControlsHidden: false,
     isCleanArtMode: false,
+    isAwaitingPauseAdvance: false,
     dialogue: {
       isVisible: true,
       speakerName: 'Alice',
