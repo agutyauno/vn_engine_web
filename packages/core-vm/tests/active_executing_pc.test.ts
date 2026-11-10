@@ -76,7 +76,7 @@ describe('Active Executing PC Tracking in VisualNovelVM (Approach 1)', () => {
 
     // Rollback to Line 1
     const rolled = vm.rollback();
-    expect(rolled).toBe(true);
+    expect(rolled.success).toBe(true);
     expect(vm.getState().instructionPointer).toBe(2);
     expect(vm.getActiveExecutingPc()).toBe(1);
   });

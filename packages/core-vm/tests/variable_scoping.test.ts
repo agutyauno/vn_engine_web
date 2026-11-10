@@ -197,7 +197,7 @@ describe('Variable Scoping VM Execution & Lifecycle Specification', () => {
     // Thực hiện Rollback về câu thoại 1
     expect(vm.canRollback()).toBe(true);
     const rolledBack = vm.rollback();
-    expect(rolledBack).toBe(true);
+    expect(rolledBack.success).toBe(true);
 
     // Trạng thái của cả global lẫn local được khôi phục chính xác về thoại 1
     expect(vm.getState().variables['points']).toBe(0);

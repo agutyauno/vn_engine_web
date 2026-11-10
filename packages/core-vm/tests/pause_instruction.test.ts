@@ -16,6 +16,7 @@ describe('Pause Instruction & Interactive Suspend (TASK-pause-statement)', () =>
       const pauseInstr: PauseInstruction = { type: 'PAUSE' };
       const program: Instruction[] = [
         { type: 'SCENE', name: 'main' },
+        { type: 'DIALOGUE', character: 'alice', text: 'Before pause' },
         pauseInstr,
         { type: 'DIALOGUE', character: 'alice', text: 'Hello after pause' },
       ];
@@ -27,27 +28,33 @@ describe('Pause Instruction & Interactive Suspend (TASK-pause-statement)', () =>
       expect(sceneStep.type).toBe('SIDE_EFFECT');
       expect(vm.getState().instructionPointer).toBe(1);
 
-      // Step 1: Execute PAUSE instruction at index 1
+      // Step 1: Execute DIALOGUE 'Before pause' -> captures dialogue snapshot
+      const diagStep = vm.step();
+      expect(diagStep.type).toBe('SUSPEND_DIALOGUE');
+      expect(vm.getState().instructionPointer).toBe(2);
+
+      // Step 2: Execute PAUSE instruction at index 2
       const pauseStep = vm.step();
 
       // 1. Phải trả về { type: 'SUSPEND_PAUSE', instruction: pauseInstr }
       expect(pauseStep.type).toBe('SUSPEND_PAUSE');
       expect((pauseStep as any).instruction).toEqual(pauseInstr);
 
-      // 2. activeExecutingPc phải lưu vị trí chỉ lệnh PAUSE (index 1)
-      expect(vm.getState().activeExecutingPc).toBe(1);
+      // 2. activeExecutingPc phải lưu vị trí chỉ lệnh PAUSE (index 2)
+      expect(vm.getState().activeExecutingPc).toBe(2);
 
       // 3. getActiveInstruction() phải trả về chính chỉ lệnh PAUSE
       expect((vm as any).getActiveInstruction?.()).toEqual(pauseInstr);
 
-      // 4. instructionPointer phải được tăng lên 2 TRƯỚC KHI lưu snapshot để tránh Double-Pause
-      expect(vm.getState().instructionPointer).toBe(2);
+      // 4. instructionPointer phải được tăng lên 3 TRƯỚC KHI lưu snapshot để tránh Double-Pause
+      expect(vm.getState().instructionPointer).toBe(3);
 
       // 5. Snapshot phải được lưu vào ringBuffer với interactionType: 'PAUSE'
       expect(vm.canRollback()).toBe(true);
       const rollbackResult = (vm.rollback() as any);
       expect(rollbackResult.success).toBe(true);
       expect(rollbackResult.poppedInteractionType).toBe('PAUSE');
+      expect(rollbackResult.restoredInteractionType).toBe('DIALOGUE');
     });
   });
 
@@ -190,3 +197,4 @@ describe('Pause Instruction & Interactive Suspend (TASK-pause-statement)', () =>
     });
   });
 });
+

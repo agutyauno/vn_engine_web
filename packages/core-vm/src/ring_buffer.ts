@@ -22,6 +22,7 @@ export class SnapshotRingBuffer {
     const cloned: VMSnapshot = {
       timestamp: snapshot.timestamp,
       dialogueIndex: snapshot.dialogueIndex,
+      interactionType: snapshot.interactionType,
       state: JSON.parse(JSON.stringify(snapshot.state)),
     };
 
@@ -44,19 +45,23 @@ export class SnapshotRingBuffer {
 
   /**
    * Thực hiện tua lại: lấy snapshot trước đó, chuyển snapshot hiện tại vào forwardStack.
+   * Trả về cả snapshot được khôi phục (restored) và snapshot vừa bị pop (popped).
    */
-  public rollback(): VMSnapshot | undefined {
+  public rollback(): { restored: VMSnapshot; popped: VMSnapshot } | undefined {
     if (!this.canRollback()) {
       return undefined;
     }
 
     // Snapshot hiện tại được chuyển sang forwardStack
-    const current = this.history.pop()!;
-    this.forwardStack.push(current);
+    const popped = this.history.pop()!;
+    this.forwardStack.push(popped);
 
     // Trả về snapshot trước đó (ở đỉnh history)
-    const previous = this.history[this.history.length - 1]!;
-    return JSON.parse(JSON.stringify(previous));
+    const restored = this.history[this.history.length - 1]!;
+    return {
+      restored: JSON.parse(JSON.stringify(restored)),
+      popped,
+    };
   }
 
   /**

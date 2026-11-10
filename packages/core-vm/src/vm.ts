@@ -7,6 +7,7 @@ import type {
   VMState,
   StepResult,
   VMSnapshot,
+  RollbackResult,
   SaveFileData,
   DialogueInstruction,
   BackgroundInstruction,
@@ -283,6 +284,19 @@ export class VisualNovelVM {
   }
 
   /**
+   * Lưu snapshot tại điểm dừng PAUSE để phục vụ tua lùi (Rollback)
+   */
+  private capturePauseSnapshot(): void {
+    const snapshot: VMSnapshot = {
+      timestamp: Date.now(),
+      dialogueIndex: this.dialogueCounter,
+      state: JSON.parse(JSON.stringify(this.state)),
+      interactionType: 'PAUSE',
+    };
+    this.ringBuffer.push(snapshot);
+  }
+
+  /**
    * Khởi động máy ảo tại một vị trí xác định (dùng cho Player hoặc Editor "Run this scene / line")
    */
   public startAt(target: { scene?: string; line?: number; fileId?: string }): boolean {
@@ -433,6 +447,13 @@ export class VisualNovelVM {
           instruction: instr,
           duration: instr.duration,
         };
+      }
+
+      case 'PAUSE': {
+        this.state.activeExecutingPc = this.state.instructionPointer;
+        this.state.instructionPointer++;
+        this.capturePauseSnapshot();
+        return { type: 'SUSPEND_PAUSE', instruction: instr };
       }
 
       case 'BACKGROUND': {
@@ -689,7 +710,8 @@ export class VisualNovelVM {
       if (
         result.type === 'SUSPEND_DIALOGUE' ||
         result.type === 'SUSPEND_CHOICE' ||
-        result.type === 'SUSPEND_WAIT'
+        result.type === 'SUSPEND_WAIT' ||
+        result.type === 'SUSPEND_PAUSE'
       ) {
         return { stepResult: result, sideEffects };
       }
@@ -788,14 +810,18 @@ export class VisualNovelVM {
   /**
    * Tua lại câu thoại trước đó (Rollback)
    */
-  public rollback(): boolean {
-    const snapshot = this.ringBuffer.rollback();
-    if (!snapshot) {
-      return false;
+  public rollback(): RollbackResult {
+    const result = this.ringBuffer.rollback();
+    if (!result) {
+      return { success: false };
     }
 
-    this.state = JSON.parse(JSON.stringify(snapshot.state));
-    return true;
+    this.state = JSON.parse(JSON.stringify(result.restored.state));
+    return {
+      success: true,
+      poppedInteractionType: result.popped.interactionType,
+      restoredInteractionType: result.restored.interactionType,
+    };
   }
 
   /**
@@ -1024,6 +1050,16 @@ export class VisualNovelVM {
       return this.state.instructionPointer - 1;
     }
     return this.state.instructionPointer;
+  }
+
+  /**
+   * Lấy lệnh đang trực tiếp thực thi (Active Executing Instruction)
+   */
+  public getActiveInstruction(): Instruction | undefined {
+    if (this.state.activeExecutingPc !== undefined) {
+      return this.program[this.state.activeExecutingPc];
+    }
+    return undefined;
   }
 
   /**
