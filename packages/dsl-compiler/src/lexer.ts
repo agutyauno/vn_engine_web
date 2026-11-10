@@ -63,6 +63,7 @@ export const If = createToken({ name: 'If', pattern: /\bif\b/ });
 export const Else = createToken({ name: 'Else', pattern: /\belse\b/ });
 export const While = createToken({ name: 'While', pattern: /\bwhile\b/ });
 export const Wait = createToken({ name: 'Wait', pattern: /\bwait\b/ });
+export const Pause = createToken({ name: 'Pause', pattern: /\bpause\b/ });
 export const Define = createToken({ name: 'Define', pattern: /\bdefine\b/ });
 export const Dialogue = createToken({ name: 'Dialogue', pattern: /\bdialogue\b/ });
 export const Inspect = createToken({ name: 'Inspect', pattern: /\binspect\b/ });
@@ -171,6 +172,7 @@ export const allTokens: TokenType[] = [
   Else,
   While,
   Wait,
+  Pause,
   Define,
   Dialogue,
   Inspect,

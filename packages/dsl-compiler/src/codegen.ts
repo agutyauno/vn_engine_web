@@ -22,6 +22,7 @@ import type {
   ReturnStatement,
   EndStatement,
   WaitStatement,
+  PauseStatement,
   WhileStatement,
   IfStatement,
   VarDefineStatement,
@@ -303,6 +304,15 @@ export class CodeGenerator {
           type: 'WAIT',
           duration: w.duration,
           loc: w.loc,
+        });
+        break;
+      }
+
+      case 'PauseStatement': {
+        const ps = stmt as PauseStatement;
+        this.instructions.push({
+          type: 'PAUSE',
+          loc: ps.loc,
         });
         break;
       }

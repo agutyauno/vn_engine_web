@@ -22,6 +22,7 @@ import {
   Else,
   While,
   Wait,
+  Pause,
   Define,
   Dialogue,
   Inspect,
@@ -110,6 +111,7 @@ export class VNSParser extends CstParser {
       { ALT: () => this.CONSUME(Transition) },
       { ALT: () => this.CONSUME(Ui) },
       { ALT: () => this.CONSUME(End) },
+      { ALT: () => this.CONSUME(Pause) },
     ]);
   });
 
@@ -171,7 +173,7 @@ export class VNSParser extends CstParser {
       { ALT: () => this.SUBRULE(this.subSceneStatement) },
       {
         GATE: () => {
-          if (this.LA(1).tokenType === End) {
+          if (this.LA(1).tokenType === End || this.LA(1).tokenType === Pause) {
             return this.LA(2).tokenType === Colon || this.LA(2).tokenType === As;
           }
           return true;
@@ -194,6 +196,10 @@ export class VNSParser extends CstParser {
         ALT: () => this.SUBRULE(this.endStatement),
       },
       { ALT: () => this.SUBRULE(this.waitStatement) },
+      {
+        GATE: () => this.LA(2).tokenType !== Colon && this.LA(2).tokenType !== As,
+        ALT: () => this.SUBRULE(this.pauseStatement),
+      },
       { ALT: () => this.SUBRULE(this.whileStatement) },
       { ALT: () => this.SUBRULE(this.ifStatement) },
       { ALT: () => this.SUBRULE(this.varDefineStatement) },
@@ -457,6 +463,10 @@ export class VNSParser extends CstParser {
     ]);
   });
 
+  public pauseStatement = this.RULE('pauseStatement', () => {
+    this.CONSUME(Pause);
+  });
+
   public choiceStatement = this.RULE('choiceStatement', () => {
     this.CONSUME(Choice);
     this.OPTION(() => {
@@ -598,6 +608,7 @@ export class VNSParser extends CstParser {
         prevTok.tokenType === DurationLiteral ||
         prevTok.tokenType === True ||
         prevTok.tokenType === False ||
+        prevTok.tokenType === Pause ||
         prevTok.tokenType === RParen;
 
       if (isPrevOperand) {
@@ -606,8 +617,8 @@ export class VNSParser extends CstParser {
           return false;
         }
 
-        // Identifier đứng sau một toán hạng trên một dòng mới (không phải gọi hàm func(...))
-        if (nextType === Identifier && this.LA(2).tokenType !== LParen) {
+        // Identifier hoặc Pause đứng sau một toán hạng trên một dòng mới (không phải gọi hàm func(...))
+        if ((nextType === Identifier || nextType === Pause) && this.LA(2).tokenType !== LParen) {
           if (
             nextTok.startLine !== undefined &&
             prevTok.startLine !== undefined &&
@@ -659,6 +670,7 @@ export class VNSParser extends CstParser {
       { ALT: () => this.CONSUME(Duration) },
       { ALT: () => this.CONSUME(Loop) },
       { ALT: () => this.CONSUME(End) },
+      { ALT: () => this.CONSUME(Pause) },
       { ALT: () => this.CONSUME(Position) },
       { ALT: () => this.CONSUME(Transition) },
       { ALT: () => this.CONSUME(Ui) },

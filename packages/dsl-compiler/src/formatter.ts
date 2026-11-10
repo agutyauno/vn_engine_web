@@ -363,6 +363,7 @@ function formatStatement(trimmedCode: string): string {
 
   if (trimmedCode === 'return') return 'return';
   if (trimmedCode === 'end') return 'end';
+  if (trimmedCode === 'pause') return 'pause';
   if (trimmedCode === '}') return '}';
 
   // 11. Visual & Audio Media statements
