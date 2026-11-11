@@ -889,6 +889,63 @@ describe('Monaco DSL 1.1.0 Features, Scoped Interpolation & Hover Provider (TDD 
     expect(whileItem).toBeDefined();
     expect(whileItem?.sortText).toMatch(/^04_/);
   });
+
+  // TC-SPRITE-ED-04: Monaco Completion for Sprite Tag/Variant & Removal of Reveal/As
+  it('TC-SPRITE-ED-04: suggests <tag>.<variant> from project.assets (category: sprite) after "show ", and does NOT suggest reveal or as snippets', () => {
+    const mockContext: VnsProjectContext = {
+      getFiles: () => ({}),
+      getScenes: () => [],
+      getCharacters: () => new Map(),
+      getAssets: () => ({
+        backgrounds: new Set(['bg_room']),
+        audio: new Set(),
+        voices: new Set(),
+      }),
+      getAssetDetails: () =>
+        new Map([
+          ['ast-alice-happy', { category: 'sprite', type: 'image', tag: 'alice', variant: 'happy' }],
+          ['ast-alice-sad', { category: 'sprite', type: 'image', tag: 'alice', variant: 'sad' }],
+          ['ast-bob-smile', { category: 'sprite', type: 'image', tag: 'bob', variant: 'smile' }],
+        ]),
+      getVariables: () => [],
+      switchActiveFile: () => {},
+    };
+
+    registerVnsLanguageFeatures(mockContext);
+    expect(capturedCompletionProvider).not.toBeNull();
+
+    const model = createMockModel('show ');
+    const pos = { lineNumber: 1, column: 6 } as monaco.Position;
+    const result = capturedCompletionProvider!.provideCompletionItems(
+      model,
+      pos,
+      dummyContext,
+      dummyToken,
+    ) as monaco.languages.CompletionList;
+
+    const suggestions = result?.suggestions || [];
+    const getLabel = (s: monaco.languages.CompletionItem) =>
+      typeof s.label === 'string' ? s.label : s.label.label;
+
+    const labels = suggestions.map(getLabel);
+    expect(labels).toContain('alice.happy');
+    expect(labels).toContain('alice.sad');
+    expect(labels).toContain('bob.smile');
+
+    // Root keywords must not contain 'reveal' or 'as'
+    const rootModel = createMockModel('');
+    const rootPos = { lineNumber: 1, column: 1 } as monaco.Position;
+    const rootResult = capturedCompletionProvider!.provideCompletionItems(
+      rootModel,
+      rootPos,
+      dummyContext,
+      dummyToken,
+    ) as monaco.languages.CompletionList;
+
+    const rootLabels = (rootResult?.suggestions || []).map(getLabel);
+    expect(rootLabels).not.toContain('reveal');
+    expect(rootLabels.some(l => l.includes(' as '))).toBe(false);
+  });
 });
 
 describe('Phase 6: Language Feature Provider Lifecycle & Disposable Management', () => {

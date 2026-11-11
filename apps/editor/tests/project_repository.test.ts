@@ -91,7 +91,8 @@ describe('E-Phase 1: Storage & Repository Layer (IndexedDBProjectRepository)', (
     expect(projB?.canvasHeight).toBe(1920);
     expect(projB?.orientation).toBe('portrait');
     expect(projB?.scriptCount).toBe(1);
-    expect(projB?.characterCount).toBe(0);
+    // @ts-expect-error characterCount is removed from ProjectSummary in Unified Sprite refactor
+    expect(projB?.characterCount).toBeUndefined();
     expect(projB?.assetCount).toBe(0);
   });
 
@@ -340,5 +341,28 @@ describe('E-Phase 1: Storage & Repository Layer (IndexedDBProjectRepository)', (
         });
       }
     }
+  });
+
+  // TC-SPRITE-ED-07: ProjectSummary does NOT include characterCount
+  it('TC-SPRITE-ED-07: ProjectSummary does NOT include characterCount and getProject does not require characters', async () => {
+    const project = await repository.createProject({
+      title: 'Sprite Only Project',
+      displaySettings: {
+        width: 1920,
+        height: 1080,
+        orientation: 'landscape',
+        lockAspectRatio: true,
+      },
+    });
+
+    const summaries = await repository.listProjects();
+    const summary = summaries.find(s => s.id === project.id);
+    expect(summary).toBeDefined();
+    // @ts-expect-error characterCount should no longer exist on ProjectSummary
+    expect(summary?.characterCount).toBeUndefined();
+
+    const loaded = await repository.getProject(project.id);
+    expect(loaded).toBeDefined();
+    expect(loaded?.title).toBe('Sprite Only Project');
   });
 });

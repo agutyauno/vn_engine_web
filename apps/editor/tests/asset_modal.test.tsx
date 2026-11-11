@@ -3,7 +3,7 @@
 import '@testing-library/jest-dom';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { validateAssetFile, slugifyAssetId } from '../src/core/utils/assetValidation';
+import { validateAssetFile, slugifyAssetId, parseSpriteFilename } from '../src/core/utils/assetValidation';
 import { CreateAssetModal } from '../src/components/studio/CreateAssetModal';
 import type { AssetRef } from '@vn-engine/shared-types';
 
@@ -248,5 +248,71 @@ describe('CreateAssetModal Component', () => {
     expect(savedAsset.name).toBe('bgm_theme.mp3');
     expect(savedAsset.category).toBe('bgm');
     expect(savedBlob).toBeInstanceOf(Blob);
+  });
+});
+
+describe('TC-SPRITE-ED-06: CreateAssetModal Sprite Tag/Variant Support & parseSpriteFilename', () => {
+  it('renders tag and variant input fields when category is sprite or initialCategory is sprite', () => {
+    render(
+      <CreateAssetModal
+        isOpen={true}
+        initialFile={null}
+        initialCategory="sprite"
+        initialTag="alice"
+        initialVariant="happy"
+        existingAssetIds={[]}
+        onClose={() => {}}
+        onSave={() => {}}
+      />,
+    );
+
+    const tagInput = screen.getByTestId('input-sprite-tag');
+    const variantInput = screen.getByTestId('input-sprite-variant');
+
+    expect(tagInput).toBeInTheDocument();
+    expect(variantInput).toBeInTheDocument();
+    expect((tagInput as HTMLInputElement).value).toBe('alice');
+    expect((variantInput as HTMLInputElement).value).toBe('happy');
+  });
+
+  it('invokes onSave with tag and variant in AssetRef when submitting category sprite', async () => {
+    const onSave = vi.fn();
+    const mockFile = new File(['mock'], 'alice_smile.png', { type: 'image/png' });
+
+    render(
+      <CreateAssetModal
+        isOpen={true}
+        initialFile={mockFile}
+        initialCategory="sprite"
+        initialTag="alice"
+        initialVariant="smile"
+        existingAssetIds={[]}
+        onClose={() => {}}
+        onSave={onSave}
+      />,
+    );
+
+    const saveBtn = screen.getByTestId('btn-save-asset');
+    expect(saveBtn).not.toBeDisabled();
+    fireEvent.click(saveBtn);
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledTimes(1);
+    });
+
+    const [savedAsset] = onSave.mock.calls[0] as [AssetRef, Blob | undefined];
+    expect(savedAsset.category).toBe('sprite');
+    expect(savedAsset.tag).toBe('alice');
+    expect(savedAsset.variant).toBe('smile');
+  });
+
+  it('parseSpriteFilename accurately extracts tag and variant from filenames', () => {
+    expect(parseSpriteFilename('alice_happy.png')).toEqual({ tag: 'alice', variant: 'happy' });
+    expect(parseSpriteFilename('alice_super_excited.webp')).toEqual({
+      tag: 'alice',
+      variant: 'super_excited',
+    });
+    expect(parseSpriteFilename('bob-smile.jpg')).toEqual({ tag: 'bob', variant: 'smile' });
+    expect(parseSpriteFilename('hero.png')).toEqual({ tag: 'hero', variant: 'default' });
   });
 });

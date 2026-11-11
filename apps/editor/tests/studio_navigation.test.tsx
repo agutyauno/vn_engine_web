@@ -14,6 +14,7 @@ import {
 import { ActivityBar } from '../src/components/studio/ActivityBar';
 import { StudioHeader, getAspectRatioBadge } from '../src/components/studio/StudioHeader';
 import { StudioWorkspacePage } from '../src/components/studio/StudioWorkspacePage';
+import { useEditorUIStore } from '../src/core/stores/uiStore';
 
 describe('Studio Shell & Navigation (Milestone 3 TDD)', () => {
   const mockFiles: ScriptFile[] = [
@@ -255,21 +256,33 @@ describe('Studio Shell & Navigation (Milestone 3 TDD)', () => {
   });
 
   describe('ActivityBar', () => {
-    it('renders monochrome tabs and switches active panel', () => {
+    it('TC-SPRITE-ED-05: renders only 2 monochrome tabs (Scripts and Assets) and does NOT render Characters tab', () => {
       const handleTabChange = vi.fn();
       render(<ActivityBar activeTab="scripts" onSelectTab={handleTabChange} />);
 
+      // Only Scripts and Assets
       expect(screen.getByTestId('tab-scripts')).toBeInTheDocument();
-      expect(screen.getByTestId('tab-characters')).toBeInTheDocument();
       expect(screen.getByTestId('tab-assets')).toBeInTheDocument();
 
-      // Click Characters tab
-      fireEvent.click(screen.getByTestId('tab-characters'));
-      expect(handleTabChange).toHaveBeenCalledWith('characters');
+      // Characters tab must NOT exist in the DOM
+      expect(screen.queryByTestId('tab-characters')).toBeNull();
 
       // Click Assets tab
       fireEvent.click(screen.getByTestId('tab-assets'));
       expect(handleTabChange).toHaveBeenCalledWith('assets');
+
+      // Click Scripts tab
+      fireEvent.click(screen.getByTestId('tab-scripts'));
+      expect(handleTabChange).toHaveBeenCalledWith('scripts');
+    });
+
+    it('TC-SPRITE-ED-05 (uiStore): uiStore activeTab accepts scripts, assets, or null, and characterViewMode is removed', () => {
+      const store = useEditorUIStore.getState();
+      expect(store.activeTab).toBeDefined();
+      // @ts-expect-error characterViewMode should not exist on state
+      expect(store.characterViewMode).toBeUndefined();
+      // @ts-expect-error setCharacterViewMode should not exist on state
+      expect(store.setCharacterViewMode).toBeUndefined();
     });
 
     it('strictly complies with Rule 8: zero colored OS emojis in the DOM', () => {
@@ -446,14 +459,6 @@ describe('Studio Shell & Navigation (Milestone 3 TDD)', () => {
 
       // Default tab is scripts
       expect(screen.getByTestId('pane-file-explorer')).toBeInTheDocument();
-
-      // Switch to characters
-      fireEvent.click(screen.getByTestId('tab-characters'));
-      expect(screen.queryByTestId('pane-file-explorer')).not.toBeInTheDocument();
-      expect(
-        screen.queryByTestId('pane-characters') ||
-          screen.queryByTestId('pane-characters-placeholder'),
-      ).toBeInTheDocument();
 
       // Switch to assets
       fireEvent.click(screen.getByTestId('tab-assets'));

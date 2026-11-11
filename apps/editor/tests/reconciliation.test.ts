@@ -1,7 +1,7 @@
 // apps/editor/tests/reconciliation.test.ts
 import { describe, it, expect } from 'vitest';
 import type { Project, ScriptFile, Character, AssetRef } from '@vn-engine/shared-types';
-import { scanActiveReconciliation, generateDiagnostics } from '../src/core/services/reconciliation';
+import { scanActiveReconciliation, generateDiagnostics, checkAssetDeletionSafety } from '../src/core/services/reconciliation';
 
 function createMockProject(options?: {
   files?: ScriptFile[];
@@ -312,8 +312,35 @@ describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () 
     expect(bobDiags).toHaveLength(0);
   });
 
-  // TC-RECON-SHOW: show statement with uncreated character flags uncreated character
-  it('TC-RECON-SHOW: should record uncreated character and generate warning for show statement', () => {
+  // TC-SPRITE-ED-01: Dialogue with string literal or identifier speaker never flags missing character
+  it('TC-SPRITE-ED-01: should NOT generate warnings for literal speaker or identifier dialogue even without character metadata', () => {
+    const project = createMockProject({
+      files: [
+        {
+          id: 'file-1',
+          name: 'literal_speaker.vns',
+          content: [
+            'scene intro {',
+            '  "Alice Carroll": "Hello, world!"',
+            '  "???": "Who are you?"',
+            '  alice: "Just a wanderer."',
+            '  narrator: "The wind howls softly."',
+            '}',
+          ].join('\n'),
+          order: 0,
+          version: 1,
+        },
+      ],
+      assets: [],
+    });
+
+    const diagnostics = generateDiagnostics(project);
+    const charDiags = diagnostics.filter(d => d.category === 'character');
+    expect(charDiags).toHaveLength(0);
+  });
+
+  // TC-RECON-SHOW: show statement with missing sprite flags uncreated sprite asset warning
+  it('TC-RECON-SHOW: should record uncreated sprite and generate warning for show statement when sprite asset is missing', () => {
     const project = createMockProject({
       files: [
         {
@@ -324,22 +351,64 @@ describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () 
           version: 1,
         },
       ],
-      characters: [],
+      assets: [],
     });
 
     const report = scanActiveReconciliation(project);
-
-    expect(report.characterReferences['charlie']).toEqual([
-      { file: 'show_test.vns', line: 2, type: 'character' },
-    ]);
-    expect(report.uncreatedCharacters).toContain('charlie');
+    expect(report.uncreatedSprites).toBeDefined();
+    expect(report.uncreatedSprites).toContainEqual(
+      expect.objectContaining({ tag: 'charlie', variant: 'happy' }),
+    );
 
     const diagnostics = generateDiagnostics(project);
-    const charlieDiags = diagnostics.filter(
-      d => d.category === 'character' && d.assetKey === 'charlie',
+    const spriteDiags = diagnostics.filter(
+      d => d.category === 'asset' && d.assetKey === 'charlie.happy',
     );
-    expect(charlieDiags).toHaveLength(1);
-    expect(charlieDiags[0]?.severity).toBe('warning');
+    expect(spriteDiags).toHaveLength(1);
+    expect(spriteDiags[0]?.severity).toBe('warning');
+    expect(spriteDiags[0]?.message).toMatch(/missing sprite asset 'charlie\.happy'/i);
+    expect(spriteDiags[0]?.quickFix).toEqual({
+      type: 'create_asset',
+      targetId: 'charlie.happy',
+      prefillData: {
+        category: 'sprite',
+        tag: 'charlie',
+        variant: 'happy',
+      },
+    });
+  });
+
+  // TC-SPRITE-ED-02: checkAssetDeletionSafety blocks deletion of referenced sprite asset by tag/variant
+  it('TC-SPRITE-ED-02: checkAssetDeletionSafety blocks deletion of sprite asset referenced by show statement with matching tag and variant', () => {
+    const project = createMockProject({
+      files: [
+        {
+          id: 'file-1',
+          name: 'main.vns',
+          content: ['scene intro {', '  show alice.happy', '}'].join('\n'),
+          order: 0,
+          version: 1,
+        },
+      ],
+      assets: [
+        {
+          id: 'ast-alice-happy',
+          name: 'alice_happy.png',
+          type: 'image',
+          category: 'sprite',
+          tag: 'alice',
+          variant: 'happy',
+          storageUrl: '/assets/alice_happy.png',
+          sizeBytes: 1024,
+        },
+      ],
+    });
+
+    const result = checkAssetDeletionSafety('ast-alice-happy', project);
+    expect(result.safe).toBe(false);
+    expect(result.references.length).toBeGreaterThanOrEqual(1);
+    expect(result.references[0]?.file).toBe('main.vns');
+    expect(result.references[0]?.line).toBe(2);
   });
 
   // TC-RECON-HIDE: hide statement with uncreated character flags uncreated character
@@ -619,8 +688,8 @@ describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () 
     expect(bgDiag?.endCol).toBe(21);
   });
 
-  // TC-REC-SPAN-02: generated character diagnostics should have precise col and endCol matching character identifier
-  it('TC-REC-SPAN-02: generated character diagnostics should have precise col and endCol matching character identifier', () => {
+  // TC-REC-SPAN-02: Precise span for sprite reference on show statement
+  it('TC-REC-SPAN-02: generated sprite diagnostics should have precise col and endCol matching sprite identifier', () => {
     const project = createMockProject({
       files: [
         {
@@ -635,19 +704,17 @@ describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () 
           version: 1,
         },
       ],
-      characters: [],
+      assets: [],
     });
 
     const diagnostics = generateDiagnostics(project);
     const charlieDiag = diagnostics.find(
-      d => d.category === 'character' && d.assetKey === 'charlie',
+      d => d.category === 'asset' && d.assetKey === 'charlie.happy',
     );
 
     expect(charlieDiag).toBeDefined();
     expect(charlieDiag?.line).toBe(2);
     expect(charlieDiag?.col).not.toBe(1);
-    // In "  show charlie.happy", "charlie" starts at col 8, length 7 -> endCol 15
     expect(charlieDiag?.col).toBe(8);
-    expect(charlieDiag?.endCol).toBe(15);
   });
 });

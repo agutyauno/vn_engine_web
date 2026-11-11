@@ -201,42 +201,37 @@ describe('Unit Tests: QuickFix Service (Variable Insertion & Action Resolution)'
       expect(typoAction?.edit?.newText).toMatch(/bg_school/i);
     });
 
-    it('TC-QF-ACTION-02: should generate create character command and typo correction when similar character exists', () => {
-      const charDiagnostic: EditorDiagnostic = {
-        id: 'diag-char-1',
-        category: 'character',
+    // TC-SPRITE-ED-03: QuickFix action for missing sprite asset
+    it('TC-SPRITE-ED-03: should generate create_asset command with sprite category, tag, and variant for missing sprite diagnostic', () => {
+      const spriteDiagnostic: EditorDiagnostic = {
+        id: 'diag-sprite-1',
+        category: 'asset',
         severity: 'warning',
-        message: "Uncreated character 'alic' referenced in script",
+        message: "Missing sprite asset 'alic.happy' referenced in script",
         fileName: 'main.vns',
         fileId: 'file-main',
         line: 3,
         col: 10,
         quickFix: {
-          type: 'create_character',
-          targetId: 'alic',
-          prefillData: { id: 'alic', name: 'alic' },
+          type: 'create_asset',
+          targetId: 'alic.happy',
+          prefillData: { category: 'sprite', tag: 'alic', variant: 'happy' },
         },
       };
 
       const context: QuickFixContext = {
         ...sampleContext,
         cursorLine: 3,
-        diagnostics: [charDiagnostic],
+        diagnostics: [spriteDiagnostic],
       };
 
       const actions = resolveQuickFixActions(context);
 
-      // 1. Action to create character
-      const createAction = actions.find(a => a.command?.id === 'vn.editor.createCharacter');
+      // 1. Action to open create asset modal prefilled with sprite category, tag, variant
+      const createAction = actions.find(a => a.command?.id === 'vn.editor.createAsset');
       expect(createAction).toBeDefined();
-      expect(createAction?.title).toContain('alic');
-      expect(createAction?.command?.arguments).toEqual(['alic']);
-
-      // 2. Typo correction action suggesting 'alice' (dist 1)
-      const typoAction = actions.find(a => a.isPreferred === true);
-      expect(typoAction).toBeDefined();
-      expect(typoAction?.title).toContain('alice');
-      expect(typoAction?.edit?.newText).toBe('alice');
+      expect(createAction?.title).toContain('alic.happy');
+      expect(createAction?.command?.arguments).toEqual(['alic.happy', 'sprite', 'alic', 'happy']);
     });
 
     it('TC-QF-ACTION-03: should generate both global and scene local declare variable actions plus typo suggestion', () => {
