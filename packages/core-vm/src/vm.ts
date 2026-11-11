@@ -87,7 +87,7 @@ export class VisualNovelVM {
     this.emptyCallStackBehavior = options?.emptyCallStackBehavior ?? 'throw';
     this.initialVariables = { ...(options?.initialVariables ?? {}) };
 
-    // Khởi tạo trạng thái mặc định
+    // Khởi tạo trạng thái mặc định (chuẩn hóa activeSprites, không còn characterDisplayOverrides)
     this.state = {
       currentScene: initialState?.currentScene ?? '',
       instructionPointer: initialState?.instructionPointer ?? 0,
@@ -97,7 +97,6 @@ export class VisualNovelVM {
         ...(initialState?.variables ?? {}),
       },
       localVariables: { ...(initialState?.localVariables ?? {}) },
-      characterDisplayOverrides: { ...(initialState?.characterDisplayOverrides ?? {}) },
       customScriptState: { ...(initialState?.customScriptState ?? {}) },
       activeInspect: initialState?.activeInspect ?? null,
       activeBackground: initialState?.activeBackground,
@@ -137,7 +136,8 @@ export class VisualNovelVM {
       } else if (instr.type === 'LABEL') {
         this.sceneIndexMap.set(instr.name, i);
       } else if (instr.type === 'DIALOGUE') {
-        const key = `${currentScene || 'global'}#${sceneDialogueCount}:${instr.character ?? ''}:${instr.text}`;
+        const speakerKey = instr.speaker ?? instr.character ?? '';
+        const key = `${currentScene || 'global'}#${sceneDialogueCount}:${speakerKey}:${instr.text}`;
         this.dialogueKeyMap.set(i, key);
         sceneDialogueCount++;
       }
@@ -206,10 +206,12 @@ export class VisualNovelVM {
         this.state.activeBackground = instr;
       } else if (instr.type === 'SHOW') {
         if (!this.state.activeSprites) this.state.activeSprites = {};
-        this.state.activeSprites[instr.character] = instr;
+        const spriteKey = instr.targetId || instr.character!;
+        this.state.activeSprites[spriteKey] = instr;
       } else if (instr.type === 'HIDE') {
         if (this.state.activeSprites) {
-          delete this.state.activeSprites[instr.character];
+          const spriteKey = instr.targetId || instr.character!;
+          delete this.state.activeSprites[spriteKey];
         }
       } else if (instr.type === 'PLAY') {
         const isPersistent =
@@ -232,16 +234,6 @@ export class VisualNovelVM {
         this.state.activeInspect = { assetId: instr.assetId, title: instr.title };
       } else if (instr.type === 'INSPECT_END') {
         this.state.activeInspect = null;
-      } else if (instr.type === 'REVEAL') {
-        if (!this.state.characterDisplayOverrides) {
-          this.state.characterDisplayOverrides = {};
-        }
-        const evalContext = this.getEvalContext();
-        this.state.characterDisplayOverrides[instr.characterId] = interpolate(
-          instr.displayName,
-          evalContext,
-          this.evaluator,
-        );
       }
     }
   }
@@ -349,6 +341,10 @@ export class VisualNovelVM {
       }
     }
 
+    if (targetIndex === -1 && this.program.length > 0 && !this.program.some(i => i.loc)) {
+      targetIndex = Math.min(Math.max(line, 0), this.program.length - 1);
+    }
+
     if (targetIndex !== -1) {
       this.executePreamble();
       if (options?.seedCatchUp) {
@@ -429,17 +425,6 @@ export class VisualNovelVM {
         };
       }
 
-      case 'REVEAL': {
-        const evalContext = this.getEvalContext();
-        this.state.characterDisplayOverrides[instr.characterId] = interpolate(
-          instr.displayName,
-          evalContext,
-          this.evaluator,
-        );
-        this.state.instructionPointer++;
-        return { type: 'SIDE_EFFECT', instruction: instr };
-      }
-
       case 'WAIT': {
         this.state.instructionPointer++;
         return {
@@ -464,14 +449,16 @@ export class VisualNovelVM {
 
       case 'SHOW': {
         if (!this.state.activeSprites) this.state.activeSprites = {};
-        this.state.activeSprites[instr.character] = instr;
+        const spriteKey = instr.targetId || instr.character!;
+        this.state.activeSprites[spriteKey] = instr;
         this.state.instructionPointer++;
         return { type: 'SIDE_EFFECT', instruction: instr };
       }
 
       case 'HIDE': {
         if (this.state.activeSprites) {
-          delete this.state.activeSprites[instr.character];
+          const spriteKey = instr.targetId || instr.character!;
+          delete this.state.activeSprites[spriteKey];
         }
         this.state.instructionPointer++;
         return { type: 'SIDE_EFFECT', instruction: instr };
@@ -862,9 +849,13 @@ export class VisualNovelVM {
     activeInspect?: { assetId: string; title?: string } | null;
   } {
     const background = this.state.activeBackground;
-    const sprites = new Map<string, ShowInstruction>(
-      Object.entries(this.state.activeSprites || {}),
-    );
+    const sprites = new Map<string, ShowInstruction>();
+    if (this.state.activeSprites) {
+      for (const [key, instr] of Object.entries(this.state.activeSprites)) {
+        const targetKey = instr.targetId || instr.character || key;
+        sprites.set(targetKey, instr);
+      }
+    }
     const audio = new Map<string, PlayInstruction>(Object.entries(this.state.activeAudio || {}));
     let currentDialogue = this.state.currentDialogue;
     let activeInspect = this.state.activeInspect ?? null;

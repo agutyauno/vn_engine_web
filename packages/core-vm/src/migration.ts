@@ -82,19 +82,21 @@ export function validateVMState(state: unknown): asserts state is VMState {
   }
 
   if (
-    !s['characterDisplayOverrides'] ||
-    typeof s['characterDisplayOverrides'] !== 'object' ||
-    Array.isArray(s['characterDisplayOverrides'])
-  ) {
-    throw new InvalidSaveDataError('state.characterDisplayOverrides must be an object.');
-  }
-
-  if (
     !s['customScriptState'] ||
     typeof s['customScriptState'] !== 'object' ||
     Array.isArray(s['customScriptState'])
   ) {
     throw new InvalidSaveDataError('state.customScriptState must be an object.');
+  }
+
+  if (s['activeSprites'] !== undefined) {
+    if (
+      !s['activeSprites'] ||
+      typeof s['activeSprites'] !== 'object' ||
+      Array.isArray(s['activeSprites'])
+    ) {
+      throw new InvalidSaveDataError('state.activeSprites must be an object.');
+    }
   }
 
   if (s['activeInspect'] !== undefined && s['activeInspect'] !== null) {
@@ -129,11 +131,6 @@ export const defaultMigrationV1ToV2: SaveMigrationFn = (prev: Record<string, unk
       activeAudio:
         prevState['activeAudio'] && typeof prevState['activeAudio'] === 'object'
           ? prevState['activeAudio']
-          : {},
-      characterDisplayOverrides:
-        prevState['characterDisplayOverrides'] &&
-        typeof prevState['characterDisplayOverrides'] === 'object'
-          ? prevState['characterDisplayOverrides']
           : {},
       customScriptState:
         prevState['customScriptState'] && typeof prevState['customScriptState'] === 'object'
@@ -182,11 +179,6 @@ export function migrateSaveData(
         localVariables:
           rawState['localVariables'] && typeof rawState['localVariables'] === 'object'
             ? rawState['localVariables']
-            : {},
-        characterDisplayOverrides:
-          rawState['characterDisplayOverrides'] &&
-          typeof rawState['characterDisplayOverrides'] === 'object'
-            ? rawState['characterDisplayOverrides']
             : {},
         customScriptState:
           rawState['customScriptState'] && typeof rawState['customScriptState'] === 'object'
