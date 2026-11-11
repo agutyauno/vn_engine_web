@@ -6,8 +6,6 @@ import { CstParser } from 'chevrotain';
 import {
   allTokens,
   Scene,
-  As,
-  Reveal,
   Background,
   Show,
   Hide,
@@ -50,6 +48,8 @@ import {
   OffsetY,
   Alpha,
   Easing,
+  AnchorX,
+  AnchorY,
   Tilde,
   Colon,
   Dot,
@@ -112,6 +112,8 @@ export class VNSParser extends CstParser {
       { ALT: () => this.CONSUME(Ui) },
       { ALT: () => this.CONSUME(End) },
       { ALT: () => this.CONSUME(Pause) },
+      { ALT: () => this.CONSUME(AnchorX) },
+      { ALT: () => this.CONSUME(AnchorY) },
     ]);
   });
 
@@ -174,13 +176,12 @@ export class VNSParser extends CstParser {
       {
         GATE: () => {
           if (this.LA(1).tokenType === End || this.LA(1).tokenType === Pause) {
-            return this.LA(2).tokenType === Colon || this.LA(2).tokenType === As;
+            return this.LA(2).tokenType === Colon;
           }
           return true;
         },
         ALT: () => this.SUBRULE(this.dialogueStatement),
       },
-      { ALT: () => this.SUBRULE(this.revealStatement) },
       { ALT: () => this.SUBRULE(this.backgroundStatement) },
       { ALT: () => this.SUBRULE(this.showStatement) },
       { ALT: () => this.SUBRULE(this.hideStatement) },
@@ -192,12 +193,12 @@ export class VNSParser extends CstParser {
       { ALT: () => this.SUBRULE(this.callStatement) },
       { ALT: () => this.SUBRULE(this.returnStatement) },
       {
-        GATE: () => this.LA(2).tokenType !== Colon && this.LA(2).tokenType !== As,
+        GATE: () => this.LA(2).tokenType !== Colon,
         ALT: () => this.SUBRULE(this.endStatement),
       },
       { ALT: () => this.SUBRULE(this.waitStatement) },
       {
-        GATE: () => this.LA(2).tokenType !== Colon && this.LA(2).tokenType !== As,
+        GATE: () => this.LA(2).tokenType !== Colon,
         ALT: () => this.SUBRULE(this.pauseStatement),
       },
       { ALT: () => this.SUBRULE(this.whileStatement) },
@@ -225,29 +226,22 @@ export class VNSParser extends CstParser {
   public dialogueStatement = this.RULE('dialogueStatement', () => {
     this.OR([
       {
+        GATE: () => this.LA(2).tokenType === Colon,
         ALT: () => {
-          this.SUBRULE(this.variableIdentifier, { LABEL: 'character' });
-          this.OPTION(() => {
-            this.CONSUME(As);
-            this.CONSUME(StringLiteral);
-          });
+          this.OR1([
+            { ALT: () => this.SUBRULE(this.variableIdentifier, { LABEL: 'character' }) },
+            { ALT: () => this.CONSUME(StringLiteral, { LABEL: 'speaker' }) },
+          ]);
           this.CONSUME(Colon);
-          this.CONSUME2(StringLiteral);
+          this.CONSUME2(StringLiteral, { LABEL: 'text' });
         },
       },
       {
         ALT: () => {
-          this.CONSUME3(StringLiteral);
+          this.CONSUME3(StringLiteral, { LABEL: 'text' });
         },
       },
     ]);
-  });
-
-  public revealStatement = this.RULE('revealStatement', () => {
-    this.CONSUME(Reveal);
-    this.CONSUME(Identifier);
-    this.CONSUME(As);
-    this.CONSUME(StringLiteral);
   });
 
   public signedNumber = this.RULE('signedNumber', () => {
@@ -334,6 +328,8 @@ export class VNSParser extends CstParser {
             { ALT: () => this.CONSUME(ScaleY) },
             { ALT: () => this.CONSUME(Rotate) },
             { ALT: () => this.CONSUME(Alpha) },
+            { ALT: () => this.CONSUME(AnchorX) },
+            { ALT: () => this.CONSUME(AnchorY) },
           ]);
           this.CONSUME2(Colon);
           this.SUBRULE1(this.signedNumber);
@@ -361,7 +357,10 @@ export class VNSParser extends CstParser {
 
   public hideStatement = this.RULE('hideStatement', () => {
     this.CONSUME(Hide);
-    this.OR([{ ALT: () => this.CONSUME(Dialogue) }, { ALT: () => this.CONSUME(Identifier) }]);
+    this.OR([
+      { ALT: () => this.CONSUME(Dialogue) },
+      { ALT: () => this.SUBRULE(this.variableIdentifier, { LABEL: 'character' }) },
+    ]);
   });
 
   public inspectStatement = this.RULE('inspectStatement', () => {
@@ -566,9 +565,9 @@ export class VNSParser extends CstParser {
     const nextTok = this.LA(1);
     const prevTok = this.LA(0);
 
-    // 1. Dialogue statement với tên nhân vật (kể cả contextual keywords như x:, end:): `character:` hoặc `character as "...":`
+    // 1. Dialogue statement với tên nhân vật (kể cả contextual keywords như x:, end:): `character:` hoặc `"Speaker":`
     const nextNextTok = this.LA(2);
-    if (nextNextTok && (nextNextTok.tokenType === Colon || nextNextTok.tokenType === As)) {
+    if (nextNextTok && nextNextTok.tokenType === Colon) {
       return false;
     }
 
@@ -576,7 +575,6 @@ export class VNSParser extends CstParser {
     const nextType = nextTok.tokenType;
     if (
       nextType === Scene ||
-      nextType === Reveal ||
       nextType === Background ||
       nextType === Show ||
       nextType === Hide ||
@@ -665,6 +663,8 @@ export class VNSParser extends CstParser {
       { ALT: () => this.CONSUME(OffsetY) },
       { ALT: () => this.CONSUME(Alpha) },
       { ALT: () => this.CONSUME(Easing) },
+      { ALT: () => this.CONSUME(AnchorX) },
+      { ALT: () => this.CONSUME(AnchorY) },
       { ALT: () => this.CONSUME(Title) },
       { ALT: () => this.CONSUME(Volume) },
       { ALT: () => this.CONSUME(Duration) },

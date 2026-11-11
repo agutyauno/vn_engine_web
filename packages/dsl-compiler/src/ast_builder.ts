@@ -9,7 +9,6 @@ import type {
   SceneASTNode,
   StatementAST,
   DialogueStatement,
-  RevealStatement,
   BackgroundStatement,
   ShowStatement,
   HideStatement,
@@ -215,7 +214,6 @@ export class VNSAstBuilder extends BaseVNSVisitor {
   statement(ctx: any): StatementAST | SceneASTNode {
     if (ctx.subSceneStatement) return this.visit(ctx.subSceneStatement[0]);
     if (ctx.dialogueStatement) return this.visit(ctx.dialogueStatement[0]);
-    if (ctx.revealStatement) return this.visit(ctx.revealStatement[0]);
     if (ctx.backgroundStatement) return this.visit(ctx.backgroundStatement[0]);
     if (ctx.showStatement) return this.visit(ctx.showStatement[0]);
     if (ctx.hideStatement) return this.visit(ctx.hideStatement[0]);
@@ -238,51 +236,33 @@ export class VNSAstBuilder extends BaseVNSVisitor {
   }
 
   dialogueStatement(ctx: any): DialogueStatement {
-    const charNode = ctx.character?.[0] ?? ctx.variableIdentifier?.[0] ?? ctx.Identifier?.[0];
-    if (charNode) {
+    let speaker: string | null = null;
+    let locToken: IToken | undefined;
+
+    if (ctx.character) {
+      const charNode = ctx.character[0];
       const charToken = charNode.image ? charNode : this.visit(charNode);
-      let character: string | null = charToken.image;
-      if (character === 'narrator') {
-        character = null;
-      }
-
-      let displayNameOverride: string | undefined;
-      let textToken: IToken;
-
-      if (ctx.As && ctx.StringLiteral && ctx.StringLiteral.length > 1) {
-        displayNameOverride = cleanString(ctx.StringLiteral[0].image);
-        textToken = ctx.StringLiteral[1];
-      } else {
-        textToken = ctx.StringLiteral[0];
-      }
-
-      return {
-        type: 'DialogueStatement',
-        character,
-        text: cleanString(textToken.image),
-        displayNameOverride,
-        loc: extractLocation(charToken, this.currentFileId),
-      };
-    } else {
-      // Anonymous dialogue
-      const textToken = ctx.StringLiteral[0];
-      return {
-        type: 'DialogueStatement',
-        character: null,
-        text: cleanString(textToken.image),
-        loc: extractLocation(textToken, this.currentFileId),
-      };
+      locToken = charToken;
+      const name = charToken.image;
+      speaker = name === 'narrator' ? null : name;
+    } else if (ctx.speaker) {
+      locToken = ctx.speaker[0];
+      speaker = cleanString(ctx.speaker[0].image);
     }
-  }
 
-  revealStatement(ctx: any): RevealStatement {
-    const charToken = ctx.Identifier[0];
-    const nameToken = ctx.StringLiteral[0];
+    const textToken = ctx.text?.[0] ?? ctx.StringLiteral?.[ctx.StringLiteral.length - 1];
+    if (!locToken) {
+      locToken = textToken;
+    }
+
+    const text = textToken ? cleanString(textToken.image) : '';
+
     return {
-      type: 'RevealStatement',
-      characterId: charToken.image,
-      displayName: cleanString(nameToken.image),
-      loc: extractLocation(charToken, this.currentFileId),
+      type: 'DialogueStatement',
+      speaker,
+      character: speaker,
+      text,
+      loc: extractLocation(locToken, this.currentFileId),
     };
   }
 
@@ -350,16 +330,19 @@ export class VNSAstBuilder extends BaseVNSVisitor {
   showStatement(ctx: any): ShowStatement {
     const charNode = ctx.character?.[0] ?? ctx.variableIdentifier?.[0] ?? ctx.Identifier?.[0];
     const charToken = charNode.image ? charNode : this.visit(charNode);
-    let sprite = '';
+    const targetId = charToken.image;
+    let variant = '';
     if (ctx.DotIdentifier) {
-      sprite = ctx.DotIdentifier[0].image.slice(1);
+      variant = ctx.DotIdentifier[0].image.slice(1);
     } else if (ctx.sprite) {
       const spriteNode = ctx.sprite[0];
       const spriteToken = spriteNode.image ? spriteNode : this.visit(spriteNode);
-      sprite = spriteToken.image;
+      variant = spriteToken.image;
     } else if (ctx.Identifier && ctx.Identifier[1]) {
-      sprite = ctx.Identifier[1].image;
+      variant = ctx.Identifier[1].image;
     }
+    let anchorX: number | undefined;
+    let anchorY: number | undefined;
     let position: NamedPosition | undefined;
     let x: number | undefined;
     let y: number | undefined;
@@ -379,6 +362,8 @@ export class VNSAstBuilder extends BaseVNSVisitor {
     if (ctx.showArgument) {
       for (const argCst of ctx.showArgument) {
         const argRes = this.visit(argCst);
+        if (argRes.anchorX !== undefined) anchorX = argRes.anchorX;
+        if (argRes.anchorY !== undefined) anchorY = argRes.anchorY;
         if (argRes.position !== undefined) position = argRes.position;
         if (argRes.x !== undefined) x = argRes.x;
         if (argRes.y !== undefined) y = argRes.y;
@@ -399,8 +384,12 @@ export class VNSAstBuilder extends BaseVNSVisitor {
 
     return {
       type: 'ShowStatement',
-      character: charToken.image,
-      sprite,
+      targetId,
+      variant,
+      character: targetId,
+      sprite: variant,
+      anchorX,
+      anchorY,
       position,
       x,
       y,
@@ -473,6 +462,12 @@ export class VNSAstBuilder extends BaseVNSVisitor {
     if (ctx.Easing) {
       return { easing: cleanString(ctx.StringLiteral[0].image) };
     }
+    if (ctx.AnchorX) {
+      return { anchorX: this.visit(ctx.signedNumber[0]) };
+    }
+    if (ctx.AnchorY) {
+      return { anchorY: this.visit(ctx.signedNumber[0]) };
+    }
     if (ctx.Duration) {
       if (ctx.DurationLiteral) {
         return { duration: parseDurationSeconds(ctx.DurationLiteral[0].image) };
@@ -495,7 +490,8 @@ export class VNSAstBuilder extends BaseVNSVisitor {
         loc: extractLocation(dialogueToken, this.currentFileId),
       };
     }
-    const charToken = ctx.Identifier[0];
+    const charNode = ctx.character?.[0] ?? ctx.variableIdentifier?.[0] ?? ctx.Identifier?.[0];
+    const charToken = charNode.image ? charNode : this.visit(charNode);
     if (charToken.image.toLowerCase() === 'dialogue') {
       return {
         type: 'HideDialogueStatement',
@@ -504,6 +500,7 @@ export class VNSAstBuilder extends BaseVNSVisitor {
     }
     return {
       type: 'HideStatement',
+      targetId: charToken.image,
       character: charToken.image,
       loc: extractLocation(charToken, this.currentFileId),
     };

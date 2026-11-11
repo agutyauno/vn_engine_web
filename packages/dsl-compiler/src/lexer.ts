@@ -47,8 +47,6 @@ export const Identifier = createToken({
 });
 
 export const Scene = createToken({ name: 'Scene', pattern: /\bscene\b/ });
-export const As = createToken({ name: 'As', pattern: /\bas\b/ });
-export const Reveal = createToken({ name: 'Reveal', pattern: /\breveal\b/ });
 export const Background = createToken({ name: 'Background', pattern: /\bbackground\b/ });
 export const Show = createToken({ name: 'Show', pattern: /\bshow\b/ });
 export const Hide = createToken({ name: 'Hide', pattern: /\bhide\b/ });
@@ -99,6 +97,8 @@ export const OffsetX = createToken({ name: 'OffsetX', pattern: /\b(offset_x|offs
 export const OffsetY = createToken({ name: 'OffsetY', pattern: /\b(offset_y|offsetY)\b/ });
 export const Alpha = createToken({ name: 'Alpha', pattern: /\b(alpha|opacity)\b/ });
 export const Easing = createToken({ name: 'Easing', pattern: /\beasing\b/ });
+export const AnchorX = createToken({ name: 'AnchorX', pattern: /\b(anchor_x|anchorX)\b/ });
+export const AnchorY = createToken({ name: 'AnchorY', pattern: /\b(anchor_y|anchorY)\b/ });
 
 // -----------------------------------------------------------------------------
 // 4. Toán tử đa ký tự (Multi-character Operators)
@@ -156,8 +156,6 @@ export const allTokens: TokenType[] = [
 
   // Keywords
   Scene,
-  As,
-  Reveal,
   Background,
   Show,
   Hide,
@@ -200,6 +198,8 @@ export const allTokens: TokenType[] = [
   OffsetY,
   Alpha,
   Easing,
+  AnchorX,
+  AnchorY,
 
   // Multi-character Operators (phải đứng trước single-character)
   LessEquals,

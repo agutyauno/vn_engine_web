@@ -294,23 +294,16 @@ function formatStatement(trimmedCode: string): string {
     return `${choiceOptMatch[1]}: ${choiceOptMatch[3]} ${choiceOptMatch[4]}`;
   }
 
-  // 5. Dialogue with character alias: char as "Alias": "Text"
-  const aliasDialogueMatch = trimmedCode.match(
-    /^([a-zA-Z0-9_]+)\s+as\s+("([^"\\]|\\.)*")\s*:\s*("([^"\\]|\\.)*")$/,
+  // 5. Character / Speaker dialogue: char: "Text" or "Speaker": "Text"
+  const charDialogueMatch = trimmedCode.match(
+    /^(?:([a-zA-Z0-9_]+)|"((?:[^"\\]|\\.)*)")\s*:\s*("([^"\\]|\\.)*")$/,
   );
-  if (
-    aliasDialogueMatch &&
-    aliasDialogueMatch[1] &&
-    aliasDialogueMatch[2] &&
-    aliasDialogueMatch[4]
-  ) {
-    return `${aliasDialogueMatch[1]} as ${aliasDialogueMatch[2]}: ${aliasDialogueMatch[4]}`;
-  }
-
-  // 6. Character / Narrator dialogue: char: "Text"
-  const charDialogueMatch = trimmedCode.match(/^([a-zA-Z0-9_]+)\s*:\s*("([^"\\]|\\.)*")$/);
-  if (charDialogueMatch && charDialogueMatch[1] && charDialogueMatch[2]) {
-    return `${charDialogueMatch[1]}: ${charDialogueMatch[2]}`;
+  if (charDialogueMatch) {
+    const charName = charDialogueMatch[1];
+    const strSpeaker = charDialogueMatch[2];
+    const text = charDialogueMatch[3];
+    const speaker = charName ? charName : `"${strSpeaker}"`;
+    return `${speaker}: ${text}`;
   }
 
   // 7. Bare narration dialogue: "Text"
@@ -344,11 +337,6 @@ function formatStatement(trimmedCode: string): string {
   const waitMatch = trimmedCode.match(/^wait\s+([0-9]+(?:\.[0-9]+)?s?)$/);
   if (waitMatch && waitMatch[1]) {
     return `wait ${waitMatch[1]}`;
-  }
-
-  const revealMatch = trimmedCode.match(/^reveal\s+([a-zA-Z0-9_]+)\s+as\s+("([^"\\]|\\.)*")$/);
-  if (revealMatch && revealMatch[1] && revealMatch[2]) {
-    return `reveal ${revealMatch[1]} as ${revealMatch[2]}`;
   }
 
   const runScriptMatch = trimmedCode.match(/^run_script\s+("([^"\\]|\\.)*")$/);

@@ -13,7 +13,6 @@ import {
   type CallStatement,
   type ChoiceStatement,
   type DialogueStatement,
-  type RevealStatement,
   type IfStatement,
   type WhileStatement,
   type VarDefineStatement,
@@ -313,6 +312,16 @@ export function validateSemantics(
       if (stmt.type === 'DialogueStatement') {
         const diag = stmt as DialogueStatement;
         checkInterpolatedVariables(diag.text, globals, sceneLocals, sceneName, diag.loc, errors);
+        if (diag.speaker) {
+          checkInterpolatedVariables(
+            diag.speaker,
+            globals,
+            sceneLocals,
+            sceneName,
+            diag.loc,
+            errors,
+          );
+        }
         if (diag.displayNameOverride) {
           checkInterpolatedVariables(
             diag.displayNameOverride,
@@ -323,16 +332,6 @@ export function validateSemantics(
             errors,
           );
         }
-      } else if (stmt.type === 'RevealStatement') {
-        const rev = stmt as RevealStatement;
-        checkInterpolatedVariables(
-          rev.displayName,
-          globals,
-          sceneLocals,
-          sceneName,
-          rev.loc,
-          errors,
-        );
       } else if (stmt.type === 'GotoStatement') {
         const gt = stmt as GotoStatement;
         if (!definedSceneNames.has(gt.targetScene)) {
@@ -423,9 +422,10 @@ export function validateSemantics(
         }
       } else if (stmt.type === 'ShowStatement') {
         const showStmt = stmt as ShowStatement;
+        const targetId = showStmt.targetId || showStmt.character || 'sprite';
         if (showStmt.position && (showStmt.x !== undefined || showStmt.y !== undefined)) {
           errors.push({
-            message: `In show statement '${showStmt.character}', cannot use both 'position' and 'x'/'y' coordinates simultaneously.`,
+            message: `In show statement '${targetId}', cannot use both 'position' and 'x'/'y' coordinates simultaneously.`,
             loc: showStmt.loc,
           });
         }
@@ -434,19 +434,19 @@ export function validateSemantics(
           !VALID_POSITION_SET.has(showStmt.position.toLowerCase())
         ) {
           errors.push({
-            message: `In show statement '${showStmt.character}', unknown position "${showStmt.position}". Supported positions: ${SUPPORTED_NAMED_POSITIONS.join(', ')}.`,
+            message: `In show statement '${targetId}', unknown position "${showStmt.position}". Supported positions: ${SUPPORTED_NAMED_POSITIONS.join(', ')}.`,
             loc: showStmt.loc,
           });
         }
         if (showStmt.transition && !VALID_TRANSITION_SET.has(showStmt.transition.toLowerCase())) {
           errors.push({
-            message: `In show statement '${showStmt.character}', unknown transition "${showStmt.transition}". Supported transitions: ${SUPPORTED_TRANSITIONS.join(', ')}.`,
+            message: `In show statement '${targetId}', unknown transition "${showStmt.transition}". Supported transitions: ${SUPPORTED_TRANSITIONS.join(', ')}.`,
             loc: showStmt.loc,
           });
         }
         if (showStmt.easing && !VALID_EASING_SET.has(showStmt.easing.toLowerCase())) {
           errors.push({
-            message: `In show statement '${showStmt.character}', unknown easing "${showStmt.easing}". Supported easings: ${SUPPORTED_EASINGS.join(', ')}.`,
+            message: `In show statement '${targetId}', unknown easing "${showStmt.easing}". Supported easings: ${SUPPORTED_EASINGS.join(', ')}.`,
             loc: showStmt.loc,
           });
         }

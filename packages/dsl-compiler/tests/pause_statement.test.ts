@@ -155,7 +155,7 @@ pause
         define pause = 5
         ~ pause = pause + 10
         pause: "Xin chào, tôi tên là Pause!"
-        pause as "Người Bí Ẩn": "Tôi là Pause với tên hiển thị tùy chỉnh."
+        "Người Bí Ẩn": "Tôi là Pause với tên hiển thị tùy chỉnh."
         pause
         "Dẫn chuyện tiếp tục sau khi nhấn chuột."
       }
@@ -177,7 +177,7 @@ pause
     expect(assigns[0]?.variable).toBe('pause');
     expect(assigns[1]?.variable).toBe('pause');
 
-    // 2. Dialogue with speaker identifier "pause" (no alias)
+    // 2. Dialogue with speaker identifier "pause"
     const normalDialogue = program.find(
       (i): i is DialogueInstruction =>
         i.type === 'DIALOGUE' && i.character === 'pause' && !i.displayNameOverride,
@@ -186,15 +186,15 @@ pause
     expect(normalDialogue?.character).toBe('pause');
     expect(normalDialogue?.text).toBe('Xin chào, tôi tên là Pause!');
 
-    // 3. Dialogue with speaker identifier "pause" and alias override
-    const aliasDialogue = program.find(
+    // 3. Dialogue with literal string speaker "Người Bí Ẩn"
+    const literalDialogue = program.find(
       (i): i is DialogueInstruction =>
-        i.type === 'DIALOGUE' && i.character === 'pause' && i.displayNameOverride === 'Người Bí Ẩn',
+        i.type === 'DIALOGUE' && i.character === 'Người Bí Ẩn',
     );
-    expect(aliasDialogue).toBeDefined();
-    expect(aliasDialogue?.character).toBe('pause');
-    expect(aliasDialogue?.displayNameOverride).toBe('Người Bí Ẩn');
-    expect(aliasDialogue?.text).toBe('Tôi là Pause với tên hiển thị tùy chỉnh.');
+    expect(literalDialogue).toBeDefined();
+    expect(literalDialogue?.character).toBe('Người Bí Ẩn');
+    expect(literalDialogue?.speaker).toBe('Người Bí Ẩn');
+    expect(literalDialogue?.text).toBe('Tôi là Pause với tên hiển thị tùy chỉnh.');
 
     // 4. Standalone pause statement (interactive suspend point)
     const pauseInstr = program.find((i): i is PauseInstruction => i.type === 'PAUSE');

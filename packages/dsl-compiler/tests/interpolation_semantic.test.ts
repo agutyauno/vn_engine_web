@@ -85,10 +85,10 @@ describe('Interpolation Semantic Validation (interpolation_semantic.test.ts)', (
     expect(result.errors?.length ?? 0).toBe(0);
   });
 
-  it('kiểm tra và báo lỗi biến chưa define trong Choice và Reveal', () => {
+  it('kiểm tra và báo lỗi biến chưa define trong Choice và Literal Speaker', () => {
     const dsl = `
       scene main {
-        reveal alice as "{unknown_title} Alice"
+        "{unknown_title} Alice": "Chào bạn"
         choice {
           "Mua vé ({unknown_cost} vàng)": goto end_scene
         }

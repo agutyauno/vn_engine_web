@@ -101,12 +101,10 @@ Dòng 2 có dấu # thăng và dấu } đóng lẻ.
 Dòng 3 kết thúc.
 """
 
-    doctor as "???": "[D8] Tên tạm. KỲ VỌNG nameplate là ???."
-    doctor as "{hero_name}?": "[D8b] Alias có nội suy. KỲ VỌNG nameplate: ARTHUR?"
-    reveal doctor as "doctor – Hội phó"
-    doctor: "[D9] Sau reveal. KỲ VỌNG nameplate: doctor – HỘI PHÓ (màu theo colorHex nếu đã khai báo)."
-    reveal bob as "Nhân vật có cái tên dài đến mức có thể tràn khỏi nameplate"
-    bob: "[D9b] Nameplate dài: kiểm tra có tràn/vỡ layout không."
+    "???": "[D8] Tên tạm. KỲ VỌNG nameplate là ???."
+    "{hero_name}?": "[D8b] Alias có nội suy. KỲ VỌNG nameplate: ARTHUR?"
+    "doctor – Hội phó": "[D9] Literal speaker. KỲ VỌNG nameplate: doctor – Hội phó."
+    "Nhân vật có cái tên dài đến mức có thể tràn khỏi nameplate": "[D9b] Nameplate dài: kiểm tra có tràn/vỡ layout không."
     zed: "[D10] Nhân vật 'zed' chưa khai báo: nameplate dùng màu mặc định, không crash."
 
     doctor: "[D11] Dòng rất dài để thử tự xuống dòng: Ngày xửa ngày xưa, ở một ngôi trường nhỏ nằm cuối con đường rợp bóng cây phượng, có một câu lạc bộ bí ẩn chuyên giải quyết những chuyện kỳ lạ mà không ai muốn nhắc đến; mỗi chiều hoàng hôn, những thành viên cuối cùng lại tụ họp để bàn về vụ án tiếp theo."
@@ -500,7 +498,7 @@ scene lab_disabled {
 scene lab_format    {
 background   bg_fmt transition:"fade"
 show doctor.happy( position:"left" ,flipX:true ,duration:0.4s )
-   doctor as "???" :   "Thoại thường  giữ   nguyên   khoảng   trắng."
+   "???" :   "Thoại thường  giữ   nguyên   khoảng   trắng."
    if   trust>=0&&energy<=100   {
 ~ trust=trust+1
    }

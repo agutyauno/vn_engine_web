@@ -29,6 +29,7 @@ import {
 } from './error_formatter';
 
 export interface CompilerOptions {
+  /** @deprecated Sẽ xóa bỏ ở Phase 7. Quản lý sprite qua assets (category: 'sprite') */
   characters?: Character[];
   assets?: Array<{ id: string; name?: string; type?: string; category?: string }>;
 }

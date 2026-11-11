@@ -21,10 +21,12 @@ export interface AssetReference {
   assetKey: string;
   loc?: ScriptReferenceLocation;
   expectedType?: 'image' | 'audio';
-  category?: 'background' | 'audio' | 'inspect';
+  category?: 'background' | 'audio' | 'inspect' | 'sprite';
+  variant?: string;
 }
 
 export interface ScriptReferences {
+  /** @deprecated Thay thế bằng assets với category: 'sprite' */
   characters: CharacterReference[];
   assets: AssetReference[];
 }
@@ -52,23 +54,32 @@ export function extractScriptReferences(ast: ProgramAST): ScriptReferences {
         }
         break;
 
-      case 'ShowStatement':
-        if (stmt.character) {
-          characters.push({
-            characterId: stmt.character,
+      case 'ShowStatement': {
+        const key = stmt.targetId || stmt.character;
+        if (key) {
+          assets.push({
+            assetKey: key,
+            variant: stmt.variant || stmt.sprite || undefined,
+            category: 'sprite',
+            expectedType: 'image',
             loc: stmt.loc,
           });
         }
         break;
+      }
 
-      case 'HideStatement':
-        if (stmt.character) {
-          characters.push({
-            characterId: stmt.character,
+      case 'HideStatement': {
+        const key = stmt.targetId || stmt.character;
+        if (key && key.toLowerCase() !== 'dialogue') {
+          assets.push({
+            assetKey: key,
+            category: 'sprite',
+            expectedType: 'image',
             loc: stmt.loc,
           });
         }
         break;
+      }
 
       case 'PlayStatement':
         if (stmt.assetId) {

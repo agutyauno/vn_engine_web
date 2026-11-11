@@ -8,7 +8,6 @@ import type {
   StatementAST,
   Instruction,
   DialogueStatement,
-  RevealStatement,
   BackgroundStatement,
   ShowStatement,
   HideStatement,
@@ -97,24 +96,15 @@ export class CodeGenerator {
     switch (stmt.type) {
       case 'DialogueStatement': {
         const d = stmt as DialogueStatement;
+        const speaker = d.speaker !== undefined ? d.speaker : d.character ?? null;
         this.instructions.push({
           type: 'DIALOGUE',
-          character: d.character,
+          character: speaker,
+          speaker,
           text: d.text,
           displayNameOverride: d.displayNameOverride,
           uiScreenId: d.uiScreenId,
           loc: d.loc,
-        });
-        break;
-      }
-
-      case 'RevealStatement': {
-        const r = stmt as RevealStatement;
-        this.instructions.push({
-          type: 'REVEAL',
-          characterId: r.characterId,
-          displayName: r.displayName,
-          loc: r.loc,
         });
         break;
       }
@@ -145,29 +135,34 @@ export class CodeGenerator {
 
       case 'ShowStatement': {
         const s = stmt as ShowStatement;
-        let sprite = s.sprite;
-        if (!sprite || sprite.trim() === '') {
+        const targetId = s.targetId || s.character || '';
+        let variant = s.variant || s.sprite;
+        if (!variant || variant.trim() === '') {
           const charDef = this.characters.find(
-            c => c.id.toLowerCase() === s.character.toLowerCase(),
+            c => c.id.toLowerCase() === targetId.toLowerCase(),
           );
           if (charDef && charDef.sprites) {
             const keys = Object.keys(charDef.sprites);
             if (keys.includes('default')) {
-              sprite = 'default';
+              variant = 'default';
             } else if (keys.length > 0 && keys[0]) {
-              sprite = keys[0];
+              variant = keys[0];
             } else {
-              sprite = 'default';
+              variant = 'default';
             }
           } else {
-            sprite = 'default';
+            variant = 'default';
           }
         }
 
         this.instructions.push({
           type: 'SHOW',
-          character: s.character,
-          sprite,
+          targetId,
+          variant,
+          character: targetId,
+          sprite: variant,
+          anchorX: s.anchorX ?? 0.5,
+          anchorY: s.anchorY ?? 1.0,
           position: s.position,
           x: s.x,
           y: s.y,
@@ -190,7 +185,8 @@ export class CodeGenerator {
 
       case 'HideStatement': {
         const h = stmt as HideStatement;
-        if (h.character.toLowerCase() === 'dialogue') {
+        const targetId = h.targetId || h.character || '';
+        if (targetId.toLowerCase() === 'dialogue') {
           this.instructions.push({
             type: 'HIDE_DIALOGUE',
             loc: h.loc,
@@ -198,7 +194,8 @@ export class CodeGenerator {
         } else {
           this.instructions.push({
             type: 'HIDE',
-            character: h.character,
+            targetId,
+            character: targetId,
             loc: h.loc,
           });
         }
