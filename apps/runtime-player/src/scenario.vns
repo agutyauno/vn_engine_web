@@ -36,7 +36,7 @@ scene prologue ui: "default" {
     "Before you, the Student Council room door — usually strictly locked — stands slightly ajar."
 
     show alice.serious(position: "left", duration: 0.4s)
-    alice as "???": "{speed:slow}Hey... {pause:0.6s}What are you doing lurking in front of the Student Council room?{speed:normal}"
+    "???": "{speed:slow}Hey... {pause:0.6s}What are you doing lurking in front of the Student Council room?{speed:normal}"
 
     choice {
         "I saw the door open and was curious": goto .explain_curious
@@ -46,24 +46,23 @@ scene prologue ui: "default" {
 
     scene .explain_curious {
         ~ trust_score = 15
-        alice as "???": "The door was open? Strange... My trust in you is {color:#38bdf8}{trust_score}%{/color}."
+        "???": "The door was open? Strange... My trust in you is {color:#38bdf8}{trust_score}%{/color}."
         goto .meet_alice
     }
 
     scene .explain_passby {
-        alice as "???": "Still lingering around school at this hour? That sounds suspicious."
+        "???": "Still lingering around school at this hour? That sounds suspicious."
         ~ trust_score = 5
         goto .meet_alice
     }
 
     scene .run_away {
-        alice as "???": "Hold on! Don't run away!"
+        "???": "Hold on! Don't run away!"
         ~ trust_score = 0
         goto coward_ending
     }
 
     scene .meet_alice {
-        reveal alice as "Alice - Vice President"
         show alice.smile(position: "left")
 
         alice: "I'm Alice, Student Council Vice President. If the door was open, we need to check if someone broke in."

@@ -315,21 +315,23 @@ export class VNRuntimeKernel {
 
   private resolveSpeakerColor(characterId?: string | null): string | undefined {
     if (!characterId) return undefined;
-    const char = this.charactersMap.get(characterId);
-    return char?.colorHex;
+    if (this.charactersMap.size > 0) {
+      const char = this.charactersMap.get(characterId);
+      return char?.colorHex;
+    }
+    return '#ffffff';
   }
 
   private resolveSpeakerName(instruction?: DialogueInstruction | null): string | undefined {
     if (!instruction) return undefined;
     if (instruction.displayNameOverride) return instruction.displayNameOverride;
-    const charId = instruction.character;
-    if (!charId) return undefined;
-    const vmState = this.vm.getState();
-    const revealedName = vmState.characterDisplayOverrides?.[charId];
-    if (revealedName) return revealedName;
-    const configuredChar = this.charactersMap.get(charId);
-    if (configuredChar?.name?.trim()) return configuredChar.name.trim();
-    return charId;
+    const speaker = instruction.speaker ?? instruction.character;
+    if (!speaker) return undefined;
+    if (this.charactersMap.size > 0) {
+      const configuredChar = this.charactersMap.get(speaker);
+      if (configuredChar?.name?.trim()) return configuredChar.name.trim();
+    }
+    return speaker;
   }
 
   private handleDialogue(instruction: DialogueInstruction): void {

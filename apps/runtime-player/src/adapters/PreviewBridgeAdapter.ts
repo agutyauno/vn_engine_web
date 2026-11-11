@@ -37,6 +37,7 @@ export interface HotReloadOptions {
   line?: number;
   preserveState?: boolean;
   projectId?: string;
+  /** @deprecated Sẽ gỡ bỏ hoàn toàn ở Micro-Phase 7 */
   characters?: Character[];
   assets?: AssetRef[];
 }

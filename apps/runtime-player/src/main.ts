@@ -7,7 +7,7 @@ import { render, h } from 'preact';
 import { compileString } from '@vn-engine/dsl-compiler';
 import { GameRenderer } from '@vn-engine/renderer';
 import { AudioManager } from '@vn-engine/audio';
-import type { Instruction, Character, EngineDiagnostic } from '@vn-engine/shared-types';
+import type { Instruction, AssetRef, EngineDiagnostic } from '@vn-engine/shared-types';
 
 import { VNRuntimeKernel } from './core/VNRuntimeKernel';
 import type { PlayerMode } from './core/contracts';
@@ -17,7 +17,6 @@ import { StorageAdapter } from './adapters/StorageAdapter';
 import {
   AssetResolverAdapter,
   type ProjectData,
-  type ProjectDataCharacter,
   type ProjectDataAsset,
 } from './adapters/AssetResolverAdapter';
 import {
@@ -30,9 +29,27 @@ import { PlayerApp } from './ui/components/PlayerApp';
 
 import scenarioSource from './scenario.vns?raw';
 
-const defaultStandaloneCharacters: Character[] = [
-  { id: 'alice', name: 'Alice', colorHex: '#38bdf8', sprites: {} },
-  { id: 'bob', name: 'Bob', colorHex: '#f43f5e', sprites: {} },
+const defaultStandaloneAssets: AssetRef[] = [
+  {
+    id: 'asset_alice_default',
+    name: 'alice.png',
+    type: 'image',
+    storageUrl: '',
+    sizeBytes: 0,
+    tag: 'alice',
+    variant: 'default',
+    category: 'sprite',
+  },
+  {
+    id: 'asset_bob_default',
+    name: 'bob.png',
+    type: 'image',
+    storageUrl: '',
+    sizeBytes: 0,
+    tag: 'bob',
+    variant: 'default',
+    category: 'sprite',
+  },
 ];
 
 window.addEventListener('DOMContentLoaded', async () => {
@@ -55,11 +72,10 @@ window.addEventListener('DOMContentLoaded', async () => {
   // 1. Quản lý Project Data và Asset Resolver
   let currentProjectData: ProjectData = {
     id: projectId,
-    characters:
+    assets:
       !isEmbedded && !isModePreview
-        ? (defaultStandaloneCharacters as unknown as ProjectDataCharacter[])
+        ? (defaultStandaloneAssets as unknown as ProjectDataAsset[])
         : [],
-    assets: [],
   };
 
   let bridge: PreviewBridgeAdapter;
@@ -77,7 +93,6 @@ window.addEventListener('DOMContentLoaded', async () => {
   await gameRenderer.init();
   const rendererAdapter = new RendererAdapter(gameRenderer, {
     assetGraphicResolver: assetResolver.getAssetGraphicResolver(),
-    isPropChecker: (id: string) => assetResolver.checkIsProp(id),
   });
 
   const audioManager = new AudioManager();
@@ -118,7 +133,6 @@ window.addEventListener('DOMContentLoaded', async () => {
     {
       initialMode,
       projectId,
-      characters: !isEmbedded && !isModePreview ? defaultStandaloneCharacters : undefined,
     },
   );
 
@@ -147,12 +161,10 @@ window.addEventListener('DOMContentLoaded', async () => {
       if (opts?.assets && opts.assets.length > 0) {
         effectiveAssets = await hydrateForeignAssetBlobs(opts.assets, bridge);
       }
-      if (opts?.characters || effectiveAssets) {
+      if (effectiveAssets) {
         currentProjectData = {
           ...currentProjectData,
           id: opts?.projectId || currentProjectData.id,
-          characters:
-            (opts?.characters as unknown as ProjectDataCharacter[]) || currentProjectData.characters,
           assets: (effectiveAssets as unknown as ProjectDataAsset[]) || currentProjectData.assets,
         };
         assetResolver.resetWarnedAssets();
@@ -185,7 +197,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     bridge.sendStateUpdate(kernel.getVariables());
   });
 
-  // 6. Mount Preact UI Root vào #ui-root
+  // 7. Mount Preact UI Root vào #ui-root
   const uiRoot = document.getElementById('ui-root');
   if (uiRoot) {
     render(h(PlayerUIProvider, { kernel }, h(PlayerApp, null)), uiRoot);

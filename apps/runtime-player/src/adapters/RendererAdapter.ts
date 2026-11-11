@@ -15,7 +15,6 @@ import type {
 import type { DiagnosticBus } from '../services/diagnosticBus';
 
 export interface RendererAdapterOptions {
-  isPropChecker?: (id: string) => boolean;
   assetGraphicResolver?: AssetGraphicResolver;
   diagnosticBus?: DiagnosticBus;
 }
@@ -77,21 +76,33 @@ export class RendererAdapter {
       case 'SHOW': {
         const showInstr = instr as ShowInstruction;
         if (showInstr.loc) {
-          this.pendingAssetLocations.set(
-            `${showInstr.character}_${showInstr.sprite}`,
-            showInstr.loc,
-          );
-          this.pendingAssetLocations.set(showInstr.character, showInstr.loc);
+          const target = showInstr.targetId || showInstr.character;
+          const variant = showInstr.variant || showInstr.sprite;
+          if (target && variant) {
+            this.pendingAssetLocations.set(`${target}_${variant}`, showInstr.loc);
+          }
+          if (showInstr.character && showInstr.sprite) {
+            this.pendingAssetLocations.set(
+              `${showInstr.character}_${showInstr.sprite}`,
+              showInstr.loc,
+            );
+          }
+          if (target) {
+            this.pendingAssetLocations.set(target, showInstr.loc);
+          }
+          if (showInstr.character) {
+            this.pendingAssetLocations.set(showInstr.character, showInstr.loc);
+          }
         }
-        const isProp = this.options.isPropChecker
-          ? this.options.isPropChecker(showInstr.character)
-          : false;
-        await this.gameRenderer.showCharacter(showInstr, resolver, isProp);
+        await this.gameRenderer.showSprite(showInstr, resolver);
         break;
       }
       case 'HIDE': {
         const hideInstr = instr as HideInstruction;
-        this.gameRenderer.hideCharacter(hideInstr.character);
+        const targetId = hideInstr.targetId || hideInstr.character;
+        if (targetId) {
+          this.gameRenderer.hideSprite(targetId);
+        }
         break;
       }
       default:
@@ -103,9 +114,7 @@ export class RendererAdapter {
   public async syncStateCatchUp(catchUp: CatchUpVisualState): Promise<void> {
     const defaultResolver: AssetGraphicResolver = (id: string) => id;
     const resolver = this.options.assetGraphicResolver ?? defaultResolver;
-    const defaultPropChecker = (_id: string): boolean => false;
-    const propChecker = this.options.isPropChecker ?? defaultPropChecker;
-    await this.gameRenderer.syncStateCatchUp(catchUp, resolver, propChecker);
+    await this.gameRenderer.syncStateCatchUp(catchUp, resolver);
   }
 
   public async captureThumbnail(width = 320, height = 180): Promise<string> {

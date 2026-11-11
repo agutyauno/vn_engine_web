@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { RendererAdapter } from '../src/adapters/RendererAdapter';
 import type { GameRenderer, CatchUpVisualState } from '@vn-engine/renderer';
-import type { Instruction, ShowInstruction, HideInstruction, BackgroundInstruction } from '@vn-engine/shared-types';
+import type { ShowInstruction, HideInstruction, BackgroundInstruction } from '@vn-engine/shared-types';
 import type { DiagnosticBus } from '../src/services/diagnosticBus';
 
 describe('RendererAdapter', () => {
