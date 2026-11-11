@@ -16,6 +16,13 @@ import type {
   BinaryExpression,
   UnaryExpression,
   CallExpression,
+  AssetRef,
+  ShowInstruction,
+  HideInstruction,
+  DialogueInstruction,
+  ShowStatement,
+  HideStatement,
+  DialogueStatement,
 } from '../src';
 import { CURRENT_SAVE_VERSION } from '../src';
 
@@ -449,5 +456,281 @@ describe('Shared Types & Data Contracts', () => {
     expect(restored.dialogueCounter).toBe(5);
     expect(restored.state.currentScene).toBe('chapter1_scene1');
     expect(restored.state.variables['score']).toBe(100);
+  });
+
+  describe('Unified Sprite Layer & Literal Speaker Contracts (ADR-028)', () => {
+    // TC-SPRITE-TYPES-01: AssetRef tag & variant metadata
+    it('TC-SPRITE-TYPES-01: should support tag and variant in AssetRef for sprite category', () => {
+      const spriteAsset: AssetRef = {
+        id: '22222222-3333-4444-5555-666666666666',
+        name: 'alice_happy.png',
+        type: 'image',
+        category: 'sprite',
+        tag: 'alice',
+        variant: 'happy',
+        storageUrl: 'https://assets.example.com/alice_happy.png',
+        sizeBytes: 204800,
+        version: 1,
+      };
+
+      const propAsset: AssetRef = {
+        id: '33333333-4444-5555-6666-777777777777',
+        name: 'key_gold.png',
+        type: 'image',
+        category: 'sprite',
+        tag: 'key_gold',
+        variant: 'default',
+        storageUrl: 'https://assets.example.com/key_gold.png',
+        sizeBytes: 51200,
+      };
+
+      const nonSpriteAsset: AssetRef = {
+        id: '44444444-5555-6666-7777-888888888888',
+        name: 'bg_classroom.png',
+        type: 'image',
+        category: 'background',
+        storageUrl: 'https://assets.example.com/bg_classroom.png',
+        sizeBytes: 1048576,
+      };
+
+      expect(spriteAsset.tag).toBe('alice');
+      expect(spriteAsset.variant).toBe('happy');
+      expect(propAsset.tag).toBe('key_gold');
+      expect(propAsset.variant).toBe('default');
+      expect(nonSpriteAsset.tag).toBeUndefined();
+
+      // Serialization & deserialization check
+      const serialized = JSON.stringify([spriteAsset, propAsset, nonSpriteAsset]);
+      const parsed = JSON.parse(serialized) as AssetRef[];
+
+      expect(parsed[0]?.tag).toBe('alice');
+      expect(parsed[0]?.variant).toBe('happy');
+      expect(parsed[1]?.tag).toBe('key_gold');
+      expect(parsed[1]?.variant).toBe('default');
+      expect(parsed[2]?.tag).toBeUndefined();
+    });
+
+    // TC-SPRITE-TYPES-02: ShowInstruction, HideInstruction, ShowStatement, HideStatement
+    it('TC-SPRITE-TYPES-02: should support targetId, variant, anchorX, anchorY in Show/Hide Instructions and Statements', () => {
+      const showInstr: ShowInstruction = {
+        type: 'SHOW',
+        character: 'alice', // backward compatibility shim
+        targetId: 'alice',
+        variant: 'smile',
+        anchorX: 0.5,
+        anchorY: 1.0,
+        x: 960,
+        y: 1080,
+        transition: 'dissolve',
+        duration: 0.3,
+        loc: { fileId: 'chapter1.vns', line: 15, col: 1 },
+      };
+
+      const hideInstr: HideInstruction = {
+        type: 'HIDE',
+        character: 'alice', // backward compatibility shim
+        targetId: 'alice',
+        loc: { fileId: 'chapter1.vns', line: 20, col: 1 },
+      };
+
+      const showStmt: ShowStatement = {
+        type: 'ShowStatement',
+        character: 'sword', // backward compatibility shim
+        targetId: 'sword',
+        variant: 'legendary',
+        anchorX: 0.5,
+        anchorY: 0.5,
+        x: 0.5,
+        y: 0.5,
+        loc: { fileId: 'chapter1.vns', line: 25, col: 1 },
+      };
+
+      const hideStmt: HideStatement = {
+        type: 'HideStatement',
+        character: 'sword', // backward compatibility shim
+        targetId: 'sword',
+        loc: { fileId: 'chapter1.vns', line: 30, col: 1 },
+      };
+
+      expect(showInstr.targetId).toBe('alice');
+      expect(showInstr.variant).toBe('smile');
+      expect(showInstr.anchorX).toBe(0.5);
+      expect(showInstr.anchorY).toBe(1.0);
+
+      expect(hideInstr.targetId).toBe('alice');
+
+      expect(showStmt.targetId).toBe('sword');
+      expect(showStmt.variant).toBe('legendary');
+      expect(showStmt.anchorX).toBe(0.5);
+      expect(showStmt.anchorY).toBe(0.5);
+
+      expect(hideStmt.targetId).toBe('sword');
+
+      // Polymorphic StatementAST handling
+      const statements: StatementAST[] = [showStmt, hideStmt];
+      expect(statements).toHaveLength(2);
+
+      // Serialization preserves all unified sprite properties
+      const parsedShowInstr = JSON.parse(JSON.stringify(showInstr)) as ShowInstruction;
+      expect(parsedShowInstr.targetId).toBe('alice');
+      expect(parsedShowInstr.variant).toBe('smile');
+      expect(parsedShowInstr.anchorX).toBe(0.5);
+      expect(parsedShowInstr.anchorY).toBe(1.0);
+
+      const parsedHideInstr = JSON.parse(JSON.stringify(hideInstr)) as HideInstruction;
+      expect(parsedHideInstr.targetId).toBe('alice');
+    });
+
+    // TC-SPRITE-TYPES-03: DialogueInstruction and DialogueStatement literal speaker
+    it('TC-SPRITE-TYPES-03: should support speaker: string | null in DialogueInstruction and DialogueStatement', () => {
+      // Literal speaker from string literal: "Alice Carroll"
+      const namedDialogueInstr: DialogueInstruction = {
+        type: 'DIALOGUE',
+        speaker: 'Alice Carroll',
+        character: 'Alice Carroll',
+        text: 'Xin chào bạn, tôi là Alice Carroll!',
+        uiScreenId: 'default_dialogue_ui',
+        loc: { fileId: 'file-1', line: 10, col: 1 },
+      };
+
+      // Mysterious speaker: "???"
+      const unknownDialogueStmt: DialogueStatement = {
+        type: 'DialogueStatement',
+        speaker: '???',
+        character: '???',
+        text: 'Ai đó đang tiến lại gần...',
+        loc: { fileId: 'file-1', line: 11, col: 1 },
+      };
+
+      // Narration without speaker (speaker: null)
+      const narrationInstr: DialogueInstruction = {
+        type: 'DIALOGUE',
+        speaker: null,
+        character: null,
+        text: 'Trời bắt đầu đổ cơn mưa rào mùa hạ.',
+        loc: { fileId: 'file-1', line: 12, col: 1 },
+      };
+
+      const narrationStmt: DialogueStatement = {
+        type: 'DialogueStatement',
+        speaker: null,
+        character: null,
+        text: 'Tiếng sấm vang rền chân trời xa.',
+        loc: { fileId: 'file-1', line: 13, col: 1 },
+      };
+
+      expect(namedDialogueInstr.speaker).toBe('Alice Carroll');
+      expect(unknownDialogueStmt.speaker).toBe('???');
+      expect(narrationInstr.speaker).toBeNull();
+      expect(narrationStmt.speaker).toBeNull();
+
+      // Serialization and round-trip preservation
+      const restoredNamed = JSON.parse(JSON.stringify(namedDialogueInstr)) as DialogueInstruction;
+      expect(restoredNamed.speaker).toBe('Alice Carroll');
+
+      const restoredUnknown = JSON.parse(JSON.stringify(unknownDialogueStmt)) as DialogueStatement;
+      expect(restoredUnknown.speaker).toBe('???');
+
+      const restoredNarration = JSON.parse(JSON.stringify(narrationInstr)) as DialogueInstruction;
+      expect(restoredNarration.speaker).toBeNull();
+    });
+
+    // TC-SPRITE-TYPES-04: Project schema with optional characters property
+    it('TC-SPRITE-TYPES-04: should allow Project without characters array (optional/deprecated)', () => {
+      const unifiedProject: Project = {
+        id: '99999999-8888-7777-6666-555555555555',
+        title: 'Project Unified Sprites - No Characters Table',
+        version: 2,
+        ownerId: 'user-designer-001',
+        defaultLanguage: 'vi',
+        files: [
+          {
+            id: 'file-intro',
+            name: 'intro.vns',
+            content: 'scene start {\n  show alice.happy\n  "Alice Carroll": "Chào bạn!"\n}',
+            order: 0,
+            version: 1,
+          },
+        ],
+        variables: [],
+        assets: [
+          {
+            id: 'asset-alice-happy',
+            name: 'alice_happy.png',
+            type: 'image',
+            category: 'sprite',
+            tag: 'alice',
+            variant: 'happy',
+            storageUrl: 'https://assets.example.com/alice_happy.png',
+            sizeBytes: 153600,
+          },
+        ],
+        uiScreens: [],
+        customScripts: [],
+      };
+
+      expect(unifiedProject.characters).toBeUndefined();
+
+      const serialized = JSON.stringify(unifiedProject);
+      const parsed = JSON.parse(serialized) as Project;
+
+      expect(parsed.id).toBe(unifiedProject.id);
+      expect(parsed.characters).toBeUndefined();
+      expect(parsed.assets).toHaveLength(1);
+      expect(parsed.assets[0]?.tag).toBe('alice');
+      expect(parsed.assets[0]?.variant).toBe('happy');
+    });
+
+    // TC-SPRITE-TYPES-05: VMState activeSprites targetId mapping
+    it('TC-SPRITE-TYPES-05: should store activeSprites keyed by targetId in VMState', () => {
+      const aliceSprite: ShowInstruction = {
+        type: 'SHOW',
+        character: 'alice',
+        targetId: 'alice',
+        variant: 'happy',
+        anchorX: 0.5,
+        anchorY: 1.0,
+        position: 'center',
+        loc: { fileId: 'file-1', line: 5, col: 1 },
+      };
+
+      const swordProp: ShowInstruction = {
+        type: 'SHOW',
+        character: 'sword',
+        targetId: 'sword',
+        variant: 'default',
+        anchorX: 0.5,
+        anchorY: 0.5,
+        x: 400,
+        y: 600,
+        loc: { fileId: 'file-1', line: 6, col: 1 },
+      };
+
+      const vmState: VMState = {
+        currentScene: 'chapter1',
+        instructionPointer: 7,
+        callStack: [],
+        variables: { counter: 1 },
+        localVariables: {},
+        characterDisplayOverrides: {},
+        customScriptState: {},
+        activeSprites: {
+          alice: aliceSprite,
+          sword: swordProp,
+        },
+      };
+
+      expect(vmState.activeSprites).toBeDefined();
+      expect(vmState.activeSprites!['alice']?.targetId).toBe('alice');
+      expect(vmState.activeSprites!['alice']?.variant).toBe('happy');
+      expect(vmState.activeSprites!['sword']?.targetId).toBe('sword');
+      expect(vmState.activeSprites!['sword']?.anchorY).toBe(0.5);
+
+      const serialized = JSON.stringify(vmState);
+      const restored = JSON.parse(serialized) as VMState;
+
+      expect(restored.activeSprites!['alice']?.targetId).toBe('alice');
+      expect(restored.activeSprites!['sword']?.variant).toBe('default');
+    });
   });
 });
