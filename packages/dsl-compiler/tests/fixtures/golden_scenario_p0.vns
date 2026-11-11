@@ -6,8 +6,8 @@ scene chapter1_alice_route ui: "phone_message_style" {
     show alice.happy(position: "left")
     play music "bgm_school.mp3" volume: 0.7 loop: true
 
-    alice as "???": "Cậu... là ai vậy?"
-    alice as "???": "Đừng lo, tôi không hại cậu đâu."
+    "???": "Cậu... là ai vậy?"
+    "???": "Đừng lo, tôi không hại cậu đâu."
 
     ~ affection = 0
 
@@ -18,7 +18,6 @@ scene chapter1_alice_route ui: "phone_message_style" {
         }
     }
 
-    reveal alice as "Alice"
     alice: "Tôi là Alice. Xin lỗi vì đã giấu tên."
 
     scene .ask_question {

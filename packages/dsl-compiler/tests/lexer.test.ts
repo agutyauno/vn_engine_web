@@ -6,7 +6,7 @@ describe('VNSLexer (Chevrotain Tokenizer)', () => {
     const input = `
       # Comment kịch bản
       scene intro ui: "default" {
-        alice as "???": "Chào bạn!"
+        alice: "Chào bạn!"
         ~ affection = 0
       }
     `;
@@ -21,7 +21,6 @@ describe('VNSLexer (Chevrotain Tokenizer)', () => {
     expect(tokenNames).toContain('Colon');
     expect(tokenNames).toContain('StringLiteral');
     expect(tokenNames).toContain('LCurly');
-    expect(tokenNames).toContain('As');
     expect(tokenNames).toContain('Tilde');
     expect(tokenNames).toContain('Equals');
     expect(tokenNames).toContain('NumberLiteral');
@@ -111,5 +110,36 @@ describe('VNSLexer (Chevrotain Tokenizer)', () => {
     const result = VNSLexer.tokenize(input);
     expect(result.errors.length).toBeGreaterThanOrEqual(2);
     expect(result.errors[0]?.message).toContain('@');
+  });
+
+  it('should tokenize anchorX and anchorY attributes (both snake_case and camelCase)', () => {
+    const input = `show alice.happy(anchorX: 0.5, anchorY: 1.0, anchor_x: -0.2, anchor_y: 0.8)`;
+    const result = VNSLexer.tokenize(input);
+    expect(result.errors).toHaveLength(0);
+
+    const tokenNames = result.tokens.map(t => t.tokenType.name);
+    expect(tokenNames).toContain('AnchorX');
+    expect(tokenNames).toContain('AnchorY');
+    const anchorXTokens = result.tokens.filter(t => t.tokenType.name === 'AnchorX');
+    const anchorYTokens = result.tokens.filter(t => t.tokenType.name === 'AnchorY');
+    expect(anchorXTokens).toHaveLength(2);
+    expect(anchorYTokens).toHaveLength(2);
+    expect(anchorXTokens[0]?.image).toBe('anchorX');
+    expect(anchorXTokens[1]?.image).toBe('anchor_x');
+    expect(anchorYTokens[0]?.image).toBe('anchorY');
+    expect(anchorYTokens[1]?.image).toBe('anchor_y');
+  });
+
+  it('should tokenize string speaker literals followed by colon and dialogue', () => {
+    const input = `"Alice Carroll": "Chào bạn!"\n"???": "Tôi là ai?"`;
+    const result = VNSLexer.tokenize(input);
+    expect(result.errors).toHaveLength(0);
+
+    const stringTokens = result.tokens.filter(t => t.tokenType.name === 'StringLiteral');
+    expect(stringTokens).toHaveLength(4);
+    expect(stringTokens[0]?.image).toBe('"Alice Carroll"');
+    expect(stringTokens[1]?.image).toBe('"Chào bạn!"');
+    expect(stringTokens[2]?.image).toBe('"???"');
+    expect(stringTokens[3]?.image).toBe('"Tôi là ai?"');
   });
 });

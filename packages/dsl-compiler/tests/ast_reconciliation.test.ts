@@ -32,7 +32,7 @@ describe('AST Reference Visitor (extractScriptReferences)', () => {
     });
   });
 
-  it('TC-AST-REC-02: should extract character show and hide references with location', () => {
+  it('TC-AST-REC-02: should extract sprite show and hide asset references with location', () => {
     const dsl = `scene intro {
   show alice.happy
   hide bob
@@ -42,16 +42,22 @@ describe('AST Reference Visitor (extractScriptReferences)', () => {
     expect(result.ast).toBeDefined();
 
     const refs: ScriptReferences = extractScriptReferences(result.ast!);
-    expect(refs.characters).toHaveLength(2);
-    expect(refs.characters[0]).toMatchObject<CharacterReference>({
-      characterId: 'alice',
+    expect(refs.characters).toHaveLength(0);
+    expect(refs.assets).toHaveLength(2);
+    expect(refs.assets[0]).toMatchObject<AssetReference>({
+      assetKey: 'alice',
+      variant: 'happy',
+      category: 'sprite',
+      expectedType: 'image',
       loc: {
         fileId: 'intro.vns',
         line: 2,
       },
     });
-    expect(refs.characters[1]).toMatchObject<CharacterReference>({
-      characterId: 'bob',
+    expect(refs.assets[1]).toMatchObject<AssetReference>({
+      assetKey: 'bob',
+      category: 'sprite',
+      expectedType: 'image',
       loc: {
         fileId: 'intro.vns',
         line: 3,
@@ -149,15 +155,14 @@ describe('AST Reference Visitor (extractScriptReferences)', () => {
 
     const refs: ScriptReferences = extractScriptReferences(result.ast!);
 
-    const charIds = refs.characters.map(c => c.characterId);
-    expect(charIds).toContain('alice');
-    expect(charIds).toContain('bob');
-    expect(refs.characters).toHaveLength(2);
+    expect(refs.characters).toHaveLength(0);
 
     const assetKeys = refs.assets.map(a => a.assetKey);
     expect(assetKeys).toContain('bg_if');
     expect(assetKeys).toContain('bg_while');
-    expect(refs.assets).toHaveLength(2);
+    expect(assetKeys).toContain('alice');
+    expect(assetKeys).toContain('bob');
+    expect(refs.assets).toHaveLength(4);
 
     const bgIf = refs.assets.find(a => a.assetKey === 'bg_if');
     expect(bgIf).toMatchObject({
@@ -172,12 +177,11 @@ describe('AST Reference Visitor (extractScriptReferences)', () => {
     });
   });
 
-  it('TC-AST-REC-06: should NOT produce character references for dialogue or reveal statements', () => {
+  it('TC-AST-REC-06: should NOT produce character references for dialogue statements or narration', () => {
     const dsl = `scene dialogue_scene {
   alice: "Hello world"
-  bob as "???" : "Who is speaking?"
+  "???": "Who is speaking?"
   "Narration without speaker"
-  reveal char_secret as "Secret"
 }`;
     const result = compileString(dsl, 'dialogue.vns');
     expect(result.success).toBe(true);
@@ -204,10 +208,9 @@ scene scene_two {
     expect(result.ast).toBeDefined();
 
     const refs = extractScriptReferences(result.ast!);
-    expect(refs.characters).toHaveLength(2);
-    expect(refs.characters.map(c => c.characterId)).toEqual(['alice', 'bob']);
-    expect(refs.assets).toHaveLength(2);
-    expect(refs.assets.map(a => a.assetKey)).toEqual(['bg_one', 'bg_two']);
+    expect(refs.characters).toHaveLength(0);
+    expect(refs.assets).toHaveLength(4);
+    expect(refs.assets.map(a => a.assetKey)).toEqual(['bg_one', 'alice', 'bg_two', 'bob']);
   });
 
   it('TC-AST-REC-08: should return empty collections for scenes with no media or character references', () => {
@@ -246,7 +249,8 @@ scene next_scene {
     expect(result.ast).toBeDefined();
 
     const refs = extractScriptReferences(result.ast!);
-    expect(refs.characters.map(c => c.characterId)).toEqual(['alice', 'bob', 'clare']);
+    expect(refs.characters).toHaveLength(0);
+    expect(refs.assets.map(a => a.assetKey)).toEqual(['alice', 'bob', 'clare']);
   });
 
   it('TC-AST-REC-10: should preserve accurate fileId and line numbers in loc', () => {
@@ -304,7 +308,7 @@ scene next_scene {
     });
   });
 
-  it('TC-AST-SPAN-02: extractScriptReferences should extract loc with endCol for background and character statements', () => {
+  it('TC-AST-SPAN-02: extractScriptReferences should extract loc with endCol for background and sprite statements', () => {
     const dsl = `scene intro {
   background bg_room
   show alice.happy
@@ -315,18 +319,58 @@ scene next_scene {
 
     const refs: ScriptReferences = extractScriptReferences(result.ast!);
 
-    expect(refs.assets).toHaveLength(1);
+    expect(refs.characters).toHaveLength(0);
+    expect(refs.assets).toHaveLength(2);
     expect(refs.assets[0]?.loc).toBeDefined();
     expect(refs.assets[0]?.loc?.col).toBe(14);
     expect(refs.assets[0]?.loc?.endLine).toBe(2);
     expect(refs.assets[0]?.loc?.endCol).toBeDefined();
     expect(refs.assets[0]?.loc?.endCol).toBeGreaterThan(refs.assets[0]!.loc!.col!);
 
-    expect(refs.characters).toHaveLength(1);
-    expect(refs.characters[0]?.loc).toBeDefined();
-    expect(refs.characters[0]?.loc?.col).toBe(8);
-    expect(refs.characters[0]?.loc?.endLine).toBe(3);
-    expect(refs.characters[0]?.loc?.endCol).toBeDefined();
-    expect(refs.characters[0]?.loc?.endCol).toBeGreaterThan(refs.characters[0]!.loc!.col!);
+    expect(refs.assets[1]?.loc).toBeDefined();
+    expect(refs.assets[1]?.loc?.col).toBe(8);
+    expect(refs.assets[1]?.loc?.endLine).toBe(3);
+    expect(refs.assets[1]?.loc?.endCol).toBeDefined();
+    expect(refs.assets[1]?.loc?.endCol).toBeGreaterThan(refs.assets[1]!.loc!.col!);
+  });
+
+  it('TC-SPRITE-COMP-05: should extract sprite AssetReferences with tag, variant, category "sprite" and no character references', () => {
+    const dsl = `scene sprite_demo {
+  show alice.happy
+  show sword
+  hide alice
+}`;
+    const result = compileString(dsl, 'sprite_demo.vns');
+    expect(result.success).toBe(true);
+    expect(result.ast).toBeDefined();
+
+    const refs = extractScriptReferences(result.ast!);
+    expect(refs.characters).toEqual([]);
+    expect(refs.assets).toHaveLength(3);
+
+    // show alice.happy
+    expect(refs.assets[0]).toMatchObject({
+      assetKey: 'alice',
+      variant: 'happy',
+      category: 'sprite',
+      expectedType: 'image',
+      loc: { fileId: 'sprite_demo.vns', line: 2 },
+    });
+
+    // show sword (without variant)
+    expect(refs.assets[1]).toMatchObject({
+      assetKey: 'sword',
+      category: 'sprite',
+      expectedType: 'image',
+      loc: { fileId: 'sprite_demo.vns', line: 3 },
+    });
+
+    // hide alice (no variant)
+    expect(refs.assets[2]).toMatchObject({
+      assetKey: 'alice',
+      category: 'sprite',
+      expectedType: 'image',
+      loc: { fileId: 'sprite_demo.vns', line: 4 },
+    });
   });
 });

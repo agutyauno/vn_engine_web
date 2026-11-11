@@ -14,6 +14,8 @@ import type {
   StopInstruction,
   AssignInstruction,
   Character,
+  ShowStatement,
+  HideStatement,
 } from '@vn-engine/shared-types';
 import { compileString } from '../src/compiler';
 
@@ -48,16 +50,15 @@ describe('DSL Compiler Core (5-Stage Pipeline)', () => {
     expect(dialogues.length).toBeGreaterThan(5);
 
     const firstDialogue = dialogues[0]!;
-    expect(firstDialogue.character).toBe('alice');
-    expect(firstDialogue.displayNameOverride).toBe('???');
+    expect(firstDialogue.character).toBe('???');
+    expect(firstDialogue.speaker).toBe('???');
+    expect(firstDialogue.displayNameOverride).toBeUndefined();
     expect(firstDialogue.text).toBe('Cậu... là ai vậy?');
     expect(firstDialogue.uiScreenId).toBe('phone_message_style');
 
-    // Kiểm tra câu lệnh REVEAL
+    // Kiểm tra câu lệnh REVEAL không còn trong golden scenario
     const reveals = program.filter(i => i.type === 'REVEAL') as RevealInstruction[];
-    expect(reveals).toHaveLength(1);
-    expect(reveals[0]!.characterId).toBe('alice');
-    expect(reveals[0]!.displayName).toBe('Alice');
+    expect(reveals).toHaveLength(0);
 
     // Kiểm tra vòng lặp while
     const loopStarts = program.filter(i => i.type === 'LOOP_START');
@@ -462,7 +463,7 @@ Dẫn chuyện ẩn danh dòng 1
 Dẫn chuyện ẩn danh dòng 2
 """
 
-        bob as "Bác sĩ": "Dòng 1 của Bob
+        "Bác sĩ": "Dòng 1 của Bob
 Dòng 2 của Bob"
 
         "Dẫn chuyện dòng 1
@@ -489,13 +490,189 @@ Dẫn chuyện dòng 2"
     expect(dialogues[2]!.character).toBeNull();
     expect(dialogues[2]!.text).toBe('Dẫn chuyện ẩn danh dòng 1\nDẫn chuyện ẩn danh dòng 2');
 
-    // 4. Bob with alias and literal newline
-    expect(dialogues[3]!.character).toBe('bob');
-    expect(dialogues[3]!.displayNameOverride).toBe('Bác sĩ');
+    // 4. Bob with literal string speaker and newline
+    expect(dialogues[3]!.character).toBe('Bác sĩ');
+    expect(dialogues[3]!.speaker).toBe('Bác sĩ');
     expect(dialogues[3]!.text).toBe('Dòng 1 của Bob\nDòng 2 của Bob');
 
     // 5. Anonymous narrator with literal newline
     expect(dialogues[4]!.character).toBeNull();
     expect(dialogues[4]!.text).toBe('Dẫn chuyện dòng 1\nDẫn chuyện dòng 2');
+  });
+
+  describe('Unified Sprite Layer & Literal Speaker (Micro-Phase 2)', () => {
+    describe('TC-SPRITE-COMP-01: Literal Speaker Dialogue Compilation', () => {
+      it('should compile identifier speaker, string literal speaker, mysterious speaker, and narration', () => {
+        const dsl = `
+          scene dialogue_syntax {
+            alice: "Chào bạn!"
+            "Alice Carroll": "Tên đầy đủ của tôi là Alice Carroll."
+            "???": "Cậu là ai?"
+            "Trời bắt đầu đổ cơn mưa rào."
+            narrator: "Tiếng sấm vang lên từ đằng xa."
+          }
+        `;
+        const result = compileString(dsl, 'dialogue_syntax.vns');
+        expect(result.success).toBe(true);
+        expect(result.errors).toBeUndefined();
+
+        const dialogues = result.program!.filter(i => i.type === 'DIALOGUE') as DialogueInstruction[];
+        expect(dialogues).toHaveLength(5);
+
+        // 1. Identifier speaker: alice
+        expect(dialogues[0]).toMatchObject({
+          type: 'DIALOGUE',
+          character: 'alice',
+          speaker: 'alice',
+          text: 'Chào bạn!',
+        });
+
+        // 2. Full string literal speaker: "Alice Carroll"
+        expect(dialogues[1]).toMatchObject({
+          type: 'DIALOGUE',
+          character: 'Alice Carroll',
+          speaker: 'Alice Carroll',
+          text: 'Tên đầy đủ của tôi là Alice Carroll.',
+        });
+
+        // 3. Mysterious string speaker: "???"
+        expect(dialogues[2]).toMatchObject({
+          type: 'DIALOGUE',
+          character: '???',
+          speaker: '???',
+          text: 'Cậu là ai?',
+        });
+
+        // 4. Anonymous narration: no speaker
+        expect(dialogues[3]).toMatchObject({
+          type: 'DIALOGUE',
+          character: null,
+          speaker: null,
+          text: 'Trời bắt đầu đổ cơn mưa rào.',
+        });
+
+        // 5. Explicit narrator keyword/identifier: normalized to null
+        expect(dialogues[4]).toMatchObject({
+          type: 'DIALOGUE',
+          character: null,
+          speaker: null,
+          text: 'Tiếng sấm vang lên từ đằng xa.',
+        });
+      });
+    });
+
+    describe('TC-SPRITE-COMP-02: Parser Rejects Obsolete Syntax (reveal and as)', () => {
+      it('should reject reveal statement with syntax error', () => {
+        const dsl = `
+          scene reveal_test {
+            reveal alice as "Alice"
+          }
+        `;
+        const result = compileString(dsl, 'reveal_test.vns');
+        expect(result.success).toBe(false);
+        expect(result.errors).toBeDefined();
+        expect(result.errors!.length).toBeGreaterThan(0);
+      });
+
+      it('should reject character dialogue with as alias construct', () => {
+        const dsl = `
+          scene alias_test {
+            alice as "???": "Chào bạn!"
+          }
+        `;
+        const result = compileString(dsl, 'alias_test.vns');
+        expect(result.success).toBe(false);
+        expect(result.errors).toBeDefined();
+        expect(result.errors!.length).toBeGreaterThan(0);
+      });
+    });
+
+    describe('TC-SPRITE-COMP-03: Parser & AST Builder Extracts ShowStatement and HideStatement', () => {
+      it('should extract targetId, variant, anchorX, and anchorY in ShowStatement and HideStatement AST', () => {
+        const dsl = `
+          scene sprite_ast {
+            show alice.happy(anchorX: 0.5, anchorY: 1.0)
+            show sword(anchorX: 0.5, anchorY: 0.5, x: 0.5, y: 0.5)
+            hide alice
+          }
+        `;
+        const result = compileString(dsl, 'sprite_ast.vns');
+        expect(result.success).toBe(true);
+        expect(result.ast).toBeDefined();
+
+        const scene = result.ast!.scenes[0]!;
+        const show1 = scene.body[0] as ShowStatement;
+        expect(show1.type).toBe('ShowStatement');
+        expect(show1.targetId).toBe('alice');
+        expect(show1.variant).toBe('happy');
+        expect(show1.anchorX).toBe(0.5);
+        expect(show1.anchorY).toBe(1.0);
+        // Backwards compatibility shims
+        expect(show1.character).toBe('alice');
+        expect(show1.sprite).toBe('happy');
+
+        const show2 = scene.body[1] as ShowStatement;
+        expect(show2.type).toBe('ShowStatement');
+        expect(show2.targetId).toBe('sword');
+        expect(show2.variant).toBe('');
+        expect(show2.anchorX).toBe(0.5);
+        expect(show2.anchorY).toBe(0.5);
+        expect(show2.x).toBe(0.5);
+        expect(show2.y).toBe(0.5);
+
+        const hide1 = scene.body[2] as HideStatement;
+        expect(hide1.type).toBe('HideStatement');
+        expect(hide1.targetId).toBe('alice');
+        expect(hide1.character).toBe('alice');
+      });
+    });
+
+    describe('TC-SPRITE-COMP-04: Codegen Emits SHOW and HIDE Instructions with Defaults', () => {
+      it('should emit SHOW with default anchorX 0.5, anchorY 1.0 and targetId/variant', () => {
+        const dsl = `
+          scene sprite_codegen {
+            show alice.happy
+            show sword(anchorX: 0.2, anchorY: 0.8)
+            hide alice
+          }
+        `;
+        const result = compileString(dsl, 'sprite_codegen.vns');
+        expect(result.success).toBe(true);
+
+        const shows = result.program!.filter(i => i.type === 'SHOW') as ShowInstruction[];
+        const hides = result.program!.filter(i => i.type === 'HIDE') as HideInstruction[];
+        expect(shows).toHaveLength(2);
+        expect(hides).toHaveLength(1);
+
+        // First show: defaults anchorX: 0.5, anchorY: 1.0
+        expect(shows[0]).toMatchObject({
+          type: 'SHOW',
+          targetId: 'alice',
+          variant: 'happy',
+          anchorX: 0.5,
+          anchorY: 1.0,
+          character: 'alice',
+          sprite: 'happy',
+        });
+
+        // Second show: overrides anchorX: 0.2, anchorY: 0.8
+        expect(shows[1]).toMatchObject({
+          type: 'SHOW',
+          targetId: 'sword',
+          variant: 'default',
+          anchorX: 0.2,
+          anchorY: 0.8,
+          character: 'sword',
+          sprite: 'default',
+        });
+
+        // Hide instruction
+        expect(hides[0]).toMatchObject({
+          type: 'HIDE',
+          targetId: 'alice',
+          character: 'alice',
+        });
+      });
+    });
   });
 });

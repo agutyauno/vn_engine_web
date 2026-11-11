@@ -15,7 +15,7 @@ describe('VNS DSL Script Auto-Formatter', () => {
 scene prologue ui:"default"{
 background bg_corridor transition: "fade"
 show alice.serious( position:"left" ,flipX:true ,duration:0.4s )
-alice as "???" : "What are you doing here?"
+"???" : "What are you doing here?"
 
 choice{
 "I am curious":goto .curious
@@ -29,7 +29,7 @@ if !found_key{
     const expected = `scene prologue ui: "default" {
   background bg_corridor transition: "fade"
   show alice.serious(position: "left", flipX: true, duration: 0.4s)
-  alice as "???": "What are you doing here?"
+  "???": "What are you doing here?"
 
   choice {
     "I am curious": goto .curious
@@ -193,5 +193,27 @@ alice:"Nó rất đẹp!"
     expect(compileResult.success).toBe(true);
     expect(compileResult.program).toBeDefined();
     expect(compileResult.program!.length).toBeGreaterThan(15);
+  });
+
+  it('formats literal speaker string dialogue and sprite anchor parameters cleanly', () => {
+    const raw = `
+scene sprite_format {
+show alice.happy( anchorX:0.5 , anchorY:1.0 )
+"Alice Carroll" : "Xin chào thế giới!"
+"???" : "Ai đó?"
+"Lời dẫn chuyện không có người nói."
+}
+`;
+
+    const expected = `scene sprite_format {
+  show alice.happy(anchorX: 0.5, anchorY: 1.0)
+  "Alice Carroll": "Xin chào thế giới!"
+  "???": "Ai đó?"
+  "Lời dẫn chuyện không có người nói."
+}
+`;
+
+    const formatted = formatVns(raw, { indentSize: 2 });
+    expect(formatted).toBe(expected);
   });
 });
