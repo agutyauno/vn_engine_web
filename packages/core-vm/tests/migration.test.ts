@@ -24,11 +24,52 @@ describe('Save Schema Validation & Migration Engine (TAD 4.4)', () => {
         callStack: [{ scene: 'intro', ip: 2 }],
         variables: { score: 10, isAlive: true, name: 'Alex' },
         localVariables: {},
-        characterDisplayOverrides: { alice: 'Alice Carroll' },
         customScriptState: { minigame: '{}' },
+        activeSprites: {},
       };
 
       expect(() => validateVMState(validState)).not.toThrow();
+    });
+
+    it('[TC-SPRITE-VM-06] should accept valid VMState without characterDisplayOverrides', () => {
+      const validStateWithoutOverrides = {
+        currentScene: 'chapter1',
+        instructionPointer: 0,
+        callStack: [],
+        variables: { score: 10 },
+        localVariables: {},
+        customScriptState: {},
+        activeSprites: {
+          alice: {
+            type: 'SHOW' as const,
+            targetId: 'alice',
+            variant: 'happy',
+            character: 'alice',
+          },
+        },
+      };
+
+      expect(() => validateVMState(validStateWithoutOverrides)).not.toThrow();
+    });
+
+    it('[TC-SPRITE-VM-06] should validate that activeSprites is an object or undefined, rejecting invalid structures', () => {
+      const baseState = {
+        currentScene: 'chapter1',
+        instructionPointer: 0,
+        callStack: [],
+        variables: {},
+        localVariables: {},
+        customScriptState: {},
+      };
+
+      expect(() => validateVMState(baseState)).not.toThrow();
+      expect(() => validateVMState({ ...baseState, activeSprites: {} })).not.toThrow();
+
+      expect(() => validateVMState({ ...baseState, activeSprites: 'not-an-object' })).toThrow(
+        /activeSprites/,
+      );
+      expect(() => validateVMState({ ...baseState, activeSprites: [] })).toThrow(/activeSprites/);
+      expect(() => validateVMState({ ...baseState, activeSprites: 123 })).toThrow(/activeSprites/);
     });
 
     it('should reject invalid state objects or primitive types', () => {
@@ -44,7 +85,6 @@ describe('Save Schema Validation & Migration Engine (TAD 4.4)', () => {
           instructionPointer: 0,
           callStack: [],
           variables: {},
-          characterDisplayOverrides: {},
           customScriptState: {},
         }),
       ).toThrow(/currentScene/);
@@ -55,7 +95,6 @@ describe('Save Schema Validation & Migration Engine (TAD 4.4)', () => {
           instructionPointer: 0,
           callStack: [],
           variables: {},
-          characterDisplayOverrides: {},
           customScriptState: {},
         }),
       ).toThrow(/currentScene/);
@@ -68,7 +107,6 @@ describe('Save Schema Validation & Migration Engine (TAD 4.4)', () => {
           instructionPointer: -1,
           callStack: [],
           variables: {},
-          characterDisplayOverrides: {},
           customScriptState: {},
         }),
       ).toThrow(/instructionPointer/);
@@ -79,7 +117,6 @@ describe('Save Schema Validation & Migration Engine (TAD 4.4)', () => {
           instructionPointer: 3.14,
           callStack: [],
           variables: {},
-          characterDisplayOverrides: {},
           customScriptState: {},
         }),
       ).toThrow(/instructionPointer/);
@@ -92,7 +129,6 @@ describe('Save Schema Validation & Migration Engine (TAD 4.4)', () => {
           instructionPointer: 0,
           callStack: 'not an array',
           variables: {},
-          characterDisplayOverrides: {},
           customScriptState: {},
         }),
       ).toThrow(/callStack/);
@@ -101,9 +137,8 @@ describe('Save Schema Validation & Migration Engine (TAD 4.4)', () => {
         validateVMState({
           currentScene: 'main',
           instructionPointer: 0,
-          callStack: [{ scene: 'main' }], // Thiếu ip
+          callStack: [{ scene: 'main' }],
           variables: {},
-          characterDisplayOverrides: {},
           customScriptState: {},
         }),
       ).toThrow(/scene or ip/);
@@ -116,7 +151,6 @@ describe('Save Schema Validation & Migration Engine (TAD 4.4)', () => {
           instructionPointer: 0,
           callStack: [],
           variables: 'invalid',
-          characterDisplayOverrides: {},
           customScriptState: {},
         }),
       ).toThrow(/variables/);
@@ -138,7 +172,6 @@ describe('Save Schema Validation & Migration Engine (TAD 4.4)', () => {
       const migrated = migrateSaveData(legacyRaw, 1);
       expect(migrated.version).toBe(1);
       expect(migrated.dslVersion).toBe('1.0.0');
-      expect(migrated.state.characterDisplayOverrides).toEqual({});
       expect(migrated.state.customScriptState).toEqual({});
       expect(migrated.state.variables['affection']).toBe(5);
       expect(migrated.dialogueCounter).toBe(3);
@@ -153,7 +186,6 @@ describe('Save Schema Validation & Migration Engine (TAD 4.4)', () => {
           instructionPointer: 0,
           callStack: [],
           variables: {},
-          characterDisplayOverrides: {},
           customScriptState: {},
         },
         dialogueCounter: 0,
@@ -163,7 +195,6 @@ describe('Save Schema Validation & Migration Engine (TAD 4.4)', () => {
     });
 
     it('should execute registered migration functions sequentially across versions', () => {
-      // Giả lập migration từ v1 lên v2 (thêm trường dslVersion mới và đổi cấu trúc biến)
       registerSaveMigration(1, 2, prev => {
         const prevState = (prev['state'] as Record<string, unknown>) || {};
         const prevVars = (prevState['variables'] as Record<string, unknown>) || {};
@@ -187,7 +218,6 @@ describe('Save Schema Validation & Migration Engine (TAD 4.4)', () => {
           instructionPointer: 0,
           callStack: [],
           variables: { oldKey: 'value' },
-          characterDisplayOverrides: {},
           customScriptState: {},
         },
         dialogueCounter: 0,
@@ -208,13 +238,11 @@ describe('Save Schema Validation & Migration Engine (TAD 4.4)', () => {
           instructionPointer: 0,
           callStack: [],
           variables: {},
-          characterDisplayOverrides: {},
           customScriptState: {},
         },
         dialogueCounter: 0,
       };
 
-      // Đòi migrate lên v3 khi chưa đăng ký v1->v2
       expect(() => migrateSaveData(v1Save, 3)).toThrow(/No migration function found/);
     });
   });

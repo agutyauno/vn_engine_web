@@ -17,45 +17,49 @@ function asDialogue(stepResult: StepResult): DialogueInstruction {
 }
 
 describe('VisualNovelVM Core', () => {
-  it('should run dialogue progression and collect side effects', () => {
+  it('should run dialogue progression and collect side effects with literal speaker', () => {
     const program: Instruction[] = [
       { type: 'SCENE', name: 'intro' },
       { type: 'BACKGROUND', assetId: 'bg_classroom' },
-      { type: 'SHOW', character: 'alice', sprite: 'happy', position: 'left' },
+      { type: 'SHOW', targetId: 'alice', variant: 'happy', character: 'alice', position: 'left' },
       { type: 'PLAY', channel: 'music', assetId: 'bgm.mp3', volume: 0.8, loop: true },
       {
         type: 'DIALOGUE',
-        character: 'alice',
+        character: '???',
+        speaker: '???',
         text: 'Xin chào!',
-        displayNameOverride: '???',
       },
       {
         type: 'DIALOGUE',
-        character: 'alice',
+        character: 'Alice Carroll',
+        speaker: 'Alice Carroll',
         text: 'Rất vui được gặp bạn.',
       },
     ];
 
     const vm = new VisualNovelVM(program);
 
-    // Lượt 1: chạy từ đầu đến câu thoại đầu tiên
+    // Lượt 1: chạy từ đầu đến câu thoại đầu tiên (literal speaker "???")
     const res1 = vm.runUntilInteractive();
     expect(res1.stepResult.type).toBe('SUSPEND_DIALOGUE');
     const diag1 = asDialogue(res1.stepResult);
-    expect(diag1.character).toBe('alice');
+    expect(diag1.character).toBe('???');
+    expect(diag1.speaker).toBe('???');
     expect(diag1.text).toBe('Xin chào!');
-    expect(diag1.displayNameOverride).toBe('???');
+    expect(diag1.displayNameOverride).toBeUndefined();
 
-    // Kiểm tra thu thập đầy đủ 3 side-effects: background, show, play
-    expect(res1.sideEffects).toHaveLength(4); // SCENE + BACKGROUND + SHOW + PLAY
+    // Kiểm tra thu thập đầy đủ 4 side-effects: SCENE + BACKGROUND + SHOW + PLAY
+    expect(res1.sideEffects).toHaveLength(4);
     expect(res1.sideEffects[1]?.type).toBe('BACKGROUND');
     expect(res1.sideEffects[2]?.type).toBe('SHOW');
     expect(res1.sideEffects[3]?.type).toBe('PLAY');
 
-    // Lượt 2: người chơi bấm tiếp sang câu thoại thứ 2
+    // Lượt 2: người chơi bấm tiếp sang câu thoại thứ 2 (literal speaker "Alice Carroll")
     const res2 = vm.runUntilInteractive();
     expect(res2.stepResult.type).toBe('SUSPEND_DIALOGUE');
     const diag2 = asDialogue(res2.stepResult);
+    expect(diag2.character).toBe('Alice Carroll');
+    expect(diag2.speaker).toBe('Alice Carroll');
     expect(diag2.text).toBe('Rất vui được gặp bạn.');
     expect(diag2.displayNameOverride).toBeUndefined();
     expect(res2.sideEffects).toHaveLength(0);
@@ -76,7 +80,6 @@ describe('VisualNovelVM Core', () => {
 
     const vm = new VisualNovelVM(program);
 
-    // Turn 1: runs SHOW 1 then pauses at WAIT
     const r1 = vm.runUntilInteractive();
     expect(r1.stepResult.type).toBe('SUSPEND_WAIT');
     if (r1.stepResult.type === 'SUSPEND_WAIT') {
@@ -85,24 +88,20 @@ describe('VisualNovelVM Core', () => {
     expect(r1.sideEffects).toHaveLength(2); // SCENE + SHOW 1
     expect(r1.sideEffects[1]?.type).toBe('SHOW');
 
-    // Turn 2: resumes from WAIT, executes SHOW 2 and pauses at DIALOGUE
     const r2 = vm.runUntilInteractive();
     expect(r2.stepResult.type).toBe('SUSPEND_DIALOGUE');
     expect(r2.sideEffects).toHaveLength(1); // SHOW 2
     expect(r2.sideEffects[0]?.type).toBe('SHOW');
 
-    // Turn 3: finishes
     const r3 = vm.runUntilInteractive();
     expect(r3.stepResult.type).toBe('HALTED');
   });
 
   it('should handle empty programs and programs with only side effects', () => {
-    // 1. Chương trình hoàn toàn rỗng
     const emptyVM = new VisualNovelVM([]);
     const emptyRes = emptyVM.runUntilInteractive();
     expect(emptyRes.stepResult.type).toBe('HALTED');
 
-    // 2. Chương trình chỉ có side-effects (không có thoại hay lựa chọn)
     const sideEffectProgram: Instruction[] = [
       { type: 'SCENE', name: 'init_only' },
       { type: 'BACKGROUND', assetId: 'bg_forest' },
@@ -115,20 +114,21 @@ describe('VisualNovelVM Core', () => {
     expect(sideEffectVM.getState().variables['initialized']).toBe(true);
   });
 
-  it('should handle REVEAL and update characterDisplayOverrides', () => {
+  it('should support literal speaker transitions without REVEAL opcode', () => {
     const program: Instruction[] = [
       { type: 'SCENE', name: 'main' },
-      { type: 'DIALOGUE', character: 'alice', text: 'Tôi giấu tên.', displayNameOverride: '???' },
-      { type: 'REVEAL', characterId: 'alice', displayName: 'Alice' },
-      { type: 'DIALOGUE', character: 'alice', text: 'Giờ bạn đã biết tên tôi.' },
+      { type: 'DIALOGUE', character: '???', speaker: '???', text: 'Tôi giấu tên.' },
+      { type: 'DIALOGUE', character: 'Alice', speaker: 'Alice', text: 'Giờ bạn đã biết tên tôi.' },
     ];
 
     const vm = new VisualNovelVM(program);
-    vm.runUntilInteractive();
-    expect(vm.getState().characterDisplayOverrides['alice']).toBeUndefined();
+    const r1 = vm.runUntilInteractive();
+    expect(asDialogue(r1.stepResult).character).toBe('???');
+    expect(asDialogue(r1.stepResult).speaker).toBe('???');
 
-    vm.runUntilInteractive();
-    expect(vm.getState().characterDisplayOverrides['alice']).toBe('Alice');
+    const r2 = vm.runUntilInteractive();
+    expect(asDialogue(r2.stepResult).character).toBe('Alice');
+    expect(asDialogue(r2.stepResult).speaker).toBe('Alice');
   });
 
   it('should handle variables, assignment and while loops correctly', () => {
@@ -176,7 +176,6 @@ describe('VisualNovelVM Core', () => {
   });
 
   it('should abort and throw InstructionBudgetExceededError on infinite loops and infinite goto cycles', () => {
-    // 1. While loop vô hạn
     const whileLoopProgram: Instruction[] = [
       { type: 'SCENE', name: 'infinite_scene' },
       {
@@ -194,7 +193,6 @@ describe('VisualNovelVM Core', () => {
     const vm1 = new VisualNovelVM(whileLoopProgram, undefined, { maxInstructionBudget: 100 });
     expect(() => vm1.runUntilInteractive()).toThrowError(InstructionBudgetExceededError);
 
-    // 2. Vòng lặp chuyển scene liên tục (scene A -> goto B -> goto A)
     const cycleProgram: Instruction[] = [
       { type: 'SCENE', name: 'scene_a' },
       { type: 'GOTO', targetScene: 'scene_b' },
@@ -211,7 +209,7 @@ describe('VisualNovelVM Core', () => {
       { type: 'SCENE', name: 'main' },
       { type: 'CALL', targetScene: 'level1' },
       { type: 'DIALOGUE', character: null, text: 'Trở về main.' },
-      { type: 'RETURN' }, // Gọi RETURN khi callStack đã rỗng -> lỗi
+      { type: 'RETURN' },
 
       { type: 'SCENE', name: 'level1' },
       { type: 'CALL', targetScene: 'level2' },
@@ -224,17 +222,14 @@ describe('VisualNovelVM Core', () => {
 
     const vm = new VisualNovelVM(program);
 
-    // Đi sâu qua 2 cấp: main -> level1 -> level2
     const r1 = vm.runUntilInteractive();
     expect(asDialogue(r1.stepResult).text).toBe('Ở level 2.');
     expect(vm.getState().callStack).toHaveLength(2);
 
-    // Return từ level 2 về level 1, return tiếp về main
     const r2 = vm.runUntilInteractive();
     expect(asDialogue(r2.stepResult).text).toBe('Trở về main.');
     expect(vm.getState().callStack).toHaveLength(0);
 
-    // Return khi callStack rỗng
     expect(() => vm.runUntilInteractive()).toThrowError(EmptyCallStackError);
   });
 
@@ -267,7 +262,6 @@ describe('VisualNovelVM Core', () => {
       { type: 'DIALOGUE', character: null, text: 'Dùng vàng.' },
     ];
 
-    // VM không thỏa mãn bất kỳ điều kiện nào (hasKey=false, gold=50)
     const vm = new VisualNovelVM(program, undefined, {
       initialVariables: { hasKey: false, gold: 50 },
     });
@@ -279,14 +273,10 @@ describe('VisualNovelVM Core', () => {
     expect(choices[0]?.enabled).toBe(false);
     expect(choices[1]?.enabled).toBe(false);
 
-    // Cố chọn lựa chọn bị khóa
     expect(() => vm.choose(0)).toThrowError(InvalidChoiceError);
-
-    // Cố chọn chỉ mục ngoài phạm vi
     expect(() => vm.choose(-1)).toThrowError(InvalidChoiceError);
     expect(() => vm.choose(99)).toThrowError(InvalidChoiceError);
 
-    // Cập nhật biến để thỏa mãn điều kiện và chọn thành công
     const vm2 = new VisualNovelVM(program, undefined, {
       initialVariables: { hasKey: true, gold: 50 },
     });
@@ -296,7 +286,6 @@ describe('VisualNovelVM Core', () => {
     const r1 = vm2.runUntilInteractive();
     expect(asDialogue(r1.stepResult).text).toBe('Dùng chìa khóa.');
 
-    // Gọi choose() khi VM đang ở DIALOGUE (không phải CHOICE) -> ném InvalidChoiceError
     expect(() => vm2.choose(0)).toThrowError(InvalidChoiceError);
   });
 
@@ -318,7 +307,6 @@ describe('VisualNovelVM Core', () => {
 
     const vm = new VisualNovelVM(program);
 
-    // Điểm dừng 1: Stage 1
     vm.runUntilInteractive();
     const catchUp1 = vm.getStateCatchUp();
     expect(catchUp1.background?.assetId).toBe('bg_day');
@@ -327,20 +315,17 @@ describe('VisualNovelVM Core', () => {
     expect(catchUp1.audio.has('music')).toBe(true);
     expect(catchUp1.currentDialogue?.text).toBe('Chào buổi sáng.');
 
-    // Điểm dừng 2: Stage 2
     vm.runUntilInteractive();
     const catchUp2 = vm.getStateCatchUp();
     expect(catchUp2.background?.assetId).toBe('bg_night');
-    expect(catchUp2.sprites.has('alice')).toBe(false); // Alice đã bị HIDE
-    expect(catchUp2.sprites.has('bob')).toBe(true); // Bob đang hiển thị
-    expect(catchUp2.audio.has('music')).toBe(false); // Nhạc đã bị STOP
+    expect(catchUp2.sprites.has('alice')).toBe(false);
+    expect(catchUp2.sprites.has('bob')).toBe(true);
+    expect(catchUp2.audio.has('music')).toBe(false);
     expect(catchUp2.currentDialogue?.text).toBe('Chào buổi tối.');
 
-    // Rollback về Stage 1
     expect(vm.canRollback()).toBe(true);
     vm.rollback();
 
-    // Catch-up phải phản ánh đúng trạng thái quá khứ của Stage 1!
     const catchUpRolled = vm.getStateCatchUp();
     expect(catchUpRolled.background?.assetId).toBe('bg_day');
     expect(catchUpRolled.sprites.has('alice')).toBe(true);
@@ -405,7 +390,6 @@ describe('VisualNovelVM Core', () => {
     expect(alice1?.offsetX).toBe(15);
     expect(alice1?.transition).toBe('shake');
 
-    // Stage 2
     vm.runUntilInteractive();
     const catchUp2 = vm.getStateCatchUp();
     const alice2 = catchUp2.sprites.get('alice');
@@ -413,7 +397,6 @@ describe('VisualNovelVM Core', () => {
     expect(alice2?.rotate).toBe(45);
     expect(alice2?.flipX).toBe(false);
 
-    // Rollback về Stage 1
     vm.rollback();
     const catchUpRolled = vm.getStateCatchUp();
     const aliceRolled = catchUpRolled.sprites.get('alice');
@@ -443,21 +426,17 @@ describe('VisualNovelVM Core', () => {
     ];
 
     const vm = new VisualNovelVM(program);
-    vm.runUntilInteractive(); // Dừng ở Thoại 1
-    vm.runUntilInteractive(); // Dừng ở CHOICE
+    vm.runUntilInteractive();
+    vm.runUntilInteractive();
 
-    // Lưu game tại thời điểm đang dừng ở CHOICE
     const savedJson = vm.serialize();
     expect(typeof savedJson).toBe('string');
 
-    // Khôi phục trên một VM hoàn toàn mới
     const loadedVM = new VisualNovelVM(program);
     loadedVM.restore(savedJson);
 
-    // Trạng thái biến được giữ nguyên
     expect(loadedVM.getState().variables['score']).toBe(100);
 
-    // Lựa chọn CHOICE vẫn hoạt động bình thường
     const choices = loadedVM.getAvailableChoices();
     expect(choices).toHaveLength(2);
     loadedVM.choose(0);
@@ -465,7 +444,6 @@ describe('VisualNovelVM Core', () => {
     const afterChoiceRes = loadedVM.runUntilInteractive();
     expect(asDialogue(afterChoiceRes.stepResult).text).toBe('Nhánh A');
 
-    // Kiểm tra bảo vệ khi nạp dữ liệu save hỏng
     expect(() => loadedVM.restore('not-valid-json')).toThrowError(VMRuntimeError);
     expect(() => loadedVM.restore('{}')).toThrowError(/missing state/);
   });
@@ -483,27 +461,22 @@ describe('VisualNovelVM Core', () => {
     ];
 
     const vm = new VisualNovelVM(program);
-    vm.runUntilInteractive(); // Đang ở chapter1
+    vm.runUntilInteractive();
 
-    // 1. Nhảy bằng local dot label trong chapter1 -> phải tới chapter1.ask_question
     vm.jumpToScene('.ask_question');
     expect(vm.getState().currentScene).toBe('chapter1.ask_question');
     const res1 = vm.runUntilInteractive();
     expect(asDialogue(res1.stepResult).text).toBe('Câu hỏi chương 1');
 
-    // 2. Chuyển sang chapter5
     vm.jumpToScene('chapter5');
     expect(vm.getState().currentScene).toBe('chapter5');
     vm.runUntilInteractive();
 
-    // Nhảy bằng local dot label trong chapter5 -> phải tới chapter5.ask_question
     vm.jumpToScene('.ask_question');
     expect(vm.getState().currentScene).toBe('chapter5.ask_question');
     const res2 = vm.runUntilInteractive();
     expect(asDialogue(res2.stepResult).text).toBe('Câu hỏi chương 5');
 
-    // 3. Cố gắng nhảy tới tên chưa resolve / thiếu dấu chấm ("ask_question")
-    // Tuyệt đối không được đoán hậu tố (suffix match) mà phải quăng lỗi SceneNotFoundError
     expect(() => vm.jumpToScene('ask_question')).toThrowError(SceneNotFoundError);
   });
 
@@ -592,22 +565,18 @@ describe('VisualNovelVM Core', () => {
     const r1 = vm.runUntilInteractive();
     expect(r1.stepResult.type).toBe('SUSPEND_CHOICE');
 
-    // Chọn lựa chọn 0 (Call)
     vm.choose(0);
     expect(vm.getState().callStack).toHaveLength(1);
     expect(vm.getState().currentScene).toBe('start.c1');
 
-    // Chạy tới câu thoại trong branch 1
     const r2 = vm.runUntilInteractive();
     expect(asDialogue(r2.stepResult).text).toBe('Inside branch 1.');
 
-    // Chạy tiếp -> gặp RETURN trong branch 1, tự pop callStack và quay lại câu thoại "After choice continuation." trong scene start
     const r3 = vm.runUntilInteractive();
     expect(asDialogue(r3.stepResult).text).toBe('After choice continuation.');
     expect(vm.getState().currentScene).toBe('start');
     expect(vm.getState().callStack).toHaveLength(0);
 
-    // Chạy tiếp -> HALT
     const r4 = vm.runUntilInteractive();
     expect(r4.stepResult.type).toBe('HALTED');
   });
@@ -625,7 +594,6 @@ describe('VisualNovelVM Core', () => {
     const r1 = vm.runUntilInteractive();
     expect(asDialogue(r1.stepResult).text).toBe('Hello');
 
-    // Chạy lệnh RETURN khi callStack rỗng với emptyCallStackBehavior: 'halt'
     const r2 = vm.runUntilInteractive();
     expect(r2.stepResult.type).toBe('HALTED');
     expect(warnSpy).toHaveBeenCalledWith(
@@ -662,7 +630,6 @@ describe('VisualNovelVM Core', () => {
     ];
 
     const vm = new VisualNovelVM(program);
-    // Nhảy tới dòng 12 (trong scene2)
     const success = vm.jumpToLine(12, 'main.vns');
     expect(success).toBe(true);
     expect(vm.getState().currentScene).toBe('scene2');
@@ -713,8 +680,6 @@ describe('VisualNovelVM Core', () => {
   });
 
   it('should only execute implicit return at SCENE_END if current scene matches targetScene of CallFrame (Issue 104)', () => {
-    // Kịch bản: A calls B. B goto C. C reaches SCENE_END without explicit return.
-    // SCENE_END của C không được pop frame của B và return về A!
     const program: Instruction[] = [
       { type: 'SCENE', name: 'scene_a' },
       { type: 'CALL', targetScene: 'scene_b' },
@@ -738,10 +703,7 @@ describe('VisualNovelVM Core', () => {
     expect(vm.getState().callStack).toHaveLength(1);
     expect(vm.getState().callStack[0]?.targetScene).toBe('scene_b');
 
-    // Chạy tiếp qua SCENE_END của scene_c
     const r2 = vm.runUntilInteractive();
-    // Vì scene_c !== callStack[0].targetScene ('scene_b'), VM KHÔNG pop frame và KHÔNG return về scene_a.
-    // Thay vào đó chương trình kết thúc vì hết program.
     expect(r2.stepResult.type).toBe('HALTED');
     expect(vm.getState().currentScene).toBe('scene_c');
   });
@@ -767,5 +729,242 @@ describe('VisualNovelVM Core', () => {
     const vm = new VisualNovelVM(program);
     vm.runUntilInteractive();
     expect(vm.getState().localVariables['res']).toBe(4);
+  });
+
+  // =========================================================================
+  // BỘ KIỂM THỬ MICRO-PHASE 3: UNIFIED SPRITE LAYER & LITERAL SPEAKER
+  // =========================================================================
+  describe('Unified Sprite Layer & Literal Speaker (Micro-Phase 3)', () => {
+    it('[TC-SPRITE-VM-01] vm.step() handles SHOW and stores into state.activeSprites keyed by targetId', () => {
+      const program: Instruction[] = [
+        { type: 'SCENE', name: 'main' },
+        {
+          type: 'SHOW',
+          targetId: 'sword_legendary',
+          variant: 'glowing',
+          character: 'sword', // deprecated backward-compat field
+          position: 'center',
+          anchorX: 0.5,
+          anchorY: 1.0,
+        },
+        {
+          type: 'SHOW',
+          targetId: 'alice',
+          variant: 'happy',
+          character: 'alice',
+          position: 'left',
+        },
+      ];
+
+      const vm = new VisualNovelVM(program);
+      vm.step(); // SCENE
+      vm.step(); // SHOW sword_legendary
+      vm.step(); // SHOW alice
+
+      const activeSprites = vm.getState().activeSprites;
+      expect(activeSprites['sword_legendary']).toBeDefined();
+      expect(activeSprites['sword_legendary']?.targetId).toBe('sword_legendary');
+      expect(activeSprites['sword_legendary']?.variant).toBe('glowing');
+      expect(activeSprites['sword_legendary']?.anchorX).toBe(0.5);
+      expect(activeSprites['sword_legendary']?.anchorY).toBe(1.0);
+      expect(activeSprites['alice']).toBeDefined();
+      expect(activeSprites['alice']?.variant).toBe('happy');
+      // Chắc chắn key là targetId ('sword_legendary'), không bị lưu nhầm theo character ('sword')
+      expect(activeSprites['sword']).toBeUndefined();
+    });
+
+    it('[TC-SPRITE-VM-02] vm.step() handles HIDE and deletes sprite from state.activeSprites by targetId', () => {
+      const program: Instruction[] = [
+        { type: 'SCENE', name: 'main' },
+        {
+          type: 'SHOW',
+          targetId: 'sword_legendary',
+          variant: 'glowing',
+          character: 'sword',
+        },
+        {
+          type: 'SHOW',
+          targetId: 'alice',
+          variant: 'happy',
+          character: 'alice',
+        },
+        {
+          type: 'HIDE',
+          targetId: 'sword_legendary',
+          character: 'sword',
+        },
+      ];
+
+      const vm = new VisualNovelVM(program);
+      vm.step(); // SCENE
+      vm.step(); // SHOW sword_legendary
+      vm.step(); // SHOW alice
+      expect(vm.getState().activeSprites['sword_legendary']).toBeDefined();
+
+      vm.step(); // HIDE sword_legendary
+      const activeSprites = vm.getState().activeSprites;
+      expect(activeSprites['sword_legendary']).toBeUndefined();
+      expect(activeSprites['alice']).toBeDefined();
+    });
+
+    it('[TC-SPRITE-VM-03] vm.step() handles DIALOGUE storing currentDialogue with literal speaker (character and speaker)', () => {
+      const program: Instruction[] = [
+        { type: 'SCENE', name: 'main' },
+        {
+          type: 'DIALOGUE',
+          character: 'Alice Carroll',
+          speaker: 'Alice Carroll',
+          text: 'Xin chào, tôi là Alice Carroll!',
+        },
+        {
+          type: 'DIALOGUE',
+          character: '???',
+          speaker: '???',
+          text: 'Danh tính bí ẩn...',
+        },
+        {
+          type: 'DIALOGUE',
+          character: null,
+          speaker: null,
+          text: 'Trời đổ cơn mưa rào.',
+        },
+      ];
+
+      const vm = new VisualNovelVM(program);
+      vm.step(); // SCENE
+
+      // Dialogue 1: Literal name có khoảng trắng
+      const res1 = vm.step();
+      expect(res1.type).toBe('SUSPEND_DIALOGUE');
+      if (res1.type === 'SUSPEND_DIALOGUE') {
+        expect(res1.instruction.character).toBe('Alice Carroll');
+        expect(res1.instruction.speaker).toBe('Alice Carroll');
+        expect(res1.instruction.displayNameOverride).toBeUndefined();
+        expect(res1.instruction.text).toBe('Xin chào, tôi là Alice Carroll!');
+      }
+      expect(vm.getState().currentDialogue?.character).toBe('Alice Carroll');
+      expect(vm.getState().currentDialogue?.speaker).toBe('Alice Carroll');
+
+      // Dialogue 2: Literal question marks "???"
+      const res2 = vm.step();
+      expect(res2.type).toBe('SUSPEND_DIALOGUE');
+      if (res2.type === 'SUSPEND_DIALOGUE') {
+        expect(res2.instruction.character).toBe('???');
+        expect(res2.instruction.speaker).toBe('???');
+        expect(res2.instruction.displayNameOverride).toBeUndefined();
+      }
+      expect(vm.getState().currentDialogue?.character).toBe('???');
+
+      // Dialogue 3: Narration (người nói null)
+      const res3 = vm.step();
+      expect(res3.type).toBe('SUSPEND_DIALOGUE');
+      if (res3.type === 'SUSPEND_DIALOGUE') {
+        expect(res3.instruction.character).toBeNull();
+        expect(res3.instruction.speaker).toBeNull();
+      }
+      expect(vm.getState().currentDialogue?.character).toBeNull();
+    });
+
+    it('[TC-SPRITE-VM-04] getStateCatchUp() extracts active sprites Map keyed by targetId', () => {
+      const program: Instruction[] = [
+        { type: 'SCENE', name: 'main' },
+        {
+          type: 'SHOW',
+          targetId: 'alice_hero',
+          variant: 'happy',
+          character: 'alice',
+        },
+        {
+          type: 'SHOW',
+          targetId: 'key_gold',
+          variant: 'default',
+          character: 'prop_key',
+        },
+        {
+          type: 'DIALOGUE',
+          character: 'Alice',
+          speaker: 'Alice',
+          text: 'Tôi có chiếc chìa khóa!',
+        },
+      ];
+
+      const vm = new VisualNovelVM(program);
+      vm.runUntilInteractive();
+
+      const catchUp = vm.getStateCatchUp();
+      expect(catchUp.sprites).toBeInstanceOf(Map);
+      expect(catchUp.sprites.has('alice_hero')).toBe(true);
+      expect(catchUp.sprites.has('key_gold')).toBe(true);
+      expect(catchUp.sprites.get('alice_hero')?.variant).toBe('happy');
+      expect(catchUp.sprites.get('key_gold')?.variant).toBe('default');
+
+      // Kiểm tra seedCatchUpStateUpTo cũng lưu activeSprites theo targetId
+      const vm2 = new VisualNovelVM(program);
+      vm2.jumpToLine(3, undefined, { seedCatchUp: true });
+      const catchUp2 = vm2.getStateCatchUp();
+      expect(catchUp2.sprites.has('alice_hero')).toBe(true);
+    });
+
+    it('[TC-SPRITE-VM-05] Rollback and Save/Load preserve activeSprites keyed by targetId and literal speaker', () => {
+      const program: Instruction[] = [
+        { type: 'SCENE', name: 'step1' },
+        {
+          type: 'SHOW',
+          targetId: 'alice_hero',
+          variant: 'happy',
+          character: 'alice',
+        },
+        {
+          type: 'DIALOGUE',
+          character: '???',
+          speaker: '???',
+          text: 'Bước 1',
+        },
+        { type: 'SCENE', name: 'step2' },
+        {
+          type: 'SHOW',
+          targetId: 'sword_prop',
+          variant: 'sharp',
+          character: 'sword',
+        },
+        {
+          type: 'HIDE',
+          targetId: 'alice_hero',
+          character: 'alice',
+        },
+        {
+          type: 'DIALOGUE',
+          character: 'Alice Carroll',
+          speaker: 'Alice Carroll',
+          text: 'Bước 2',
+        },
+      ];
+
+      const vm = new VisualNovelVM(program);
+      vm.runUntilInteractive(); // Dừng ở Bước 1
+      expect(vm.getState().activeSprites['alice_hero']).toBeDefined();
+
+      vm.runUntilInteractive(); // Dừng ở Bước 2
+      expect(vm.getState().activeSprites['alice_hero']).toBeUndefined();
+      expect(vm.getState().activeSprites['sword_prop']).toBeDefined();
+
+      // 1. Kiểm tra Save & Restore tại Bước 2
+      const savedJson = vm.serialize();
+      const restoredVM = new VisualNovelVM(program);
+      restoredVM.restore(savedJson);
+      expect(restoredVM.getState().activeSprites['sword_prop']).toBeDefined();
+      expect(restoredVM.getState().activeSprites['alice_hero']).toBeUndefined();
+      expect(restoredVM.getState().currentDialogue?.character).toBe('Alice Carroll');
+      expect(restoredVM.getStateCatchUp().sprites.has('sword_prop')).toBe(true);
+
+      // 2. Kiểm tra Rollback về Bước 1 trên vm gốc
+      expect(vm.canRollback()).toBe(true);
+      vm.rollback();
+      expect(vm.getState().activeSprites['alice_hero']).toBeDefined();
+      expect(vm.getState().activeSprites['sword_prop']).toBeUndefined();
+      expect(vm.getStateCatchUp().sprites.has('alice_hero')).toBe(true);
+      expect(vm.getStateCatchUp().sprites.has('sword_prop')).toBe(false);
+      expect(vm.getState().currentDialogue?.character).toBe('???');
+    });
   });
 });

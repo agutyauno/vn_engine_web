@@ -18,7 +18,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 describe('Headless Smoke Test (Golden Scenario P0 End-to-End)', () => {
-  it('should compile and simulate a full playthrough of golden_scenario_p0.vns to Good Ending', () => {
+  it('[TC-SPRITE-VM-07] should compile and simulate a full playthrough of golden_scenario_p0.vns with literal speaker', () => {
     // 1. Đọc kịch bản vàng từ thư mục fixtures dùng chung
     const fixturePath = path.resolve(
       __dirname,
@@ -40,27 +40,31 @@ describe('Headless Smoke Test (Golden Scenario P0 End-to-End)', () => {
     });
 
     // -------------------------------------------------------------
-    // Bước 1: Khởi đầu kịch bản — Chạy đến câu thoại 1
+    // Bước 1: Khởi đầu kịch bản — Chạy đến câu thoại 1 (Literal speaker "???")
     // -------------------------------------------------------------
     const step1 = vm.runUntilInteractive();
     expect(step1.stepResult.type).toBe('SUSPEND_DIALOGUE');
     const diag1 = asDialogue(step1.stepResult);
-    expect(diag1.character).toBe('alice');
-    expect(diag1.displayNameOverride).toBe('???');
+    expect(diag1.character).toBe('???');
+    expect(diag1.speaker).toBe('???');
+    expect(diag1.displayNameOverride).toBeUndefined();
     expect(diag1.text).toBe('Cậu... là ai vậy?');
 
     // Kiểm tra đã nạp đúng tài nguyên hình ảnh và âm thanh ở đầu game
     const catchup1 = vm.getStateCatchUp();
     expect(catchup1.background?.assetId).toBe('bg_classroom');
-    expect(catchup1.sprites.get('alice')?.sprite).toBe('happy');
+    expect(catchup1.sprites.get('alice')?.variant ?? catchup1.sprites.get('alice')?.sprite).toBe('happy');
     expect(catchup1.audio.get('music')?.assetId).toBe('bgm_school.mp3');
 
     // -------------------------------------------------------------
-    // Bước 2: Câu thoại 2
+    // Bước 2: Câu thoại 2 (Literal speaker "???")
     // -------------------------------------------------------------
     const step2 = vm.runUntilInteractive();
     expect(step2.stepResult.type).toBe('SUSPEND_DIALOGUE');
     const diag2 = asDialogue(step2.stepResult);
+    expect(diag2.character).toBe('???');
+    expect(diag2.speaker).toBe('???');
+    expect(diag2.displayNameOverride).toBeUndefined();
     expect(diag2.text).toBe('Đừng lo, tôi không hại cậu đâu.');
 
     // -------------------------------------------------------------

@@ -36,7 +36,7 @@ scene prologue ui: "default" {
     "Trước mắt bạn, cánh cửa phòng Hội học sinh — nơi luôn khóa trái nghiêm ngặt — đang hé mở một khe hẹp bất thường."
 
     show alice.serious(position: "left", duration: 0.4s)
-    alice as "???": "Này! Cậu đang làm gì thập thò trước cửa phòng Hội học sinh vậy?"
+    "???": "Này! Cậu đang làm gì thập thò trước cửa phòng Hội học sinh vậy?"
 
     choice {
         "Tôi thấy cửa mở nên tò mò nhìn thử": goto .explain_curious
@@ -45,29 +45,28 @@ scene prologue ui: "default" {
     }
 
     scene .explain_curious {
-        alice as "???": "Cửa mở sao? Lạ thật... Chiều nay anh Hội trưởng nói đích thân anh ấy sẽ khóa cửa cơ mà."
+        "???": "Cửa mở sao? Lạ thật... Chiều nay anh Hội trưởng nói đích thân anh ấy sẽ khóa cửa cơ mà."
         ~ trust_score = 15
         goto .meet_alice
     }
 
     scene .explain_passby {
-        alice as "???": "Giờ này mà vẫn còn nán lại trường sao? Cậu đáng ngờ lắm đấy."
+        "???": "Giờ này mà vẫn còn nán lại trường sao? Cậu đáng ngờ lắm đấy."
         ~ trust_score = 5
         goto .meet_alice
     }
 
     scene .run_away {
-        alice as "???": "Đứng lại! Đừng có chạy!"
+        "???": "Đứng lại! Đừng có chạy!"
         ~ trust_score = 0
         goto coward_ending
     }
 
     scene .meet_alice {
-        reveal alice as "Alice - Hội Phó"
         show alice.smile(position: "left")
 
-        alice: "Tôi là Alice, Hội phó phụ trách kỷ luật. Nếu cửa đã mở, chúng ta phải vào kiểm tra xem có ai đột nhập không."
-        alice: "Cậu có dám vào trong cùng tôi một lát không?"
+        "Alice - Hội Phó": "Tôi là Alice, Hội phó phụ trách kỷ luật. Nếu cửa đã mở, chúng ta phải vào kiểm tra xem có ai đột nhập không."
+        "Alice - Hội Phó": "Cậu có dám vào trong cùng tôi một lát không?"
 
         choice {
             "Được thôi, tôi sẽ giúp cậu kiểm tra": goto chapter1_investigation

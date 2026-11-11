@@ -60,7 +60,6 @@ describe('String Interpolation Module (interpolation.ts)', () => {
       '{speed:slow}Khoan đã... {pause:0.5s}{color:#38bdf8}Alice{/color}!{speed:normal}',
     );
 
-    // Hỗ trợ cả thẻ có khoảng trắng như {pause: 1s}, {speed: slow}, {color: #hex}
     const withSpaces = 'Hi {pause: 1s} {speed: fast}{playerName}{ /color }';
     expect(interpolate(withSpaces, context, evaluator)).toBe(
       'Hi {pause: 1s} {speed: fast}Alice{ /color }',
@@ -127,25 +126,6 @@ describe('VNVirtualMachine Interpolation Integration', () => {
     const choiceInstr = (res.stepResult as { instruction: ChoiceInstruction }).instruction;
     expect(choiceInstr.choices[0]?.text).toBe('Mua vé (100 vàng)');
     expect(choiceInstr.choices[1]?.text).toBe('Đi về');
-  });
-
-  it('nội suy danh xưng trong REVEAL', () => {
-    const program: Instruction[] = [
-      { type: 'SCENE', name: 'main' },
-      {
-        type: 'ASSIGN',
-        variable: 'title',
-        value: { type: 'Literal', value: 'Thám tử' },
-        scope: 'global',
-      },
-      { type: 'REVEAL', characterId: 'alice', displayName: '{title} Alice' },
-      { type: 'DIALOGUE', character: 'alice', text: 'Chào!' },
-    ];
-
-    const vm = new VisualNovelVM(program);
-    vm.runUntilInteractive();
-
-    expect(vm.getState().characterDisplayOverrides['alice']).toBe('Thám tử Alice');
   });
 
   it('nội suy câu thoại trong getStateCatchUp()', () => {

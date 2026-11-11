@@ -59,11 +59,12 @@ describe('Mystery Investigation Scenario E2E Simulation', () => {
     const s3 = vm.runUntilInteractive();
     expect(asDialogue(s3.stepResult).text).toContain('cánh cửa phòng Hội học sinh');
 
-    // Câu 4: Alice xuất hiện với tên ẩn danh ???
+    // Câu 4: Alice xuất hiện với tên ẩn danh ??? (Literal Speaker)
     const s4 = vm.runUntilInteractive();
     const d4 = asDialogue(s4.stepResult);
-    expect(d4.character).toBe('alice');
-    expect(d4.displayNameOverride).toBe('???');
+    expect(d4.character).toBe('???');
+    expect(d4.speaker).toBe('???');
+    expect(d4.displayNameOverride).toBeUndefined();
     expect(d4.text).toContain('Này! Cậu đang làm gì thập thò');
 
     // Lựa chọn đầu tiên: Giải thích lý do
@@ -78,12 +79,12 @@ describe('Mystery Investigation Scenario E2E Simulation', () => {
     const s5 = vm.runUntilInteractive();
     expect(asDialogue(s5.stepResult).text).toContain('Cửa mở sao? Lạ thật...');
 
-    // Reveal Alice & mời vào phòng -> trust_score được gán là 15
+    // Giới thiệu Alice với danh xưng literal "Alice - Hội Phó" -> trust_score được gán là 15
     const s6 = vm.runUntilInteractive();
     const d6 = asDialogue(s6.stepResult);
-    expect(d6.character).toBe('alice');
+    expect(d6.character).toBe('Alice - Hội Phó');
+    expect(d6.speaker).toBe('Alice - Hội Phó');
     expect(d6.text).toContain('Tôi là Alice, Hội phó phụ trách kỷ luật');
-    expect(vm.getState().characterDisplayOverrides['alice']).toBe('Alice - Hội Phó');
     expect(vm.getState().variables['trust_score']).toBe(15);
 
     const s7 = vm.runUntilInteractive();
