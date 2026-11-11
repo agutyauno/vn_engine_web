@@ -5,7 +5,6 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type {
   DialogueInstruction,
-  RevealInstruction,
   ChoiceInstruction,
   BackgroundInstruction,
   PlayInstruction,
@@ -13,7 +12,6 @@ import type {
   HideInstruction,
   StopInstruction,
   AssignInstruction,
-  Character,
   ShowStatement,
   HideStatement,
 } from '@vn-engine/shared-types';
@@ -142,21 +140,21 @@ describe('DSL Compiler Core (5-Stage Pipeline)', () => {
     expect(result.success).toBe(true);
 
     const show = result.program!.find(i => i.type === 'SHOW') as ShowInstruction | undefined;
-    expect(show?.character).toBe('alice');
-    expect(show?.sprite).toBe('happy');
+    expect(show?.targetId).toBe('alice');
+    expect(show?.variant).toBe('happy');
     expect(show?.position).toBe('left');
     expect(show?.transition).toBe('dissolve');
     expect(show?.duration).toBe(0.5);
 
     const hide = result.program!.find(i => i.type === 'HIDE') as HideInstruction | undefined;
-    expect(hide?.character).toBe('alice');
+    expect(hide?.targetId).toBe('alice');
 
     const stop = result.program!.find(i => i.type === 'STOP') as StopInstruction | undefined;
     expect(stop?.channel).toBe('music');
     expect(stop?.fadeOut).toBe(2);
   });
 
-  it('should default to "default" or first sprite when show statement omits sprite expression', () => {
+  it('should default to "default" when show statement omits sprite variant', () => {
     const dsl = `
       scene default_sprite_test {
         show alice
@@ -164,28 +162,15 @@ describe('DSL Compiler Core (5-Stage Pipeline)', () => {
       }
     `;
 
-    const characters: Character[] = [
-      {
-        id: 'alice',
-        name: 'Alice',
-        sprites: { default: 'asset-1', angry: 'asset-2' },
-      },
-      {
-        id: 'bob',
-        name: 'Bob',
-        sprites: { serious: 'asset-3', happy: 'asset-4' }, // Không có default, biểu cảm đầu tiên là serious
-      },
-    ];
-
-    const result = compileString(dsl, 'test.vns', { characters });
+    const result = compileString(dsl, 'test.vns');
     expect(result.success).toBe(true);
 
     const shows = result.program!.filter(i => i.type === 'SHOW') as ShowInstruction[];
     expect(shows).toHaveLength(2);
-    expect(shows[0]?.character).toBe('alice');
-    expect(shows[0]?.sprite).toBe('default');
-    expect(shows[1]?.character).toBe('bob');
-    expect(shows[1]?.sprite).toBe('serious');
+    expect(shows[0]?.targetId).toBe('alice');
+    expect(shows[0]?.variant).toBe('default');
+    expect(shows[1]?.targetId).toBe('bob');
+    expect(shows[1]?.variant).toBe('default');
     expect(shows[1]?.position).toBe('right');
   });
 
@@ -285,8 +270,8 @@ describe('DSL Compiler Core (5-Stage Pipeline)', () => {
     expect(result.success).toBe(true);
     const showInstr = result.program!.find(i => i.type === 'SHOW') as ShowInstruction;
     expect(showInstr).toBeDefined();
-    expect(showInstr.character).toBe('alice');
-    expect(showInstr.sprite).toBe('happy');
+    expect(showInstr.targetId).toBe('alice');
+    expect(showInstr.variant).toBe('happy');
     expect(showInstr.scale).toBe(1.5);
     expect(showInstr.rotate).toBe(-25);
     expect(showInstr.flipX).toBe(true);
@@ -607,9 +592,6 @@ Dẫn chuyện dòng 2"
         expect(show1.variant).toBe('happy');
         expect(show1.anchorX).toBe(0.5);
         expect(show1.anchorY).toBe(1.0);
-        // Backwards compatibility shims
-        expect(show1.character).toBe('alice');
-        expect(show1.sprite).toBe('happy');
 
         const show2 = scene.body[1] as ShowStatement;
         expect(show2.type).toBe('ShowStatement');
@@ -623,7 +605,6 @@ Dẫn chuyện dòng 2"
         const hide1 = scene.body[2] as HideStatement;
         expect(hide1.type).toBe('HideStatement');
         expect(hide1.targetId).toBe('alice');
-        expect(hide1.character).toBe('alice');
       });
     });
 
@@ -651,8 +632,6 @@ Dẫn chuyện dòng 2"
           variant: 'happy',
           anchorX: 0.5,
           anchorY: 1.0,
-          character: 'alice',
-          sprite: 'happy',
         });
 
         // Second show: overrides anchorX: 0.2, anchorY: 0.8
@@ -662,15 +641,12 @@ Dẫn chuyện dòng 2"
           variant: 'default',
           anchorX: 0.2,
           anchorY: 0.8,
-          character: 'sword',
-          sprite: 'default',
         });
 
         // Hide instruction
         expect(hides[0]).toMatchObject({
           type: 'HIDE',
           targetId: 'alice',
-          character: 'alice',
         });
       });
     });

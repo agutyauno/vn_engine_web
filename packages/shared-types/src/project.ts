@@ -46,8 +46,6 @@ export interface ProjectMetadata {
 
 export interface Project extends ProjectMetadata {
   files: ScriptFile[]; // Danh sách file kịch bản đa chương
-  /** @deprecated Dùng assets với category === 'sprite' thay thế. Giữ tạm thời để build monorepo không gãy qua các micro-phase. */
-  characters?: Character[]; // Danh sách nhân vật
   variables: VariableDeclaration[];
   assets: AssetRef[];
   uiScreens: UICustomScreen[];
@@ -61,15 +59,6 @@ export interface ScriptFile {
   order: number;
   version: number;
   updatedBy?: string; // Supabase auth.uid() của người sửa gần nhất (P1)
-}
-
-/** @deprecated Sử dụng AssetRef với category: 'sprite' (tag/variant) thay thế. Giữ lại để đảm bảo backward compatibility giữa các Micro-Phases, sẽ xóa hoàn toàn ở Phase 7. */
-export interface Character {
-  id: string; // Mã nhân vật dùng trong script: "alice"
-  name: string; // Tên hiển thị mặc định: "Alice Carroll" (ADR-020)
-  colorHex?: string; // Mã màu tên trong hộp thoại: "#e91e63"
-  sprites: Record<string, string>; // { "happy": "asset-uuid-1", "sad": "asset-uuid-2" }
-  defaultExpression?: string;
 }
 
 export interface VariableDeclaration {

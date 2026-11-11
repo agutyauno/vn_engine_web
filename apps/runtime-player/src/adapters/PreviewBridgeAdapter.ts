@@ -4,7 +4,7 @@
 // Throttling 60ms cho State Updates, Origin Sanitization & Diagnostic Forwarding
 // ============================================================================
 
-import type { Instruction, EngineDiagnostic, Character, AssetRef } from '@vn-engine/shared-types';
+import type { Instruction, EngineDiagnostic, AssetRef } from '@vn-engine/shared-types';
 
 export function isAllowedEditorOrigin(
   origin: string,
@@ -37,8 +37,6 @@ export interface HotReloadOptions {
   line?: number;
   preserveState?: boolean;
   projectId?: string;
-  /** @deprecated Sẽ gỡ bỏ hoàn toàn ở Micro-Phase 7 */
-  characters?: Character[];
   assets?: AssetRef[];
 }
 
@@ -124,7 +122,6 @@ export class PreviewBridgeAdapter {
         const line = (payload?.line ?? data.line) as number | undefined;
         const preserveState = (payload?.preserveState ?? data.preserveState) as boolean | undefined;
         const projectId = (payload?.projectId ?? data.projectId) as string | undefined;
-        const characters = (payload?.characters ?? data.characters) as Character[] | undefined;
         const assets = (payload?.assets ?? data.assets) as AssetRef[] | undefined;
 
         if (program) {
@@ -133,7 +130,6 @@ export class PreviewBridgeAdapter {
           if (line !== undefined) opts.line = line;
           if (preserveState !== undefined) opts.preserveState = preserveState;
           if (projectId !== undefined) opts.projectId = projectId;
-          if (characters !== undefined) opts.characters = characters;
           if (assets !== undefined) opts.assets = assets;
           this.options.onHotReload?.(program, Object.keys(opts).length > 0 ? opts : undefined);
         }

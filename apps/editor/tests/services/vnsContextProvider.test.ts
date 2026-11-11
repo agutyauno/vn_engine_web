@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import type {
   Project,
   AssetRef,
-  Character,
   VariableDeclaration,
   ScriptFile,
 } from '@vn-engine/shared-types';
@@ -14,7 +13,6 @@ import {
 function createMockProject(options?: {
   files?: Array<{ id: string; name: string; content: string; order: number; version: number }>;
   assets?: AssetRef[];
-  characters?: Array<{ id: string; name: string; sprites?: Record<string, string> }>;
   variables?: Array<{ name: string }>;
 }): Project {
   return {
@@ -24,7 +22,6 @@ function createMockProject(options?: {
     ownerId: 'owner-1',
     defaultLanguage: 'vi',
     files: (options?.files as unknown as ScriptFile[]) || [],
-    characters: (options?.characters as unknown as Character[]) || [],
     variables: (options?.variables as unknown as VariableDeclaration[]) || [],
     assets: options?.assets || [],
     uiScreens: [],

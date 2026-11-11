@@ -132,14 +132,13 @@ describe('VNRuntimeKernel Core', () => {
     const program: Instruction[] = [
       { type: 'SCENE', name: 'intro' },
       { type: 'BACKGROUND', assetId: 'bg_room' },
-      { type: 'SHOW', character: 'alice', sprite: 'happy', position: 'center' },
+      { type: 'SHOW', targetId: 'alice', variant: 'happy', position: 'center' },
       {
         type: 'DIALOGUE',
-        character: 'alice',
+        character: 'Alice',
         text: 'Welcome to TaleForge!',
-        displayNameOverride: 'Alice',
       },
-      { type: 'DIALOGUE', character: 'alice', text: 'Second line.' },
+      { type: 'DIALOGUE', character: 'Alice', text: 'Second line.' },
     ];
 
     const kernel = new VNRuntimeKernel(program, {
@@ -164,7 +163,7 @@ describe('VNRuntimeKernel Core', () => {
       expect.objectContaining({ type: 'BACKGROUND', assetId: 'bg_room' }),
     );
     expect(mockRenderer.applySideEffect).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'SHOW', character: 'alice' }),
+      expect.objectContaining({ type: 'SHOW', targetId: 'alice' }),
     );
 
     // Advance to line 2

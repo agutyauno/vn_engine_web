@@ -31,7 +31,6 @@ describe('Studio Shell & Navigation (Milestone 3 TDD)', () => {
     defaultLanguage: 'vi',
     updatedAt: Date.now(),
     files: mockFiles,
-    characters: [],
     assets: [],
     variables: [],
     uiScreens: [],

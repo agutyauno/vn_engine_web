@@ -11,14 +11,12 @@ describe('livePreviewStore', () => {
   const samplePayload1: HotReloadPayload = {
     program: [{ type: 'DIALOGUE', character: null, text: 'Hello 1' }],
     projectId: 'proj-1',
-    characters: [],
     assets: [],
   };
 
   const samplePayload2: HotReloadPayload = {
     program: [{ type: 'DIALOGUE', character: null, text: 'Hello 2' }],
     projectId: 'proj-1',
-    characters: [{ id: 'hero', name: 'Hero', defaultExpression: 'normal', sprites: {} }],
     assets: [],
   };
 

@@ -322,16 +322,6 @@ export function validateSemantics(
             errors,
           );
         }
-        if (diag.displayNameOverride) {
-          checkInterpolatedVariables(
-            diag.displayNameOverride,
-            globals,
-            sceneLocals,
-            sceneName,
-            diag.loc,
-            errors,
-          );
-        }
       } else if (stmt.type === 'GotoStatement') {
         const gt = stmt as GotoStatement;
         if (!definedSceneNames.has(gt.targetScene)) {
@@ -422,7 +412,7 @@ export function validateSemantics(
         }
       } else if (stmt.type === 'ShowStatement') {
         const showStmt = stmt as ShowStatement;
-        const targetId = showStmt.targetId || showStmt.character || 'sprite';
+        const targetId = showStmt.targetId || 'sprite';
         if (showStmt.position && (showStmt.x !== undefined || showStmt.y !== undefined)) {
           errors.push({
             message: `In show statement '${targetId}', cannot use both 'position' and 'x'/'y' coordinates simultaneously.`,

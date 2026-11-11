@@ -18,15 +18,6 @@ export interface DialogueInstruction extends BaseInstruction {
   uiScreenId?: string;
 }
 
-/** @deprecated Giữ lại trong Phase 1–6 để bảo toàn typecheck monorepo, xóa triệt để ở Phase 7 */
-export interface RevealInstruction extends BaseInstruction {
-  type: 'REVEAL';
-  characterId: string;
-  displayName: string;
-  character?: string;
-  revealedName?: string;
-}
-
 export interface BackgroundInstruction
   extends BaseInstruction, TransformProperties, MotionProperties {
   type: 'BACKGROUND';
@@ -35,23 +26,16 @@ export interface BackgroundInstruction
 
 export interface ShowInstruction extends BaseInstruction, TransformProperties, MotionProperties {
   type: 'SHOW';
-  targetId?: string;
+  targetId: string;
   variant?: string;
   position?: NamedPosition | CoordinatePosition;
   anchorX?: number;
   anchorY?: number;
-
-  /** @deprecated Bắt buộc trong Phase 1–6 cho downstream typecheck, dùng targetId thay thế. */
-  character: string;
-  /** @deprecated Dùng variant thay thế */
-  sprite?: string;
 }
 
 export interface HideInstruction extends BaseInstruction {
   type: 'HIDE';
-  targetId?: string;
-  /** @deprecated Bắt buộc trong Phase 1–6 cho downstream typecheck, dùng targetId thay thế. */
-  character: string;
+  targetId: string;
 }
 
 export interface HideDialogueInstruction extends BaseInstruction {
@@ -173,7 +157,6 @@ export interface PauseInstruction extends BaseInstruction {
 
 export type Instruction =
   | DialogueInstruction
-  | RevealInstruction
   | BackgroundInstruction
   | ShowInstruction
   | HideInstruction

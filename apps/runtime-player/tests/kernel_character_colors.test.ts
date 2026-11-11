@@ -1,27 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { Instruction, Character } from '@vn-engine/shared-types';
+import type { Instruction } from '@vn-engine/shared-types';
 import { VNRuntimeKernel } from '../src/core/VNRuntimeKernel';
 import type { KernelAdapters } from '../src/core/contracts';
 
-describe('VNRuntimeKernel Character Color Resolution (TASK-player-typewriter-and-colors)', () => {
+describe('VNRuntimeKernel Literal Speaker Resolution (Unified Sprite Layer)', () => {
   let mockRenderer: NonNullable<KernelAdapters['renderer']>;
   let mockAudio: NonNullable<KernelAdapters['audio']>;
   let mockStorage: NonNullable<KernelAdapters['storage']>;
-
-  const testCharacters: Character[] = [
-    {
-      id: 'alice',
-      name: 'Alice Carroll',
-      colorHex: '#38bdf8',
-      sprites: { happy: 'sprite_alice_happy' },
-    },
-    {
-      id: 'bob',
-      name: 'Bob Smith',
-      colorHex: '#f43f5e',
-      sprites: { normal: 'sprite_bob_normal' },
-    },
-  ];
 
   beforeEach(() => {
     vi.useFakeTimers();
@@ -56,18 +41,17 @@ describe('VNRuntimeKernel Character Color Resolution (TASK-player-typewriter-and
     vi.clearAllMocks();
   });
 
-  describe('TC-KC-01: Character Color Mapping in Dialogue and Backlog', () => {
-    it('should assign speakerColorHex from character options to state.dialogue and backlogEntry', async () => {
+  describe('TC-KC-01: Speaker Name and Color in Dialogue and Backlog', () => {
+    it('should assign speakerName and default #ffffff colorHex to state.dialogue and backlogEntry', async () => {
       const program: Instruction[] = [
         { type: 'SCENE', name: 'intro' },
-        { type: 'DIALOGUE', character: 'alice', text: 'Hello, World!' },
-        { type: 'DIALOGUE', character: 'bob', text: 'Hey there!' },
+        { type: 'DIALOGUE', character: 'Alice Carroll', text: 'Hello, World!' },
+        { type: 'DIALOGUE', character: 'Bob Smith', text: 'Hey there!' },
       ];
 
       const kernel = new VNRuntimeKernel(
         program,
         { renderer: mockRenderer, audio: mockAudio, storage: mockStorage },
-        { characters: testCharacters },
       );
 
       await kernel.startNewGame();
@@ -75,32 +59,31 @@ describe('VNRuntimeKernel Character Color Resolution (TASK-player-typewriter-and
       // Alice line
       const state1 = kernel.getState();
       expect(state1.dialogue.speakerName).toBe('Alice Carroll');
-      expect(state1.dialogue.speakerColorHex).toBe('#38bdf8');
+      expect(state1.dialogue.speakerColorHex).toBe('#ffffff');
       expect(state1.backlog).toHaveLength(1);
       expect(state1.backlog[0]?.speakerName).toBe('Alice Carroll');
-      expect(state1.backlog[0]?.speakerColorHex).toBe('#38bdf8');
+      expect(state1.backlog[0]?.speakerColorHex).toBe('#ffffff');
 
       // Advance to Bob line
       await kernel.advance();
       const state2 = kernel.getState();
       expect(state2.dialogue.speakerName).toBe('Bob Smith');
-      expect(state2.dialogue.speakerColorHex).toBe('#f43f5e');
+      expect(state2.dialogue.speakerColorHex).toBe('#ffffff');
       expect(state2.backlog).toHaveLength(2);
       expect(state2.backlog[1]?.speakerName).toBe('Bob Smith');
-      expect(state2.backlog[1]?.speakerColorHex).toBe('#f43f5e');
+      expect(state2.backlog[1]?.speakerColorHex).toBe('#ffffff');
     });
 
-    it('should leave speakerColorHex undefined for narrator or unregistered character', async () => {
+    it('should leave speakerName and speakerColorHex undefined for narrator without speaker', async () => {
       const program: Instruction[] = [
         { type: 'SCENE', name: 'intro' },
         { type: 'DIALOGUE', character: null, text: 'Narrator speaking here.' },
-        { type: 'DIALOGUE', character: 'charlie', text: 'Unknown character.' },
+        { type: 'DIALOGUE', character: 'Charlie', text: 'Literal speaker character.' },
       ];
 
       const kernel = new VNRuntimeKernel(
         program,
         { renderer: mockRenderer, audio: mockAudio, storage: mockStorage },
-        { characters: testCharacters },
       );
 
       await kernel.startNewGame();
@@ -112,42 +95,38 @@ describe('VNRuntimeKernel Character Color Resolution (TASK-player-typewriter-and
 
       await kernel.advance();
       const state2 = kernel.getState();
-      expect(state2.dialogue.speakerName).toBe('charlie');
-      expect(state2.dialogue.speakerColorHex).toBeUndefined();
-      expect(state2.backlog[1]?.speakerColorHex).toBeUndefined();
+      expect(state2.dialogue.speakerName).toBe('Charlie');
+      expect(state2.dialogue.speakerColorHex).toBe('#ffffff');
+      expect(state2.backlog[1]?.speakerColorHex).toBe('#ffffff');
     });
   });
 
-  describe('TC-KC-02: Alias with Character Color', () => {
-    it('should preserve speakerColorHex from character id when displayNameOverride is used', async () => {
+  describe('TC-KC-02: Literal Speaker String in Dialogue', () => {
+    it('should directly display mysterious speaker "???" with speakerColorHex', async () => {
       const program: Instruction[] = [
         { type: 'SCENE', name: 'intro' },
         {
           type: 'DIALOGUE',
-          character: 'alice',
+          character: '???',
           text: 'Who am I?',
-          displayNameOverride: '???',
         },
       ];
 
       const kernel = new VNRuntimeKernel(
         program,
         { renderer: mockRenderer, audio: mockAudio, storage: mockStorage },
-        { characters: testCharacters },
       );
 
       await kernel.startNewGame();
 
       const state = kernel.getState();
-      // Display name should be the alias override "???"
       expect(state.dialogue.speakerName).toBe('???');
-      // Color hex must still resolve to Alice's color "#38bdf8"
-      expect(state.dialogue.speakerColorHex).toBe('#38bdf8');
+      expect(state.dialogue.speakerColorHex).toBe('#ffffff');
 
-      // Backlog entry should also record the alias with Alice's color
+      // Backlog entry should also record the literal speaker
       expect(state.backlog).toHaveLength(1);
       expect(state.backlog[0]?.speakerName).toBe('???');
-      expect(state.backlog[0]?.speakerColorHex).toBe('#38bdf8');
+      expect(state.backlog[0]?.speakerColorHex).toBe('#ffffff');
     });
   });
 
@@ -155,21 +134,20 @@ describe('VNRuntimeKernel Character Color Resolution (TASK-player-typewriter-and
     it('should restore speakerColorHex on catch-up and rollback', async () => {
       const program: Instruction[] = [
         { type: 'SCENE', name: 'intro' },
-        { type: 'DIALOGUE', character: 'alice', text: 'Line 1 by Alice.' },
-        { type: 'DIALOGUE', character: 'bob', text: 'Line 2 by Bob.' },
+        { type: 'DIALOGUE', character: 'Alice Carroll', text: 'Line 1 by Alice.' },
+        { type: 'DIALOGUE', character: 'Bob Smith', text: 'Line 2 by Bob.' },
       ];
 
       const kernel = new VNRuntimeKernel(
         program,
         { renderer: mockRenderer, audio: mockAudio, storage: mockStorage },
-        { characters: testCharacters },
       );
 
       await kernel.startNewGame();
-      expect(kernel.getState().dialogue.speakerColorHex).toBe('#38bdf8');
+      expect(kernel.getState().dialogue.speakerColorHex).toBe('#ffffff');
 
       await kernel.advance();
-      expect(kernel.getState().dialogue.speakerColorHex).toBe('#f43f5e');
+      expect(kernel.getState().dialogue.speakerColorHex).toBe('#ffffff');
 
       // Rollback to Line 1
       const rolled = kernel.rollback();
@@ -178,48 +156,7 @@ describe('VNRuntimeKernel Character Color Resolution (TASK-player-typewriter-and
       const rollbackState = kernel.getState();
       expect(rollbackState.dialogue.rawText).toBe('Line 1 by Alice.');
       expect(rollbackState.dialogue.speakerName).toBe('Alice Carroll');
-      expect(rollbackState.dialogue.speakerColorHex).toBe('#38bdf8');
-    });
-  });
-
-  describe('TC-KC-04: Dynamic Character Registry Update on loadProgram', () => {
-    it('should update character color resolution when loadProgram passes updated characters', async () => {
-      const initialProgram: Instruction[] = [
-        { type: 'SCENE', name: 'intro' },
-        { type: 'DIALOGUE', character: 'alice', text: 'Initial line.' },
-      ];
-
-      const kernel = new VNRuntimeKernel(
-        initialProgram,
-        { renderer: mockRenderer, audio: mockAudio, storage: mockStorage },
-        { characters: testCharacters },
-      );
-
-      await kernel.startNewGame();
-      expect(kernel.getState().dialogue.speakerColorHex).toBe('#38bdf8');
-
-      // Hot reload script with updated character color palette (Alice changed to gold #eab308)
-      const updatedCharacters: Character[] = [
-        {
-          id: 'alice',
-          name: 'Alice Carroll',
-          colorHex: '#eab308',
-          sprites: { happy: 'sprite_alice_happy' },
-        },
-      ];
-
-      const updatedProgram: Instruction[] = [
-        { type: 'SCENE', name: 'intro' },
-        { type: 'DIALOGUE', character: 'alice', text: 'Updated line.' },
-      ];
-
-      await kernel.loadProgram(updatedProgram, {
-        characters: updatedCharacters,
-        scene: 'intro',
-      });
-
-      const updatedState = kernel.getState();
-      expect(updatedState.dialogue.speakerColorHex).toBe('#eab308');
+      expect(rollbackState.dialogue.speakerColorHex).toBe('#ffffff');
     });
   });
 });

@@ -386,8 +386,6 @@ export class VNSAstBuilder extends BaseVNSVisitor {
       type: 'ShowStatement',
       targetId,
       variant,
-      character: targetId,
-      sprite: variant,
       anchorX,
       anchorY,
       position,
@@ -501,7 +499,6 @@ export class VNSAstBuilder extends BaseVNSVisitor {
     return {
       type: 'HideStatement',
       targetId: charToken.image,
-      character: charToken.image,
       loc: extractLocation(charToken, this.currentFileId),
     };
   }

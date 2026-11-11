@@ -143,18 +143,8 @@ export function createVnsProjectContext(
       return cachedAggregatedScenes;
     },
 
-    /** @deprecated Character entity table is eliminated in Unified Sprite Layer */
     getCharacters: () => {
-      const proj = getCurProject();
-      const map = new Map<string, { displayName?: string; colorHex?: string; sprites: Set<string> }>();
-      for (const c of proj?.characters || []) {
-        map.set(c.id, {
-          displayName: c.name,
-          colorHex: c.colorHex,
-          sprites: new Set(Object.keys(c.sprites || {})),
-        });
-      }
-      return map;
+      return new Map<string, { displayName?: string; colorHex?: string; sprites: Set<string> }>();
     },
 
     getAssets: () => {

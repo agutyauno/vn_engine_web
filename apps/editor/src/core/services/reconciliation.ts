@@ -1,4 +1,4 @@
-import type { Project, EngineDiagnostic, ScriptFile, Character, ProgramAST } from '@vn-engine/shared-types';
+import type { Project, EngineDiagnostic, ScriptFile, ProgramAST } from '@vn-engine/shared-types';
 import {
   VNSLexer,
   parserInstance,
@@ -125,13 +125,6 @@ export function scanActiveReconciliation(project: Project): ReconciliationReport
   const uncreatedExpressions: UncreatedExpressionRef[] = [];
   const uncreatedSprites: UncreatedSpriteRef[] = [];
 
-  const charMap = new Map<string, Character>();
-  for (const c of project.characters || []) {
-    if (c.id) {
-      charMap.set(c.id.trim().toLowerCase(), c);
-    }
-  }
-
   const recordAssetRef = (
     assetName: string,
     file: string,
@@ -154,9 +147,14 @@ export function scanActiveReconciliation(project: Project): ReconciliationReport
     }
     charRefMap[cleanId]!.push({ file, line, type: 'character' });
   };
-  const knownCharIds = new Set(
-    (project.characters || []).map(c => (c.id || '').trim().toLowerCase()),
-  );
+
+  const legacyChars: Array<{ id: string; name?: string; sprites?: Record<string, string> }> =
+    (project as unknown as { characters?: Array<{ id: string; name?: string; sprites?: Record<string, string> }> }).characters || [];
+  const knownCharIds = new Set(legacyChars.map(c => (c.id || '').trim().toLowerCase()));
+  const charMap = new Map<string, (typeof legacyChars)[0]>();
+  for (const c of legacyChars) {
+    if (c.id) charMap.set(c.id.trim().toLowerCase(), c);
+  }
 
   const knownAssetKeys = new Set<string>();
   const knownSpriteKeys = new Set<string>();
@@ -339,9 +337,11 @@ export function scanActiveReconciliation(project: Project): ReconciliationReport
 
 
   const uncreatedCharacters: string[] = [];
-  for (const charId of Object.keys(charRefMap)) {
-    if (!knownCharIds.has(charId)) {
-      uncreatedCharacters.push(charId);
+  if (knownCharIds.size > 0 || (project as unknown as { characters?: unknown[] }).characters) {
+    for (const charId of Object.keys(charRefMap)) {
+      if (!knownCharIds.has(charId)) {
+        uncreatedCharacters.push(charId);
+      }
     }
   }
 
@@ -452,16 +452,18 @@ export function checkAssetDeletionSafety(
     }
   }
 
-  // Quét thêm tham chiếu chéo từ Character Sprites
+  // Quét thêm tham chiếu chéo từ Character Sprites nếu có legacy project
+  const legacyChars: Array<{ id?: string; name?: string; sprites?: Record<string, string> }> =
+    (project as unknown as { characters?: Array<{ id?: string; name?: string; sprites?: Record<string, string> }> }).characters || [];
   const clean = target.toLowerCase();
   const matchedId = matchedAsset?.id?.toLowerCase();
   const matchedName = matchedAsset?.name?.toLowerCase();
   const spriteRefs: ScriptReference[] = [];
 
-  for (const char of project.characters || []) {
+  for (const char of legacyChars) {
     for (const [, spriteRef] of Object.entries(char.sprites || {})) {
       if (!spriteRef) continue;
-      const refLower = spriteRef.trim().toLowerCase();
+      const refLower = String(spriteRef).trim().toLowerCase();
       if (
         spriteRef === target ||
         refLower === clean ||
@@ -469,7 +471,7 @@ export function checkAssetDeletionSafety(
         (matchedName && refLower === matchedName)
       ) {
         spriteRefs.push({
-          file: `Character: ${char.name || char.id}`,
+          file: `Character: ${char.name || char.id || 'unnamed'}`,
           line: 1,
           type: 'inspect',
         });
@@ -702,7 +704,6 @@ export function generateDiagnostics(project: Project): GeneratedEditorDiagnostic
  * Lightweight regex fallback extractor when AST parsing fails on initial project load (e.g. legacy scripts).
  */
 function extractReferencesViaRegex(content: string, fileId: string): ScriptReferences {
-  const characters: ScriptReferences['characters'] = [];
   const assets: ScriptReferences['assets'] = [];
   const lines = (content || '').split('\n');
 
@@ -755,8 +756,10 @@ function extractReferencesViaRegex(content: string, fileId: string): ScriptRefer
     const showMatch = trimmed.match(/^show\s+([a-zA-Z0-9_]+)(?:\.([a-zA-Z0-9_]+))?/i);
     if (showMatch && showMatch[1]) {
       const span = getSpan(showMatch[1]);
-      characters.push({
-        characterId: showMatch[1],
+      assets.push({
+        assetKey: showMatch[1],
+        category: 'sprite',
+        variant: showMatch[2],
         loc: { fileId, line: lineNum, col: span.col, endLine: lineNum, endCol: span.endCol },
       });
     }
@@ -764,8 +767,9 @@ function extractReferencesViaRegex(content: string, fileId: string): ScriptRefer
     const hideMatch = trimmed.match(/^hide\s+([a-zA-Z0-9_]+)/i);
     if (hideMatch && hideMatch[1]) {
       const span = getSpan(hideMatch[1]);
-      characters.push({
-        characterId: hideMatch[1],
+      assets.push({
+        assetKey: hideMatch[1],
+        category: 'sprite',
         loc: { fileId, line: lineNum, col: span.col, endLine: lineNum, endCol: span.endCol },
       });
     }
@@ -803,7 +807,7 @@ function extractReferencesViaRegex(content: string, fileId: string): ScriptRefer
     }
   }
 
-  return { characters, assets };
+  return { assets };
 }
 
 /**
@@ -816,7 +820,7 @@ function extractReferencesViaRegex(content: string, fileId: string): ScriptRefer
 export function computeReconciliationDiagnostics(
   files: ScriptFile[],
   options: {
-    characters?: Character[];
+    characters?: Array<{ id: string; name?: string; sprites?: Record<string, string> }>;
     assets?: Array<{ id: string; name?: string; type?: string; category?: string }>;
   } | undefined,
   cache: Map<string, ScriptReferences>,
@@ -869,26 +873,9 @@ export function computeReconciliationDiagnostics(
   }
 
   const assetRefMap: Record<string, ScriptReference[]> = {};
-  const charRefMap: Record<string, ScriptReference[]> = {};
 
   for (const [fileKey, fileRefs] of cache.entries()) {
     const fileName = fileNameMap.get(fileKey) || fileKey;
-
-    for (const charRef of fileRefs.characters) {
-      const cleanId = (charRef.characterId || '').trim().toLowerCase();
-      if (!cleanId) continue;
-      if (!charRefMap[cleanId]) {
-        charRefMap[cleanId] = [];
-      }
-      charRefMap[cleanId]!.push({
-        file: fileName,
-        line: charRef.loc?.line ?? 1,
-        col: charRef.loc?.col,
-        endLine: charRef.loc?.endLine,
-        endCol: charRef.loc?.endCol,
-        type: 'character',
-      });
-    }
 
     for (const assetRef of fileRefs.assets) {
       const cleanKey = (assetRef.assetKey || '').trim();
@@ -906,10 +893,6 @@ export function computeReconciliationDiagnostics(
       });
     }
   }
-
-  const knownCharIds = new Set(
-    (options?.characters || []).map(c => (c.id || '').trim().toLowerCase()),
-  );
 
   const knownAssetKeys = new Set<string>();
   for (const asset of options?.assets || []) {
@@ -940,12 +923,15 @@ export function computeReconciliationDiagnostics(
         if (seenLocs.has(locKey)) continue;
         seenLocs.add(locKey);
 
+        const isSprite = ref.type === 'sprite';
         diagnostics.push({
           id: `diag-asset-${assetRef}-${ref.file}-${ref.line}`,
           timestamp: Date.now(),
           category: 'asset',
           severity: 'warning',
-          message: `Uncreated asset '${assetRef}' referenced in script`,
+          message: isSprite
+            ? `Missing sprite asset '${assetRef}' referenced in script`
+            : `Uncreated asset '${assetRef}' referenced in script`,
           assetKey: assetRef,
           fileName: ref.file,
           fileId: fileMap.get(ref.file),
@@ -958,41 +944,8 @@ export function computeReconciliationDiagnostics(
             targetId: assetRef,
             prefillData: {
               name: assetRef,
-              category: ref.type === 'audio' ? 'audio' : 'background',
+              category: isSprite ? 'sprite' : ref.type === 'audio' ? 'audio' : 'background',
             },
-          },
-        });
-      }
-    }
-  }
-
-  // Uncreated Characters
-  for (const charId of Object.keys(charRefMap)) {
-    if (!knownCharIds.has(charId)) {
-      const refs = charRefMap[charId] || [];
-      const seenLocs = new Set<string>();
-      for (const ref of refs) {
-        const locKey = `${ref.file}:${ref.line}`;
-        if (seenLocs.has(locKey)) continue;
-        seenLocs.add(locKey);
-
-        diagnostics.push({
-          id: `diag-char-${charId}-${ref.file}-${ref.line}`,
-          timestamp: Date.now(),
-          category: 'character',
-          severity: 'warning',
-          message: `Uncreated character '${charId}' referenced in script`,
-          assetKey: charId,
-          fileName: ref.file,
-          fileId: fileMap.get(ref.file),
-          line: ref.line,
-          col: typeof ref.col === 'number' && ref.col > 0 ? ref.col : 1,
-          endLine: typeof ref.endLine === 'number' && ref.endLine > 0 ? ref.endLine : ref.line,
-          endCol: typeof ref.endCol === 'number' && ref.endCol > 0 ? ref.endCol : undefined,
-          quickFix: {
-            type: 'create_character',
-            targetId: charId,
-            prefillData: { id: charId, name: charId },
           },
         });
       }
@@ -1022,53 +975,51 @@ export function computeReconciliationDiagnostics(
     }
   }
 
-  // Uncreated Expressions
-  for (const file of files) {
-    const fileName = fileNameMap.get(file.id || file.name) || file.name || 'unnamed.vns';
-    const lines = (file.content || '').split('\n');
-    for (let i = 0; i < lines.length; i++) {
-      const lineNum = i + 1;
-      const rawLine = lines[i]!;
-      const trimmed = rawLine.trim();
-      if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith('//')) {
-        continue;
-      }
-      const showMatch = trimmed.match(/^show\s+([a-zA-Z0-9_]+)(?:\.([a-zA-Z0-9_]+))?/i);
-      if (showMatch && showMatch[1] && showMatch[2]) {
-        const charId = showMatch[1];
-        const exprKey = showMatch[2];
-        const charIdLower = charId.toLowerCase();
-        if (knownCharIds.has(charIdLower)) {
-          const charObj = (options?.characters || []).find(
-            c => (c.id || '').trim().toLowerCase() === charIdLower,
-          );
-          const hasSprite = Boolean(
-            charObj?.sprites && Object.prototype.hasOwnProperty.call(charObj.sprites, exprKey),
-          );
-          if (!hasSprite) {
-            const span = resolveExpressionSpan(rawLine, charId, exprKey, lineNum);
-            diagnostics.push({
-              id: `diag-char-expr-${charObj?.id || charId}-${exprKey}-${fileName}-${lineNum}`,
-              timestamp: Date.now(),
-              category: 'character',
-              severity: 'warning',
-              message: `Uncreated expression '${exprKey}' for character '${charObj?.id || charId}' referenced in script`,
-              assetKey: `${charObj?.id || charId}.${exprKey}`,
-              fileName,
-              fileId: fileMap.get(fileName) || file.id,
-              line: lineNum,
-              col: span.col,
-              endLine: span.endLine,
-              endCol: span.endCol,
-              quickFix: {
-                type: 'create_expression',
-                targetId: `${charObj?.id || charId}.${exprKey}`,
-                prefillData: {
-                  charId: charObj?.id || charId,
-                  expressionKey: exprKey,
+  // Uncreated Expressions (Legacy Character Expressions Support)
+  if (options?.characters && options.characters.length > 0) {
+    const knownChars = new Map(options.characters.map(c => [(c.id || '').trim().toLowerCase(), c]));
+    for (const file of files) {
+      const fileName = fileNameMap.get(file.id || file.name) || file.name || 'unnamed.vns';
+      const lines = (file.content || '').split('\n');
+      for (let i = 0; i < lines.length; i++) {
+        const lineNum = i + 1;
+        const rawLine = lines[i]!;
+        const trimmed = rawLine.trim();
+        if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith('//')) continue;
+        const showMatch = trimmed.match(/^show\s+([a-zA-Z0-9_]+)(?:\.([a-zA-Z0-9_]+))?/i);
+        if (showMatch && showMatch[1] && showMatch[2]) {
+          const charId = showMatch[1];
+          const exprKey = showMatch[2];
+          const charObj = knownChars.get(charId.toLowerCase());
+          if (charObj) {
+            const hasSprite = Boolean(
+              charObj.sprites && Object.prototype.hasOwnProperty.call(charObj.sprites, exprKey),
+            );
+            if (!hasSprite) {
+              const span = resolveExpressionSpan(rawLine, charId, exprKey, lineNum);
+              diagnostics.push({
+                id: `diag-char-expr-${charObj.id || charId}-${exprKey}-${fileName}-${lineNum}`,
+                timestamp: Date.now(),
+                category: 'character',
+                severity: 'warning',
+                message: `Uncreated expression '${exprKey}' for character '${charObj.id || charId}' referenced in script`,
+                assetKey: `${charObj.id || charId}.${exprKey}`,
+                fileName,
+                fileId: fileMap.get(fileName) || file.id,
+                line: lineNum,
+                col: span.col,
+                endLine: span.endLine,
+                endCol: span.endCol,
+                quickFix: {
+                  type: 'create_expression',
+                  targetId: `${charObj.id || charId}.${exprKey}`,
+                  prefillData: {
+                    charId: charObj.id || charId,
+                    expressionKey: exprKey,
+                  },
                 },
-              },
-            });
+              });
+            }
           }
         }
       }

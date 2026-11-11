@@ -45,18 +45,6 @@ const sampleProject: Project = {
       version: 1,
     },
   ],
-  characters: [
-    {
-      id: 'alice',
-      name: 'Alice Margatroid',
-      colorHex: '#38bdf8',
-      sprites: {
-        happy:
-          'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
-      },
-      defaultExpression: 'happy',
-    },
-  ],
   assets: [
     {
       id: 'ast-school',

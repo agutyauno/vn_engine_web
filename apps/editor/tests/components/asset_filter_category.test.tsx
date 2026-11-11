@@ -32,7 +32,6 @@ function createMockProject(options?: {
         version: 1,
       },
     ],
-    characters: [],
     variables: [],
     uiScreens: [],
     customScripts: [],

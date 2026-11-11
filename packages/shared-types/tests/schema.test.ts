@@ -44,14 +44,6 @@ describe('Shared Types & Data Contracts', () => {
           version: 1,
         },
       ],
-      characters: [
-        {
-          id: 'alice',
-          name: 'Alice Carroll',
-          colorHex: '#e91e63',
-          sprites: { happy: 'asset-img-1', sad: 'asset-img-2' },
-        },
-      ],
       variables: [
         {
           name: 'affection',
@@ -79,7 +71,6 @@ describe('Shared Types & Data Contracts', () => {
     expect(parsed.id).toBe(project.id);
     expect(parsed.title).toBe('Học Viện Mùa Hạ - Tiếng Việt Có Dấu & Ký Tự Đặc Biệt (!@#$%)');
     expect(parsed.publishedGameId).toBe('game-slug-456');
-    expect(parsed.characters[0]?.name).toBe('Alice Carroll');
     expect(parsed.files[0]?.content).toContain('scene start');
   });
 
@@ -149,7 +140,7 @@ describe('Shared Types & Data Contracts', () => {
     });
   });
 
-  it('should cover all 17 standardized Instruction types with full properties and source locations', () => {
+  it('should cover all 16 standardized Instruction types with full properties and source locations', () => {
     const instructions: Instruction[] = [
       {
         type: 'SCENE',
@@ -164,8 +155,8 @@ describe('Shared Types & Data Contracts', () => {
       },
       {
         type: 'SHOW',
-        character: 'alice',
-        sprite: 'happy',
+        targetId: 'alice',
+        variant: 'happy',
         position: 'center',
         transition: 'dissolve',
         duration: 0.5,
@@ -173,7 +164,7 @@ describe('Shared Types & Data Contracts', () => {
       },
       {
         type: 'HIDE',
-        character: 'alice',
+        targetId: 'alice',
         loc: { fileId: 'file-1', line: 4, col: 3 },
       },
       {
@@ -193,16 +184,10 @@ describe('Shared Types & Data Contracts', () => {
       {
         type: 'DIALOGUE',
         character: 'alice',
-        displayNameOverride: '???',
+        speaker: '???',
         text: 'Cậu là ai vậy?',
         uiScreenId: 'custom_dialogue_ui',
         loc: { fileId: 'file-1', line: 7, col: 3 },
-      },
-      {
-        type: 'REVEAL',
-        characterId: 'alice',
-        displayName: 'Alice Carroll',
-        loc: { fileId: 'file-1', line: 8, col: 3 },
       },
       {
         type: 'ASSIGN',
@@ -274,9 +259,9 @@ describe('Shared Types & Data Contracts', () => {
       },
     ];
 
-    expect(instructions).toHaveLength(17);
+    expect(instructions).toHaveLength(16);
     const types = new Set(instructions.map(i => i.type));
-    expect(types.size).toBe(17);
+    expect(types.size).toBe(16);
 
     instructions.forEach(instr => {
       expect(instr.loc).toBeDefined();
@@ -324,7 +309,7 @@ describe('Shared Types & Data Contracts', () => {
       callStack: [],
       variables: {},
       localVariables: {},
-      characterDisplayOverrides: {},
+      activeSprites: {},
       customScriptState: {},
     };
 
@@ -378,7 +363,6 @@ describe('Shared Types & Data Contracts', () => {
       ownerId: 'owner-1',
       defaultLanguage: 'en',
       files: [],
-      characters: [],
       variables: [],
       assets: [],
       uiScreens: [],
@@ -390,7 +374,6 @@ describe('Shared Types & Data Contracts', () => {
 
     const parsedEmpty = JSON.parse(JSON.stringify(emptyProject)) as Project;
     expect(parsedEmpty.files).toEqual([]);
-    expect(parsedEmpty.characters).toEqual([]);
   });
 
   it('should serialize and restore VMState and VMSnapshot properly', () => {
@@ -408,7 +391,7 @@ describe('Shared Types & Data Contracts', () => {
         ratio: 3.14159,
         inventory: 'flower,key',
       },
-      characterDisplayOverrides: { alice: 'Alice', bob: 'Bóng Đen' },
+      activeSprites: {},
       customScriptState: { minigameScore: '999' },
       localVariables: {},
     };
@@ -427,7 +410,6 @@ describe('Shared Types & Data Contracts', () => {
     expect(restored.state.variables['playerName']).toBe('Khang');
     expect(restored.state.variables['ratio']).toBe(3.14159);
     expect(restored.state.callStack).toHaveLength(2);
-    expect(restored.state.characterDisplayOverrides['bob']).toBe('Bóng Đen');
     expect(restored.state.customScriptState['minigameScore']).toBe('999');
   });
 
@@ -442,7 +424,7 @@ describe('Shared Types & Data Contracts', () => {
         instructionPointer: 10,
         callStack: [],
         variables: { score: 100 },
-        characterDisplayOverrides: {},
+        activeSprites: {},
         customScriptState: {},
         localVariables: {},
       },
@@ -514,7 +496,6 @@ describe('Shared Types & Data Contracts', () => {
     it('TC-SPRITE-TYPES-02: should support targetId, variant, anchorX, anchorY in Show/Hide Instructions and Statements', () => {
       const showInstr: ShowInstruction = {
         type: 'SHOW',
-        character: 'alice', // backward compatibility shim
         targetId: 'alice',
         variant: 'smile',
         anchorX: 0.5,
@@ -528,14 +509,12 @@ describe('Shared Types & Data Contracts', () => {
 
       const hideInstr: HideInstruction = {
         type: 'HIDE',
-        character: 'alice', // backward compatibility shim
         targetId: 'alice',
         loc: { fileId: 'chapter1.vns', line: 20, col: 1 },
       };
 
       const showStmt: ShowStatement = {
         type: 'ShowStatement',
-        character: 'sword', // backward compatibility shim
         targetId: 'sword',
         variant: 'legendary',
         anchorX: 0.5,
@@ -547,7 +526,6 @@ describe('Shared Types & Data Contracts', () => {
 
       const hideStmt: HideStatement = {
         type: 'HideStatement',
-        character: 'sword', // backward compatibility shim
         targetId: 'sword',
         loc: { fileId: 'chapter1.vns', line: 30, col: 1 },
       };
@@ -606,7 +584,7 @@ describe('Shared Types & Data Contracts', () => {
       const narrationInstr: DialogueInstruction = {
         type: 'DIALOGUE',
         speaker: null,
-        character: null,
+        character: '',
         text: 'Trời bắt đầu đổ cơn mưa rào mùa hạ.',
         loc: { fileId: 'file-1', line: 12, col: 1 },
       };
@@ -635,8 +613,8 @@ describe('Shared Types & Data Contracts', () => {
       expect(restoredNarration.speaker).toBeNull();
     });
 
-    // TC-SPRITE-TYPES-04: Project schema with optional characters property
-    it('TC-SPRITE-TYPES-04: should allow Project without characters array (optional/deprecated)', () => {
+    // TC-SPRITE-TYPES-04: Project schema without characters property
+    it('TC-SPRITE-TYPES-04: should allow Project without characters array', () => {
       const unifiedProject: Project = {
         id: '99999999-8888-7777-6666-555555555555',
         title: 'Project Unified Sprites - No Characters Table',
@@ -669,13 +647,13 @@ describe('Shared Types & Data Contracts', () => {
         customScripts: [],
       };
 
-      expect(unifiedProject.characters).toBeUndefined();
+      expect((unifiedProject as Record<string, unknown>).characters).toBeUndefined();
 
       const serialized = JSON.stringify(unifiedProject);
       const parsed = JSON.parse(serialized) as Project;
 
       expect(parsed.id).toBe(unifiedProject.id);
-      expect(parsed.characters).toBeUndefined();
+      expect((parsed as Record<string, unknown>).characters).toBeUndefined();
       expect(parsed.assets).toHaveLength(1);
       expect(parsed.assets[0]?.tag).toBe('alice');
       expect(parsed.assets[0]?.variant).toBe('happy');
@@ -685,7 +663,6 @@ describe('Shared Types & Data Contracts', () => {
     it('TC-SPRITE-TYPES-05: should store activeSprites keyed by targetId in VMState', () => {
       const aliceSprite: ShowInstruction = {
         type: 'SHOW',
-        character: 'alice',
         targetId: 'alice',
         variant: 'happy',
         anchorX: 0.5,
@@ -696,7 +673,6 @@ describe('Shared Types & Data Contracts', () => {
 
       const swordProp: ShowInstruction = {
         type: 'SHOW',
-        character: 'sword',
         targetId: 'sword',
         variant: 'default',
         anchorX: 0.5,
@@ -712,7 +688,6 @@ describe('Shared Types & Data Contracts', () => {
         callStack: [],
         variables: { counter: 1 },
         localVariables: {},
-        characterDisplayOverrides: {},
         customScriptState: {},
         activeSprites: {
           alice: aliceSprite,

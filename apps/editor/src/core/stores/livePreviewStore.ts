@@ -1,10 +1,9 @@
 import { create } from 'zustand';
-import type { Instruction, Character, AssetRef } from '@vn-engine/shared-types';
+import type { Instruction, AssetRef } from '@vn-engine/shared-types';
 
 export interface HotReloadPayload {
   program: Instruction[];
   projectId: string;
-  characters?: Character[];
   assets: AssetRef[];
   scene?: string;
   line?: number;

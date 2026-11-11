@@ -4,7 +4,6 @@ import type {
   ChoiceInstruction,
   PauseInstruction,
   PlayInstruction,
-  Character,
 } from '@vn-engine/shared-types';
 import { VisualNovelVM } from '@vn-engine/core-vm';
 import type {
@@ -21,7 +20,6 @@ export class VNRuntimeKernel {
   private vm: VisualNovelVM;
   private adapters: KernelAdapters;
   private options?: VNRuntimeKernelOptions;
-  private charactersMap: Map<string, Character> = new Map();
   private state: PlayerViewState;
   private subscribers: Set<(state: PlayerViewState) => void> = new Set();
   private seenDialogues: Set<string> = new Set();
@@ -38,9 +36,6 @@ export class VNRuntimeKernel {
   constructor(program: Instruction[], adapters?: KernelAdapters, options?: VNRuntimeKernelOptions) {
     this.adapters = adapters ?? {};
     this.options = options;
-    if (options?.characters) {
-      this.registerCharacters(options.characters);
-    }
     this.vm = new VisualNovelVM(program);
 
     if (this.adapters.storage?.getSeenDialogues) {
@@ -307,31 +302,16 @@ export class VNRuntimeKernel {
     }
   }
 
-  private registerCharacters(characters: Character[]): void {
-    for (const char of characters) {
-      this.charactersMap.set(char.id, char);
-    }
-  }
-
   private resolveSpeakerColor(characterId?: string | null): string | undefined {
     if (!characterId) return undefined;
-    if (this.charactersMap.size > 0) {
-      const char = this.charactersMap.get(characterId);
-      return char?.colorHex;
-    }
     return '#ffffff';
   }
 
   private resolveSpeakerName(instruction?: DialogueInstruction | null): string | undefined {
     if (!instruction) return undefined;
-    if (instruction.displayNameOverride) return instruction.displayNameOverride;
     const speaker = instruction.speaker ?? instruction.character;
     if (!speaker) return undefined;
-    if (this.charactersMap.size > 0) {
-      const configuredChar = this.charactersMap.get(speaker);
-      if (configuredChar?.name?.trim()) return configuredChar.name.trim();
-    }
-    return speaker;
+    return speaker.trim();
   }
 
   private handleDialogue(instruction: DialogueInstruction): void {
@@ -744,10 +724,6 @@ export class VNRuntimeKernel {
   public async loadProgram(program: Instruction[], options?: LoadProgramOptions): Promise<void> {
     this.clearTimers();
     this.state.isAwaitingPauseAdvance = false;
-
-    if (options?.characters) {
-      this.registerCharacters(options.characters);
-    }
 
     const isCurrentlyGameplay = this.state.mode === 'GAMEPLAY';
     const shouldPreserve = options?.preserveState ?? isCurrentlyGameplay;

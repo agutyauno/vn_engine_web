@@ -48,7 +48,6 @@ describe('StudioWorkspacePage Assembly & Cutover (Phase 5 TDD)', () => {
       lockAspectRatio: true,
     },
     files: sampleFiles,
-    characters: [],
     assets: [],
   };
 

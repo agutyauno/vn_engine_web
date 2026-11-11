@@ -2,13 +2,12 @@
 // apps/editor/tests/monaco_completion.test.ts
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as monaco from 'monaco-editor';
-import type { Project, AssetRef, Character, VariableDeclaration } from '@vn-engine/shared-types';
+import type { Project, AssetRef, VariableDeclaration } from '@vn-engine/shared-types';
 import { createVnsProjectContext } from '../src/core/services/vnsContextProvider';
 import { registerVnsLanguageFeatures, type VnsProjectContext } from '../src/vnsLanguageFeatures';
 
 function createMockProject(options?: {
   assets?: AssetRef[];
-  characters?: Array<{ id: string; name: string; sprites?: Record<string, string> }>;
   variables?: Array<{ name: string }>;
 }): Project {
   return {
@@ -18,7 +17,6 @@ function createMockProject(options?: {
     ownerId: 'owner-1',
     defaultLanguage: 'vi',
     files: [],
-    characters: (options?.characters as unknown as Character[]) || [],
     variables: (options?.variables as unknown as VariableDeclaration[]) || [],
     assets: options?.assets || [],
     uiScreens: [],
@@ -73,17 +71,15 @@ describe('Monaco VNS Completion & Dynamic Store Binding', () => {
           sizeBytes: 100,
         },
       ],
-      characters: [{ id: 'alice', name: 'Alice', sprites: { happy: '/happy.png' } }],
     });
 
     const context = createVnsProjectContext(() => projectState);
 
     // Initial check
     expect(context.getAssets().backgrounds.has('bg_initial')).toBe(true);
-    expect(context.getCharacters().has('alice')).toBe(true);
-    expect(context.getCharacters().has('bob')).toBe(false);
+    expect(context.getAssets().backgrounds.has('bg_courtyard')).toBe(false);
 
-    // Simulate project update in store (e.g. user added character bob and asset bg_courtyard)
+    // Simulate project update in store (e.g. user added asset bg_courtyard)
     projectState = {
       ...projectState,
       assets: [
@@ -97,15 +93,10 @@ describe('Monaco VNS Completion & Dynamic Store Binding', () => {
           sizeBytes: 200,
         },
       ],
-      characters: [
-        ...(projectState.characters || []),
-        { id: 'bob', name: 'Bob', sprites: { default: '/bob.png' } },
-      ],
     };
 
     // Live query through context provider MUST reflect new data without restarting
     expect(context.getAssets().backgrounds.has('bg_courtyard')).toBe(true);
-    expect(context.getCharacters().has('bob')).toBe(true);
   });
 });
 

@@ -17,16 +17,7 @@ describe('VNS Test Lab Suite (vns_test_lab.vns)', () => {
       const fixturePath = path.join(__dirname, 'fixtures', 'vns_test_lab.vns');
       const content = fs.readFileSync(fixturePath, 'utf-8');
 
-      const result = compileString(content, 'vns_test_lab.vns', {
-        characters: [
-          {
-            id: 'doctor',
-            name: 'Doctor',
-            colorHex: '#e91e63',
-            sprites: { happy: 'doc_happy', serious: 'doc_serious' },
-          },
-        ],
-      });
+      const result = compileString(content, 'vns_test_lab.vns');
 
       if (!result.success) {
         console.error('Compiler Errors:', result.errors);

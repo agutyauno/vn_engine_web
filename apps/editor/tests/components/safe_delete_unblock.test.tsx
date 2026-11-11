@@ -4,7 +4,46 @@ import 'fake-indexeddb/auto';
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import type { Project, AssetRef, Character, ScriptFile } from '@vn-engine/shared-types';
+import type { Project, AssetRef, ScriptFile } from '@vn-engine/shared-types';
+
+interface Character {
+  id: string;
+  name: string;
+  colorHex?: string;
+  defaultExpression?: string;
+  sprites?: Record<string, string>;
+}
+
+const sampleCharacters: Character[] = [
+  {
+    id: 'alice',
+    name: 'Alice Carroll',
+    colorHex: '#e91e63',
+    defaultExpression: 'happy',
+    sprites: {
+      happy: 'char_alice_happy.png',
+      smile: 'char_alice_smile.png',
+    },
+  },
+  {
+    id: 'bob',
+    name: 'Bob Smith',
+    colorHex: '#3b82f6',
+    defaultExpression: 'default',
+    sprites: {
+      default: 'char_bob_default.png',
+    },
+  },
+  {
+    id: 'charlie',
+    name: 'Charlie Unused',
+    colorHex: '#10b981',
+    defaultExpression: 'neutral',
+    sprites: {
+      neutral: 'char_charlie_neutral.png',
+    },
+  },
+];
 import { SafeDeleteModal } from '../../src/components/studio/SafeDeleteModal';
 import * as reconciliationModule from '../../src/core/services/reconciliation';
 import {
@@ -117,36 +156,6 @@ show bob.default
 `,
       },
     ],
-    characters: options?.characters ?? [
-      {
-        id: 'alice',
-        name: 'Alice Carroll',
-        colorHex: '#e91e63',
-        defaultExpression: 'happy',
-        sprites: {
-          happy: 'char_alice_happy.png',
-          smile: 'char_alice_smile.png',
-        },
-      },
-      {
-        id: 'bob',
-        name: 'Bob Smith',
-        colorHex: '#3b82f6',
-        defaultExpression: 'default',
-        sprites: {
-          default: 'char_bob_default.png',
-        },
-      },
-      {
-        id: 'charlie',
-        name: 'Charlie Unused',
-        colorHex: '#10b981',
-        defaultExpression: 'neutral',
-        sprites: {
-          neutral: 'char_charlie_neutral.png',
-        },
-      },
-    ],
     assets: options?.assets ?? [
       {
         id: 'ast-bg-class',
@@ -192,7 +201,8 @@ show bob.default
     variables: [],
     uiScreens: [],
     customScripts: [],
-  };
+    ...(options?.characters !== undefined ? { characters: options.characters } : { characters: sampleCharacters }),
+  } as Project;
 }
 
 describe('Phase 2.2: Safe Delete Unblock (RED)', () => {
@@ -332,7 +342,7 @@ describe('Phase 2.2: Safe Delete Unblock (RED)', () => {
 
       render(
         <CharacterManagerPaneComponent
-          characters={sampleProject.characters}
+          characters={sampleCharacters}
           assets={sampleProject.assets}
           onCreateCharacter={vi.fn()}
           onEditCharacter={vi.fn()}
@@ -366,7 +376,7 @@ describe('Phase 2.2: Safe Delete Unblock (RED)', () => {
 
       render(
         <CharacterManagerPaneComponent
-          characters={sampleProject.characters}
+          characters={sampleCharacters}
           assets={sampleProject.assets}
           onCreateCharacter={vi.fn()}
           onEditCharacter={vi.fn()}
@@ -393,7 +403,7 @@ describe('Phase 2.2: Safe Delete Unblock (RED)', () => {
 
       render(
         <CharacterManagerPaneComponent
-          characters={sampleProject.characters}
+          characters={sampleCharacters}
           assets={sampleProject.assets}
           onCreateCharacter={vi.fn()}
           onEditCharacter={vi.fn()}
@@ -416,7 +426,7 @@ describe('Phase 2.2: Safe Delete Unblock (RED)', () => {
 
       render(
         <CharacterManagerPaneComponent
-          characters={sampleProject.characters}
+          characters={sampleCharacters}
           assets={sampleProject.assets}
           onCreateCharacter={vi.fn()}
           onEditCharacter={vi.fn()}

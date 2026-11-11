@@ -12,11 +12,6 @@ export interface ScriptReferenceLocation {
   endCol?: number;
 }
 
-export interface CharacterReference {
-  characterId: string;
-  loc?: ScriptReferenceLocation;
-}
-
 export interface AssetReference {
   assetKey: string;
   loc?: ScriptReferenceLocation;
@@ -26,17 +21,14 @@ export interface AssetReference {
 }
 
 export interface ScriptReferences {
-  /** @deprecated Thay thế bằng assets với category: 'sprite' */
-  characters: CharacterReference[];
   assets: AssetReference[];
 }
 
 /**
- * Pure AST visitor extracting character and media asset references across
+ * Pure AST visitor extracting media and sprite asset references across
  * topLevelStatements, scenes, sub-scenes, and nested control flow statements.
  */
 export function extractScriptReferences(ast: ProgramAST): ScriptReferences {
-  const characters: CharacterReference[] = [];
   const assets: AssetReference[] = [];
 
   function visitStatement(stmt: StatementAST | SceneASTNode) {
@@ -55,11 +47,11 @@ export function extractScriptReferences(ast: ProgramAST): ScriptReferences {
         break;
 
       case 'ShowStatement': {
-        const key = stmt.targetId || stmt.character;
+        const key = stmt.targetId;
         if (key) {
           assets.push({
             assetKey: key,
-            variant: stmt.variant || stmt.sprite || undefined,
+            variant: stmt.variant || undefined,
             category: 'sprite',
             expectedType: 'image',
             loc: stmt.loc,
@@ -69,7 +61,7 @@ export function extractScriptReferences(ast: ProgramAST): ScriptReferences {
       }
 
       case 'HideStatement': {
-        const key = stmt.targetId || stmt.character;
+        const key = stmt.targetId;
         if (key && key.toLowerCase() !== 'dialogue') {
           assets.push({
             assetKey: key,
@@ -165,6 +157,6 @@ export function extractScriptReferences(ast: ProgramAST): ScriptReferences {
     }
   }
 
-  return { characters, assets };
+  return { assets };
 }
 

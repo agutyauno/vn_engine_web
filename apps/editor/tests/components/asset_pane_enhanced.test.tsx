@@ -60,7 +60,6 @@ describe('Phase 3: AssetLibraryPane Enhanced (Grid/List, Filter/Sort & Sticky Au
     ownerId: 'owner-1',
     defaultLanguage: 'en',
     assets: mockAssets,
-    characters: [],
     variables: [],
     uiScreens: [],
     customScripts: [],

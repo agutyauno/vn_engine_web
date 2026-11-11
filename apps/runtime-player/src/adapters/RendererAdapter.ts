@@ -76,22 +76,13 @@ export class RendererAdapter {
       case 'SHOW': {
         const showInstr = instr as ShowInstruction;
         if (showInstr.loc) {
-          const target = showInstr.targetId || showInstr.character;
-          const variant = showInstr.variant || showInstr.sprite;
+          const target = showInstr.targetId;
+          const variant = showInstr.variant;
           if (target && variant) {
             this.pendingAssetLocations.set(`${target}_${variant}`, showInstr.loc);
           }
-          if (showInstr.character && showInstr.sprite) {
-            this.pendingAssetLocations.set(
-              `${showInstr.character}_${showInstr.sprite}`,
-              showInstr.loc,
-            );
-          }
           if (target) {
             this.pendingAssetLocations.set(target, showInstr.loc);
-          }
-          if (showInstr.character) {
-            this.pendingAssetLocations.set(showInstr.character, showInstr.loc);
           }
         }
         await this.gameRenderer.showSprite(showInstr, resolver);
@@ -99,7 +90,7 @@ export class RendererAdapter {
       }
       case 'HIDE': {
         const hideInstr = instr as HideInstruction;
-        const targetId = hideInstr.targetId || hideInstr.character;
+        const targetId = hideInstr.targetId;
         if (targetId) {
           this.gameRenderer.hideSprite(targetId);
         }

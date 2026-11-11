@@ -5,7 +5,6 @@ import type {
   ProjectDisplaySettings,
   ProjectGameplaySettings,
   ProjectEditorSettings,
-  Character,
   AssetRef,
 } from '@vn-engine/shared-types';
 import type { ProjectRepository } from '../contracts/repository';
@@ -32,11 +31,6 @@ export interface ProjectStoreState {
   createFile: (name: string) => void;
   renameFile: (fileId: string, newName: string) => void;
   deleteFile: (fileId: string) => void;
-
-  /** @deprecated Character management is removed in Unified Sprite Layer */
-  saveCharacter: (char: Character) => void;
-  /** @deprecated Character management is removed in Unified Sprite Layer */
-  deleteCharacter: (charId: string) => void;
 
   saveAsset: (asset: AssetRef, blob?: Blob) => Promise<void>;
   deleteAsset: (assetId: string) => Promise<void>;
@@ -379,43 +373,6 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
         updatedAt: Date.now(),
       },
       dirtyFileIds,
-      isDirty: true,
-    });
-  },
-
-  saveCharacter: char => {
-    const currentProject = get().project;
-    if (!currentProject) return;
-
-    const chars = currentProject.characters || [];
-    const index = chars.findIndex(c => c.id === char.id);
-    const updated = [...chars];
-    if (index >= 0) {
-      updated[index] = char;
-    } else {
-      updated.push(char);
-    }
-
-    set({
-      project: {
-        ...currentProject,
-        characters: updated,
-        updatedAt: Date.now(),
-      },
-      isDirty: true,
-    });
-  },
-
-  deleteCharacter: charId => {
-    const currentProject = get().project;
-    if (!currentProject) return;
-
-    set({
-      project: {
-        ...currentProject,
-        characters: (currentProject.characters || []).filter(c => c.id !== charId),
-        updatedAt: Date.now(),
-      },
       isDirty: true,
     });
   },

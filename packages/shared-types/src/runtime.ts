@@ -25,12 +25,10 @@ export interface VMState {
   callStack: CallFrame[];
   variables: Record<string, string | number | boolean>;
   localVariables: Record<string, string | number | boolean>;
-  /** @deprecated Loại bỏ dần trong Micro-Phase 3, xóa triệt để ở Phase 7 */
-  characterDisplayOverrides?: Record<string, string>; // characterId -> revealedName (ADR-020)
   customScriptState: Record<string, string>; // screenId -> validated JSON
   activeInspect?: { assetId: string; title?: string } | null;
   activeBackground?: BackgroundInstruction;
-  activeSprites?: Record<string, ShowInstruction>;
+  activeSprites: Record<string, ShowInstruction>;
   activeAudio?: Record<string, PlayInstruction>;
   currentDialogue?: DialogueInstruction;
   activeExecutingPc?: number;

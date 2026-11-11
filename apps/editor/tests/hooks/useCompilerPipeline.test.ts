@@ -3,7 +3,6 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import type {
   Project,
-  Character,
   AssetRef,
   Instruction,
   EngineDiagnostic,
@@ -50,13 +49,6 @@ describe('useCompilerPipeline Hook (Phase 2)', () => {
         content: 'scene start:\n  say "Hello world!"\n',
         order: 1,
         version: 1,
-      },
-    ],
-    characters: [
-      {
-        id: 'alice',
-        name: 'Alice',
-        sprites: { neutral: 'alice_neutral.png' },
       },
     ],
     assets: [
@@ -112,7 +104,7 @@ describe('useCompilerPipeline Hook (Phase 2)', () => {
     await waitFor(() => {
       expect(mockCompilerService.compile).toHaveBeenCalledWith(
         sampleProject.files,
-        expect.objectContaining({ characters: sampleProject.characters }),
+        expect.objectContaining({ assets: sampleProject.assets }),
       );
     });
 
@@ -121,7 +113,6 @@ describe('useCompilerPipeline Hook (Phase 2)', () => {
         expect.objectContaining({
           projectId: 'proj-compiler-test',
           program: sampleBytecode,
-          characters: sampleProject.characters,
           assets: sampleProject.assets,
         }),
       );
@@ -131,7 +122,7 @@ describe('useCompilerPipeline Hook (Phase 2)', () => {
     expect(useDiagnosticsStore.getState().compilerDiagnostics).toEqual([]);
   });
 
-  it('re-dispatches HotReloadPayload when characters or assets change without editing script files', async () => {
+  it('re-dispatches HotReloadPayload when assets change without editing script files', async () => {
     renderHook(() =>
       useCompilerPipeline({
         compilerService: mockCompilerService as unknown as CompilerService,
@@ -143,27 +134,6 @@ describe('useCompilerPipeline Hook (Phase 2)', () => {
     await waitFor(() => {
       expect(mockPreviewBridge.hotReload).toHaveBeenCalledTimes(1);
     });
-
-    const newCharacter: Character = {
-      id: 'bob',
-      name: 'Bob',
-      sprites: { neutral: 'bob_neutral.png' },
-    };
-
-    // Update character in projectStore
-    act(() => {
-      useProjectStore.getState().saveCharacter(newCharacter);
-    });
-
-    await waitFor(() => {
-      expect(mockPreviewBridge.hotReload).toHaveBeenCalledTimes(2);
-    });
-
-    const lastCallPayload = mockPreviewBridge.hotReload.mock.calls[1]![0] as HotReloadPayload;
-    expect(lastCallPayload.characters).toEqual(
-      expect.arrayContaining([expect.objectContaining({ id: 'bob' })]),
-    );
-    expect(lastCallPayload.program).toEqual(sampleBytecode);
 
     // Update asset in projectStore
     const newAsset: AssetRef = {
@@ -179,10 +149,10 @@ describe('useCompilerPipeline Hook (Phase 2)', () => {
     });
 
     await waitFor(() => {
-      expect(mockPreviewBridge.hotReload).toHaveBeenCalledTimes(3);
+      expect(mockPreviewBridge.hotReload).toHaveBeenCalledTimes(2);
     });
 
-    const assetCallPayload = mockPreviewBridge.hotReload.mock.calls[2]![0] as HotReloadPayload;
+    const assetCallPayload = mockPreviewBridge.hotReload.mock.calls[1]![0] as HotReloadPayload;
     expect(assetCallPayload.assets).toEqual(
       expect.arrayContaining([expect.objectContaining({ id: 'asset-sound' })]),
     );

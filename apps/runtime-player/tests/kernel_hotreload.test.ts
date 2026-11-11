@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { Instruction, Character, AssetRef } from '@vn-engine/shared-types';
+import type { Instruction, AssetRef } from '@vn-engine/shared-types';
 import { VNRuntimeKernel } from '../src/core/VNRuntimeKernel';
 import { PreviewBridgeAdapter } from '../src/adapters/PreviewBridgeAdapter';
 import type { KernelAdapters } from '../src/core/contracts';
@@ -137,8 +137,8 @@ describe('Player Hot-Reload & State Preservation (TASK-decouple-preview-and-hotr
       { type: 'BACKGROUND', assetId: 'bg_park.png', loc: { fileId: 'main.vns', line: 2 } },
       {
         type: 'SHOW',
-        character: 'alice',
-        sprite: 'happy',
+        targetId: 'alice',
+        variant: 'happy',
         position: 'left',
         loc: { fileId: 'main.vns', line: 3 },
       },
@@ -150,8 +150,8 @@ describe('Player Hot-Reload & State Preservation (TASK-decouple-preview-and-hotr
       },
       {
         type: 'SHOW',
-        character: 'bob',
-        sprite: 'smile',
+        targetId: 'bob',
+        variant: 'smile',
         position: 'right',
         loc: { fileId: 'main.vns', line: 5 },
       },
@@ -275,7 +275,7 @@ describe('Player Hot-Reload & State Preservation (TASK-decouple-preview-and-hotr
   });
 
   describe('PreviewBridgeAdapter HOT_RELOAD_PROGRAM message options', () => {
-    it('should forward line, scene, preserveState, characters, assets, and projectId to onHotReload callback', () => {
+    it('should forward line, scene, preserveState, assets, and projectId to onHotReload callback', () => {
       const onHotReload = vi.fn();
       const bridge = new PreviewBridgeAdapter({
         onHotReload,
@@ -283,15 +283,6 @@ describe('Player Hot-Reload & State Preservation (TASK-decouple-preview-and-hotr
 
       const program: Instruction[] = [
         { type: 'SCENE', name: 'scene1', loc: { fileId: 'main.vns', line: 1 } },
-      ];
-      const characters: Character[] = [
-        {
-          id: 'char_1',
-          name: 'Alice',
-          colorHex: '#ff0000',
-          defaultExpression: 'happy',
-          sprites: { happy: 'asset_1' },
-        },
       ];
       const assets: AssetRef[] = [
         { id: 'asset_1', name: 'bg.png', type: 'image', storageUrl: 'blob:bg', sizeBytes: 1024 },
@@ -307,7 +298,6 @@ describe('Player Hot-Reload & State Preservation (TASK-decouple-preview-and-hotr
             line: 42,
             scene: 'scene1',
             preserveState: true,
-            characters,
             assets,
             projectId: 'proj_alpha',
           },
@@ -323,7 +313,6 @@ describe('Player Hot-Reload & State Preservation (TASK-decouple-preview-and-hotr
           line: 42,
           scene: 'scene1',
           preserveState: true,
-          characters,
           assets,
           projectId: 'proj_alpha',
         }),

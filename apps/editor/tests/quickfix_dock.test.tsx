@@ -108,7 +108,6 @@ describe('Integration Tests: Dock Problems Table QuickFix (TC-DRAWER-QF-01 & 02)
           content: 'scene intro {\n    score = 1\n}',
         },
       ],
-      characters: [],
       assets: [],
     };
 

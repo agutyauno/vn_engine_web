@@ -8,7 +8,6 @@ import type {
   ProgramAST,
   SceneASTNode,
   StatementAST,
-  Character,
 } from '@vn-engine/shared-types';
 import { VNSLexer } from './lexer';
 import { parserInstance } from './parser';
@@ -29,8 +28,6 @@ import {
 } from './error_formatter';
 
 export interface CompilerOptions {
-  /** @deprecated Sẽ xóa bỏ ở Phase 7. Quản lý sprite qua assets (category: 'sprite') */
-  characters?: Character[];
   assets?: Array<{ id: string; name?: string; type?: string; category?: string }>;
 }
 
@@ -194,7 +191,7 @@ export class Compiler {
       }
 
       // Stage 5: Sinh Bytecode (Instruction Set)
-      const program = generateBytecode(mergedAst, options?.characters);
+      const program = generateBytecode(mergedAst);
       const bytecodeChecksum = computeFastHash64(JSON.stringify(program));
 
       return {

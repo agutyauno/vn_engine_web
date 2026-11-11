@@ -173,8 +173,8 @@ describe('AudioAdapter', () => {
       const adapter = new AudioAdapter(mockAudioManager, { assetResolver: mockAssetResolver });
       const nonAudioInstr: Instruction = {
         type: 'SHOW',
-        character: 'alice',
-        sprite: 'happy',
+        targetId: 'alice',
+        variant: 'happy',
       };
 
       expect(() => adapter.applySideEffect(nonAudioInstr)).not.toThrow();

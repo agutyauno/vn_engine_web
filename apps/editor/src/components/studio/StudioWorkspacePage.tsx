@@ -153,7 +153,6 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
             return {
               program: activeProgram,
               projectId: proj.id,
-              characters: proj.characters,
               assets: proj.assets,
             };
           }
@@ -248,7 +247,6 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
       if (activeProgram.length === 0 && currentProject.files && currentProject.files.length > 0) {
         try {
           const compileResult = await compilerService.compile(currentProject.files, {
-            characters: currentProject.characters,
             assets: currentProject.assets,
             forceSync: true,
           });
@@ -266,7 +264,6 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
           scene: targetOptions?.scene,
           line: targetOptions?.line,
           projectId: currentProject.id,
-          characters: currentProject.characters,
           assets: currentProject.assets,
           preserveState: targetOptions?.line !== undefined,
         });

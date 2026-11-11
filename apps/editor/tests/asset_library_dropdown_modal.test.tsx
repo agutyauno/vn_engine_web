@@ -48,7 +48,6 @@ const mockProject: Project = {
   ownerId: 'owner-1',
   defaultLanguage: 'vi',
   files: [],
-  characters: [],
   variables: [],
   assets: mockAssets,
   uiScreens: [],

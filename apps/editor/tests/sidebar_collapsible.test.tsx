@@ -38,7 +38,6 @@ const mockProject: Project = {
       version: 1,
     },
   ],
-  characters: [],
   assets: [],
   variables: [],
   uiScreens: [],

@@ -16,7 +16,6 @@ const sampleProject: Project = {
   ownerId: 'user-1',
   defaultLanguage: 'vi',
   updatedAt: 1700000000000,
-  characters: [],
   assets: [],
   variables: [],
   uiScreens: [],

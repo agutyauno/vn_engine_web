@@ -42,15 +42,6 @@ describe('Milestone 6: Monaco Script Workspace (Column 2 Top)', () => {
     ownerId: 'author-1',
     defaultLanguage: 'vi',
     files: sampleFiles,
-    characters: [
-      {
-        id: 'alice',
-        name: 'Alice Carroll',
-        colorHex: '#e91e63',
-        defaultExpression: 'happy',
-        sprites: { happy: 'asset-1', smile: 'asset-2' },
-      },
-    ],
     variables: [
       { name: 'affection', type: 'number', defaultValue: 10 },
       { name: 'hasKey', type: 'boolean', defaultValue: false },

@@ -1,12 +1,12 @@
 // apps/editor/tests/reconciliation.test.ts
 import { describe, it, expect } from 'vitest';
-import type { Project, ScriptFile, Character, AssetRef } from '@vn-engine/shared-types';
+import type { Project, ScriptFile, AssetRef } from '@vn-engine/shared-types';
 import { scanActiveReconciliation, generateDiagnostics, checkAssetDeletionSafety } from '../src/core/services/reconciliation';
 
 function createMockProject(options?: {
   files?: ScriptFile[];
-  characters?: Character[];
   assets?: AssetRef[];
+  characters?: Array<{ id: string; name?: string; sprites?: Record<string, string> }>;
 }): Project {
   return {
     id: 'test-proj-id',
@@ -15,12 +15,12 @@ function createMockProject(options?: {
     ownerId: 'owner-1',
     defaultLanguage: 'vi',
     files: options?.files ?? [],
-    characters: options?.characters ?? [],
     assets: options?.assets ?? [],
     variables: [],
     uiScreens: [],
     customScripts: [],
-  };
+    ...(options?.characters !== undefined ? { characters: options.characters } : {}),
+  } as Project;
 }
 
 describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () => {
@@ -45,7 +45,6 @@ describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () 
           version: 1,
         },
       ],
-      characters: [{ id: 'alice', name: 'Alice', sprites: {} }],
       assets: [],
     });
 
@@ -117,6 +116,7 @@ describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () 
           sizeBytes: 1024,
         },
       ],
+      characters: [{ id: 'alice', name: 'Alice' }],
     });
 
     const report = scanActiveReconciliation(project);
@@ -164,6 +164,7 @@ describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () 
           sizeBytes: 5000,
         },
       ],
+      characters: [{ id: 'alice', name: 'Alice' }],
     });
 
     const report = scanActiveReconciliation(project);
@@ -211,6 +212,7 @@ describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () 
           sizeBytes: 5000,
         },
       ],
+      characters: [{ id: 'alice', name: 'Alice' }],
     });
 
     const report = scanActiveReconciliation(project);
@@ -241,7 +243,7 @@ describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () 
           version: 1,
         },
       ],
-      characters: [{ id: 'alice', name: 'Alice', sprites: {} }],
+      characters: [{ id: 'alice', name: 'Alice' }],
     });
 
     const report = scanActiveReconciliation(project);
@@ -272,7 +274,7 @@ describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () 
           version: 1,
         },
       ],
-      characters: [{ id: 'alice', name: 'Alice', sprites: {} }],
+      characters: [{ id: 'alice', name: 'Alice' }],
     });
 
     const report = scanActiveReconciliation(project);
@@ -300,7 +302,7 @@ describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () 
           version: 1,
         },
       ],
-      characters: [],
+      characters: [{ id: 'alice', name: 'Alice' }],
     });
 
     const report = scanActiveReconciliation(project);
@@ -402,6 +404,7 @@ describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () 
           sizeBytes: 1024,
         },
       ],
+      characters: [{ id: 'alice', name: 'Alice' }],
     });
 
     const result = checkAssetDeletionSafety('ast-alice-happy', project);
@@ -423,7 +426,7 @@ describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () 
           version: 1,
         },
       ],
-      characters: [],
+      characters: [{ id: 'alice', name: 'Alice' }],
     });
 
     const report = scanActiveReconciliation(project);
@@ -456,7 +459,7 @@ describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () 
           version: 1,
         },
       ],
-      characters: [],
+      characters: [{ id: 'alice', name: 'Alice' }],
     });
 
     const report = scanActiveReconciliation(project);
@@ -487,7 +490,7 @@ describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () 
           version: 1,
         },
       ],
-      characters: [],
+      characters: [{ id: 'alice', name: 'Alice' }],
     });
 
     const report = scanActiveReconciliation(project);
@@ -526,6 +529,7 @@ describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () 
           sizeBytes: 100,
         },
       ],
+      characters: [{ id: 'alice', name: 'Alice' }],
     });
 
     const report = scanActiveReconciliation(project);
@@ -545,7 +549,6 @@ describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () 
           version: 1,
         },
       ],
-      characters: [],
       assets: [
         {
           id: 'bg_park',
@@ -555,6 +558,7 @@ describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () 
           sizeBytes: 1024,
         },
       ],
+      characters: [{ id: 'alice', name: 'Alice' }],
     });
 
     const diagnostics = generateDiagnostics(project);
@@ -598,6 +602,7 @@ describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () 
           sizeBytes: 2048,
         },
       ],
+      characters: [{ id: 'alice', name: 'Alice' }],
     });
 
     const diagnostics = generateDiagnostics(project);

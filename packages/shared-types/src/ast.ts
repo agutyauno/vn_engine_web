@@ -52,7 +52,6 @@ export interface BaseASTNode {
 
 export type StatementAST =
   | DialogueStatement
-  | RevealStatement
   | BackgroundStatement
   | ShowStatement
   | HideStatement
@@ -88,18 +87,7 @@ export interface DialogueStatement extends BaseASTNode {
   speaker?: string | null;
   character?: string | null;
   text: string;
-  /** @deprecated Giữ lại trong Phase 1–6 cho ast_builder và codegen, xóa ở Phase 7 */
-  displayNameOverride?: string;
   uiScreenId?: string;
-}
-
-/** @deprecated Giữ lại trong Phase 1–6 để bảo toàn typecheck monorepo, xóa triệt để ở Phase 7 */
-export interface RevealStatement extends BaseASTNode {
-  type: 'RevealStatement';
-  characterId: string;
-  displayName: string;
-  character?: string;
-  revealedName?: string;
 }
 
 export interface TransformProperties {
@@ -129,23 +117,16 @@ export interface BackgroundStatement extends BaseASTNode, TransformProperties, M
 
 export interface ShowStatement extends BaseASTNode, TransformProperties, MotionProperties {
   type: 'ShowStatement';
-  targetId?: string;
+  targetId: string;
   variant?: string;
   position?: NamedPosition | CoordinatePosition;
   anchorX?: number;
   anchorY?: number;
-
-  /** @deprecated Dùng targetId thay thế */
-  character?: string;
-  /** @deprecated Dùng variant thay thế */
-  sprite?: string;
 }
 
 export interface HideStatement extends BaseASTNode {
   type: 'HideStatement';
-  targetId?: string;
-  /** @deprecated Dùng targetId thay thế */
-  character?: string;
+  targetId: string;
 }
 
 export interface HideDialogueStatement extends BaseASTNode {

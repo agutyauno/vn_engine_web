@@ -47,18 +47,6 @@ play music "bg_rain.mp3"
 `,
       },
     ],
-    characters: [
-      {
-        id: 'alice',
-        name: 'Alice Carroll',
-        colorHex: '#e91e63',
-        defaultExpression: 'happy',
-        sprites: {
-          happy: 'asset-alice-happy',
-          smile: 'asset-alice-smile',
-        },
-      },
-    ],
     variables: [],
     assets: [
       {
@@ -106,9 +94,7 @@ play music "bg_rain.mp3"
 
       const report: ReconciliationReport = scanActiveReconciliation(proj);
 
-      expect(report.uncreatedCharacters).toContain('bob');
       expect(report.uncreatedAssets).toContain('bg_rain.mp3');
-      expect(report.uncreatedCharacters).not.toContain('alice');
       expect(report.uncreatedAssets).not.toContain('bg_classroom.png');
     });
   });

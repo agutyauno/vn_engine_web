@@ -23,14 +23,12 @@ describe('PreviewBridge (Phase 3 Two-Way Live Preview Bus)', () => {
   const samplePayload1: HotReloadPayload = {
     program: [{ opcode: 'PUSH', args: [1] } as unknown as Instruction],
     projectId: 'proj-preview-1',
-    characters: [],
     assets: [],
   };
 
   const samplePayload2: HotReloadPayload = {
     program: [{ opcode: 'PUSH', args: [2] } as unknown as Instruction],
     projectId: 'proj-preview-1',
-    characters: [{ id: 'hero', name: 'Hero', defaultExpression: 'normal', sprites: {} }],
     assets: [],
   };
 

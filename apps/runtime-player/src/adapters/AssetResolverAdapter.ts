@@ -17,19 +17,9 @@ export interface ProjectDataAsset {
   [key: string]: unknown;
 }
 
-export interface ProjectDataCharacter {
-  id: string;
-  name?: string;
-  sprites?: Record<string, string | undefined>;
-  defaultExpression?: string;
-  [key: string]: unknown;
-}
-
 export interface ProjectData {
   id?: string;
   name?: string;
-  /** @deprecated Giữ lại trong Phase 1–6 cho backward compatibility */
-  characters?: ProjectDataCharacter[];
   assets?: ProjectDataAsset[];
   [key: string]: unknown;
 }
@@ -126,40 +116,6 @@ export class AssetResolverAdapter {
             if (composite === lowerKey && asset.storageUrl) {
               return asset.storageUrl;
             }
-          }
-        }
-      }
-
-      // 2g. Hỗ trợ legacy characters table nếu còn tồn tại
-      if (data.characters && data.characters.length > 0) {
-        const charPart = resolvedTag;
-        const exprPart = resolvedVariant || 'default';
-        const character = data.characters.find(
-          c => c.id.toLowerCase() === charPart || c.name?.toLowerCase() === charPart,
-        );
-        if (character?.sprites) {
-          const val =
-            character.sprites[exprPart] ||
-            character.sprites['default'] ||
-            Object.values(character.sprites)[0];
-          if (val) {
-            if (
-              val.startsWith('http://') ||
-              val.startsWith('https://') ||
-              val.startsWith('data:') ||
-              val.startsWith('blob:') ||
-              val.startsWith('/') ||
-              val.startsWith('./')
-            ) {
-              return val;
-            }
-            const refAsset = assets.find(
-              a =>
-                a.id.toLowerCase() === val.toLowerCase() ||
-                a.name?.toLowerCase() === val.toLowerCase(),
-            );
-            if (refAsset?.storageUrl) return refAsset.storageUrl;
-            return val;
           }
         }
       }

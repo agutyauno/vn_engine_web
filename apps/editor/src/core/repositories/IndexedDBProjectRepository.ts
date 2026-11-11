@@ -194,7 +194,6 @@ export class IndexedDBProjectRepository implements ProjectRepository {
         ...params.editorSettings,
       },
       files: [defaultScript],
-      characters: [],
       variables: [],
       assets: [],
       uiScreens: [],
@@ -280,7 +279,6 @@ export class IndexedDBProjectRepository implements ProjectRepository {
             ? crypto.randomUUID()
             : `file_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       })),
-      characters: (original.characters || []).map(c => ({ ...c })),
       assets: (original.assets || []).map(a => ({ ...a })),
       variables: (original.variables || []).map(v => ({ ...v })),
     };

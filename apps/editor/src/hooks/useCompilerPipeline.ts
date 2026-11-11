@@ -19,7 +19,6 @@ export function useCompilerPipeline(options: UseCompilerPipelineOptions): void {
   const lastBytecodeRef = useRef<Instruction[] | null>(null);
   const prevProjectRef = useRef<Project | null>(null);
   const prevFilesRef = useRef<Project['files'] | null>(null);
-  const prevCharsRef = useRef<Project['characters'] | null>(null);
   const prevAssetsRef = useRef<Project['assets'] | null>(null);
   const compileTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -27,7 +26,6 @@ export function useCompilerPipeline(options: UseCompilerPipelineOptions): void {
     async (currentProject: Project) => {
       // 1. DSL Compilation & Worker AST Reconciliation
       const output = await compilerService.compile(currentProject.files, {
-        characters: currentProject.characters,
         assets: currentProject.assets,
       });
 
@@ -42,7 +40,6 @@ export function useCompilerPipeline(options: UseCompilerPipelineOptions): void {
         previewBridge.hotReload({
           projectId: currentProject.id,
           program: output.bytecode,
-          characters: currentProject.characters,
           assets: currentProject.assets,
         });
       }
@@ -59,7 +56,6 @@ export function useCompilerPipeline(options: UseCompilerPipelineOptions): void {
     if (!prevProjectRef.current) {
       prevProjectRef.current = project;
       prevFilesRef.current = project.files;
-      prevCharsRef.current = project.characters;
       prevAssetsRef.current = project.assets;
 
       runCompile(project);
@@ -67,12 +63,10 @@ export function useCompilerPipeline(options: UseCompilerPipelineOptions): void {
     }
 
     const filesChanged = project.files !== prevFilesRef.current;
-    const charsChanged = project.characters !== prevCharsRef.current;
     const assetsChanged = project.assets !== prevAssetsRef.current;
 
     prevProjectRef.current = project;
     prevFilesRef.current = project.files;
-    prevCharsRef.current = project.characters;
     prevAssetsRef.current = project.assets;
 
     if (filesChanged) {
@@ -82,7 +76,7 @@ export function useCompilerPipeline(options: UseCompilerPipelineOptions): void {
       compileTimerRef.current = setTimeout(() => {
         runCompile(project);
       }, debounceMs);
-    } else if (charsChanged || assetsChanged) {
+    } else if (assetsChanged) {
       // Cập nhật lại diagnostics qua Worker/Sync và hot reload
       runCompile(project);
     }

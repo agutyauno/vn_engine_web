@@ -1,11 +1,9 @@
 import { Compiler, type ScriptReferences } from '@vn-engine/dsl-compiler';
-import type { ScriptFile, Character, Instruction, EngineDiagnostic } from '@vn-engine/shared-types';
+import type { ScriptFile, Instruction, EngineDiagnostic } from '@vn-engine/shared-types';
 import type { CompilerWorkerRequest, CompilerWorkerResponse } from './compiler.worker';
 import { computeReconciliationDiagnostics } from './reconciliation';
 
 export interface CompileExecutionOptions {
-  /** @deprecated Use assets with category: 'sprite' */
-  characters?: Character[];
   assets?: Array<{ id: string; name?: string; type?: string; category?: string }>;
   forceSync?: boolean;
 }
@@ -74,7 +72,6 @@ export class CompilerService {
 
     const compiler = new Compiler();
     const result = compiler.compile(files, {
-      characters: options?.characters,
       assets: options?.assets,
     });
 
@@ -279,7 +276,6 @@ export class CompilerService {
         requestId,
         files,
         options: {
-          characters: options?.characters,
           assets: options?.assets,
         },
       };

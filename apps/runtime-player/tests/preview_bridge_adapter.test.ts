@@ -181,7 +181,7 @@ describe('PreviewBridgeAdapter', () => {
       expect(onHotReload).toHaveBeenCalledWith(testProgram, { scene: 'main', line: 1 });
     });
 
-    it('should parse characters, assets, and projectId from HOT_RELOAD_PROGRAM payload', () => {
+    it('should parse assets and projectId from HOT_RELOAD_PROGRAM payload', () => {
       const onHotReload = vi.fn();
       const adapter = new PreviewBridgeAdapter({
         targetWindow: () => mockTargetWindow,
@@ -192,7 +192,6 @@ describe('PreviewBridgeAdapter', () => {
       adapter.init();
 
       const testProgram: Instruction[] = [{ type: 'SCENE', name: 'main' }];
-      const testChars = [{ id: 'hero', name: 'Hero' }];
       const testAssets = [{ id: 'bg1', name: 'Background', storageUrl: 'blob:bg1' }];
 
       adapter.handleMessage(
@@ -203,7 +202,6 @@ describe('PreviewBridgeAdapter', () => {
             payload: {
               program: testProgram,
               projectId: 'proj_test',
-              characters: testChars,
               assets: testAssets,
             },
           },
@@ -212,7 +210,6 @@ describe('PreviewBridgeAdapter', () => {
 
       expect(onHotReload).toHaveBeenCalledWith(testProgram, {
         projectId: 'proj_test',
-        characters: testChars,
         assets: testAssets,
       });
     });

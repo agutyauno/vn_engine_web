@@ -51,7 +51,6 @@ describe('RendererAdapter', () => {
         type: 'SHOW',
         targetId: 'alice',
         variant: 'happy',
-        character: 'alice',
         position: 'center',
         transition: 'slide',
         duration: 0.5,
@@ -67,7 +66,6 @@ describe('RendererAdapter', () => {
         type: 'SHOW',
         targetId: 'prop_key',
         variant: 'default',
-        character: 'prop_key',
         position: 'center',
       };
 
@@ -83,7 +81,6 @@ describe('RendererAdapter', () => {
       const hideInstr: HideInstruction = {
         type: 'HIDE',
         targetId: 'sword_legendary',
-        character: 'sword',
       };
 
       await adapter.applySideEffect(hideInstr);
@@ -188,8 +185,6 @@ describe('RendererAdapter', () => {
         type: 'SHOW',
         targetId: 'alice',
         variant: 'happy',
-        character: 'alice',
-        sprite: 'happy',
         loc: { fileId: 'scenes/act1.vns', line: 120, col: 4 },
       };
 

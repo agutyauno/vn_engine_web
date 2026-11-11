@@ -5,7 +5,6 @@ import type {
   PauseInstruction,
   Instruction,
   PlayInstruction,
-  Character,
 } from '@vn-engine/shared-types';
 import type { CatchUpVisualState } from '@vn-engine/renderer';
 
@@ -200,8 +199,6 @@ export interface PlayerUIContract {
 export interface VNRuntimeKernelOptions {
   initialMode?: PlayerMode;
   projectId?: string;
-  /** @deprecated Dùng sprite assets trong project.assets thay thế, giữ tương thích ngược */
-  characters?: Character[];
 }
 
 export interface LoadProgramOptions {
@@ -209,7 +206,5 @@ export interface LoadProgramOptions {
   line?: number;
   preserveState?: boolean;
   projectId?: string;
-  /** @deprecated Dùng sprite assets trong project.assets thay thế, giữ tương thích ngược */
-  characters?: Character[];
   assets?: unknown[];
 }

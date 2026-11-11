@@ -1,6 +1,14 @@
 // apps/editor/tests/reconciliation_expression.test.ts
 import { describe, it, expect } from 'vitest';
-import type { Project, ScriptFile, Character, AssetRef } from '@vn-engine/shared-types';
+import type { Project, ScriptFile, AssetRef } from '@vn-engine/shared-types';
+
+interface Character {
+  id: string;
+  name: string;
+  colorHex?: string;
+  defaultExpression?: string;
+  sprites?: Record<string, string>;
+}
 import {
   scanActiveReconciliation,
   generateDiagnostics,
@@ -59,12 +67,12 @@ function createMockProject(options?: {
     ownerId: 'owner-test',
     defaultLanguage: 'vi',
     files: options?.files ?? [],
-    characters: options?.characters ?? [],
     assets: options?.assets ?? [],
     variables: [],
     uiScreens: [],
     customScripts: [],
-  };
+    ...(options?.characters !== undefined ? { characters: options.characters } : {}),
+  } as Project;
 }
 
 // ============================================================================
@@ -407,7 +415,6 @@ describe('Phase 2.4: Uncreated Expression Warning & QuickFix Pipeline (TC-EXPR-0
       const compDiags = computeReconciliationDiagnostics(
         project.files,
         {
-          characters: project.characters,
           assets: project.assets,
         },
         cache,

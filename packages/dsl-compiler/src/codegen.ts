@@ -26,7 +26,6 @@ import type {
   IfStatement,
   VarDefineStatement,
   VarAssignStatement,
-  Character,
 } from '@vn-engine/shared-types';
 import { buildGlobalVariableSet } from './semantic';
 
@@ -34,14 +33,7 @@ export class CodeGenerator {
   private instructions: Instruction[] = [];
   private loopIdCounter = 0;
   private ifIdCounter = 0;
-  private characters: Character[] = [];
   private globals: Set<string> = new Set();
-
-  constructor(characters?: Character[]) {
-    if (characters) {
-      this.characters = characters;
-    }
-  }
 
   public generate(ast: ProgramAST): Instruction[] {
     this.instructions = [];
@@ -102,7 +94,6 @@ export class CodeGenerator {
           character: speaker,
           speaker,
           text: d.text,
-          displayNameOverride: d.displayNameOverride,
           uiScreenId: d.uiScreenId,
           loc: d.loc,
         });
@@ -135,32 +126,13 @@ export class CodeGenerator {
 
       case 'ShowStatement': {
         const s = stmt as ShowStatement;
-        const targetId = s.targetId || s.character || '';
-        let variant = s.variant || s.sprite;
-        if (!variant || variant.trim() === '') {
-          const charDef = this.characters.find(
-            c => c.id.toLowerCase() === targetId.toLowerCase(),
-          );
-          if (charDef && charDef.sprites) {
-            const keys = Object.keys(charDef.sprites);
-            if (keys.includes('default')) {
-              variant = 'default';
-            } else if (keys.length > 0 && keys[0]) {
-              variant = keys[0];
-            } else {
-              variant = 'default';
-            }
-          } else {
-            variant = 'default';
-          }
-        }
+        const targetId = s.targetId || '';
+        const variant = s.variant || 'default';
 
         this.instructions.push({
           type: 'SHOW',
           targetId,
           variant,
-          character: targetId,
-          sprite: variant,
           anchorX: s.anchorX ?? 0.5,
           anchorY: s.anchorY ?? 1.0,
           position: s.position,
@@ -185,7 +157,7 @@ export class CodeGenerator {
 
       case 'HideStatement': {
         const h = stmt as HideStatement;
-        const targetId = h.targetId || h.character || '';
+        const targetId = h.targetId || '';
         if (targetId.toLowerCase() === 'dialogue') {
           this.instructions.push({
             type: 'HIDE_DIALOGUE',
@@ -195,7 +167,6 @@ export class CodeGenerator {
           this.instructions.push({
             type: 'HIDE',
             targetId,
-            character: targetId,
             loc: h.loc,
           });
         }
@@ -465,7 +436,7 @@ export class CodeGenerator {
   }
 }
 
-export function generateBytecode(ast: ProgramAST, characters?: Character[]): Instruction[] {
-  const generator = new CodeGenerator(characters);
+export function generateBytecode(ast: ProgramAST): Instruction[] {
+  const generator = new CodeGenerator();
   return generator.generate(ast);
 }

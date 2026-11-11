@@ -130,12 +130,16 @@ describe('E-Phase 1: Storage & Repository Layer (IndexedDBProjectRepository)', (
     const updatedProject = {
       ...created,
       title: 'Updated Title',
-      characters: [
+      assets: [
         {
           id: 'alice',
           name: 'Alice Margatroid',
-          colorHex: '#38bdf8',
-          sprites: { default: 'data:image/png;base64,mock' },
+          type: 'image' as const,
+          category: 'sprite' as const,
+          tag: 'alice',
+          variant: 'default',
+          storageUrl: 'data:image/png;base64,mock',
+          sizeBytes: 100,
         },
       ],
     };
@@ -144,8 +148,8 @@ describe('E-Phase 1: Storage & Repository Layer (IndexedDBProjectRepository)', (
 
     const reloaded = await repository.getProject(created.id);
     expect(reloaded?.title).toBe('Updated Title');
-    expect(reloaded?.characters).toHaveLength(1);
-    expect(reloaded?.characters?.[0]!.name).toBe('Alice Margatroid');
+    expect(reloaded?.assets).toHaveLength(1);
+    expect(reloaded?.assets?.[0]!.name).toBe('Alice Margatroid');
     expect(reloaded?.updatedAt).toBeGreaterThanOrEqual(created.updatedAt || 0);
   });
 

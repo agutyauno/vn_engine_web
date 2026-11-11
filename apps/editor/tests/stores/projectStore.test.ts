@@ -51,14 +51,6 @@ function createMockProject(): Project {
         version: 1,
       },
     ],
-    characters: [
-      {
-        id: 'alice',
-        name: 'Alice',
-        defaultExpression: 'neutral',
-        sprites: { neutral: 'room.png' },
-      },
-    ],
     variables: [],
     assets: [
       {
@@ -224,25 +216,6 @@ describe('projectStore', () => {
     expect(useProjectStore.getState().project?.editorSettings?.autoSaveDebounceMs).toBe(2000);
 
     expect(useProjectStore.getState().isDirty).toBe(true);
-  });
-
-  it('saves and deletes characters in character registry', () => {
-    const project = createMockProject();
-    useProjectStore.getState().initProject(project, mockRepo);
-
-    useProjectStore.getState().saveCharacter({
-      id: 'bob',
-      name: 'Bob',
-      defaultExpression: 'smile',
-      sprites: { smile: 'bob_smile.png' },
-    });
-
-    let state = useProjectStore.getState();
-    expect(state.project?.characters?.some(c => c.id === 'bob')).toBe(true);
-
-    useProjectStore.getState().deleteCharacter('bob');
-    state = useProjectStore.getState();
-    expect(state.project?.characters?.some(c => c.id === 'bob')).toBe(false);
   });
 
   it('saves and deletes assets in asset registry and invokes repository blob methods', async () => {

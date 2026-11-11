@@ -26,10 +26,10 @@ describe('End-to-End CUJ Lifecycle Flow (TASK-PLAYER-REBUILD-SPEC §1.3)', () =>
   const sampleProgram: Instruction[] = [
     { type: 'SCENE', name: 'intro' },
     { type: 'BACKGROUND', assetId: 'bg_room' },
-    { type: 'SHOW', character: 'alice', sprite: 'neutral', position: 'center' },
+    { type: 'SHOW', targetId: 'alice', variant: 'neutral', position: 'center' },
     { type: 'PLAY', channel: 'voice', assetId: 'alice_v01' },
     { type: 'DIALOGUE', character: 'Alice', text: 'Hello, welcome to TaleForge!' },
-    { type: 'SHOW', character: 'alice', sprite: 'happy', position: 'center' },
+    { type: 'SHOW', targetId: 'alice', variant: 'happy', position: 'center' },
     { type: 'PLAY', channel: 'voice', assetId: 'alice_v02' },
     { type: 'DIALOGUE', character: 'Alice', text: 'How are you feeling today?' },
     {
@@ -40,10 +40,10 @@ describe('End-to-End CUJ Lifecycle Flow (TASK-PLAYER-REBUILD-SPEC §1.3)', () =>
       ],
     },
     { type: 'SCENE', name: 'happy_path' },
-    { type: 'SHOW', character: 'alice', sprite: 'ecstatic', position: 'center' },
+    { type: 'SHOW', targetId: 'alice', variant: 'ecstatic', position: 'center' },
     { type: 'DIALOGUE', character: 'Alice', text: 'Glad to hear that!' },
     { type: 'SCENE', name: 'rest_path' },
-    { type: 'SHOW', character: 'alice', sprite: 'worried', position: 'center' },
+    { type: 'SHOW', targetId: 'alice', variant: 'worried', position: 'center' },
     { type: 'DIALOGUE', character: 'Alice', text: 'Please take some rest.' },
   ];
 
@@ -118,8 +118,8 @@ describe('End-to-End CUJ Lifecycle Flow (TASK-PLAYER-REBUILD-SPEC §1.3)', () =>
     expect(mockRenderer.applySideEffect).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'SHOW',
-        character: 'alice',
-        sprite: 'neutral',
+        targetId: 'alice',
+        variant: 'neutral',
         position: 'center',
       }),
     );
@@ -161,8 +161,8 @@ describe('End-to-End CUJ Lifecycle Flow (TASK-PLAYER-REBUILD-SPEC §1.3)', () =>
     expect(mockRenderer.applySideEffect).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'SHOW',
-        character: 'alice',
-        sprite: 'happy',
+        targetId: 'alice',
+        variant: 'happy',
         position: 'center',
       }),
     );
@@ -222,7 +222,7 @@ describe('End-to-End CUJ Lifecycle Flow (TASK-PLAYER-REBUILD-SPEC §1.3)', () =>
     expect(targetState.dialogue.speakerName).toBe('Alice');
     expect(targetState.dialogue.rawText).toBe('Glad to hear that!');
     expect(mockRenderer.applySideEffect).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'SHOW', character: 'alice', sprite: 'ecstatic' }),
+      expect.objectContaining({ type: 'SHOW', targetId: 'alice', variant: 'ecstatic' }),
     );
   });
 
@@ -252,7 +252,7 @@ describe('End-to-End CUJ Lifecycle Flow (TASK-PLAYER-REBUILD-SPEC §1.3)', () =>
     expect(mockRenderer.syncStateCatchUp).toHaveBeenCalledTimes(1);
     const catchUp = mockRenderer.syncStateCatchUp.mock.calls[0]?.[0] as CatchUpVisualState;
     expect(catchUp).toBeDefined();
-    expect(catchUp.sprites.get('alice')?.sprite).toBe('neutral');
+    expect(catchUp.sprites.get('alice')?.variant).toBe('neutral');
 
     // Dialogue state reverted without desync
     const state = kernel.getState();
@@ -280,7 +280,7 @@ describe('End-to-End CUJ Lifecycle Flow (TASK-PLAYER-REBUILD-SPEC §1.3)', () =>
     const newProgram: Instruction[] = [
       { type: 'SCENE', name: 'preview_start' },
       { type: 'BACKGROUND', assetId: 'bg_garden' },
-      { type: 'SHOW', character: 'bob', sprite: 'smile', position: 'right' },
+      { type: 'SHOW', targetId: 'bob', variant: 'smile', position: 'right' },
       { type: 'DIALOGUE', character: 'Bob', text: 'Live reload successful!' },
     ];
 
@@ -351,7 +351,7 @@ describe('End-to-End CUJ Lifecycle Flow (TASK-PLAYER-REBUILD-SPEC §1.3)', () =>
     expect(mockAudio.stopVoice).toHaveBeenCalled();
     expect(kernel.getState().dialogue.rawText).toBe('Please take some rest.');
     expect(mockRenderer.applySideEffect).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'SHOW', character: 'alice', sprite: 'worried' }),
+      expect.objectContaining({ type: 'SHOW', targetId: 'alice', variant: 'worried' }),
     );
 
     // 6. Rollback to Choice

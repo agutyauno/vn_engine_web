@@ -6,7 +6,6 @@ import {
   extractLocation,
   type ScriptReferences,
   type AssetReference,
-  type CharacterReference,
   type ScriptReferenceLocation,
 } from '../src';
 
@@ -42,7 +41,6 @@ describe('AST Reference Visitor (extractScriptReferences)', () => {
     expect(result.ast).toBeDefined();
 
     const refs: ScriptReferences = extractScriptReferences(result.ast!);
-    expect(refs.characters).toHaveLength(0);
     expect(refs.assets).toHaveLength(2);
     expect(refs.assets[0]).toMatchObject<AssetReference>({
       assetKey: 'alice',
@@ -155,8 +153,6 @@ describe('AST Reference Visitor (extractScriptReferences)', () => {
 
     const refs: ScriptReferences = extractScriptReferences(result.ast!);
 
-    expect(refs.characters).toHaveLength(0);
-
     const assetKeys = refs.assets.map(a => a.assetKey);
     expect(assetKeys).toContain('bg_if');
     expect(assetKeys).toContain('bg_while');
@@ -177,7 +173,7 @@ describe('AST Reference Visitor (extractScriptReferences)', () => {
     });
   });
 
-  it('TC-AST-REC-06: should NOT produce character references for dialogue statements or narration', () => {
+  it('TC-AST-REC-06: should NOT produce asset references for dialogue statements or narration', () => {
     const dsl = `scene dialogue_scene {
   alice: "Hello world"
   "???": "Who is speaking?"
@@ -188,8 +184,6 @@ describe('AST Reference Visitor (extractScriptReferences)', () => {
     expect(result.ast).toBeDefined();
 
     const refs: ScriptReferences = extractScriptReferences(result.ast!);
-    expect(refs.characters).toEqual([]);
-    expect(refs.characters).toHaveLength(0);
     expect(refs.assets).toEqual([]);
     expect(refs.assets).toHaveLength(0);
   });
@@ -208,12 +202,11 @@ scene scene_two {
     expect(result.ast).toBeDefined();
 
     const refs = extractScriptReferences(result.ast!);
-    expect(refs.characters).toHaveLength(0);
     expect(refs.assets).toHaveLength(4);
     expect(refs.assets.map(a => a.assetKey)).toEqual(['bg_one', 'alice', 'bg_two', 'bob']);
   });
 
-  it('TC-AST-REC-08: should return empty collections for scenes with no media or character references', () => {
+  it('TC-AST-REC-08: should return empty collections for scenes with no media references', () => {
     const dsl = `define score = 100
 scene logic_only {
   define temp = 0
@@ -229,7 +222,6 @@ scene next_scene {
     expect(result.ast).toBeDefined();
 
     const refs = extractScriptReferences(result.ast!);
-    expect(refs.characters).toEqual([]);
     expect(refs.assets).toEqual([]);
   });
 
@@ -249,7 +241,6 @@ scene next_scene {
     expect(result.ast).toBeDefined();
 
     const refs = extractScriptReferences(result.ast!);
-    expect(refs.characters).toHaveLength(0);
     expect(refs.assets.map(a => a.assetKey)).toEqual(['alice', 'bob', 'clare']);
   });
 
@@ -319,7 +310,6 @@ scene next_scene {
 
     const refs: ScriptReferences = extractScriptReferences(result.ast!);
 
-    expect(refs.characters).toHaveLength(0);
     expect(refs.assets).toHaveLength(2);
     expect(refs.assets[0]?.loc).toBeDefined();
     expect(refs.assets[0]?.loc?.col).toBe(14);
@@ -334,7 +324,7 @@ scene next_scene {
     expect(refs.assets[1]?.loc?.endCol).toBeGreaterThan(refs.assets[1]!.loc!.col!);
   });
 
-  it('TC-SPRITE-COMP-05: should extract sprite AssetReferences with tag, variant, category "sprite" and no character references', () => {
+  it('TC-SPRITE-COMP-05: should extract sprite AssetReferences with tag, variant, category "sprite"', () => {
     const dsl = `scene sprite_demo {
   show alice.happy
   show sword
@@ -345,7 +335,6 @@ scene next_scene {
     expect(result.ast).toBeDefined();
 
     const refs = extractScriptReferences(result.ast!);
-    expect(refs.characters).toEqual([]);
     expect(refs.assets).toHaveLength(3);
 
     // show alice.happy
