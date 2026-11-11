@@ -287,17 +287,23 @@ export function resolveQuickFixActions(
       case 'create_asset': {
         const rawCat = (qf.prefillData?.category as string) || 'background';
         const category = rawCat === 'audio' ? 'bgm' : rawCat === 'backgrounds' ? 'background' : rawCat;
+        const tag = qf.prefillData?.tag as string | undefined;
+        const variant = qf.prefillData?.variant as string | undefined;
 
         // Lớp 1a: Chỉ sinh tối đa 1 action tạo asset cho mỗi targetId duy nhất
         if (!seenAssetTargets.has(targetId)) {
           seenAssetTargets.add(targetId);
+          const cmdArgs: unknown[] = [targetId, category];
+          if (category === 'sprite') {
+            cmdArgs.push(tag, variant);
+          }
           actions.push({
             id: `create-asset-${targetId}`,
             title: `Create asset '${targetId}'`,
             kind: 'quickfix',
             command: {
               id: 'vn.editor.createAsset',
-              arguments: [targetId, category],
+              arguments: cmdArgs,
             },
           });
         }

@@ -4,6 +4,7 @@ import type { CompilerWorkerRequest, CompilerWorkerResponse } from './compiler.w
 import { computeReconciliationDiagnostics } from './reconciliation';
 
 export interface CompileExecutionOptions {
+  /** @deprecated Use assets with category: 'sprite' */
   characters?: Character[];
   assets?: Array<{ id: string; name?: string; type?: string; category?: string }>;
   forceSync?: boolean;

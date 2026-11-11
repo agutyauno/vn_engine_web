@@ -238,11 +238,11 @@ describe('projectStore', () => {
     });
 
     let state = useProjectStore.getState();
-    expect(state.project?.characters.some(c => c.id === 'bob')).toBe(true);
+    expect(state.project?.characters?.some(c => c.id === 'bob')).toBe(true);
 
     useProjectStore.getState().deleteCharacter('bob');
     state = useProjectStore.getState();
-    expect(state.project?.characters.some(c => c.id === 'bob')).toBe(false);
+    expect(state.project?.characters?.some(c => c.id === 'bob')).toBe(false);
   });
 
   it('saves and deletes assets in asset registry and invokes repository blob methods', async () => {

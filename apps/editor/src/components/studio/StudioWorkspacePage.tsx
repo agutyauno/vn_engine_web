@@ -1,11 +1,9 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import type { AssetRef, AssetCategory, Character, Project } from '@vn-engine/shared-types';
+import type { AssetRef, AssetCategory, Project } from '@vn-engine/shared-types';
 import type { ProjectRepository } from '../../core/contracts/repository';
 import { ActivityBar, type StudioTab } from './ActivityBar';
 import { FileExplorerPane, generateDefaultScriptName } from './FileExplorerPane';
 import { StudioHeader } from './StudioHeader';
-import { CharacterManagerPane } from '../characters/CharacterManagerPane';
-import { CharacterModal } from '../characters/CharacterModal';
 import { AssetLibraryPane } from './AssetLibraryPane';
 import { CreateAssetModal } from './CreateAssetModal';
 import { calculateVariableInsertion } from '../../core/services/quickFixService';
@@ -27,7 +25,6 @@ import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { CompilerService } from '../../core/services/compilerService';
 import { PreviewBridge, buildPreviewUrl } from '../../core/services/previewBridge';
 import {
-  scanActiveReconciliation,
   type EditorDiagnostic,
 } from '../../core/services/reconciliation';
 
@@ -66,8 +63,6 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
   const createFile = useProjectStore(s => s.createFile);
   const renameFile = useProjectStore(s => s.renameFile);
   const deleteFile = useProjectStore(s => s.deleteFile);
-  const saveCharacter = useProjectStore(s => s.saveCharacter);
-  const deleteCharacter = useProjectStore(s => s.deleteCharacter);
   const saveAsset = useProjectStore(s => s.saveAsset);
   const deleteAsset = useProjectStore(s => s.deleteAsset);
 
@@ -111,17 +106,13 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
   const [loading, setLoading] = useState<boolean>(!initialProject && !project);
   const [error, setError] = useState<string | null>(null);
   const [currentCursorLine, setCurrentCursorLine] = useState<number>(1);
-  const [isCharModalOpen, setIsCharModalOpen] = useState<boolean>(false);
-  const [editingCharacter, setEditingCharacter] = useState<Character | null>(null);
   const [isAssetModalOpen, setIsAssetModalOpen] = useState<boolean>(false);
   const [isExportOpen, setIsExportOpen] = useState<boolean>(false);
   const [pendingQuickFixAsset, setPendingQuickFixAsset] = useState<{
-    id: string;
+    id?: string;
     category?: AssetCategory;
-  } | null>(null);
-  const [pendingPrefillExpression, setPendingPrefillExpression] = useState<{
-    charId: string;
-    expressionKey: string;
+    tag?: string;
+    variant?: string;
   } | null>(null);
 
   // Pop-out Window Reference
@@ -496,54 +487,6 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
     [activeFileId, updateFileContent],
   );
 
-  // Character Management Handlers
-  const handleOpenCreateCharacter = useCallback((prefillId?: string) => {
-    setEditingCharacter(
-      prefillId
-        ? {
-            id: prefillId,
-            name: '',
-            colorHex: '#38bdf8',
-            sprites: {},
-            defaultExpression: 'default',
-          }
-        : null,
-    );
-    setIsCharModalOpen(true);
-  }, []);
-
-  const handleOpenEditCharacter = useCallback((char: Character) => {
-    setEditingCharacter(char);
-    setIsCharModalOpen(true);
-  }, []);
-
-  const handleSaveCharacter = useCallback(
-    async (savedChar: Character) => {
-      saveCharacter(savedChar);
-      setIsCharModalOpen(false);
-      setEditingCharacter(null);
-      setPendingPrefillExpression(null);
-      try {
-        await saveProject(repository);
-      } catch (err) {
-        console.error('Failed to persist character:', err);
-      }
-    },
-    [saveCharacter, saveProject, repository],
-  );
-
-  const handleDeleteCharacter = useCallback(
-    async (characterId: string) => {
-      deleteCharacter(characterId);
-      try {
-        await saveProject(repository);
-      } catch (err) {
-        console.error('Failed to delete character:', err);
-      }
-    },
-    [deleteCharacter, saveProject, repository],
-  );
-
   // Asset Management Handlers
   const handleAddAsset = useCallback(
     async (newAsset: AssetRef, fileBlob?: Blob) => {
@@ -616,18 +559,6 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
     [project, handleSelectTab, setCursorJumpTarget],
   );
 
-  const handleRequestCreateExpression = useCallback((charId: string, expressionKey: string) => {
-    const currentProj = useProjectStore.getState().project;
-    const targetChar = (currentProj?.characters || []).find(
-      c => c.id.toLowerCase() === charId.toLowerCase(),
-    );
-    if (targetChar) {
-      setPendingPrefillExpression({ charId: targetChar.id, expressionKey });
-      setEditingCharacter(targetChar);
-      setIsCharModalOpen(true);
-    }
-  }, []);
-
   const handleQuickFix = useCallback(
     (diag: DiagnosticItem) => {
       const editorDiag = diag as EditorDiagnostic;
@@ -635,17 +566,10 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
         setPendingQuickFixAsset({
           id: editorDiag.quickFix.targetId,
           category: (editorDiag.quickFix.prefillData?.category as AssetCategory) || 'background',
+          tag: editorDiag.quickFix.prefillData?.tag as string | undefined,
+          variant: editorDiag.quickFix.prefillData?.variant as string | undefined,
         });
         setIsAssetModalOpen(true);
-      } else if (editorDiag.quickFix?.type === 'create_character') {
-        handleOpenCreateCharacter(editorDiag.quickFix.targetId);
-      } else if (editorDiag.quickFix?.type === 'create_expression') {
-        const prefill = editorDiag.quickFix.prefillData as { charId?: string; expressionKey?: string } | undefined;
-        const charId = prefill?.charId || editorDiag.quickFix.targetId?.split('.')[0] || '';
-        const exprKey = prefill?.expressionKey || editorDiag.quickFix.targetId?.split('.')[1] || '';
-        if (charId && exprKey) {
-          handleRequestCreateExpression(charId, exprKey);
-        }
       } else if (editorDiag.quickFix?.type === 'define_variable') {
         const varName = editorDiag.quickFix.targetId;
         const currentProj = useProjectStore.getState().project;
@@ -674,22 +598,20 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
         }
       }
     },
-    [handleOpenCreateCharacter, handleRequestCreateExpression, updateFileContent, handleSelectTab, setCursorJumpTarget, saveProject, repository],
+    [updateFileContent, handleSelectTab, setCursorJumpTarget, saveProject, repository],
   );
 
-  const handleRequestCreateAsset = useCallback((targetId: string, category?: AssetCategory) => {
-    setPendingQuickFixAsset({
-      id: targetId,
-      category: category || 'background',
-    });
-    setIsAssetModalOpen(true);
-  }, []);
-
-  const handleRequestCreateCharacter = useCallback(
-    (targetId: string) => {
-      handleOpenCreateCharacter(targetId);
+  const handleRequestCreateAsset = useCallback(
+    (targetId: string, category?: AssetCategory, tag?: string, variant?: string) => {
+      setPendingQuickFixAsset({
+        id: targetId,
+        category: category || 'background',
+        tag,
+        variant,
+      });
+      setIsAssetModalOpen(true);
     },
-    [handleOpenCreateCharacter],
+    [],
   );
 
   // Settings & Export Handlers
@@ -735,11 +657,6 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
     },
     [project],
   );
-
-  const uncreatedCharacterIds = useMemo(() => {
-    if (!currentProject) return [];
-    return scanActiveReconciliation(currentProject).uncreatedCharacters;
-  }, [currentProject]);
 
   if (loading) {
     return (
@@ -839,19 +756,6 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
               />
             )}
 
-            {activeTab === 'characters' && (
-              <CharacterManagerPane
-                project={currentProject}
-                characters={currentProject.characters || []}
-                assets={currentProject.assets || []}
-                uncreatedIds={uncreatedCharacterIds}
-                onCreateCharacter={handleOpenCreateCharacter}
-                onEditCharacter={handleOpenEditCharacter}
-                onDeleteCharacter={handleDeleteCharacter}
-                onInsertSnippet={handleInsertSnippet}
-              />
-            )}
-
             {activeTab === 'assets' && (
               <div data-testid="pane-assets-placeholder" className="flex-1 min-w-0 w-auto h-full">
                 <AssetLibraryPane
@@ -908,8 +812,6 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
               onChange={handleContentChange}
               onCursorChange={line => setCurrentCursorLine(line)}
               onRequestCreateAsset={handleRequestCreateAsset}
-              onRequestCreateCharacter={handleRequestCreateCharacter}
-              onRequestCreateExpression={handleRequestCreateExpression}
             />
 
             {/* Resizable Drawer Splitter */}
@@ -938,24 +840,6 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
         </main>
       )}
 
-      {/* Character Modal Dialog */}
-      {currentProject && (
-        <CharacterModal
-          isOpen={isCharModalOpen}
-          initialData={editingCharacter}
-          prefillExpressionKey={pendingPrefillExpression?.expressionKey}
-          existingIds={(currentProject.characters || [])
-            .filter(c => !editingCharacter || c.id !== editingCharacter.id)
-            .map(c => c.id)}
-          onClose={() => {
-            setIsCharModalOpen(false);
-            setEditingCharacter(null);
-            setPendingPrefillExpression(null);
-          }}
-          onSave={handleSaveCharacter}
-        />
-      )}
-
       {/* QuickFix Create Asset Modal Dialog */}
       {currentProject && isAssetModalOpen && (
         <CreateAssetModal
@@ -963,6 +847,8 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
           initialFile={null}
           initialAssetId={pendingQuickFixAsset?.id}
           initialCategory={pendingQuickFixAsset?.category}
+          initialTag={pendingQuickFixAsset?.tag}
+          initialVariant={pendingQuickFixAsset?.variant}
           existingAssetIds={(currentProject.assets || []).map(a => a.id)}
           onClose={() => {
             setIsAssetModalOpen(false);

@@ -1,8 +1,8 @@
 import React from 'react';
-import { FileTextIcon, UserIcon, ImageIcon, SettingsIcon, HelpCircleIcon } from '../common/Icons';
+import { FileTextIcon, ImageIcon, SettingsIcon, HelpCircleIcon } from '../common/Icons';
 import { useEditorUIStore } from '../../core/stores/uiStore';
 
-export type StudioTab = 'scripts' | 'characters' | 'assets';
+export type StudioTab = 'scripts' | 'assets';
 
 export interface ActivityBarProps {
   activeTab: StudioTab | null;
@@ -67,27 +67,9 @@ export const ActivityBar: React.FC<ActivityBarProps> = ({
 
         <button
           type="button"
-          data-testid="tab-characters"
-          onClick={() => handleTabClick('characters')}
-          title="Characters & Expressions"
-          aria-label="Characters"
-          className={`relative my-1 flex h-10 w-10 items-center justify-center rounded transition-colors ${
-            activeTab === 'characters'
-              ? 'bg-neutral-800 text-white'
-              : 'hover:bg-neutral-900 hover:text-neutral-200'
-          }`}
-        >
-          <UserIcon size={18} />
-          {activeTab === 'characters' && (
-            <span className="absolute left-0 top-1.5 h-7 w-0.5 rounded-r bg-white" />
-          )}
-        </button>
-
-        <button
-          type="button"
           data-testid="tab-assets"
           onClick={() => handleTabClick('assets')}
-          title="Asset Library (Audio, Backgrounds, CG)"
+          title="Asset Library (Audio, Backgrounds, Sprites, CG)"
           aria-label="Assets"
           className={`relative my-1 flex h-10 w-10 items-center justify-center rounded transition-colors ${
             activeTab === 'assets'

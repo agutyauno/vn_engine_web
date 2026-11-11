@@ -104,8 +104,8 @@ describe('uiStore', () => {
   });
 
   it('manages activeTab, selectTab, and closeTab', () => {
-    useEditorUIStore.getState().setActiveTab('characters');
-    expect(useEditorUIStore.getState().activeTab).toBe('characters');
+    useEditorUIStore.getState().setActiveTab('assets');
+    expect(useEditorUIStore.getState().activeTab).toBe('assets');
 
     useEditorUIStore.getState().selectTab('file-1');
     expect(useEditorUIStore.getState().openFileIds).toContain('file-1');

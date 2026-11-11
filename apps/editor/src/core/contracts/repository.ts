@@ -25,7 +25,6 @@ export interface ProjectSummary {
   canvasHeight: number;
   orientation: 'landscape' | 'portrait';
   scriptCount: number;
-  characterCount: number;
   assetCount: number;
   totalSizeBytes: number;
 }

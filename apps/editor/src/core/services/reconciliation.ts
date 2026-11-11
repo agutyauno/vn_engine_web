@@ -29,12 +29,22 @@ export interface ScriptReference {
   col?: number;
   endLine?: number;
   endCol?: number;
-  type?: 'background' | 'audio' | 'inspect' | 'character';
+  type?: 'background' | 'audio' | 'inspect' | 'character' | 'sprite';
 }
 
 export interface UncreatedExpressionRef {
   charId: string;
   expressionKey: string;
+  file: string;
+  line: number;
+  col?: number;
+  endLine?: number;
+  endCol?: number;
+}
+
+export interface UncreatedSpriteRef {
+  tag: string;
+  variant?: string;
   file: string;
   line: number;
   col?: number;
@@ -50,6 +60,8 @@ export interface ReconciliationReport {
   characterReferences: Record<string, ScriptReference[]>;
   uncreatedExpressions?: UncreatedExpressionRef[];
   expressionReferences?: Record<string, ScriptReference[]>;
+  uncreatedSprites?: UncreatedSpriteRef[];
+  spriteReferences?: Record<string, ScriptReference[]>;
 }
 
 export interface DeletionSafetyResult {
@@ -60,6 +72,28 @@ export interface DeletionSafetyResult {
 
 function escapeRegExp(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function resolveSpriteSpan(
+  rawLine: string | undefined,
+  tag: string,
+  variant: string | undefined,
+  fallbackLine: number,
+): { col: number; endLine: number; endCol: number } {
+  if (!rawLine) return { col: 1, endLine: fallbackLine, endCol: 1 };
+  const targetText = variant ? `${tag}.${variant}` : tag;
+  const regex = new RegExp(`\\b${escapeRegExp(tag)}(?:\\.${escapeRegExp(variant || '')})?\\b`, 'i');
+  const match = regex.exec(rawLine);
+  if (match) {
+    const col = match.index + 1;
+    return { col, endLine: fallbackLine, endCol: col + match[0].length };
+  }
+  const idx = rawLine.indexOf(targetText);
+  if (idx !== -1) {
+    const col = idx + 1;
+    return { col, endLine: fallbackLine, endCol: col + targetText.length };
+  }
+  return { col: 1, endLine: fallbackLine, endCol: 1 };
 }
 
 function resolveExpressionSpan(
@@ -87,7 +121,9 @@ export function scanActiveReconciliation(project: Project): ReconciliationReport
   const assetRefMap: Record<string, ScriptReference[]> = {};
   const charRefMap: Record<string, ScriptReference[]> = {};
   const exprRefMap: Record<string, ScriptReference[]> = {};
+  const spriteRefMap: Record<string, ScriptReference[]> = {};
   const uncreatedExpressions: UncreatedExpressionRef[] = [];
+  const uncreatedSprites: UncreatedSpriteRef[] = [];
 
   const charMap = new Map<string, Character>();
   for (const c of project.characters || []) {
@@ -123,6 +159,7 @@ export function scanActiveReconciliation(project: Project): ReconciliationReport
   );
 
   const knownAssetKeys = new Set<string>();
+  const knownSpriteKeys = new Set<string>();
   for (const asset of project.assets || []) {
     if (asset.id) {
       knownAssetKeys.add(asset.id.trim());
@@ -135,6 +172,24 @@ export function scanActiveReconciliation(project: Project): ReconciliationReport
       if (cleanName) {
         knownAssetKeys.add(cleanName);
         knownAssetKeys.add(cleanName.toLowerCase());
+      }
+    }
+    if (asset.category === 'sprite' || asset.tag) {
+      const aTag = (asset.tag || '').trim().toLowerCase();
+      const aVariant = (asset.variant || 'default').trim().toLowerCase();
+      if (aTag) {
+        knownSpriteKeys.add(`${aTag}.${aVariant}`);
+        if (aVariant === 'default') {
+          knownSpriteKeys.add(aTag);
+        }
+      }
+      if (asset.id) {
+        knownSpriteKeys.add(asset.id.trim().toLowerCase());
+      }
+      if (asset.name) {
+        knownSpriteKeys.add(asset.name.trim().toLowerCase());
+        const clean = asset.name.replace(/\.[^/.]+$/, '').trim().toLowerCase();
+        knownSpriteKeys.add(clean);
       }
     }
   }
@@ -164,56 +219,98 @@ export function scanActiveReconciliation(project: Project): ReconciliationReport
         recordAssetRef(legacySceneMatch[1], fileName, lineNum, 'background');
       }
 
-      // Show character or sprite asset: show <id>.<expression> or show <id>
+      // Show sprite statement: show <tag>[.<variant>]
       const showMatch = trimmed.match(/^show\s+([a-zA-Z0-9_]+)(?:\.([a-zA-Z0-9_]+))?/i);
       if (showMatch && showMatch[1]) {
-        const charId = showMatch[1];
-        const charIdLower = charId.toLowerCase();
-        recordCharRef(charId, fileName, lineNum);
-        if (knownAssetKeys.has(showMatch[1]) || knownAssetKeys.has(showMatch[1].toLowerCase())) {
-          recordAssetRef(showMatch[1], fileName, lineNum, 'background');
+        const tag = showMatch[1];
+        const variant = showMatch[2];
+        const span = resolveSpriteSpan(rawLine, tag, variant, lineNum);
+        const tagLower = tag.toLowerCase();
+        const variantLower = (variant || 'default').toLowerCase();
+        const compositeKey = `${tagLower}.${variantLower}`;
+
+        if (!spriteRefMap[compositeKey]) {
+          spriteRefMap[compositeKey] = [];
+        }
+        spriteRefMap[compositeKey]!.push({
+          file: fileName,
+          line: lineNum,
+          col: span.col,
+          endLine: span.endLine,
+          endCol: span.endCol,
+          type: 'character',
+        });
+        if (!spriteRefMap[tagLower]) {
+          spriteRefMap[tagLower] = [];
+        }
+        spriteRefMap[tagLower]!.push({
+          file: fileName,
+          line: lineNum,
+          col: span.col,
+          endLine: span.endLine,
+          endCol: span.endCol,
+          type: 'character',
+        });
+
+        if (knownAssetKeys.has(tag) || knownAssetKeys.has(tagLower)) {
+          recordAssetRef(tag, fileName, lineNum, 'background');
         }
 
-        if (showMatch[2]) {
-          const exprKey = showMatch[2];
-          const span = resolveExpressionSpan(rawLine, charId, exprKey, lineNum);
-          const exprCompositeKey = `${charIdLower}.${exprKey}`;
-          if (!exprRefMap[exprCompositeKey]) {
-            exprRefMap[exprCompositeKey] = [];
+        // Also maintain backward-compatible character & expression references
+        recordCharRef(tag, fileName, lineNum);
+        if (variant) {
+          const exprSpan = resolveExpressionSpan(rawLine, tag, variant, lineNum);
+          if (!exprRefMap[compositeKey]) {
+            exprRefMap[compositeKey] = [];
           }
-          exprRefMap[exprCompositeKey]!.push({
+          exprRefMap[compositeKey]!.push({
+            file: fileName,
+            line: lineNum,
+            col: exprSpan.col,
+            endLine: exprSpan.endLine,
+            endCol: exprSpan.endCol,
+            type: 'character',
+          });
+
+          if (knownCharIds.has(tagLower)) {
+            const charObj = charMap.get(tagLower);
+            const hasSprite = Boolean(
+              charObj?.sprites && Object.prototype.hasOwnProperty.call(charObj.sprites, variant),
+            );
+            if (!hasSprite) {
+              uncreatedExpressions.push({
+                charId: charObj?.id || tag,
+                expressionKey: variant,
+                file: fileName,
+                line: lineNum,
+                col: exprSpan.col,
+                endLine: exprSpan.endLine,
+                endCol: exprSpan.endCol,
+              });
+            }
+          }
+        }
+
+        const matchesSprite =
+          knownSpriteKeys.has(compositeKey) ||
+          (variantLower === 'default' && knownSpriteKeys.has(tagLower));
+
+        if (!matchesSprite) {
+          uncreatedSprites.push({
+            tag,
+            variant: variant || undefined,
             file: fileName,
             line: lineNum,
             col: span.col,
             endLine: span.endLine,
             endCol: span.endCol,
-            type: 'character',
           });
-
-          // Uncreated expression detection: character must already exist, but sprite key is missing
-          if (knownCharIds.has(charIdLower)) {
-            const charObj = charMap.get(charIdLower);
-            const hasSprite = Boolean(
-              charObj?.sprites && Object.prototype.hasOwnProperty.call(charObj.sprites, exprKey),
-            );
-            if (!hasSprite) {
-              uncreatedExpressions.push({
-                charId: charObj?.id || charId,
-                expressionKey: exprKey,
-                file: fileName,
-                line: lineNum,
-                col: span.col,
-                endLine: span.endLine,
-                endCol: span.endCol,
-              });
-            }
-          }
         }
       }
 
-      // Hide character: hide <char_id>
+      // Hide statement: hide <target_id>
       const hideMatch = trimmed.match(/^hide\s+([a-zA-Z0-9_]+)/i);
-      if (hideMatch && hideMatch[1]) {
+      if (hideMatch && hideMatch[1] && hideMatch[1].toLowerCase() !== 'dialogue') {
         recordCharRef(hideMatch[1], fileName, lineNum);
       }
 
@@ -276,6 +373,8 @@ export function scanActiveReconciliation(project: Project): ReconciliationReport
     characterReferences: charRefMap,
     uncreatedExpressions,
     expressionReferences: exprRefMap,
+    uncreatedSprites,
+    spriteReferences: spriteRefMap,
   };
 }
 
@@ -330,7 +429,18 @@ export function checkAssetDeletionSafety(
       [];
   }
 
-  const allRefs = [...refsByName, ...refsByMatchedName, ...refsByMatchedId];
+  let refsBySprite: ScriptReference[] = [];
+  if (matchedAsset && (matchedAsset.category === 'sprite' || matchedAsset.tag)) {
+    const tagLower = (matchedAsset.tag || '').trim().toLowerCase();
+    const variantLower = (matchedAsset.variant || 'default').trim().toLowerCase();
+    const compositeKey = `${tagLower}.${variantLower}`;
+    refsBySprite = [
+      ...(report.spriteReferences?.[compositeKey] || []),
+      ...(variantLower === 'default' ? report.spriteReferences?.[tagLower] || [] : []),
+    ];
+  }
+
+  const allRefs = [...refsByName, ...refsByMatchedName, ...refsByMatchedId, ...refsBySprite];
   const uniqueRefs: ScriptReference[] = [];
   const seen = new Set<string>();
 
@@ -550,6 +660,35 @@ export function generateDiagnostics(project: Project): GeneratedEditorDiagnostic
           prefillData: {
             charId: uncreated.charId,
             expressionKey: uncreated.expressionKey,
+          },
+        },
+      });
+    }
+  }
+
+  if (report.uncreatedSprites) {
+    for (const item of report.uncreatedSprites) {
+      const spriteKey = item.variant ? `${item.tag}.${item.variant}` : item.tag;
+      diagnostics.push({
+        id: `diag-sprite-${spriteKey}-${item.file}-${item.line}`,
+        timestamp: Date.now(),
+        category: 'asset',
+        severity: 'warning',
+        message: `Missing sprite asset '${spriteKey}' referenced in script`,
+        assetKey: spriteKey,
+        fileName: item.file,
+        fileId: fileMap.get(item.file),
+        line: item.line,
+        col: typeof item.col === 'number' && item.col > 0 ? item.col : 1,
+        endLine: typeof item.endLine === 'number' && item.endLine > 0 ? item.endLine : item.line,
+        endCol: typeof item.endCol === 'number' && item.endCol > 0 ? item.endCol : undefined,
+        quickFix: {
+          type: 'create_asset',
+          targetId: spriteKey,
+          prefillData: {
+            category: 'sprite',
+            tag: item.tag,
+            variant: item.variant || 'default',
           },
         },
       });

@@ -143,6 +143,7 @@ export function createVnsProjectContext(
       return cachedAggregatedScenes;
     },
 
+    /** @deprecated Character entity table is eliminated in Unified Sprite Layer */
     getCharacters: () => {
       const proj = getCurProject();
       const map = new Map<string, { displayName?: string; colorHex?: string; sprites: Set<string> }>();
@@ -197,12 +198,17 @@ export function createVnsProjectContext(
 
     getAssetDetails: () => {
       const proj = getCurProject();
-      const map = new Map<string, { category?: string; type: string; sizeBytes?: number }>();
+      const map = new Map<
+        string,
+        { category?: string; type: string; sizeBytes?: number; tag?: string; variant?: string }
+      >();
       for (const a of proj?.assets || []) {
         const meta = {
           category: a.category,
           type: a.type,
           sizeBytes: a.sizeBytes,
+          tag: a.tag,
+          variant: a.variant,
         };
         if (a.id) map.set(a.id, meta);
         if (a.name) map.set(a.name, meta);

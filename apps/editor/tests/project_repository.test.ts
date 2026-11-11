@@ -145,7 +145,7 @@ describe('E-Phase 1: Storage & Repository Layer (IndexedDBProjectRepository)', (
     const reloaded = await repository.getProject(created.id);
     expect(reloaded?.title).toBe('Updated Title');
     expect(reloaded?.characters).toHaveLength(1);
-    expect(reloaded?.characters[0]!.name).toBe('Alice Margatroid');
+    expect(reloaded?.characters?.[0]!.name).toBe('Alice Margatroid');
     expect(reloaded?.updatedAt).toBeGreaterThanOrEqual(created.updatedAt || 0);
   });
 

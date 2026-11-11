@@ -6,6 +6,7 @@ export interface CompilerWorkerRequest {
   requestId: number;
   files: ScriptFile[];
   options?: {
+    /** @deprecated Use assets with category: 'sprite' */
     characters?: Character[];
     assets?: Array<{ id: string; name?: string; type?: string; category?: string }>;
   };

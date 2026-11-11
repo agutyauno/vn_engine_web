@@ -48,6 +48,18 @@ export function slugifyAssetId(fileName: string): string {
   return slug;
 }
 
+export function parseSpriteFilename(filename: string): { tag: string; variant: string } {
+  const base = filename.replace(/\.[^/.]+$/, '');
+  const parts = base.split(/[_-]/);
+  if (parts.length > 1) {
+    return {
+      tag: parts[0]!.toLowerCase(),
+      variant: parts.slice(1).join('_').toLowerCase(),
+    };
+  }
+  return { tag: base.toLowerCase(), variant: 'default' };
+}
+
 export function validateAssetFile(file: File, activeTab?: string): AssetFileValidationResult {
   const extMatch = file.name.match(/\.([a-zA-Z0-9]+)$/);
   const ext = extMatch && extMatch[1] ? extMatch[1].toLowerCase() : '';

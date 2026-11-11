@@ -22,7 +22,10 @@ export interface VnsProjectContext {
   getScenes: () => SceneItem[] | string[];
   getCharacters: () => Map<string, { displayName?: string; colorHex?: string; sprites: Set<string> }>;
   getAssets: () => { backgrounds: Set<string>; audio: Set<string>; voices?: Set<string> };
-  getAssetDetails?: () => Map<string, { category?: string; type: string; sizeBytes?: number }>;
+  getAssetDetails?: () => Map<
+    string,
+    { category?: string; type: string; sizeBytes?: number; tag?: string; variant?: string }
+  >;
   getVariables: () => string[];
   getDiagnostics?: () => EditorDiagnostic[];
   switchActiveFile: (fileName: string) => void;
@@ -188,8 +191,28 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): monaco.
           });
         }
 
-        // Gợi ý cả Image Assets làm đạo cụ sân khấu (Props / Items)
+        // Gợi ý cả Image Assets làm đạo cụ sân khấu (Props / Items) và Sprites (tag.variant)
         if (/\bshow\s+[a-zA-Z0-9_]*$/.test(textUntilPosition)) {
+          if (context.getAssetDetails) {
+            const details = context.getAssetDetails();
+            const seenSprites = new Set<string>();
+            for (const [, meta] of details) {
+              if (meta.category === 'sprite' && meta.tag) {
+                const spriteLabel = meta.variant ? `${meta.tag}.${meta.variant}` : meta.tag;
+                if (!seenSprites.has(spriteLabel)) {
+                  seenSprites.add(spriteLabel);
+                  suggestions.push({
+                    label: spriteLabel,
+                    kind: monaco.languages.CompletionItemKind.File,
+                    documentation: `Sprite asset: ${spriteLabel}`,
+                    insertText: spriteLabel,
+                    range,
+                  });
+                }
+              }
+            }
+          }
+
           const assets = context.getAssets();
           for (const assetId of assets.backgrounds) {
             if (!chars.has(assetId)) {
@@ -568,25 +591,8 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): monaco.
         return { suggestions };
       }
 
-      // F1. Gợi ý Nhân vật sau reveal
-      if (/\breveal\s+[a-zA-Z0-9_]*$/.test(textUntilPosition)) {
-        const chars = context.getCharacters();
-        for (const [charId, info] of chars) {
-          suggestions.push({
-            label: charId,
-            kind: monaco.languages.CompletionItemKind.User,
-            detail: info.displayName ? `${charId} (${info.displayName})` : charId,
-            documentation: `Reveal real name for character "${charId}"`,
-            insertText: `${charId} as "\${1:${info.displayName || 'Display Name'}}"`,
-            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-            range,
-          });
-        }
-        return { suggestions };
-      }
-
       // F2. Gợi ý chuỗi thoại ngay sau dấu hai chấm (hoặc sau character: / narrator:)
-      if (/^[ \t]*[a-zA-Z_][a-zA-Z0-9_]*(?:\s+as\s+"[^"]*")?:\s*$/.test(textUntilPosition)) {
+      if (/^[ \t]*[a-zA-Z_][a-zA-Z0-9_]*:\s*$/.test(textUntilPosition)) {
         suggestions.push({
           label: '"dialogue"',
           kind: monaco.languages.CompletionItemKind.Snippet,
@@ -828,8 +834,8 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): monaco.
         },
         {
           label: 'show',
-          doc: 'Show character on stage: show charId.sprite',
-          snippet: 'show ${1:character}.${2:sprite}',
+          doc: 'Show sprite on stage: show tag.variant',
+          snippet: 'show ${1:tag}.${2:variant}',
         },
         {
           label: 'hide',
@@ -900,11 +906,6 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): monaco.
           label: 'call',
           doc: 'Call subroutine scene and return: call sub_scene',
           snippet: 'call ${1:scene_name}',
-        },
-        {
-          label: 'reveal',
-          doc: 'Declare character display name: reveal charId as "Display Name"',
-          snippet: 'reveal ${1:character} as "${2:Display Name}"',
         },
         {
           label: 'define',

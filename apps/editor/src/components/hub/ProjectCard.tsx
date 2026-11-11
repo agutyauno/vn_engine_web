@@ -54,10 +54,6 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
             {project.scriptCount} script{project.scriptCount === 1 ? '' : 's'}
           </span>
           <span>•</span>
-          <span>
-            {project.characterCount} char{project.characterCount === 1 ? '' : 's'}
-          </span>
-          <span>•</span>
           <span>Updated {formattedDate}</span>
         </div>
       </div>

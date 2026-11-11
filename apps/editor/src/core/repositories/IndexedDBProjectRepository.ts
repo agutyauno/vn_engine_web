@@ -76,7 +76,6 @@ export class IndexedDBProjectRepository implements ProjectRepository {
           canvasHeight: p.displaySettings?.height || 1080,
           orientation: p.displaySettings?.orientation || 'landscape',
           scriptCount: p.files?.length || 0,
-          characterCount: p.characters?.length || 0,
           assetCount: p.assets?.length || 0,
           totalSizeBytes:
             typeof Blob !== 'undefined'

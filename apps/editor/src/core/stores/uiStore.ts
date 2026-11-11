@@ -15,10 +15,9 @@ export interface EditorUIStoreState {
   drawerHeight: number; // Default: 200px (Range: 120px - 480px)
 
   // Workspace Navigation
-  activeTab: 'scripts' | 'characters' | 'assets' | null;
+  activeTab: 'scripts' | 'assets' | null;
   lastAssetCategory: string; // Default: 'all'
   assetViewMode: ViewMode;
-  characterViewMode: ViewMode;
   openFileIds: string[];
   activeFileId: string | null;
   isDrawerOpen: boolean;
@@ -38,10 +37,9 @@ export interface EditorUIStoreState {
   clampCompositeBounds: () => void;
   resetDimensions: () => void;
 
-  setActiveTab: (tab: 'scripts' | 'characters' | 'assets' | null) => void;
+  setActiveTab: (tab: 'scripts' | 'assets' | null) => void;
   setLastAssetCategory: (category: string) => void;
   setAssetViewMode: (mode: ViewMode) => void;
-  setCharacterViewMode: (mode: ViewMode) => void;
   selectTab: (fileId: string) => void;
   closeTab: (fileId: string) => void;
 
@@ -62,7 +60,6 @@ export interface EditorUIStoreState {
 const STORAGE_KEY = 'vn_editor_layout_dims';
 const ASSET_CATEGORY_STORAGE_KEY = 'vn_editor_last_asset_category';
 const ASSET_VIEW_MODE_STORAGE_KEY = 'vn_editor_asset_view_mode';
-const CHARACTER_VIEW_MODE_STORAGE_KEY = 'vn_editor_character_view_mode';
 
 function getInitialViewMode(key: string): ViewMode {
   if (typeof window === 'undefined' || !window.localStorage) return 'list';
@@ -131,7 +128,6 @@ export const initialUIState: Omit<
   | 'setActiveTab'
   | 'setLastAssetCategory'
   | 'setAssetViewMode'
-  | 'setCharacterViewMode'
   | 'selectTab'
   | 'closeTab'
   | 'toggleDrawer'
@@ -148,7 +144,6 @@ export const initialUIState: Omit<
   ...getInitialDimensions(),
   lastAssetCategory: getInitialAssetCategory(),
   assetViewMode: getInitialViewMode(ASSET_VIEW_MODE_STORAGE_KEY),
-  characterViewMode: getInitialViewMode(CHARACTER_VIEW_MODE_STORAGE_KEY),
   activeTab: 'scripts',
   openFileIds: [],
   activeFileId: null,
@@ -167,9 +162,9 @@ function clamp(value: number, min: number, max: number): number {
 
 function getMaxCombinedWidth(): number {
   if (typeof window !== 'undefined' && typeof window.innerWidth === 'number') {
-    return Math.max(window.innerWidth - 400, 520); // 200 minNav + 320 minPreview
+    return Math.max(window.innerWidth - 400, 520);
   }
-  return 1520; // 1920 - 400 default
+  return 1520;
 }
 
 export const useEditorUIStore = create<EditorUIStoreState>((set, get) => ({
@@ -198,15 +193,16 @@ export const useEditorUIStore = create<EditorUIStoreState>((set, get) => ({
     const maxCombined = getMaxCombinedWidth();
     const maxPreviewAllowed = Math.max(320, Math.min(720, maxCombined - 200));
     const clampedPreview = clamp(width, 320, maxPreviewAllowed);
-    let currentNav = get().navWidth;
+    const currentNav = get().navWidth;
 
+    let adjustedNav = currentNav;
     if (currentNav + clampedPreview > maxCombined) {
-      currentNav = clamp(maxCombined - clampedPreview, 200, 450);
+      adjustedNav = clamp(maxCombined - clampedPreview, 200, 450);
     }
 
-    set({ navWidth: currentNav, previewWidth: clampedPreview });
+    set({ previewWidth: clampedPreview, navWidth: adjustedNav });
     persistDimensions({
-      navWidth: currentNav,
+      navWidth: adjustedNav,
       previewWidth: clampedPreview,
       drawerHeight: get().drawerHeight,
     });
@@ -224,21 +220,17 @@ export const useEditorUIStore = create<EditorUIStoreState>((set, get) => ({
 
   clampCompositeBounds: () => {
     const maxCombined = getMaxCombinedWidth();
-    let { navWidth, previewWidth, drawerHeight } = get();
+    const currentNav = get().navWidth;
+    const currentPreview = get().previewWidth;
 
-    if (navWidth + previewWidth > maxCombined) {
-      const remainingForPreview = maxCombined - navWidth;
-      if (remainingForPreview >= 320) {
-        previewWidth = remainingForPreview;
-      } else {
-        previewWidth = 320;
-        navWidth = clamp(maxCombined - 320, 200, 450);
-      }
-      set({ navWidth, previewWidth });
+    if (currentNav + currentPreview > maxCombined) {
+      const clampedNav = clamp(currentNav, 200, Math.min(450, maxCombined - 320));
+      const clampedPreview = clamp(maxCombined - clampedNav, 320, 720);
+      set({ navWidth: clampedNav, previewWidth: clampedPreview });
       persistDimensions({
-        navWidth,
-        previewWidth,
-        drawerHeight,
+        navWidth: clampedNav,
+        previewWidth: clampedPreview,
+        drawerHeight: get().drawerHeight,
       });
     }
   },
@@ -249,7 +241,7 @@ export const useEditorUIStore = create<EditorUIStoreState>((set, get) => ({
     persistDimensions(defaults);
   },
 
-  setActiveTab: activeTab => set({ activeTab }),
+  setActiveTab: tab => set({ activeTab: tab }),
 
   setLastAssetCategory: category => {
     const normalized = normalizeCategoryTab(category);
@@ -258,87 +250,68 @@ export const useEditorUIStore = create<EditorUIStoreState>((set, get) => ({
       try {
         localStorage.setItem(ASSET_CATEGORY_STORAGE_KEY, normalized);
       } catch {
-        // Ignore storage errors in restricted contexts
+        // Ignore
       }
     }
   },
 
-  setAssetViewMode: (mode: ViewMode) => {
-    try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        localStorage.setItem(ASSET_VIEW_MODE_STORAGE_KEY, mode);
-      }
-    } catch {
-      // ignore
-    }
+  setAssetViewMode: mode => {
     set({ assetViewMode: mode });
-  },
-
-  setCharacterViewMode: (mode: ViewMode) => {
-    try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        localStorage.setItem(CHARACTER_VIEW_MODE_STORAGE_KEY, mode);
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        localStorage.setItem(ASSET_VIEW_MODE_STORAGE_KEY, mode);
+      } catch {
+        // Ignore
       }
-    } catch {
-      // ignore
     }
-    set({ characterViewMode: mode });
   },
 
-  selectTab: fileId =>
-    set(state => {
-      const openFileIds = state.openFileIds.includes(fileId)
-        ? state.openFileIds
-        : [...state.openFileIds, fileId];
-      return {
-        openFileIds,
+  selectTab: fileId => {
+    const { openFileIds } = get();
+    if (!openFileIds.includes(fileId)) {
+      set({
+        openFileIds: [...openFileIds, fileId],
         activeFileId: fileId,
-      };
-    }),
+      });
+    } else {
+      set({ activeFileId: fileId });
+    }
+  },
 
-  closeTab: fileId =>
-    set(state => {
-      const openFileIds = state.openFileIds.filter(id => id !== fileId);
-      let activeFileId = state.activeFileId;
+  closeTab: fileId => {
+    const { openFileIds, activeFileId } = get();
+    const newOpenFileIds = openFileIds.filter(id => id !== fileId);
 
-      if (activeFileId === fileId) {
-        activeFileId =
-          openFileIds.length > 0 ? (openFileIds[openFileIds.length - 1] ?? null) : null;
+    let nextActiveId = activeFileId;
+    if (activeFileId === fileId) {
+      if (newOpenFileIds.length > 0) {
+        const closedIndex = openFileIds.indexOf(fileId);
+        const nextIndex = Math.max(0, closedIndex - 1);
+        nextActiveId = newOpenFileIds[nextIndex] || null;
+      } else {
+        nextActiveId = null;
       }
+    }
 
-      return {
-        openFileIds,
-        activeFileId,
-      };
-    }),
+    set({
+      openFileIds: newOpenFileIds,
+      activeFileId: nextActiveId,
+    });
+  },
 
   toggleDrawer: () => set(state => ({ isDrawerOpen: !state.isDrawerOpen })),
-
-  setDrawerOpen: isDrawerOpen => set({ isDrawerOpen }),
-
-  setCursorJumpTarget: cursorJumpTarget => set({ cursorJumpTarget }),
+  setDrawerOpen: open => set({ isDrawerOpen: open }),
+  setCursorJumpTarget: target => set({ cursorJumpTarget: target }),
 
   toggleSettings: () => set(state => ({ isSettingsOpen: !state.isSettingsOpen })),
-
-  setSettingsOpen: isSettingsOpen => set({ isSettingsOpen }),
-
+  setSettingsOpen: open => set({ isSettingsOpen: open }),
   toggleShortcuts: () => set(state => ({ isShortcutsOpen: !state.isShortcutsOpen })),
+  setShortcutsOpen: open => set({ isShortcutsOpen: open }),
+  setLightboxImageUrl: url => set({ lightboxImageUrl: url }),
 
-  setShortcutsOpen: isShortcutsOpen => set({ isShortcutsOpen }),
-
-  setLightboxImageUrl: lightboxImageUrl => set({ lightboxImageUrl }),
-
-  triggerUnsavedGuard: pendingNavigationTarget =>
-    set({
-      isUnsavedModalOpen: true,
-      pendingNavigationTarget,
-    }),
-
-  resolveUnsavedGuard: _proceed =>
-    set({
-      isUnsavedModalOpen: false,
-      pendingNavigationTarget: null,
-    }),
+  triggerUnsavedGuard: target => set({ pendingNavigationTarget: target, isUnsavedModalOpen: true }),
+  resolveUnsavedGuard: () => set({ pendingNavigationTarget: null, isUnsavedModalOpen: false }),
 }));
 
 export const useUIStore = useEditorUIStore;
+

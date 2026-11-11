@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { AssetRef, AssetCategory } from '@vn-engine/shared-types';
-import { validateAssetFile, slugifyAssetId } from '../../core/utils/assetValidation';
+import { validateAssetFile, slugifyAssetId, parseSpriteFilename } from '../../core/utils/assetValidation';
 import { CloseIcon, ImageIcon, FolderIcon } from '../common/Icons';
 
 export interface CreateAssetModalProps {
@@ -13,6 +13,8 @@ export interface CreateAssetModalProps {
   existingAssetIds: string[];
   onClose: () => void;
   onSave: (asset: AssetRef, fileBlob?: Blob) => void;
+  initialTag?: string;
+  initialVariant?: string;
 }
 
 const CATEGORY_OPTIONS: { value: AssetCategory; label: string }[] = [
@@ -37,6 +39,8 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
   existingAssetIds,
   onClose,
   onSave,
+  initialTag,
+  initialVariant,
 }) => {
   const isEdit = Boolean(isEditMode || initialAsset);
 
@@ -46,6 +50,8 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
   const [category, setCategory] = useState<AssetCategory>(
     initialAsset?.category || initialCategory || 'background',
   );
+  const [tag, setTag] = useState<string>(initialAsset?.tag || initialTag || '');
+  const [variant, setVariant] = useState<string>(initialAsset?.variant || initialVariant || '');
   const [detectedType, setDetectedType] = useState<AssetRef['type']>(initialAsset?.type || 'image');
   const [previewUrl, setPreviewUrl] = useState<string>(initialAsset?.storageUrl || '');
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -59,12 +65,26 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
       setAssetId(initialAsset.id);
       setAssetName(initialAsset.name);
       setCategory(initialAsset.category || 'background');
+      setTag(initialAsset.tag || '');
+      setVariant(initialAsset.variant || '');
       setDetectedType(initialAsset.type || 'image');
       setPreviewUrl(initialAsset.storageUrl || '');
     } else if (initialAssetId) {
       setAssetId(initialAssetId);
     }
   }, [initialAsset, initialAssetId]);
+
+  useEffect(() => {
+    if (initialTag !== undefined) {
+      setTag(initialTag);
+    }
+  }, [initialTag]);
+
+  useEffect(() => {
+    if (initialVariant !== undefined) {
+      setVariant(initialVariant);
+    }
+  }, [initialVariant]);
 
   useEffect(() => {
     if (initialCategory) {
@@ -98,11 +118,16 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
       setAssetId(validation.suggestedId || slugifyAssetId(currentFile.name));
     }
     setAssetName(prev => (prev.trim() ? prev : currentFile.name));
-    setCategory(
-      prev =>
-        initialCategory || (initialAsset ? prev : validation.suggestedCategory || 'background'),
-    );
+    const effectiveCategory =
+      initialCategory || (initialAsset ? category : validation.suggestedCategory || 'background');
+    setCategory(effectiveCategory);
     setDetectedType(validation.detectedType || 'image');
+
+    if (effectiveCategory === 'sprite') {
+      const parsed = parseSpriteFilename(currentFile.name);
+      if (!tag && !initialTag) setTag(parsed.tag);
+      if (!variant && !initialVariant) setVariant(parsed.variant);
+    }
 
     const objectUrl =
       typeof URL.createObjectURL === 'function'
@@ -143,6 +168,14 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
     e.preventDefault();
     if (!canSave) return;
 
+    const spriteProps =
+      category === 'sprite'
+        ? {
+            tag: tag.trim() || undefined,
+            variant: variant.trim() || 'default',
+          }
+        : {};
+
     if (currentFile) {
       const newAsset: AssetRef = {
         id: assetId.trim(),
@@ -151,6 +184,7 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
         category,
         storageUrl: previewUrl,
         sizeBytes: currentFile.size,
+        ...spriteProps,
       };
       onSave(newAsset, currentFile);
     } else if (isEdit && initialAsset) {
@@ -161,6 +195,7 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
         category,
         storageUrl: initialAsset.storageUrl || previewUrl,
         sizeBytes: initialAsset.sizeBytes || 0,
+        ...spriteProps,
       };
       onSave(newAsset, undefined);
     }
@@ -186,11 +221,10 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
           </button>
         </div>
 
-        {/* Form Body (Single-Mode File Dialog) */}
+        {/* Form Body */}
         <form onSubmit={handleSave} className="flex-1 overflow-y-auto p-5 space-y-4">
           {currentFile || previewUrl ? (
             <>
-              {/* File Info Bar with Change File Button */}
               <div className="flex items-center justify-between text-xs text-neutral-400 border border-neutral-800 rounded-md p-3 bg-neutral-950">
                 <span className="truncate max-w-xs">
                   {currentFile?.name || initialAsset?.name || 'File attached'}
@@ -217,7 +251,6 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
                 </div>
               )}
 
-              {/* Preview Container */}
               <div
                 data-testid="asset-preview-container"
                 className="relative flex items-center justify-center min-h-[160px] max-h-64 rounded-md border border-neutral-800 bg-neutral-950 checkerboard overflow-hidden p-2"
@@ -245,7 +278,6 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
               </div>
             </>
           ) : (
-            /* Dropzone when no file selected yet */
             <div>
               <input
                 type="file"
@@ -302,7 +334,7 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
               value={assetId}
               disabled={isEdit}
               onChange={e => setAssetId(e.target.value)}
-              placeholder="e.g. bg_classroom, bgm_theme"
+              placeholder="e.g. bg_classroom, bgm_theme, alice_happy"
               className={`w-full px-3 py-2 text-xs bg-neutral-950 border border-neutral-800 rounded-md text-neutral-100 placeholder-neutral-500 focus:outline-hidden focus:border-neutral-500 font-mono ${
                 isEdit ? 'opacity-60 cursor-not-allowed' : ''
               }`}
@@ -355,6 +387,38 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
             </select>
           </div>
 
+          {/* Sprite Tag & Variant Fields */}
+          {category === 'sprite' && (
+            <div className="grid grid-cols-2 gap-3 p-3 bg-neutral-950/60 border border-neutral-800 rounded-md">
+              <div>
+                <label className="block text-xs font-medium text-neutral-300 mb-1">
+                  Sprite Tag <span className="text-red-400">*</span>
+                </label>
+                <input
+                  data-testid="input-sprite-tag"
+                  type="text"
+                  value={tag}
+                  onChange={e => setTag(e.target.value)}
+                  placeholder="e.g. alice, hero"
+                  className="w-full px-3 py-2 text-xs bg-neutral-900 border border-neutral-800 rounded-md text-neutral-100 placeholder-neutral-500 focus:outline-hidden focus:border-neutral-500 font-mono"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-neutral-300 mb-1">
+                  Sprite Variant
+                </label>
+                <input
+                  data-testid="input-sprite-variant"
+                  type="text"
+                  value={variant}
+                  onChange={e => setVariant(e.target.value)}
+                  placeholder="e.g. happy, smile, default"
+                  className="w-full px-3 py-2 text-xs bg-neutral-900 border border-neutral-800 rounded-md text-neutral-100 placeholder-neutral-500 focus:outline-hidden focus:border-neutral-500 font-mono"
+                />
+              </div>
+            </div>
+          )}
+
           {/* Actions */}
           <div className="flex items-center justify-end gap-3 pt-3 border-t border-neutral-800">
             <button
@@ -368,7 +432,7 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({
               data-testid="btn-save-asset"
               type="submit"
               disabled={!canSave}
-              className="px-4 py-2 text-xs font-semibold text-white bg-neutral-100 text-neutral-900 rounded-md hover:bg-neutral-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="px-4 py-2 text-xs font-semibold text-neutral-900 bg-neutral-100 rounded-md hover:bg-neutral-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {isEdit ? 'Save Changes' : 'Save Asset'}
             </button>

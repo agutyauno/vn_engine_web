@@ -10,6 +10,8 @@ export type DslSnippetEntity =
       assetName: string;
       category?: DslSnippetCategory;
       assetType?: string;
+      tag?: string;
+      variant?: string;
     };
 
 export function generateDslSnippet(entity: DslSnippetEntity): string {
@@ -25,6 +27,10 @@ export function generateDslSnippet(entity: DslSnippetEntity): string {
         return `background ${cleanName}`;
       }
       if (category === 'sprite') {
+        if (entity.tag) {
+          const variant = entity.variant && entity.variant !== 'default' ? `.${entity.variant}` : '';
+          return `show ${entity.tag}${variant}`;
+        }
         return `show ${cleanName}`;
       }
       if (category === 'bgm') {

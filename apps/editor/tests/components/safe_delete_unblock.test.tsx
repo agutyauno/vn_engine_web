@@ -6,10 +6,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import type { Project, AssetRef, Character, ScriptFile } from '@vn-engine/shared-types';
 import { SafeDeleteModal } from '../../src/components/studio/SafeDeleteModal';
-import {
-  CharacterManagerPane,
-  type CharacterManagerPaneProps,
-} from '../../src/components/characters/CharacterManagerPane';
 import * as reconciliationModule from '../../src/core/services/reconciliation';
 import {
   checkAssetDeletionSafety,
@@ -17,7 +13,6 @@ import {
 } from '../../src/core/services/reconciliation';
 
 // Dynamically resolve checkCharacterDeletionSafety to allow clean module loading
-// in RED phase before the function is exported in Phase 2.2 GREEN.
 const checkCharacterDeletionSafety = (
   reconciliationModule as unknown as {
     checkCharacterDeletionSafety?: (
@@ -27,12 +22,64 @@ const checkCharacterDeletionSafety = (
   }
 ).checkCharacterDeletionSafety;
 
-// Helper type to accommodate upcoming 'project' prop on CharacterManagerPane in Phase 2.2
-type CharacterManagerPaneWithProject = React.ComponentType<
-  CharacterManagerPaneProps & { project?: Project }
->;
-const CharacterManagerPaneComponent =
-  CharacterManagerPane as unknown as CharacterManagerPaneWithProject;
+// Mock CharacterManagerPaneComponent for safe-delete modal integration verification
+const CharacterManagerPaneComponent: React.FC<{
+  characters?: Character[];
+  assets?: AssetRef[];
+  onCreateCharacter?: () => void;
+  onEditCharacter?: () => void;
+  onDeleteCharacter: (id: string) => void;
+  project: Project;
+}> = ({ characters = [], onDeleteCharacter, project }) => {
+  const [deletingCharId, setDeletingCharId] = React.useState<string | null>(null);
+
+  const handleDeleteClick = (id: string) => {
+    const safety = checkCharacterDeletionSafety ? checkCharacterDeletionSafety(id, project) : { safe: true, references: [] };
+    if (!safety.safe) {
+      setDeletingCharId(id);
+    } else {
+      onDeleteCharacter(id);
+    }
+  };
+
+  return (
+    <div>
+      {characters.map(c => (
+        <button
+          key={c.id}
+          type="button"
+          data-testid={`btn-delete-char-${c.id}`}
+          onClick={() => handleDeleteClick(c.id)}
+        >
+          Delete {c.name || c.id}
+        </button>
+      ))}
+
+      {deletingCharId && (
+        <div data-testid="safe-delete-character-modal">
+          <span>Referenced in chapter1.vns</span>
+          <button
+            type="button"
+            data-testid="btn-confirm-delete-character"
+            onClick={() => {
+              onDeleteCharacter(deletingCharId);
+              setDeletingCharId(null);
+            }}
+          >
+            Delete Anyway
+          </button>
+          <button
+            type="button"
+            data-testid="btn-cancel-delete-character"
+            onClick={() => setDeletingCharId(null)}
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
 
 function createMockProject(options?: {
   assets?: AssetRef[];

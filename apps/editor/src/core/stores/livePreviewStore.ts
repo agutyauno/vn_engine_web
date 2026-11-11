@@ -4,7 +4,7 @@ import type { Instruction, Character, AssetRef } from '@vn-engine/shared-types';
 export interface HotReloadPayload {
   program: Instruction[];
   projectId: string;
-  characters: Character[];
+  characters?: Character[];
   assets: AssetRef[];
   scene?: string;
   line?: number;

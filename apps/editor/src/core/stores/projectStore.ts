@@ -33,7 +33,9 @@ export interface ProjectStoreState {
   renameFile: (fileId: string, newName: string) => void;
   deleteFile: (fileId: string) => void;
 
+  /** @deprecated Character management is removed in Unified Sprite Layer */
   saveCharacter: (char: Character) => void;
+  /** @deprecated Character management is removed in Unified Sprite Layer */
   deleteCharacter: (charId: string) => void;
 
   saveAsset: (asset: AssetRef, blob?: Blob) => Promise<void>;
@@ -385,8 +387,9 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     const currentProject = get().project;
     if (!currentProject) return;
 
-    const index = currentProject.characters.findIndex(c => c.id === char.id);
-    const updated = [...currentProject.characters];
+    const chars = currentProject.characters || [];
+    const index = chars.findIndex(c => c.id === char.id);
+    const updated = [...chars];
     if (index >= 0) {
       updated[index] = char;
     } else {
@@ -410,7 +413,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     set({
       project: {
         ...currentProject,
-        characters: currentProject.characters.filter(c => c.id !== charId),
+        characters: (currentProject.characters || []).filter(c => c.id !== charId),
         updatedAt: Date.now(),
       },
       isDirty: true,

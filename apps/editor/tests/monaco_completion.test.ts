@@ -98,7 +98,7 @@ describe('Monaco VNS Completion & Dynamic Store Binding', () => {
         },
       ],
       characters: [
-        ...projectState.characters,
+        ...(projectState.characters || []),
         { id: 'bob', name: 'Bob', sprites: { default: '/bob.png' } },
       ],
     };

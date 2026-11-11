@@ -33,8 +33,6 @@ export function registerVnsLanguage(): void {
 
     keywords: [
       'scene',
-      'as',
-      'reveal',
       'background',
       'show',
       'hide',
@@ -78,6 +76,10 @@ export function registerVnsLanguage(): void {
       'flip_y',
       'x',
       'y',
+      'anchorX',
+      'anchorY',
+      'anchor_x',
+      'anchor_y',
       'offsetX',
       'offsetY',
       'offset_x',

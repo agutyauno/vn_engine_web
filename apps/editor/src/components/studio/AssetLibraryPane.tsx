@@ -25,7 +25,7 @@ import {
   checkAssetDeletionSafety,
   scanActiveReconciliation,
 } from '../../core/services/reconciliation';
-import { validateAssetFile } from '../../core/utils/assetValidation';
+import { validateAssetFile, parseSpriteFilename } from '../../core/utils/assetValidation';
 import { generateDslSnippet } from '../../core/utils/dslSnippetGenerator';
 import { useEditorUIStore } from '../../core/stores/uiStore';
 import {
@@ -35,7 +35,12 @@ import {
 
 export interface AssetLibraryPaneProps {
   project: Project;
-  quickFixAsset?: { id: string; category?: AssetCategory } | null;
+  quickFixAsset?: {
+    id?: string;
+    category?: AssetCategory;
+    tag?: string;
+    variant?: string;
+  } | null;
   quickFixAssetName?: string;
   onClearQuickFix?: () => void;
   onAddAsset?: (asset: AssetRef, fileBlob?: Blob) => void;
@@ -93,6 +98,8 @@ export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
   const [modalPrefillCategory, setModalPrefillCategory] = useState<AssetCategory | undefined>(
     undefined,
   );
+  const [modalPrefillTag, setModalPrefillTag] = useState<string | undefined>(undefined);
+  const [modalPrefillVariant, setModalPrefillVariant] = useState<string | undefined>(undefined);
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
@@ -218,12 +225,23 @@ export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
     }
     setUploadError(null);
     setStagedFile(file);
+    if (activeTab === 'sprites') {
+      const parsed = parseSpriteFilename(file.name);
+      setModalPrefillCategory('sprite');
+      setModalPrefillTag(parsed.tag);
+      setModalPrefillVariant(parsed.variant);
+    } else {
+      setModalPrefillTag(undefined);
+      setModalPrefillVariant(undefined);
+    }
     setIsCreateModalOpen(true);
   };
 
   const handleOpenCreateModal = () => {
     setStagedFile(null);
     setModalPrefillId(undefined);
+    setModalPrefillTag(undefined);
+    setModalPrefillVariant(undefined);
     setModalPrefillCategory(
       activeTab === 'backgrounds'
         ? 'background'
@@ -305,6 +323,8 @@ export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
       assetName: asset.name,
       category: asset.category,
       assetType: asset.type,
+      tag: asset.tag,
+      variant: asset.variant,
     });
     if (navigator.clipboard) {
       navigator.clipboard.writeText(snippet);
@@ -322,6 +342,8 @@ export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
       assetName: asset.name,
       category: asset.category,
       assetType: asset.type,
+      tag: asset.tag,
+      variant: asset.variant,
     });
     onInsertSnippet?.(snippet);
   };
@@ -448,6 +470,8 @@ export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
             onClick={() => {
               setModalPrefillId(quickFixAsset?.id || quickFixAssetName);
               setModalPrefillCategory(quickFixAsset?.category || 'background');
+              setModalPrefillTag(quickFixAsset?.tag);
+              setModalPrefillVariant(quickFixAsset?.variant);
               setStagedFile(null);
               setIsCreateModalOpen(true);
             }}
@@ -592,6 +616,8 @@ export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
                 assetName: asset.name,
                 category: asset.category,
                 assetType: asset.type,
+                tag: asset.tag,
+                variant: asset.variant,
               });
 
               if (assetViewMode === 'grid') {
@@ -651,6 +677,16 @@ export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
                       >
                         {asset.name}
                       </p>
+                      {asset.category === 'sprite' && asset.tag && (
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <span
+                            data-testid={`badge-sprite-tag-${asset.id}`}
+                            className="rounded bg-sky-950/80 px-1 py-0.2 text-[9px] font-mono text-sky-300 border border-sky-800/60 truncate"
+                          >
+                            {asset.tag}.{asset.variant || 'default'}
+                          </span>
+                        </div>
+                      )}
                       <p className="text-[10px] text-neutral-500 font-mono">
                         {formatFileSize(asset.sizeBytes || 0)}
                       </p>
@@ -801,6 +837,14 @@ export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
                         >
                           {asset.name}
                         </p>
+                        {asset.category === 'sprite' && asset.tag && (
+                          <span
+                            data-testid={`badge-sprite-tag-${asset.id}`}
+                            className="rounded bg-sky-950/80 px-1 py-0.2 text-[9px] font-mono text-sky-300 border border-sky-800/60 shrink-0"
+                          >
+                            {asset.tag}.{asset.variant || 'default'}
+                          </span>
+                        )}
                         <span
                           data-testid={`badge-asset-status-${asset.id}`}
                           className={`rounded px-1 py-0.2 text-[9px] font-mono shrink-0 ${
@@ -974,6 +1018,8 @@ export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
         isOpen={isCreateModalOpen}
         initialFile={stagedFile}
         initialAssetId={modalPrefillId}
+        initialTag={modalPrefillTag}
+        initialVariant={modalPrefillVariant}
         initialCategory={
           modalPrefillCategory ||
           (activeTab === 'backgrounds'
@@ -998,6 +1044,8 @@ export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
           setStagedFile(null);
           setModalPrefillId(undefined);
           setModalPrefillCategory(undefined);
+          setModalPrefillTag(undefined);
+          setModalPrefillVariant(undefined);
           onClearQuickFix?.();
         }}
         onSave={handleSaveCreatedAsset}
