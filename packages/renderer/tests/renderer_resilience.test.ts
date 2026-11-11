@@ -61,7 +61,7 @@ describe('Renderer Resilience & Asset Fallback (TASK-renderer-null-texture-and-b
     const priv = renderer as unknown as TestableRenderer;
     const char = priv.activeCharacters.get('alice');
     expect(char).toBeDefined();
-    expect(char?.sprite.texture.width).toBe(320);
+    expect(char?.sprite.texture.width).toBe(360);
 
     renderer.destroy();
   });
@@ -94,8 +94,8 @@ describe('Renderer Resilience & Asset Fallback (TASK-renderer-null-texture-and-b
 
   it("TC-REND-RESIL-04: resolveOrGenerateCharacterTexture wraps blob URLs with parser: 'loadTextures'", async () => {
     const fakeTexture = {
-      width: 320,
-      height: 560,
+      width: 360,
+      height: 600,
       source: {} as any,
       destroy: vi.fn(),
     } as unknown as Texture;

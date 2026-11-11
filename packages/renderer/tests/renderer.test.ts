@@ -2,9 +2,11 @@ import { describe, it, expect } from 'vitest';
 import {
   resolveCharacterCoordinates,
   resolveCharacterPlacement,
+  resolveSpritePlacement,
   EASING_FUNCTIONS,
 } from '../src/types';
 import { GameRenderer, computeTargetScale, computeTargetRotation } from '../src/renderer';
+import type { ShowInstruction } from '@vn-engine/shared-types';
 
 describe('@vn-engine/renderer - Coordinate Resolution & GameRenderer Setup', () => {
   it('nên phân giải chính xác các vị trí định danh (Named Positions: left, center, right)', () => {
@@ -68,31 +70,26 @@ describe('@vn-engine/renderer - Coordinate Resolution & GameRenderer Setup', () 
   });
 
   it('nên tính toán chính xác scale và lật gương flipX/flipY trong computeTargetScale', () => {
-    // Mặc định 1.0
     expect(computeTargetScale(undefined, undefined, undefined, undefined, undefined)).toEqual({
       scaleX: 1,
       scaleY: 1,
     });
 
-    // Đồng đều scale: 1.5
     expect(computeTargetScale(1.5, undefined, undefined, undefined, undefined)).toEqual({
       scaleX: 1.5,
       scaleY: 1.5,
     });
 
-    // scaleX/scaleY riêng lẻ
     expect(computeTargetScale(undefined, 1.2, 0.8, undefined, undefined)).toEqual({
       scaleX: 1.2,
       scaleY: 0.8,
     });
 
-    // Lật gương flipX
     expect(computeTargetScale(1.5, undefined, undefined, true, false)).toEqual({
       scaleX: -1.5,
       scaleY: 1.5,
     });
 
-    // Lật gương cả flipX và flipY
     expect(computeTargetScale(2, undefined, undefined, true, true)).toEqual({
       scaleX: -2,
       scaleY: -2,
@@ -107,7 +104,6 @@ describe('@vn-engine/renderer - Coordinate Resolution & GameRenderer Setup', () 
   });
 
   it('nên tính toán đúng giá trị biên cho các hàm easing (linear, ease_out, bounce, elastic)', () => {
-    // Giá trị tại t = 0 và t = 1
     expect(EASING_FUNCTIONS.linear!(0)).toBe(0);
     expect(EASING_FUNCTIONS.linear!(1)).toBe(1);
 
@@ -124,7 +120,6 @@ describe('@vn-engine/renderer - Coordinate Resolution & GameRenderer Setup', () 
   it('nên hỗ trợ các transition mở rộng (slide, bounce, wobble, zoom, shake, pop) trên GameRenderer', async () => {
     const renderer = new GameRenderer({ width: 1280, height: 720 });
 
-    // Background transition
     await renderer.setBackground({
       type: 'BACKGROUND',
       assetId: 'bg_test',
@@ -141,7 +136,6 @@ describe('@vn-engine/renderer - Coordinate Resolution & GameRenderer Setup', () 
     });
     expect(renderer.getCurrentBackgroundId()).toBe('bg_test2');
 
-    // Show character with entrance transition
     await renderer.showCharacter({
       type: 'SHOW',
       character: 'amiya',
@@ -152,7 +146,6 @@ describe('@vn-engine/renderer - Coordinate Resolution & GameRenderer Setup', () 
     });
     expect(renderer.hasCharacter('amiya')).toBe(true);
 
-    // Show character with movement transition
     await renderer.showCharacter({
       type: 'SHOW',
       character: 'amiya',
@@ -166,34 +159,261 @@ describe('@vn-engine/renderer - Coordinate Resolution & GameRenderer Setup', () 
     renderer.destroy();
   });
 
-  it('nên tự động căn giữa (y = baseHeight * 0.5) và neo anchor (0.5, 0.5) khi hiển thị prop/vật phẩm', async () => {
-    const baseW = 1280;
-    const baseH = 720;
+  // =========================================================================
+  // BỘ KIỂM THỬ MICRO-PHASE 4: UNIFIED SPRITE LAYER & PLACEMENT
+  // =========================================================================
+  describe('Unified Sprite Layer (Micro-Phase 4)', () => {
+    it('[TC-SPRITE-REND-01] resolveSpritePlacement() định vị chuẩn xác với neo đáy mặc định (0.5, 1.0) và y = baseHeight', () => {
+      const baseW = 1920;
+      const baseH = 1080;
 
-    // 1. Phân giải vị trí prop: mặc định x = 0.5 * W, y = 0.5 * H
-    const propCoords = resolveCharacterPlacement({}, baseW, baseH, true);
-    expect(propCoords.x).toBeCloseTo(baseW * 0.5);
-    expect(propCoords.y).toBeCloseTo(baseH * 0.5);
+      // 1. Mặc định không có tham số x/y/position/anchor
+      const defaultPlacement = resolveSpritePlacement({ type: 'SHOW', character: 'alice' }, baseW, baseH);
+      expect(defaultPlacement.x).toBeCloseTo(baseW * 0.5);
+      expect(defaultPlacement.y).toBe(baseH);
+      expect(defaultPlacement.anchorX).toBe(0.5);
+      expect(defaultPlacement.anchorY).toBe(1.0);
 
-    // 2. Phân giải vị trí nhân vật: mặc định y = baseH (chân chạm đáy)
-    const charCoords = resolveCharacterPlacement({}, baseW, baseH, false);
-    expect(charCoords.y).toBe(baseH);
+      // 2. Named position 'left'
+      const leftPlacement = resolveSpritePlacement(
+        { type: 'SHOW', character: 'alice', position: 'left' },
+        baseW,
+        baseH,
+      );
+      expect(leftPlacement.x).toBeCloseTo(baseW * 0.22);
+      expect(leftPlacement.y).toBe(baseH);
+      expect(leftPlacement.anchorX).toBe(0.5);
+      expect(leftPlacement.anchorY).toBe(1.0);
 
-    // 3. Hiển thị prop trên GameRenderer
-    const renderer = new GameRenderer({ width: baseW, height: baseH });
-    await renderer.showCharacter(
-      {
+      // 3. Named position 'right'
+      const rightPlacement = resolveSpritePlacement(
+        { type: 'SHOW', character: 'alice', position: 'right' },
+        baseW,
+        baseH,
+      );
+      expect(rightPlacement.x).toBeCloseTo(baseW * 0.78);
+      expect(rightPlacement.y).toBe(baseH);
+      expect(rightPlacement.anchorX).toBe(0.5);
+      expect(rightPlacement.anchorY).toBe(1.0);
+    });
+
+    it('[TC-SPRITE-REND-02] resolveSpritePlacement() hỗ trợ ghi đè anchorX, anchorY và tọa độ tùy biến', () => {
+      const baseW = 1920;
+      const baseH = 1080;
+
+      const customPlacement = resolveSpritePlacement(
+        {
+          type: 'SHOW',
+          targetId: 'key_gold',
+          character: 'key_gold',
+          x: 0.5,
+          y: 0.4,
+          anchorX: 0.5,
+          anchorY: 0.5,
+          offsetX: 15,
+          offsetY: -30,
+        },
+        baseW,
+        baseH,
+      );
+
+      expect(customPlacement.x).toBeCloseTo(baseW * 0.5 + 15);
+      expect(customPlacement.y).toBeCloseTo(baseH * 0.4 - 30);
+      expect(customPlacement.anchorX).toBe(0.5);
+      expect(customPlacement.anchorY).toBe(0.5);
+
+      // Top-left anchor (0, 0)
+      const topLeft = resolveSpritePlacement(
+        { type: 'SHOW', character: 'hud_item', x: 100, y: 100, anchorX: 0, anchorY: 0 },
+        baseW,
+        baseH,
+      );
+      expect(topLeft.x).toBe(100);
+      expect(topLeft.y).toBe(100);
+      expect(topLeft.anchorX).toBe(0);
+      expect(topLeft.anchorY).toBe(0);
+    });
+
+    it('[TC-SPRITE-REND-03] renderer.showSprite() hiển thị sprite với đầy đủ thuộc tính chuyển động và tween tracking', async () => {
+      const baseW = 1920;
+      const baseH = 1080;
+      const renderer = new GameRenderer({ width: baseW, height: baseH });
+
+      const resolverCalls: Array<{ targetId: string; variant?: string }> = [];
+      const mockResolver = (targetId: string, variant?: string) => {
+        resolverCalls.push({ targetId, variant });
+        return undefined; // fallback wireframe
+      };
+
+      const instr: ShowInstruction = {
         type: 'SHOW',
-        character: 'key_gold',
+        targetId: 'alice',
+        variant: 'happy',
+        character: 'alice',
+        position: 'center',
+        scale: 1.5,
+        rotate: 30,
+        flipX: true,
+        alpha: 0.85,
+        offsetX: 20,
+        offsetY: -10,
+        duration: 0,
+      };
+
+      await renderer.showSprite(instr, mockResolver);
+
+      expect(renderer.hasSprite('alice')).toBe(true);
+      expect(resolverCalls).toEqual([{ targetId: 'alice', variant: 'happy' }]);
+
+      interface TestableGameRenderer {
+        activeSprites: Map<string, any>;
+      }
+      const priv = renderer as unknown as TestableGameRenderer;
+      const managed = priv.activeSprites.get('alice');
+
+      expect(managed).toBeDefined();
+      expect(managed.targetId).toBe('alice');
+      expect(managed.currentVariant).toBe('happy');
+      expect(managed.container.x).toBeCloseTo(baseW * 0.5 + 20);
+      expect(managed.container.y).toBeCloseTo(baseH - 10);
+      expect(managed.container.rotation).toBeCloseTo((30 * Math.PI) / 180);
+      expect(managed.container.alpha).toBeCloseTo(0.85);
+      expect(managed.container.scale.x).toBeCloseTo(-1.5); // flipX = true
+      expect(managed.container.scale.y).toBeCloseTo(1.5);
+      expect(managed.sprite.anchor.x).toBe(0.5);
+      expect(managed.sprite.anchor.y).toBe(1.0);
+      expect(managed.animating).toBe(false);
+
+      renderer.destroy();
+    });
+
+    it('[TC-SPRITE-REND-04] renderer.showSprite() tự động tạo wireframe placeholder 360x600 khi không tìm thấy asset', async () => {
+      const renderer = new GameRenderer({
+        width: 1920,
+        height: 1080,
+        placeholderMode: 'procedural',
+      });
+
+      await renderer.showSprite({
+        type: 'SHOW',
+        targetId: 'mystery_item',
+        variant: 'shiny',
+        character: 'mystery_item',
+        duration: 0,
+      });
+
+      expect(renderer.hasSprite('mystery_item')).toBe(true);
+
+      interface TestableGameRenderer {
+        activeSprites: Map<string, any>;
+      }
+      const priv = renderer as unknown as TestableGameRenderer;
+      const managed = priv.activeSprites.get('mystery_item');
+
+      expect(managed).toBeDefined();
+      expect(managed.sprite.texture.width).toBe(360);
+      expect(managed.sprite.texture.height).toBe(600);
+      expect(managed.sprite.anchor.x).toBe(0.5);
+      expect(managed.sprite.anchor.y).toBe(1.0);
+
+      renderer.destroy();
+    });
+
+    it('[TC-SPRITE-REND-05] renderer.hideSprite() ẩn và dọn dẹp sprite khỏi activeSprites', async () => {
+      const renderer = new GameRenderer({ width: 1920, height: 1080 });
+
+      await renderer.showSprite({
+        type: 'SHOW',
+        targetId: 'alice',
+        variant: 'smile',
+        character: 'alice',
+        duration: 0,
+      });
+      expect(renderer.hasSprite('alice')).toBe(true);
+
+      renderer.hideSprite('alice', 0);
+      expect(renderer.hasSprite('alice')).toBe(false);
+
+      interface TestableGameRenderer {
+        activeSprites: Map<string, any>;
+      }
+      const priv = renderer as unknown as TestableGameRenderer;
+      expect(priv.activeSprites.has('alice')).toBe(false);
+
+      renderer.destroy();
+    });
+
+    it('[TC-SPRITE-REND-06] Tương thích ngược: showCharacter, hideCharacter, hasCharacter hoạt động trơn tru qua Sprite API', async () => {
+      const renderer = new GameRenderer({ width: 1920, height: 1080 });
+
+      await renderer.showCharacter({
+        type: 'SHOW',
+        character: 'bob',
         sprite: 'default',
         duration: 0,
-      },
-      undefined,
-      true, // isProp = true
-    );
+      });
 
-    expect(renderer.hasCharacter('key_gold')).toBe(true);
-    renderer.destroy();
+      expect(renderer.hasCharacter('bob')).toBe(true);
+      expect(renderer.hasSprite('bob')).toBe(true);
+
+      renderer.hideCharacter('bob', 0);
+      expect(renderer.hasCharacter('bob')).toBe(false);
+      expect(renderer.hasSprite('bob')).toBe(false);
+
+      renderer.destroy();
+    });
+
+    it('[TC-SPRITE-REND-07] Xóa bỏ phân mảnh isProp (y = 0.5 * H), mọi sprite neo chân chạm đáy (0.5, 1.0) và syncStateCatchUp không cần isPropChecker', async () => {
+      const baseW = 1920;
+      const baseH = 1080;
+
+      // 1. Không còn ép y = baseH * 0.5 cho prop; mọi sprite mặc định y = baseH và anchorY = 1.0
+      const propPlacement = resolveSpritePlacement(
+        { type: 'SHOW', targetId: 'key_gold', character: 'key_gold' },
+        baseW,
+        baseH,
+      );
+      expect(propPlacement.x).toBeCloseTo(baseW * 0.5);
+      expect(propPlacement.y).toBe(baseH);
+      expect(propPlacement.anchorX).toBe(0.5);
+      expect(propPlacement.anchorY).toBe(1.0);
+
+      // 2. Nếu script chủ động muốn căn giữa, truyền y: 0.5 và anchorY: 0.5
+      const centeredProp = resolveSpritePlacement(
+        { type: 'SHOW', targetId: 'key_gold', character: 'key_gold', y: 0.5, anchorY: 0.5 },
+        baseW,
+        baseH,
+      );
+      expect(centeredProp.y).toBeCloseTo(baseH * 0.5);
+      expect(centeredProp.anchorY).toBe(0.5);
+
+      // 3. syncStateCatchUp đồng bộ danh sách sprites sạch sẽ mà không cần isPropChecker
+      const renderer = new GameRenderer({ width: baseW, height: baseH });
+      const spritesMap = new Map<string, ShowInstruction>([
+        [
+          'key_gold',
+          {
+            type: 'SHOW',
+            targetId: 'key_gold',
+            variant: 'default',
+            character: 'key_gold',
+            anchorY: 0.5,
+          },
+        ],
+      ]);
+
+      await renderer.syncStateCatchUp({ sprites: spritesMap });
+      expect(renderer.hasSprite('key_gold')).toBe(true);
+
+      interface TestableGameRenderer {
+        activeSprites: Map<string, any>;
+      }
+      const priv = renderer as unknown as TestableGameRenderer;
+      const managed = priv.activeSprites.get('key_gold');
+      expect(managed.sprite.anchor.y).toBe(0.5);
+
+      renderer.destroy();
+    });
   });
 
   describe('Phase 1: Transparent Fallbacks & Placeholder Modes (TASK-player-ui-and-scaler)', () => {
@@ -211,11 +431,9 @@ describe('@vn-engine/renderer - Coordinate Resolution & GameRenderer Setup', () 
         height: 720,
         placeholderMode: 'transparent',
       });
-      // Missing asset: resolver returns undefined
       await renderer.setBackground('missing_bg_asset_01');
       expect(renderer.getCurrentBackgroundId()).toBe('missing_bg_asset_01');
 
-      // In transparent mode, no procedural grid texture is generated
       const priv = renderer as unknown as TestableRenderer;
       const currentSprite = priv.currentBackgroundSprite;
       expect(currentSprite).toBeDefined();
@@ -246,7 +464,7 @@ describe('@vn-engine/renderer - Coordinate Resolution & GameRenderer Setup', () 
       renderer.destroy();
     });
 
-    it('TEST-REND-03: placeholderMode: "procedural" should preserve legacy wireframe fallback and mannequin card', async () => {
+    it('TEST-REND-03: placeholderMode: "procedural" should preserve wireframe fallback with standardized 360x600 dimensions', async () => {
       const renderer = new GameRenderer({
         width: 1280,
         height: 720,
@@ -268,7 +486,7 @@ describe('@vn-engine/renderer - Coordinate Resolution & GameRenderer Setup', () 
 
       const char = priv.activeCharacters.get('legacy_hero');
       expect(char).toBeDefined();
-      expect(char?.sprite.texture.width).toBe(320);
+      expect(char?.sprite.texture.width).toBe(360);
       renderer.destroy();
     });
   });
