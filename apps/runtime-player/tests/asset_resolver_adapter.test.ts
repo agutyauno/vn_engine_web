@@ -6,49 +6,49 @@ describe('AssetResolverAdapter', () => {
   let mockDiagnosticBus: DiagnosticBus;
   let reportedDiagnostics: unknown[];
 
+  // Project data mới theo chuẩn Unified Sprite Asset (không còn bảng characters)
   const sampleProjectData = {
     id: 'proj_test_01',
     name: 'Test Project',
-    characters: [
-      {
-        id: 'alice',
-        name: 'Alice',
-        sprites: {
-          happy: 'https://cdn.example.com/alice_happy.png',
-          sad: 'ref_alice_sad_asset',
-          default: 'https://cdn.example.com/alice_default.png',
-        },
-      },
-      {
-        id: 'bob',
-        name: 'Bob',
-        sprites: {
-          neutral: 'data:image/png;base64,bobneutral',
-        },
-      },
-    ],
     assets: [
       {
-        id: 'bg_classroom',
-        name: 'Classroom',
-        storageUrl: 'https://cdn.example.com/bg_classroom.jpg',
+        id: 'asset_alice_happy',
+        name: 'alice_happy.png',
+        tag: 'alice',
+        variant: 'happy',
+        category: 'sprite',
+        storageUrl: 'https://cdn.example.com/alice_happy.png',
         type: 'image',
       },
       {
-        id: 'prop_sword',
-        name: 'Sword',
+        id: 'asset_alice_default',
+        name: 'alice_default.png',
+        tag: 'alice',
+        variant: 'default',
+        category: 'sprite',
+        storageUrl: 'https://cdn.example.com/alice_default.png',
+        type: 'image',
+      },
+      {
+        id: 'asset_prop_sword',
+        name: 'prop_sword.png',
+        tag: 'sword',
+        variant: 'default',
+        category: 'sprite',
         storageUrl: 'https://cdn.example.com/prop_sword.png',
         type: 'image',
       },
       {
-        id: 'ref_alice_sad_asset',
-        name: 'alice_sad_ref',
-        storageUrl: 'https://cdn.example.com/alice_sad.png',
+        id: 'bg_classroom',
+        name: 'Classroom',
+        category: 'background',
+        storageUrl: 'https://cdn.example.com/bg_classroom.jpg',
         type: 'image',
       },
       {
         id: 'bgm_peaceful',
         name: 'Peaceful Day',
+        category: 'audio',
         storageUrl: 'https://cdn.example.com/bgm_peaceful.mp3',
         type: 'audio',
       },
@@ -70,59 +70,48 @@ describe('AssetResolverAdapter', () => {
     } as unknown as DiagnosticBus;
   });
 
-  describe('Graphic Asset Resolution', () => {
-    it('should resolve asset directly by id or name to its storageUrl', () => {
+  describe('Graphic Asset Resolution (TC-SPRITE-PLAYER-01)', () => {
+    it('[TC-SPRITE-PLAYER-01] should resolve sprite texture by tag and variant', () => {
+      const adapter = new AssetResolverAdapter(() => sampleProjectData, mockDiagnosticBus);
+      const resolver = adapter.getAssetGraphicResolver();
+
+      // Khớp chính xác cả tag và variant
+      expect(resolver('alice', 'happy')).toBe('https://cdn.example.com/alice_happy.png');
+      expect(resolver('alice', 'default')).toBe('https://cdn.example.com/alice_default.png');
+    });
+
+    it('[TC-SPRITE-PLAYER-01] should fallback to default variant when requested variant is not specified or missing', () => {
+      const adapter = new AssetResolverAdapter(() => sampleProjectData, mockDiagnosticBus);
+      const resolver = adapter.getAssetGraphicResolver();
+
+      // Không truyền variant -> fallback về variant 'default'
+      expect(resolver('alice')).toBe('https://cdn.example.com/alice_default.png');
+
+      // Variant không tồn tại -> fallback về variant 'default'
+      expect(resolver('alice', 'excited')).toBe('https://cdn.example.com/alice_default.png');
+    });
+
+    it('[TC-SPRITE-PLAYER-01] should resolve prop sprite by tag', () => {
+      const adapter = new AssetResolverAdapter(() => sampleProjectData, mockDiagnosticBus);
+      const resolver = adapter.getAssetGraphicResolver();
+
+      expect(resolver('sword')).toBe('https://cdn.example.com/prop_sword.png');
+      expect(resolver('sword', 'default')).toBe('https://cdn.example.com/prop_sword.png');
+    });
+
+    it('[TC-SPRITE-PLAYER-01] should resolve background and other assets directly by id or name', () => {
       const adapter = new AssetResolverAdapter(() => sampleProjectData, mockDiagnosticBus);
       const resolver = adapter.getAssetGraphicResolver();
 
       expect(resolver('bg_classroom')).toBe('https://cdn.example.com/bg_classroom.jpg');
       expect(resolver('Classroom')).toBe('https://cdn.example.com/bg_classroom.jpg');
+    });
+
+    it('[TC-SPRITE-PLAYER-01] should fallback to filename without extension (basename match)', () => {
+      const adapter = new AssetResolverAdapter(() => sampleProjectData, mockDiagnosticBus);
+      const resolver = adapter.getAssetGraphicResolver();
+
       expect(resolver('prop_sword')).toBe('https://cdn.example.com/prop_sword.png');
-    });
-
-    it('should resolve character expression with dot notation (e.g. alice.happy)', () => {
-      const adapter = new AssetResolverAdapter(() => sampleProjectData, mockDiagnosticBus);
-      const resolver = adapter.getAssetGraphicResolver();
-
-      expect(resolver('alice.happy')).toBe('https://cdn.example.com/alice_happy.png');
-    });
-
-    it('should resolve character expression with underscore notation (e.g. alice_happy)', () => {
-      const adapter = new AssetResolverAdapter(() => sampleProjectData, mockDiagnosticBus);
-      const resolver = adapter.getAssetGraphicResolver();
-
-      expect(resolver('alice_happy')).toBe('https://cdn.example.com/alice_happy.png');
-    });
-
-    it('should resolve referenced asset id for character sprites (e.g. ref_alice_sad_asset)', () => {
-      const adapter = new AssetResolverAdapter(() => sampleProjectData, mockDiagnosticBus);
-      const resolver = adapter.getAssetGraphicResolver();
-
-      expect(resolver('alice.sad')).toBe('https://cdn.example.com/alice_sad.png');
-    });
-
-    it('should fallback to default sprite if requested expression is missing', () => {
-      const adapter = new AssetResolverAdapter(() => sampleProjectData, mockDiagnosticBus);
-      const resolver = adapter.getAssetGraphicResolver();
-
-      // "alice.angry" does not exist, should fallback to "default"
-      expect(resolver('alice.angry')).toBe('https://cdn.example.com/alice_default.png');
-    });
-
-    it('should fallback to the first available sprite when no default exists', () => {
-      const adapter = new AssetResolverAdapter(() => sampleProjectData, mockDiagnosticBus);
-      const resolver = adapter.getAssetGraphicResolver();
-
-      // "bob.excited" does not exist, bob has no "default", should fallback to "neutral"
-      expect(resolver('bob.excited')).toBe('data:image/png;base64,bobneutral');
-    });
-
-    it('should resolve plain character name to default or first sprite', () => {
-      const adapter = new AssetResolverAdapter(() => sampleProjectData, mockDiagnosticBus);
-      const resolver = adapter.getAssetGraphicResolver();
-
-      expect(resolver('alice')).toBe('https://cdn.example.com/alice_default.png');
-      expect(resolver('bob')).toBe('data:image/png;base64,bobneutral');
     });
 
     it('should report missing graphic warning via DiagnosticBus when asset is not found', () => {
@@ -148,30 +137,6 @@ describe('AssetResolverAdapter', () => {
       expect(resolver('')).toBeUndefined();
       expect(resolver('   ')).toBeUndefined();
       expect(mockDiagnosticBus.report).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('Prop Differentiation (checkIsProp)', () => {
-    it('should return false for characters defined in project characters list', () => {
-      const adapter = new AssetResolverAdapter(() => sampleProjectData, mockDiagnosticBus);
-
-      expect(adapter.checkIsProp('alice')).toBe(false);
-      expect(adapter.checkIsProp('Alice')).toBe(false);
-      expect(adapter.checkIsProp('bob')).toBe(false);
-    });
-
-    it('should return true for items defined in assets list that are not characters', () => {
-      const adapter = new AssetResolverAdapter(() => sampleProjectData, mockDiagnosticBus);
-
-      expect(adapter.checkIsProp('prop_sword')).toBe(true);
-      expect(adapter.checkIsProp('Sword')).toBe(true);
-      expect(adapter.checkIsProp('bg_classroom')).toBe(true);
-    });
-
-    it('should return false for unknown IDs not in characters or assets', () => {
-      const adapter = new AssetResolverAdapter(() => sampleProjectData, mockDiagnosticBus);
-
-      expect(adapter.checkIsProp('unknown_entity')).toBe(false);
     });
   });
 

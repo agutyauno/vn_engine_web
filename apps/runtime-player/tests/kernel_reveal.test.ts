@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { Instruction, Character } from '@vn-engine/shared-types';
+import type { Instruction } from '@vn-engine/shared-types';
 import { VNRuntimeKernel } from '../src/core/VNRuntimeKernel';
 import type { KernelAdapters, SaveSlotData } from '../src/core/contracts';
 
@@ -49,7 +49,7 @@ function createMockAdapters() {
   return { mockRenderer, mockAudio, mockStorage };
 }
 
-describe('VNRuntimeKernel: Nameplate Reveal Resolution (TASK-player-core-bugs)', () => {
+describe('VNRuntimeKernel: Literal Speaker Resolution (TC-SPRITE-PLAYER-03)', () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
@@ -59,12 +59,11 @@ describe('VNRuntimeKernel: Nameplate Reveal Resolution (TASK-player-core-bugs)',
     vi.clearAllMocks();
   });
 
-  it('TC-REV-01: should display revealed name when reveal instruction executes prior to dialogue', async () => {
+  it('[TC-SPRITE-PLAYER-03] should display literal speaker name from string literal without REVEAL', async () => {
     const { mockRenderer, mockAudio, mockStorage } = createMockAdapters();
     const program: Instruction[] = [
       { type: 'SCENE', name: 'intro' },
-      { type: 'REVEAL', characterId: 'alice', displayName: 'Alice - Hội phó' },
-      { type: 'DIALOGUE', character: 'alice', text: 'Chào bạn' },
+      { type: 'DIALOGUE', character: 'Alice - Hội phó', speaker: 'Alice - Hội phó', text: 'Chào bạn' },
     ];
 
     const kernel = new VNRuntimeKernel(program, {
@@ -76,18 +75,18 @@ describe('VNRuntimeKernel: Nameplate Reveal Resolution (TASK-player-core-bugs)',
     await kernel.startNewGame();
     const state = kernel.getState();
     expect(state.dialogue.speakerName).toBe('Alice - Hội phó');
+    expect(state.dialogue.speakerColorHex).toBe('#ffffff');
   });
 
-  it('TC-REV-02: should prioritize inline displayNameOverride over runtime reveal', async () => {
+  it('[TC-SPRITE-PLAYER-03] should support literal question marks "???" as speakerName', async () => {
     const { mockRenderer, mockAudio, mockStorage } = createMockAdapters();
     const program: Instruction[] = [
       { type: 'SCENE', name: 'intro' },
-      { type: 'REVEAL', characterId: 'alice', displayName: 'Alice - Hội phó' },
       {
         type: 'DIALOGUE',
-        character: 'alice',
+        character: '???',
+        speaker: '???',
         text: 'Lời thoại bí ẩn',
-        displayNameOverride: 'Bí ẩn',
       },
     ];
 
@@ -99,36 +98,15 @@ describe('VNRuntimeKernel: Nameplate Reveal Resolution (TASK-player-core-bugs)',
 
     await kernel.startNewGame();
     const state = kernel.getState();
-    expect(state.dialogue.speakerName).toBe('Bí ẩn');
+    expect(state.dialogue.speakerName).toBe('???');
+    expect(state.dialogue.speakerColorHex).toBe('#ffffff');
   });
 
-  it('TC-REV-03: should fallback to configured Character Studio name when no reveal or inline override exists', async () => {
-    const { mockRenderer, mockAudio, mockStorage } = createMockAdapters();
-    const characters: Character[] = [
-      { id: 'bob', name: 'Robert', colorHex: '#10b981', sprites: {} },
-    ];
-    const program: Instruction[] = [
-      { type: 'SCENE', name: 'intro' },
-      { type: 'DIALOGUE', character: 'bob', text: 'Hello there' },
-    ];
-
-    const kernel = new VNRuntimeKernel(
-      program,
-      { renderer: mockRenderer, audio: mockAudio, storage: mockStorage },
-      { characters }
-    );
-
-    await kernel.startNewGame();
-    const state = kernel.getState();
-    expect(state.dialogue.speakerName).toBe('Robert');
-    expect(state.dialogue.speakerColorHex).toBe('#10b981');
-  });
-
-  it('TC-REV-04: should fallback to raw character ID when not in Character Studio and no reveal exists', async () => {
+  it('[TC-SPRITE-PLAYER-03] should handle narrator dialogue with null speaker without speakerColorHex', async () => {
     const { mockRenderer, mockAudio, mockStorage } = createMockAdapters();
     const program: Instruction[] = [
       { type: 'SCENE', name: 'intro' },
-      { type: 'DIALOGUE', character: 'unknown_stranger', text: 'Who am I?' },
+      { type: 'DIALOGUE', character: null, speaker: null, text: 'Trời đổ cơn mưa rào.' },
     ];
 
     const kernel = new VNRuntimeKernel(program, {
@@ -139,15 +117,15 @@ describe('VNRuntimeKernel: Nameplate Reveal Resolution (TASK-player-core-bugs)',
 
     await kernel.startNewGame();
     const state = kernel.getState();
-    expect(state.dialogue.speakerName).toBe('unknown_stranger');
+    expect(state.dialogue.speakerName).toBeUndefined();
+    expect(state.dialogue.speakerColorHex).toBeUndefined();
   });
 
-  it('TC-REV-05: should record resolved reveal speakerName in backlog entries', async () => {
+  it('[TC-SPRITE-PLAYER-03] should record literal speakerName in backlog entries', async () => {
     const { mockRenderer, mockAudio, mockStorage } = createMockAdapters();
     const program: Instruction[] = [
       { type: 'SCENE', name: 'intro' },
-      { type: 'REVEAL', characterId: 'alice', displayName: 'Alice - Hội phó' },
-      { type: 'DIALOGUE', character: 'alice', text: 'Chào bạn lần đầu' },
+      { type: 'DIALOGUE', character: 'Alice - Hội phó', speaker: 'Alice - Hội phó', text: 'Chào bạn lần đầu' },
     ];
 
     const kernel = new VNRuntimeKernel(program, {
@@ -162,13 +140,12 @@ describe('VNRuntimeKernel: Nameplate Reveal Resolution (TASK-player-core-bugs)',
     expect(backlog[0]?.speakerName).toBe('Alice - Hội phó');
   });
 
-  it('TC-REV-06: should preserve revealed speakerName after rollback via applyCatchUpSync', async () => {
+  it('[TC-SPRITE-PLAYER-03] should preserve literal speakerName after rollback', async () => {
     const { mockRenderer, mockAudio, mockStorage } = createMockAdapters();
     const program: Instruction[] = [
       { type: 'SCENE', name: 'intro' },
-      { type: 'REVEAL', characterId: 'alice', displayName: 'Alice - Hội phó' },
-      { type: 'DIALOGUE', character: 'alice', text: 'Line 1' },
-      { type: 'DIALOGUE', character: 'alice', text: 'Line 2' },
+      { type: 'DIALOGUE', character: '???', speaker: '???', text: 'Line 1' },
+      { type: 'DIALOGUE', character: 'Alice Carroll', speaker: 'Alice Carroll', text: 'Line 2' },
     ];
 
     const kernel = new VNRuntimeKernel(program, {
@@ -179,24 +156,23 @@ describe('VNRuntimeKernel: Nameplate Reveal Resolution (TASK-player-core-bugs)',
 
     await kernel.startNewGame();
     expect(kernel.getState().dialogue.rawText).toBe('Line 1');
-    expect(kernel.getState().dialogue.speakerName).toBe('Alice - Hội phó');
+    expect(kernel.getState().dialogue.speakerName).toBe('???');
 
     await kernel.advance();
     expect(kernel.getState().dialogue.rawText).toBe('Line 2');
-    expect(kernel.getState().dialogue.speakerName).toBe('Alice - Hội phó');
+    expect(kernel.getState().dialogue.speakerName).toBe('Alice Carroll');
 
     const rollbackResult = kernel.rollback();
     expect(rollbackResult).toBe(true);
     expect(kernel.getState().dialogue.rawText).toBe('Line 1');
-    expect(kernel.getState().dialogue.speakerName).toBe('Alice - Hội phó');
+    expect(kernel.getState().dialogue.speakerName).toBe('???');
   });
 
-  it('TC-REV-07: should record revealed speakerName in save slot and quick save previews', async () => {
+  it('[TC-SPRITE-PLAYER-03] should record literal speakerName in save slot and quick save previews', async () => {
     const { mockRenderer, mockAudio, mockStorage } = createMockAdapters();
     const program: Instruction[] = [
       { type: 'SCENE', name: 'intro' },
-      { type: 'REVEAL', characterId: 'alice', displayName: 'Alice - Hội phó' },
-      { type: 'DIALOGUE', character: 'alice', text: 'Save snapshot dialogue' },
+      { type: 'DIALOGUE', character: 'Alice Carroll', speaker: 'Alice Carroll', text: 'Save snapshot dialogue' },
     ];
 
     const kernel = new VNRuntimeKernel(program, {
@@ -210,8 +186,7 @@ describe('VNRuntimeKernel: Nameplate Reveal Resolution (TASK-player-core-bugs)',
     await kernel.quickSave();
 
     const state = kernel.getState();
-    expect(state.saveSlots[0]?.speakerName).toBe('Alice - Hội phó');
-    expect(state.quickSaveSlot?.speakerName).toBe('Alice - Hội phó');
+    expect(state.saveSlots[0]?.speakerName).toBe('Alice Carroll');
+    expect(state.quickSaveSlot?.speakerName).toBe('Alice Carroll');
   });
 });
-

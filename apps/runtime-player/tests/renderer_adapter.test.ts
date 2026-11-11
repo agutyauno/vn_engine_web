@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { RendererAdapter } from '../src/adapters/RendererAdapter';
 import type { GameRenderer, CatchUpVisualState } from '@vn-engine/renderer';
-import type { Instruction, ShowInstruction, BackgroundInstruction } from '@vn-engine/shared-types';
+import type { Instruction, ShowInstruction, HideInstruction, BackgroundInstruction } from '@vn-engine/shared-types';
 import type { DiagnosticBus } from '../src/services/diagnosticBus';
 
 describe('RendererAdapter', () => {
@@ -14,6 +14,9 @@ describe('RendererAdapter', () => {
       init: vi.fn().mockResolvedValue(undefined),
       resizeToContainer: vi.fn(),
       setBackground: vi.fn().mockResolvedValue(undefined),
+      showSprite: vi.fn().mockResolvedValue(undefined),
+      hideSprite: vi.fn(),
+      hasSprite: vi.fn((targetId: string) => targetId === 'alice'),
       showCharacter: vi.fn().mockResolvedValue(undefined),
       hideCharacter: vi.fn(),
       syncStateCatchUp: vi.fn().mockResolvedValue(undefined),
@@ -41,50 +44,50 @@ describe('RendererAdapter', () => {
       );
     });
 
-    it('should dispatch SHOW instruction to GameRenderer.showCharacter', async () => {
-      const isPropChecker = vi.fn((id: string) => id === 'prop_key');
-      const adapter = new RendererAdapter(mockGameRenderer, { isPropChecker });
+    it('[TC-SPRITE-REND-ADAPT-01] should dispatch SHOW instruction directly to GameRenderer.showSprite without isPropChecker', async () => {
+      const adapter = new RendererAdapter(mockGameRenderer);
 
       const showInstr: ShowInstruction = {
         type: 'SHOW',
+        targetId: 'alice',
+        variant: 'happy',
         character: 'alice',
-        sprite: 'happy',
         position: 'center',
         transition: 'slide',
         duration: 0.5,
       };
 
       await adapter.applySideEffect(showInstr);
-      expect(mockGameRenderer.showCharacter).toHaveBeenCalledWith(
+      expect(mockGameRenderer.showSprite).toHaveBeenCalledWith(
         showInstr,
         expect.any(Function),
-        false, // not a prop
       );
 
       const propInstr: ShowInstruction = {
         type: 'SHOW',
+        targetId: 'prop_key',
+        variant: 'default',
         character: 'prop_key',
-        sprite: 'default',
         position: 'center',
       };
 
       await adapter.applySideEffect(propInstr);
-      expect(mockGameRenderer.showCharacter).toHaveBeenCalledWith(
+      expect(mockGameRenderer.showSprite).toHaveBeenCalledWith(
         propInstr,
         expect.any(Function),
-        true, // is a prop
       );
     });
 
-    it('should dispatch HIDE instruction to GameRenderer.hideCharacter', async () => {
+    it('[TC-SPRITE-REND-ADAPT-02] should dispatch HIDE instruction directly to GameRenderer.hideSprite by targetId', async () => {
       const adapter = new RendererAdapter(mockGameRenderer);
-      const hideInstr: Instruction = {
+      const hideInstr: HideInstruction = {
         type: 'HIDE',
-        character: 'alice',
+        targetId: 'sword_legendary',
+        character: 'sword',
       };
 
       await adapter.applySideEffect(hideInstr);
-      expect(mockGameRenderer.hideCharacter).toHaveBeenCalledWith('alice');
+      expect(mockGameRenderer.hideSprite).toHaveBeenCalledWith('sword_legendary');
     });
 
     it('should ignore HIDE_DIALOGUE and non-visual instructions without throwing', async () => {
@@ -107,24 +110,23 @@ describe('RendererAdapter', () => {
       ).resolves.not.toThrow();
 
       expect(mockGameRenderer.setBackground).not.toHaveBeenCalled();
-      expect(mockGameRenderer.showCharacter).not.toHaveBeenCalled();
+      expect(mockGameRenderer.showSprite).not.toHaveBeenCalled();
     });
   });
 
   describe('Visual Catch-Up Synchronization (syncStateCatchUp)', () => {
-    it('should forward CatchUpVisualState to GameRenderer.syncStateCatchUp', async () => {
+    it('[CLEANUP-PROP-CHECKER] should forward CatchUpVisualState to GameRenderer.syncStateCatchUp without propChecker', async () => {
       const adapter = new RendererAdapter(mockGameRenderer);
       const catchUp: CatchUpVisualState = {
         background: { type: 'BACKGROUND', assetId: 'bg_bedroom' },
         sprites: new Map([
-          ['alice', { type: 'SHOW', character: 'alice', sprite: 'smile', position: 'left' }],
+          ['alice', { type: 'SHOW', targetId: 'alice', variant: 'smile', character: 'alice', position: 'left' }],
         ]),
       };
 
       await adapter.syncStateCatchUp(catchUp);
       expect(mockGameRenderer.syncStateCatchUp).toHaveBeenCalledWith(
         catchUp,
-        expect.any(Function),
         expect.any(Function),
       );
     });
@@ -173,8 +175,8 @@ describe('RendererAdapter', () => {
     });
   });
 
-  describe('Phase 1: Diagnostic Telemetry & Asset Error Correlation (TASK-player-ui-and-scaler)', () => {
-    it('TEST-DIAG-01: should correlate async asset load failure via pendingAssetLocations and dispatch ERR_ASSET_LOAD_FAILED to DiagnosticBus', async () => {
+  describe('Diagnostic Telemetry & Asset Error Correlation', () => {
+    it('should correlate async asset load failure via pendingAssetLocations and dispatch ERR_ASSET_LOAD_FAILED to DiagnosticBus', async () => {
       const mockDiagnosticBus: DiagnosticBus = {
         report: vi.fn(),
       };
@@ -184,6 +186,8 @@ describe('RendererAdapter', () => {
 
       const showInstr: ShowInstruction = {
         type: 'SHOW',
+        targetId: 'alice',
+        variant: 'happy',
         character: 'alice',
         sprite: 'happy',
         loc: { fileId: 'scenes/act1.vns', line: 120, col: 4 },
@@ -191,7 +195,6 @@ describe('RendererAdapter', () => {
 
       await adapter.applySideEffect(showInstr);
 
-      // Trigger asset load failure callback on adapter
       adapter.handleAssetError('alice_happy', new Error('HTTP 404 Not Found'));
 
       expect(mockDiagnosticBus.report).toHaveBeenCalledWith(
@@ -207,7 +210,7 @@ describe('RendererAdapter', () => {
       );
     });
 
-    it('TEST-DIAG-02: should report ERR_MISSING_GRAPHIC to DiagnosticBus when asset key does not exist in registry', () => {
+    it('should report ERR_MISSING_GRAPHIC to DiagnosticBus when asset key does not exist in registry', () => {
       const mockDiagnosticBus: DiagnosticBus = {
         report: vi.fn(),
       };
