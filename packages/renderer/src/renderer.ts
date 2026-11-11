@@ -5,12 +5,13 @@
 import { Application, Container, Sprite, Texture, Assets, Rectangle } from 'pixi.js';
 import type { ShowInstruction, BackgroundInstruction } from '@vn-engine/shared-types';
 import {
-  resolveCharacterPlacement,
+  resolveSpritePlacement,
   EASING_FUNCTIONS,
   type EasingFunction,
   type AssetGraphicResolver,
   type CatchUpVisualState,
   type RendererOptions,
+  type ManagedSprite,
 } from './types';
 
 export function computeTargetScale(
@@ -33,21 +34,6 @@ export function computeTargetRotation(rotateDeg: number | undefined): number {
   return (rotateDeg * Math.PI) / 180;
 }
 
-interface ManagedCharacter {
-  characterId: string;
-  currentSpriteId: string;
-  container: Container;
-  sprite: Sprite;
-  targetX: number;
-  targetY: number;
-  targetScaleX: number;
-  targetScaleY: number;
-  targetRotation: number;
-  targetAlpha: number;
-  animating: boolean;
-  cancelAnimation?: () => void;
-}
-
 const defaultEaseOut: EasingFunction = (t: number): number => 1 - Math.pow(1 - t, 3);
 
 function safeRequestAnimationFrame(callback: (now: number) => void): number {
@@ -66,7 +52,8 @@ export class GameRenderer {
 
   private backgroundContainer: Container;
   private characterContainer: Container;
-  private activeCharacters: Map<string, ManagedCharacter> = new Map();
+  public activeSprites: Map<string, ManagedSprite> = new Map();
+  public activeCharacters: Map<string, ManagedSprite> = this.activeSprites;
   private currentBackgroundId: string | null = null;
   private currentBackgroundSprite: Sprite | null = null;
   private placeholderTextures: Map<string, Texture> = new Map();
@@ -105,7 +92,7 @@ export class GameRenderer {
       preserveDrawingBuffer: true,
     });
 
-    // Thêm các tầng theo đúng thứ tự hiển thị: Nền -> Nhân vật
+    // Thêm các tầng theo đúng thứ tự hiển thị: Nền -> Sprite nhân vật/vật thể
     this.app.stage.addChild(this.backgroundContainer);
     this.app.stage.addChild(this.characterContainer);
 
@@ -260,107 +247,83 @@ export class GameRenderer {
       return;
     }
 
-    const texture =
-      (await this.resolveOrGenerateBackgroundTexture(assetId, assetResolver)) || Texture.EMPTY;
-    const texWidth = texture?.width || this.baseWidth;
-    const texHeight = texture?.height || this.baseHeight;
-    const baseCoverScale = Math.max(this.baseWidth / texWidth, this.baseHeight / texHeight);
-    const finalScaleX = baseCoverScale * targetScaleX;
-    const finalScaleY = baseCoverScale * targetScaleY;
-
+    const texture = await this.resolveOrGenerateBackgroundTexture(assetId, assetResolver);
     const newSprite = new Sprite(texture);
     newSprite.anchor.set(0.5, 0.5);
+
+    const texWidth = texture.width || this.baseWidth;
+    const texHeight = texture.height || this.baseHeight;
+    const baseCoverScale = Math.max(this.baseWidth / texWidth, this.baseHeight / texHeight);
+
+    newSprite.scale.set(baseCoverScale * targetScaleX, baseCoverScale * targetScaleY);
+    newSprite.rotation = targetRotation;
     newSprite.x = targetX;
     newSprite.y = targetY;
-    newSprite.scale.x = finalScaleX;
-    newSprite.scale.y = finalScaleY;
-    newSprite.rotation = targetRotation;
-    newSprite.alpha = targetAlpha;
 
     const oldSprite = this.currentBackgroundSprite;
     this.currentBackgroundId = assetId;
     this.currentBackgroundSprite = newSprite;
 
-    if (oldSprite && duration > 0) {
-      newSprite.alpha = 0;
-      this.backgroundContainer.addChild(newSprite);
+    this.backgroundContainer.addChild(newSprite);
 
+    if (trans && oldSprite && duration > 0) {
+      newSprite.alpha = 0;
       const startTime = performance.now();
+
       const animate = (now: number) => {
         const elapsed = now - startTime;
         const progress = Math.min(1, elapsed / duration);
         const ease = easingFn(progress);
 
-        if (trans === 'zoom') {
-          newSprite.alpha = targetAlpha * progress;
-          oldSprite.alpha = 1 - progress;
-          const currentZoom = 1.1 - 0.1 * ease;
-          newSprite.scale.x = finalScaleX * currentZoom;
-          newSprite.scale.y = finalScaleY * currentZoom;
-        } else if (trans === 'slide' || trans === 'slide_left') {
-          newSprite.alpha = targetAlpha;
-          oldSprite.x = targetX - this.baseWidth * ease;
-          newSprite.x = targetX + this.baseWidth * (1 - ease);
-        } else if (trans === 'slide_right') {
-          newSprite.alpha = targetAlpha;
-          oldSprite.x = targetX + this.baseWidth * ease;
-          newSprite.x = targetX - this.baseWidth * (1 - ease);
-        } else if (trans === 'slide_up') {
-          newSprite.alpha = targetAlpha;
-          oldSprite.y = targetY - this.baseHeight * ease;
-          newSprite.y = targetY + this.baseHeight * (1 - ease);
-        } else if (trans === 'slide_down') {
-          newSprite.alpha = targetAlpha;
-          oldSprite.y = targetY + this.baseHeight * ease;
-          newSprite.y = targetY - this.baseHeight * (1 - ease);
-        } else if (trans === 'shake') {
-          newSprite.alpha = targetAlpha * progress;
-          oldSprite.alpha = 1 - progress;
-          newSprite.x = targetX + Math.sin(progress * Math.PI * 10) * (1 - progress) * 25;
-        } else {
-          // fade / dissolve / default
-          if (trans && trans !== 'fade' && trans !== 'dissolve') {
-            console.warn(
-              `[Renderer] Unknown background transition "${trans}", falling back to fade.`,
-            );
-          }
-          newSprite.alpha = targetAlpha * progress;
-          oldSprite.alpha = 1 - progress;
+        newSprite.alpha = targetAlpha * ease;
+        oldSprite.alpha = 1 - ease;
+
+        if (trans === 'slide' || trans === 'slide_left') {
+          newSprite.x = targetX + this.baseWidth * 0.25 * (1 - ease);
+          oldSprite.x = targetX - this.baseWidth * 0.25 * ease;
+        } else if (trans === 'zoom') {
+          newSprite.scale.set(
+            baseCoverScale * targetScaleX * (0.85 + 0.15 * ease),
+            baseCoverScale * targetScaleY * (0.85 + 0.15 * ease),
+          );
         }
 
         if (progress < 1) {
           safeRequestAnimationFrame(animate);
         } else {
-          newSprite.x = targetX;
-          newSprite.y = targetY;
-          newSprite.scale.x = finalScaleX;
-          newSprite.scale.y = finalScaleY;
           newSprite.alpha = targetAlpha;
+          newSprite.x = targetX;
+          newSprite.scale.set(baseCoverScale * targetScaleX, baseCoverScale * targetScaleY);
           this.backgroundContainer.removeChild(oldSprite);
           oldSprite.destroy();
         }
       };
       safeRequestAnimationFrame(animate);
     } else {
-      this.backgroundContainer.removeChildren();
-      if (oldSprite) oldSprite.destroy();
-      this.backgroundContainer.addChild(newSprite);
+      newSprite.alpha = targetAlpha;
+      if (oldSprite) {
+        this.backgroundContainer.removeChild(oldSprite);
+        oldSprite.destroy();
+      }
     }
   }
 
   /**
-   * Hiển thị nhân vật (SHOW Statement - ADR-018):
-   * - Hỗ trợ đầy đủ phóng to/thu nhỏ (scale, scaleX, scaleY), xoay (rotate), lật (flipX, flipY),
-   *   tọa độ số x/y, offset pixel, độ trong suốt (alpha).
-   * - Hỗ trợ nhiều dạng animation phong phú: slide, fade, shake, hop, bounce, wobble, pop, zoom
-   *   kết hợp các hàm easing (linear, ease_in, ease_out, ease_in_out, bounce, elastic).
+   * Hiển thị hoặc cập nhật Sprite (Nhân vật hoặc Đạo cụ) trên sân khấu PixiJS
+   * Hỗ trợ đầy đủ: biến đổi tọa độ, anchor neo đáy (0.5, 1.0) hoặc tùy chỉnh, scale, xoay, lật, alpha và animation transitions.
    */
-  public async showCharacter(
+  public async showSprite(
     instr: ShowInstruction,
     assetResolver?: AssetGraphicResolver,
-    isProp = false,
   ): Promise<void> {
-    const coords = resolveCharacterPlacement(instr, this.baseWidth, this.baseHeight, isProp);
+    const targetId = instr.targetId || instr.character!;
+    const variant = instr.variant || instr.sprite;
+    const duration = instr.duration !== undefined ? instr.duration * 1000 : 300;
+    const easingKey = (instr.easing ? instr.easing : 'ease_out').toLowerCase();
+    const easingFn: EasingFunction = EASING_FUNCTIONS[easingKey] ?? defaultEaseOut;
+    const transition = instr.transition;
+
+    const placement = resolveSpritePlacement(instr, this.baseWidth, this.baseHeight);
     const { scaleX: targetScaleX, scaleY: targetScaleY } = computeTargetScale(
       instr.scale,
       instr.scaleX,
@@ -369,30 +332,22 @@ export class GameRenderer {
       instr.flipY,
     );
     const targetRotation = computeTargetRotation(instr.rotate);
-    const targetAlpha = instr.alpha ?? 1.0;
-    const duration = instr.duration !== undefined ? instr.duration * 1000 : 350;
-    const transition = instr.transition;
-    const easingKey = (instr.easing ?? 'ease_out').toLowerCase();
-    const easingFn: EasingFunction = EASING_FUNCTIONS[easingKey] ?? defaultEaseOut;
+    const targetAlpha = instr.alpha !== undefined ? instr.alpha : 1.0;
 
-    const existing = this.activeCharacters.get(instr.character);
     const texture =
-      (await this.resolveOrGenerateCharacterTexture(
-        instr.character,
-        instr.sprite,
-        assetResolver,
-        isProp,
-      )) || Texture.EMPTY;
+      (await this.resolveOrGenerateSpriteTexture(targetId, variant, assetResolver)) || Texture.EMPTY;
+
+    const existing = this.activeSprites.get(targetId);
 
     if (existing) {
       if (existing.cancelAnimation) {
         existing.cancelAnimation();
         existing.cancelAnimation = undefined;
       }
-
       existing.sprite.texture = texture;
-      existing.sprite.anchor.set(0.5, isProp ? 0.5 : 1.0);
-      existing.currentSpriteId = instr.sprite;
+      existing.sprite.anchor.set(placement.anchorX, placement.anchorY);
+      existing.currentVariant = variant;
+      existing.currentSpriteId = variant;
 
       const startX = existing.container.x;
       const startY = existing.container.y;
@@ -401,8 +356,8 @@ export class GameRenderer {
       const startRot = existing.container.rotation;
       const startAlpha = existing.container.alpha;
 
-      const deltaX = coords.x - startX;
-      const deltaY = coords.y - startY;
+      const deltaX = placement.x - startX;
+      const deltaY = placement.y - startY;
       const deltaScaleX = targetScaleX - startScaleX;
       const deltaScaleY = targetScaleY - startScaleY;
       const deltaRot = targetRotation - startRot;
@@ -474,14 +429,14 @@ export class GameRenderer {
           if (progress < 1) {
             safeRequestAnimationFrame(animate);
           } else {
-            existing.container.x = coords.x;
-            existing.container.y = coords.y;
+            existing.container.x = placement.x;
+            existing.container.y = placement.y;
             existing.container.scale.x = targetScaleX;
             existing.container.scale.y = targetScaleY;
             existing.container.rotation = targetRotation;
             existing.container.alpha = targetAlpha;
-            existing.targetX = coords.x;
-            existing.targetY = coords.y;
+            existing.targetX = placement.x;
+            existing.targetY = placement.y;
             existing.targetScaleX = targetScaleX;
             existing.targetScaleY = targetScaleY;
             existing.targetRotation = targetRotation;
@@ -492,14 +447,14 @@ export class GameRenderer {
         };
         safeRequestAnimationFrame(animate);
       } else {
-        existing.container.x = coords.x;
-        existing.container.y = coords.y;
+        existing.container.x = placement.x;
+        existing.container.y = placement.y;
         existing.container.scale.x = targetScaleX;
         existing.container.scale.y = targetScaleY;
         existing.container.rotation = targetRotation;
         existing.container.alpha = targetAlpha;
-        existing.targetX = coords.x;
-        existing.targetY = coords.y;
+        existing.targetX = placement.x;
+        existing.targetY = placement.y;
         existing.targetScaleX = targetScaleX;
         existing.targetScaleY = targetScaleY;
         existing.targetRotation = targetRotation;
@@ -507,35 +462,37 @@ export class GameRenderer {
         existing.animating = false;
       }
     } else {
-      // Nhân vật mới: Xuất hiện
+      // Sprite mới: xuất hiện
       const container = new Container();
-      container.x = coords.x;
-      container.y = coords.y;
+      container.x = placement.x;
+      container.y = placement.y;
       container.scale.x = targetScaleX;
       container.scale.y = targetScaleY;
       container.rotation = targetRotation;
-      container.alpha = 0;
+      container.alpha = duration > 0 ? 0 : targetAlpha;
 
       const sprite = new Sprite(texture);
-      sprite.anchor.set(0.5, isProp ? 0.5 : 1.0); // Neo tại đáy giữa (chân nhân vật) hoặc tâm (đạo cụ)
+      sprite.anchor.set(placement.anchorX, placement.anchorY);
       container.addChild(sprite);
 
       this.characterContainer.addChild(container);
 
-      const managed: ManagedCharacter = {
-        characterId: instr.character,
-        currentSpriteId: instr.sprite,
+      const managed: ManagedSprite = {
+        targetId,
+        currentVariant: variant,
+        characterId: targetId,
+        currentSpriteId: variant,
         container,
         sprite,
-        targetX: coords.x,
-        targetY: coords.y,
+        targetX: placement.x,
+        targetY: placement.y,
         targetScaleX,
         targetScaleY,
         targetRotation,
         targetAlpha,
-        animating: true,
+        animating: duration > 0,
       };
-      this.activeCharacters.set(instr.character, managed);
+      this.activeSprites.set(targetId, managed);
 
       if (duration > 0) {
         let cancelled = false;
@@ -554,8 +511,8 @@ export class GameRenderer {
 
           container.alpha = targetAlpha * ease;
 
-          let curX = coords.x;
-          let curY = coords.y;
+          let curX = placement.x;
+          let curY = placement.y;
           let curScaleX = targetScaleX;
           let curScaleY = targetScaleY;
           let curRot = targetRotation;
@@ -599,8 +556,8 @@ export class GameRenderer {
             safeRequestAnimationFrame(animate);
           } else {
             container.alpha = targetAlpha;
-            container.x = coords.x;
-            container.y = coords.y;
+            container.x = placement.x;
+            container.y = placement.y;
             container.scale.x = targetScaleX;
             container.scale.y = targetScaleY;
             container.rotation = targetRotation;
@@ -617,22 +574,43 @@ export class GameRenderer {
   }
 
   /**
-   * Ẩn nhân vật (HIDE Statement): Fade-out mượt mà
+   * Ẩn sprite khỏi sân khấu: Fade-out mượt mà
    */
-  public hideCharacter(characterId: string, durationSec = 0.25): void {
-    const managed = this.activeCharacters.get(characterId);
+  public hideSprite(
+    targetId: string,
+    durationSec = 0.25,
+    _transition?: string,
+    _easing?: string,
+  ): void {
+    const key = this.activeSprites.has(targetId)
+      ? targetId
+      : this.activeSprites.has(targetId.toLowerCase())
+        ? targetId.toLowerCase()
+        : targetId;
+    const managed = this.activeSprites.get(key);
     if (!managed) return;
 
-    this.activeCharacters.delete(characterId);
+    if (managed.cancelAnimation) {
+      managed.cancelAnimation();
+      managed.cancelAnimation = undefined;
+    }
+    this.activeSprites.delete(key);
     const container = managed.container;
+
+    if (durationSec <= 0) {
+      this.characterContainer.removeChild(container);
+      container.destroy({ children: true });
+      return;
+    }
 
     const startTime = performance.now();
     const duration = durationSec * 1000;
+    const initialAlpha = container.alpha;
 
     const animate = (now: number) => {
       const elapsed = now - startTime;
       const progress = Math.min(1, elapsed / duration);
-      container.alpha = 1 - progress;
+      container.alpha = initialAlpha * (1 - progress);
 
       if (progress < 1) {
         safeRequestAnimationFrame(animate);
@@ -644,12 +622,37 @@ export class GameRenderer {
     safeRequestAnimationFrame(animate);
   }
 
-  public getCurrentBackgroundId(): string | null {
-    return this.currentBackgroundId;
+  public hasSprite(targetId: string): boolean {
+    return this.activeSprites.has(targetId) || this.activeSprites.has(targetId.toLowerCase());
   }
 
+  /**
+   * @deprecated Dùng showSprite thay thế
+   */
+  public async showCharacter(
+    instr: ShowInstruction,
+    assetResolver?: AssetGraphicResolver,
+    _isProp = false,
+  ): Promise<void> {
+    return this.showSprite(instr, assetResolver);
+  }
+
+  /**
+   * @deprecated Dùng hideSprite thay thế
+   */
+  public hideCharacter(characterId: string, durationSec = 0.25): void {
+    this.hideSprite(characterId, durationSec);
+  }
+
+  /**
+   * @deprecated Dùng hasSprite thay thế
+   */
   public hasCharacter(characterId: string): boolean {
-    return this.activeCharacters.has(characterId.toLowerCase());
+    return this.hasSprite(characterId);
+  }
+
+  public getCurrentBackgroundId(): string | null {
+    return this.currentBackgroundId;
   }
 
   /**
@@ -658,7 +661,7 @@ export class GameRenderer {
   public async syncStateCatchUp(
     catchUp: CatchUpVisualState,
     assetResolver?: AssetGraphicResolver,
-    isPropChecker?: (characterId: string) => boolean,
+    _isPropChecker?: unknown,
   ): Promise<void> {
     // 1. Đồng bộ Background tức thì
     if (catchUp.background) {
@@ -669,86 +672,23 @@ export class GameRenderer {
       this.currentBackgroundSprite = null;
     }
 
-    // 2. Xóa bỏ những nhân vật không còn trong danh sách catch-up
-    for (const [charId, managed] of this.activeCharacters.entries()) {
-      if (!catchUp.sprites.has(charId)) {
-        if (managed.cancelAnimation) managed.cancelAnimation();
+    // 2. Xóa bỏ những sprite không còn trong danh sách catch-up
+    for (const [id, managed] of this.activeSprites.entries()) {
+      if (!catchUp.sprites.has(id) && (!managed.targetId || !catchUp.sprites.has(managed.targetId))) {
+        if (managed.cancelAnimation) {
+          managed.cancelAnimation();
+          managed.cancelAnimation = undefined;
+        }
         this.characterContainer.removeChild(managed.container);
         managed.container.destroy({ children: true });
-        this.activeCharacters.delete(charId);
+        this.activeSprites.delete(id);
       }
     }
 
-    // 3. Đặt lại vị trí và texture của những nhân vật cần hiển thị
-    for (const [charId, showInstr] of catchUp.sprites.entries()) {
-      const isProp = isPropChecker?.(charId) ?? false;
-      const coords = resolveCharacterPlacement(showInstr, this.baseWidth, this.baseHeight, isProp);
-      const { scaleX: targetScaleX, scaleY: targetScaleY } = computeTargetScale(
-        showInstr.scale,
-        showInstr.scaleX,
-        showInstr.scaleY,
-        showInstr.flipX,
-        showInstr.flipY,
-      );
-      const targetRotation = computeTargetRotation(showInstr.rotate);
-      const targetAlpha = showInstr.alpha ?? 1.0;
-
-      const texture =
-        (await this.resolveOrGenerateCharacterTexture(
-          charId,
-          showInstr.sprite,
-          assetResolver,
-          isProp,
-        )) || Texture.EMPTY;
-
-      const existing = this.activeCharacters.get(charId);
-      if (existing) {
-        if (existing.cancelAnimation) existing.cancelAnimation();
-        existing.sprite.texture = texture;
-        existing.sprite.anchor.set(0.5, isProp ? 0.5 : 1.0);
-        existing.currentSpriteId = showInstr.sprite;
-        existing.container.x = coords.x;
-        existing.container.y = coords.y;
-        existing.container.scale.x = targetScaleX;
-        existing.container.scale.y = targetScaleY;
-        existing.container.rotation = targetRotation;
-        existing.container.alpha = targetAlpha;
-        existing.targetX = coords.x;
-        existing.targetY = coords.y;
-        existing.targetScaleX = targetScaleX;
-        existing.targetScaleY = targetScaleY;
-        existing.targetRotation = targetRotation;
-        existing.targetAlpha = targetAlpha;
-        existing.animating = false;
-        existing.cancelAnimation = undefined;
-      } else {
-        const container = new Container();
-        container.x = coords.x;
-        container.y = coords.y;
-        container.scale.x = targetScaleX;
-        container.scale.y = targetScaleY;
-        container.rotation = targetRotation;
-        container.alpha = targetAlpha;
-
-        const sprite = new Sprite(texture);
-        sprite.anchor.set(0.5, isProp ? 0.5 : 1.0);
-        container.addChild(sprite);
-
-        this.characterContainer.addChild(container);
-        this.activeCharacters.set(charId, {
-          characterId: charId,
-          currentSpriteId: showInstr.sprite,
-          container,
-          sprite,
-          targetX: coords.x,
-          targetY: coords.y,
-          targetScaleX,
-          targetScaleY,
-          targetRotation,
-          targetAlpha,
-          animating: false,
-        });
-      }
+    // 3. Đặt lại vị trí và texture của những sprite cần hiển thị
+    for (const [key, showInstr] of catchUp.sprites.entries()) {
+      const targetId = showInstr.targetId || showInstr.character || key;
+      await this.showSprite({ ...showInstr, targetId, duration: 0 }, assetResolver);
     }
   }
 
@@ -759,7 +699,6 @@ export class GameRenderer {
     const canvas = this.app.canvas;
     if (!canvas) return '';
 
-    // Tạo canvas phụ để resize xuống kích thước thumbnail tiết kiệm dung lượng
     const thumbCanvas = document.createElement('canvas');
     thumbCanvas.width = targetWidth;
     thumbCanvas.height = targetHeight;
@@ -892,17 +831,22 @@ export class GameRenderer {
   }
 
   /**
-   * Tạo Texture nhân vật phác thảo Wireframe (Character Silhouette Card)
-   * Phong cách Swiss tối giản: Đen - Trắng, không bo góc, không viền neon.
+   * Tạo Texture Sprite phác thảo Wireframe chuẩn hóa kích thước 360x600 (Swiss Minimalist Card)
    */
-  private async resolveOrGenerateCharacterTexture(
-    characterId: string,
-    spriteId: string,
+  private async resolveOrGenerateSpriteTexture(
+    targetId: string,
+    variant?: string,
     assetResolver?: AssetGraphicResolver,
-    isProp = false,
   ): Promise<Texture> {
-    const fullAssetId = `${characterId}_${spriteId}`;
-    const url = assetResolver?.(fullAssetId) ?? assetResolver?.(characterId);
+    let url: string | undefined;
+    if (assetResolver) {
+      try {
+        url = assetResolver(targetId, variant);
+      } catch {
+        // ignore
+      }
+    }
+
     if (url) {
       try {
         const loadParam = url.startsWith('blob:')
@@ -913,7 +857,7 @@ export class GameRenderer {
           return tex;
         }
       } catch {
-        // Fallback về wireframe silhouette
+        // Fallback về phác thảo
       }
     }
 
@@ -921,13 +865,14 @@ export class GameRenderer {
       return Texture.EMPTY;
     }
 
-    const cacheKey = `char_${characterId}_${spriteId}_${isProp}`;
+    const cacheKey = `sprite_${targetId}_${variant || 'default'}`;
     const cached = this.placeholderTextures.get(cacheKey);
     if (cached) return cached;
 
+    const w = 360;
+    const h = 600;
+
     if (typeof document === 'undefined') {
-      const w = isProp ? 400 : 320;
-      const h = isProp ? 400 : 560;
       const tex = new Texture({
         source: Texture.WHITE.source,
         orig: new Rectangle(0, 0, w, h),
@@ -936,64 +881,20 @@ export class GameRenderer {
       return tex;
     }
 
-    if (isProp) {
-      const w = 400;
-      const h = 400;
-      const canvas = document.createElement('canvas');
-      canvas.width = w;
-      canvas.height = h;
-      const ctx = canvas.getContext('2d')!;
-
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(8, 8, w - 16, h - 16);
-
-      ctx.strokeStyle = '#000000';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(8, 8, w - 16, h - 16);
-
-      ctx.fillStyle = '#000000';
-      ctx.fillRect(8, 8, w - 16, 42);
-
-      ctx.fillStyle = '#ffffff';
-      ctx.font = '700 16px monospace';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(characterId.toUpperCase(), w / 2, 29);
-
-      ctx.fillStyle = '#000000';
-      ctx.font = '700 12px monospace';
-      ctx.fillText('[ PROP / ITEM ]', w / 2, 70);
-
-      ctx.strokeStyle = '#000000';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(40, 100, w - 80, h - 140);
-
-      ctx.fillStyle = '#555555';
-      ctx.font = '500 14px monospace';
-      ctx.fillText('// ASSET IMAGE', w / 2, h / 2 + 10);
-
-      const propTex = Texture.from(canvas);
-      this.placeholderTextures.set(cacheKey, propTex);
-      return propTex;
-    }
-
-    const w = 320;
-    const h = 560;
     const canvas = document.createElement('canvas');
     canvas.width = w;
     canvas.height = h;
     const ctx = canvas.getContext('2d')!;
 
-    // Khung card nhân vật: Nền trắng, viền đen rõ nét đồng bộ với Background trắng
+    // Khung card nhân vật / đạo cụ: Nền trắng, viền đen 2px sắc nét
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(8, 8, w - 16, h - 16);
 
-    // Viền đen 2px sắc nét (Swiss architectural outline)
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 2;
     ctx.strokeRect(8, 8, w - 16, h - 16);
 
-    // Header thẻ nhân vật (Khối đen với chữ trắng tương phản cao)
+    // Header thẻ (Khối đen chữ trắng tương phản cao)
     ctx.fillStyle = '#000000';
     ctx.fillRect(8, 8, w - 16, 42);
 
@@ -1001,12 +902,12 @@ export class GameRenderer {
     ctx.font = '700 16px monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(characterId.toUpperCase(), w / 2, 29);
+    ctx.fillText(targetId.toUpperCase(), w / 2, 29);
 
-    // Nhãn biểu cảm bên dưới header (chữ đen sắc nét)
+    // Nhãn biểu cảm / variant bên dưới header
     ctx.fillStyle = '#000000';
     ctx.font = '700 12px monospace';
-    ctx.fillText(`[ SPRITE // ${spriteId.toUpperCase()} ]`, w / 2, 68);
+    ctx.fillText(`[ SPRITE // ${(variant || 'default').toUpperCase()} ]`, w / 2, 68);
 
     // Đường kẻ phân cách kỹ thuật
     ctx.strokeStyle = '#000000';
@@ -1021,53 +922,50 @@ export class GameRenderer {
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 1.5;
 
-    // Đầu (Head - Mannequin Silhouette phẳng tối giản)
+    // Đầu (Head)
     ctx.beginPath();
     ctx.arc(w / 2, 142, 40, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
 
     // Thân (Torso)
-    ctx.fillStyle = '#e8e8e8';
-    ctx.strokeStyle = '#000000';
-    ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.moveTo(w / 2 - 38, 192);
     ctx.lineTo(w / 2 + 38, 192);
-    ctx.lineTo(w / 2 + 62, 365);
-    ctx.lineTo(w / 2 - 62, 365);
+    ctx.lineTo(w / 2 + 62, 385);
+    ctx.lineTo(w / 2 - 62, 385);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
 
-    // Chi tiết áo / đường kẻ giữa ngực
+    // Đường kẻ giữa ngực
     ctx.beginPath();
     ctx.moveTo(w / 2, 192);
-    ctx.lineTo(w / 2, 270);
+    ctx.lineTo(w / 2, 280);
     ctx.stroke();
 
     // Chân (Legs)
-    ctx.fillRect(w / 2 - 42, 375, 34, 140);
-    ctx.strokeRect(w / 2 - 42, 375, 34, 140);
-    ctx.fillRect(w / 2 + 8, 375, 34, 140);
-    ctx.strokeRect(w / 2 + 8, 375, 34, 140);
+    ctx.fillRect(w / 2 - 42, 395, 34, 160);
+    ctx.strokeRect(w / 2 - 42, 395, 34, 160);
+    ctx.fillRect(w / 2 + 8, 395, 34, 160);
+    ctx.strokeRect(w / 2 + 8, 395, 34, 160);
 
     // Chú thích kỹ thuật Wireframe dưới đáy
     ctx.fillStyle = '#888888';
     ctx.font = '500 10px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('CHAR // WIREFRAME MANNEQUIN', w / 2, h - 20);
+    ctx.fillText('SPRITE // WIREFRAME MANNEQUIN', w / 2, h - 20);
 
-    const charTex = Texture.from(canvas);
-    this.placeholderTextures.set(cacheKey, charTex);
-    return charTex;
+    const spriteTex = Texture.from(canvas);
+    this.placeholderTextures.set(cacheKey, spriteTex);
+    return spriteTex;
   }
 
   /**
    * Dọn dẹp tài nguyên
    */
   public destroy(): void {
-    this.activeCharacters.clear();
+    this.activeSprites.clear();
     for (const tex of this.placeholderTextures.values()) {
       try {
         tex.destroy(true);

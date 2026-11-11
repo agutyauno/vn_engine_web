@@ -2,6 +2,7 @@
 // KIỂU DỮ LIỆU TẦNG HIỂN THỊ ĐỒ HỌA (RENDERER TYPES)
 // ==========================================
 
+import type { Container, Sprite } from 'pixi.js';
 import type {
   BackgroundInstruction,
   ShowInstruction,
@@ -17,7 +18,10 @@ export interface RendererOptions {
   placeholderMode?: 'procedural' | 'transparent';
 }
 
-export type AssetGraphicResolver = (assetId: string) => string | undefined;
+export type AssetGraphicResolver = (
+  assetIdOrTag: string,
+  variant?: string,
+) => any;
 
 export interface CatchUpVisualState {
   background?: BackgroundInstruction;
@@ -27,6 +31,34 @@ export interface CatchUpVisualState {
 export interface CharacterPlacement {
   x: number;
   y: number;
+}
+
+export interface SpritePlacement {
+  x: number;
+  y: number;
+  anchorX: number;
+  anchorY: number;
+}
+
+export interface ManagedSprite {
+  targetId: string;
+  currentVariant?: string;
+  container: Container;
+  sprite: Sprite;
+  cancelAnimation?: () => void;
+
+  // Quản lý tween & animation tracking fields
+  targetX?: number;
+  targetY?: number;
+  targetScaleX?: number;
+  targetScaleY?: number;
+  targetRotation?: number;
+  targetAlpha?: number;
+  animating?: boolean;
+
+  /** @deprecated Backward compatibility for legacy tests */
+  characterId?: string;
+  currentSpriteId?: string;
 }
 
 export type EasingFunction = (t: number) => number;
@@ -87,18 +119,25 @@ export function resolveCharacterCoordinates(
   };
 }
 
-export function resolveCharacterPlacement(
+export function resolveSpritePlacement(
   instr: {
+    type?: string;
+    targetId?: string;
+    character?: string;
     position?: NamedPosition | CoordinatePosition;
     x?: number;
     y?: number;
     offsetX?: number;
     offsetY?: number;
+    anchorX?: number;
+    anchorY?: number;
   },
   baseWidth = 1920,
   baseHeight = 1080,
-  isProp = false,
-): CharacterPlacement {
+): SpritePlacement {
+  const anchorX = instr.anchorX !== undefined ? instr.anchorX : 0.5;
+  const anchorY = instr.anchorY !== undefined ? instr.anchorY : 1.0;
+
   let x: number;
   let y: number;
 
@@ -122,7 +161,7 @@ export function resolveCharacterPlacement(
         ? instr.position.y * baseHeight
         : instr.position.y;
   } else {
-    y = isProp ? baseHeight * 0.5 : baseHeight;
+    y = baseHeight;
   }
 
   if (instr.offsetX !== undefined) {
@@ -132,5 +171,23 @@ export function resolveCharacterPlacement(
     y += instr.offsetY;
   }
 
-  return { x, y };
+  return { x, y, anchorX, anchorY };
+}
+
+export function resolveCharacterPlacement(
+  instr: {
+    position?: NamedPosition | CoordinatePosition;
+    x?: number;
+    y?: number;
+    offsetX?: number;
+    offsetY?: number;
+    anchorX?: number;
+    anchorY?: number;
+  },
+  baseWidth = 1920,
+  baseHeight = 1080,
+  _isProp = false,
+): CharacterPlacement {
+  const p = resolveSpritePlacement(instr, baseWidth, baseHeight);
+  return { x: p.x, y: p.y };
 }
