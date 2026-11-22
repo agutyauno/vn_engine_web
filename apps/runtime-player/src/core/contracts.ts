@@ -250,6 +250,8 @@ export interface LoadProgramOptions {
   projectId?: string;
   assets?: unknown[];
   startAtTitle?: boolean;
+  /** Đang ở TITLE thì bắt đầu game ngay (người dùng bấm Play ở chế độ Scene). */
+  startGameplay?: boolean;
 }
 
 // Lỗi dùng chung giữa kernel và StorageAdapter: đặt ở contracts để core

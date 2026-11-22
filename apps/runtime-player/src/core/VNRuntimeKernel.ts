@@ -983,7 +983,7 @@ export class VNRuntimeKernel {
       this.vm.jumpToScene(options.scene, { seedCatchUp: true });
     }
 
-    if (this.state.mode === 'STANDBY') {
+    if (this.state.mode === 'STANDBY' || (options?.startGameplay && this.state.mode === 'TITLE')) {
       await this.startNewGame();
       return;
     }

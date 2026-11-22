@@ -182,6 +182,7 @@ window.addEventListener('DOMContentLoaded', async () => {
         ...opts,
         assets: effectiveAssets,
         startAtTitle,
+        startGameplay: opts?.startMode === 'scene',
       });
       if (kernel.getState().mode === 'STANDBY' && !startAtTitle) {
         await kernel.startNewGame();

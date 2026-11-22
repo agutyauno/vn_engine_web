@@ -14,7 +14,7 @@ Houses the runtime player orchestration kernel (`VNRuntimeKernel`), typewriter p
   - `AudioChannelState`, `SaveSlotData`, `BacklogEntry`, `TypewriterSegment`, `DesyncModalData`.
   - `PlayerViewState`, `KernelAdapters`, `PlayerUIActions`, `PlayerUIContract`, `VNRuntimeKernelOptions`.
   - `TitleScreenConfig` (`title`, `version?`, `backgroundUrl?`, `logoUrl?`, `bgmTrack?`): Title data already resolved to URLs/keys (the kernel never sees `AssetRef`). `VNRuntimeKernelOptions.titleConfig?: Partial<TitleScreenConfig>`.
-  - `LoadProgramOptions`: Supports `scene?`, `line?`, `preserveState?`, `projectId?`, `assets?`, and `startAtTitle?: boolean`.
+  - `LoadProgramOptions`: Supports `scene?`, `line?`, `preserveState?`, `projectId?`, `assets?`, `startAtTitle?: boolean`, and `startGameplay?: boolean`.
   - `ToastTone` (`success` | `info` | `error`).
   - `KernelAdapters.storage` optionally exposes `deleteSlot(slotIndex)` and `getMostRecentSave()`. `KernelAdapters.audio` and `AudioAdapterContract` optionally expose `playMusic(track, { loop?, fadeInMs? })` and `stopMusic(fadeOutMs?)` (milliseconds).
   - `PlayerViewState.settings`: `{ textSpeed, autoDelayMs, fontSize: DialogueFontSize, boxOpacity }`.
@@ -43,7 +43,7 @@ Houses the runtime player orchestration kernel (`VNRuntimeKernel`), typewriter p
 - Settings changes replace the `settings`, `audio` and `channelVolumes` objects rather than mutating them, so earlier `getState()` and subscriber snapshots keep their values.
 - Autoplay policy: Browser blocks unprompted audio; the kernel never calls `playMusic` in constructor. Title BGM only plays after `unlockAudio()` (idempotent, triggered by first user gesture on title screen) or upon `returnToTitle()`.
 - Title branding reactivity: `setTitleConfig` replaces the entire title configuration without merging previous fields, trims the title with fallback to 'Visual Novel', and emits state. In `TITLE` mode with audio unlocked, changing `bgmTrack` immediately plays the new track or stops music if removed.
-- Start mode handling: Calling `loadProgram` with `startAtTitle: true` immediately transitions the kernel to `TITLE` mode via `returnToTitle()`, bypassing automatic script progression and new-game startup from `STANDBY`.
+- Start mode handling: Calling `loadProgram` with `startAtTitle: true` immediately transitions the kernel to `TITLE` mode via `returnToTitle()`, bypassing automatic script progression and new-game startup from `STANDBY`. `startGameplay: true` starts a new game when the kernel is on `TITLE` (Play pressed in Scene mode); a plain reload while on `TITLE` stays on the title screen.
 - Toast tone & duration: Toasts auto-dismiss after exactly 2500ms (`TOAST_DURATION_MS`), with semantic tone (`success`, `info`, `error`). Storage quota failure displays an `error` toast.
 - Confirmation guard: When in `GAMEPLAY` mode and dialogue backlog > 0, `quickLoad()` sets `pendingConfirm = 'quick_load_overwrite'` without loading immediately until `confirmPending()` is called. `cancelPending()` resets confirmation.
 - `hasSaveData` state flag reactively reflects whether at least one save exists (slot 0..6), updated on boot, save, and slot deletion.
