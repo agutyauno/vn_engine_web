@@ -17,14 +17,17 @@ Houses the runtime player orchestration kernel (`VNRuntimeKernel`), typewriter p
   - `ToastTone` (`success` | `info` | `error`).
   - `KernelAdapters.storage` optionally exposes `deleteSlot(slotIndex)` and `getMostRecentSave()`. `KernelAdapters.audio` and `AudioAdapterContract` optionally expose `playMusic(track, { loop?, fadeInMs? })` and `stopMusic(fadeOutMs?)` (milliseconds).
   - `PlayerViewState.settings`: `{ textSpeed, autoDelayMs, fontSize: DialogueFontSize, boxOpacity }`.
+  - `PlayerViewState`: State snapshot exposing `mode`, `playbackMode`, `dialogue`, `settings`, `audio`, `backlog`, `saveSlots`, `quickSaveSlot`, `titleConfig: TitleScreenConfig`, `hasSaveData: boolean`, `pendingConfirm: 'quick_load_overwrite' | null`, and `activeToast: { message: string; id: number; tone: ToastTone } | null`.
   - `PlayerUIActions` settings actions: `setAudioVolume`, `toggleMute`, `setTextSpeed`, `setAutoDelay`, `setFontSize(size)`, `setBoxOpacity(opacity)`, `restoreDefaultSettings()`.
+  - `PlayerUIActions` lifecycle & quick actions: `continueGame(): Promise<void>`, `deleteSlot(slotIndex: number): Promise<void>`, `confirmPending(): Promise<void>`, `cancelPending(): void`, `unlockAudio(): void`, `showToast(message: string, tone?: ToastTone): void`.
 - Functions:
   - `stripControlTags(rawText: string): string`: Removes formatting tags for clean backlog display.
   - `parseTypewriterSegments(rawText: string): TypewriterSegment[]`: Splits dialogue text into segments with pause, speed, and color metadata.
 - Classes:
-  - `StorageQuotaError` (in `contracts.ts`): Thrown by the storage adapter when `localStorage` is full. The kernel catches it in `saveSlot`/`quickSave`, shows a toast, and leaves save state unchanged. `adapters/StorageAdapter` re-exports it.
+  - `StorageQuotaError` (in `contracts.ts`): Thrown by the storage adapter when `localStorage` is full. The kernel catches it in `saveSlot`/`quickSave`, shows a toast with 'error' tone, and leaves save state unchanged. `adapters/StorageAdapter` re-exports it.
   - `VNRuntimeKernel`: Engine kernel coordinating VM execution, timer management, adapters, and UI subscription.
     Settings methods: `setAudioVolume(channel, volume)` (`master` plus aliases `sfx` -> `sound`, `bgm` -> `music`), `toggleMute()`, `setTextSpeed()`, `setAutoDelay()`, `setFontSize()`, `setBoxOpacity()`, `restoreDefaultSettings()`. Each one persists through `storage.saveSettings` and emits once.
+    Lifecycle & quick methods: `startNewGame()`, `continueGame()`, `returnToTitle()`, `unlockAudio()`, `saveSlot()`, `loadSlot()`, `deleteSlot()`, `quickSave()`, `quickLoad()`, `confirmPending()`, `cancelPending()`.
 
 ## Invariants
 
@@ -37,6 +40,10 @@ Houses the runtime player orchestration kernel (`VNRuntimeKernel`), typewriter p
 - Master volume lives in `audio.masterVolume`, never in `audio.channelVolumes`. Channel aliases are canonicalized before they reach state or the adapter.
 - The `ambience` channel stays at 1.0 on boot, is not persisted, and `restoreDefaultSettings()` leaves it unchanged.
 - Settings changes replace the `settings`, `audio` and `channelVolumes` objects rather than mutating them, so earlier `getState()` and subscriber snapshots keep their values.
+- Autoplay policy: Browser blocks unprompted audio; the kernel never calls `playMusic` in constructor. Title BGM only plays after `unlockAudio()` (idempotent, triggered by first user gesture on title screen) or upon `returnToTitle()`.
+- Toast tone & duration: Toasts auto-dismiss after exactly 2500ms (`TOAST_DURATION_MS`), with semantic tone (`success`, `info`, `error`). Storage quota failure displays an `error` toast.
+- Confirmation guard: When in `GAMEPLAY` mode and dialogue backlog > 0, `quickLoad()` sets `pendingConfirm = 'quick_load_overwrite'` without loading immediately until `confirmPending()` is called. `cancelPending()` resets confirmation.
+- `hasSaveData` state flag reactively reflects whether at least one save exists (slot 0..6), updated on boot, save, and slot deletion.
 
 ## Side Effects
 

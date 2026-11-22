@@ -153,7 +153,11 @@ export interface PlayerViewState {
   activeToast: {
     message: string;
     id: number;
+    tone: ToastTone;
   } | null;
+  titleConfig: TitleScreenConfig;
+  hasSaveData: boolean;
+  pendingConfirm: 'quick_load_overwrite' | null;
   audio: AudioChannelState;
   backlog: BacklogEntry[];
   saveSlots: Array<SaveSlotData | null>;
@@ -214,13 +218,18 @@ export interface PlayerUIActions {
   setFontSize: (size: DialogueFontSize) => void;
   setBoxOpacity: (opacity: number) => void;
   restoreDefaultSettings: () => void;
-  showToast: (message: string) => void;
+  showToast: (message: string, tone?: ToastTone) => void;
   saveSlot: (slotIndex: number) => Promise<void>;
   loadSlot: (slotIndex: number) => Promise<void>;
   quickSave: () => Promise<void>;
   quickLoad: () => Promise<void>;
   replayVoice: (assetId: string) => void;
   resolveDesync: (choice: 'continue' | 'restart' | 'cancel') => void;
+  continueGame: () => Promise<void>;
+  deleteSlot: (slotIndex: number) => Promise<void>;
+  confirmPending: () => Promise<void>;
+  cancelPending: () => void;
+  unlockAudio: () => void;
 }
 
 export interface PlayerUIContract {

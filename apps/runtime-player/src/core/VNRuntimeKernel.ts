@@ -15,9 +15,13 @@ import type {
   BacklogEntry,
   VNRuntimeKernelOptions,
   LoadProgramOptions,
+  TitleScreenConfig,
+  ToastTone,
 } from './contracts';
 import { stripControlTags, stripRhythmTags } from './typewriter';
 import { DEFAULT_PLAYER_SETTINGS, StorageQuotaError } from './contracts';
+
+const TOAST_DURATION_MS = 2500;
 
 export class VNRuntimeKernel {
   private vm: VisualNovelVM;
@@ -27,6 +31,7 @@ export class VNRuntimeKernel {
   private subscribers: Set<(state: PlayerViewState) => void> = new Set();
   private seenDialogues: Set<string> = new Set();
   private isAutoPaused = false;
+  private audioUnlocked = false;
   private autoAdvanceTimer: ReturnType<typeof setTimeout> | null = null;
   private waitTimer: ReturnType<typeof setTimeout> | null = null;
   private skipTimer: ReturnType<typeof setTimeout> | null = null;
@@ -50,6 +55,15 @@ export class VNRuntimeKernel {
     const initialQuickSave = this.adapters.storage?.getQuickSave?.() ?? null;
 
     const initialMode = options?.initialMode ?? 'TITLE';
+
+    const rawTitle = options?.titleConfig?.title;
+    const title =
+      typeof rawTitle === 'string' && rawTitle.trim().length > 0 ? rawTitle.trim() : 'Visual Novel';
+    const titleConfig: TitleScreenConfig = {
+      ...options?.titleConfig,
+      title,
+    };
+    const hasSaveData = initialQuickSave !== null || initialSlots.some(s => s !== null);
 
     this.state = {
       mode: initialMode,
@@ -76,6 +90,9 @@ export class VNRuntimeKernel {
         boxOpacity: DEFAULT_PLAYER_SETTINGS.boxOpacity,
       },
       activeToast: null,
+      titleConfig,
+      hasSaveData,
+      pendingConfirm: null,
       audio: {
         masterVolume: DEFAULT_PLAYER_SETTINGS.masterVolume,
         channelVolumes: {
@@ -95,6 +112,11 @@ export class VNRuntimeKernel {
 
     const stored = this.adapters.storage?.getSettings?.() ?? DEFAULT_PLAYER_SETTINGS;
     this.applyPlayerSettings({ ...stored });
+  }
+
+  private refreshHasSaveData(): void {
+    this.state.hasSaveData =
+      this.state.quickSaveSlot !== null || this.state.saveSlots.some(s => s !== null);
   }
 
   /**
@@ -174,8 +196,10 @@ export class VNRuntimeKernel {
 
   public async startNewGame(): Promise<void> {
     this.clearTimers();
+    await this.adapters.audio?.stopMusic?.();
     this.state.mode = 'GAMEPLAY';
     this.state.isAwaitingPauseAdvance = false;
+    this.state.pendingConfirm = null;
     this.isAutoPaused = false;
     await this.runForward();
   }
@@ -189,7 +213,21 @@ export class VNRuntimeKernel {
     this.state.dialogue.isVisible = false;
     this.state.activeChoices = null;
     this.state.activeModal = 'none';
+    this.state.pendingConfirm = null;
     this.emit();
+
+    this.audioUnlocked = true;
+    if (this.state.titleConfig.bgmTrack) {
+      void this.adapters.audio?.playMusic?.(this.state.titleConfig.bgmTrack, { loop: true });
+    }
+  }
+
+  public unlockAudio(): void {
+    if (this.audioUnlocked) return;
+    this.audioUnlocked = true;
+    if (this.state.mode === 'TITLE' && this.state.titleConfig.bgmTrack) {
+      void this.adapters.audio?.playMusic?.(this.state.titleConfig.bgmTrack, { loop: true });
+    }
   }
 
   public async advance(): Promise<void> {
@@ -592,17 +630,18 @@ export class VNRuntimeKernel {
     this.emit();
   }
 
-  public showToast(message: string): void {
+  public showToast(message: string, tone: ToastTone = 'info'): void {
     if (this.toastTimer) {
       clearTimeout(this.toastTimer);
     }
-    this.state.activeToast = { message, id: Date.now() };
+    this.state.activeToast = { message, id: Date.now(), tone };
     this.emit();
 
     this.toastTimer = setTimeout(() => {
       this.state.activeToast = null;
+      this.toastTimer = null;
       this.emit();
-    }, 3000);
+    }, TOAST_DURATION_MS);
   }
 
   public replayVoice(assetId: string): void {
@@ -634,7 +673,10 @@ export class VNRuntimeKernel {
     };
 
     if (!(await this.persistSlot(slotData))) return;
-    this.state.saveSlots[slotIndex - 1] = slotData;
+    const nextSlots = [...this.state.saveSlots];
+    nextSlots[slotIndex - 1] = slotData;
+    this.state.saveSlots = nextSlots;
+    this.refreshHasSaveData();
     this.emit();
   }
 
@@ -648,7 +690,7 @@ export class VNRuntimeKernel {
       return true;
     } catch (err) {
       if (err instanceof StorageQuotaError) {
-        this.showToast('Save failed: storage is full');
+        this.showToast('Save failed: storage is full', 'error');
         return false;
       }
       throw err;
@@ -666,6 +708,10 @@ export class VNRuntimeKernel {
 
     if (!slot) {
       throw new Error(`Save slot ${slotIndex} is empty`);
+    }
+
+    if (this.state.mode === 'TITLE') {
+      await this.adapters.audio?.stopMusic?.();
     }
 
     await this.loadSlotData(slot);
@@ -693,15 +739,90 @@ export class VNRuntimeKernel {
 
     if (!(await this.persistSlot(slotData))) return;
     this.state.quickSaveSlot = slotData;
-    this.emit();
+    this.refreshHasSaveData();
+    this.showToast('Quick saved', 'success');
   }
 
   public async quickLoad(): Promise<void> {
     const slot =
       this.state.quickSaveSlot ?? (await this.adapters.storage?.getQuickSave?.()) ?? null;
 
-    if (!slot) return;
+    if (!slot) {
+      this.showToast('No quick save found', 'info');
+      return;
+    }
+
+    if (this.state.mode === 'GAMEPLAY' && this.state.backlog.length > 0) {
+      this.state.pendingConfirm = 'quick_load_overwrite';
+      this.emit();
+      return;
+    }
+
+    await this.performQuickLoad(slot);
+  }
+
+  private async performQuickLoad(slot: SaveSlotData): Promise<void> {
+    if (this.state.mode === 'TITLE') {
+      await this.adapters.audio?.stopMusic?.();
+    }
     await this.loadSlotData(slot);
+  }
+
+  public async confirmPending(): Promise<void> {
+    if (this.state.pendingConfirm === 'quick_load_overwrite') {
+      this.state.pendingConfirm = null;
+      const slot =
+        this.state.quickSaveSlot ?? (await this.adapters.storage?.getQuickSave?.()) ?? null;
+      if (slot) {
+        await this.performQuickLoad(slot);
+      } else {
+        this.emit();
+      }
+    }
+  }
+
+  public cancelPending(): void {
+    this.state.pendingConfirm = null;
+    this.emit();
+  }
+
+  public async continueGame(): Promise<void> {
+    let mostRecent: SaveSlotData | null = null;
+    if (this.adapters.storage?.getMostRecentSave) {
+      mostRecent = this.adapters.storage.getMostRecentSave();
+    } else {
+      let best: SaveSlotData | null = this.state.quickSaveSlot;
+      for (const slot of this.state.saveSlots) {
+        if (slot && (best === null || slot.timestamp > best.timestamp)) {
+          best = slot;
+        }
+      }
+      mostRecent = best;
+    }
+
+    if (!mostRecent) return;
+
+    await this.adapters.audio?.stopMusic?.();
+    await this.loadSlotData(mostRecent);
+  }
+
+  public async deleteSlot(slotIndex: number): Promise<void> {
+    if (!Number.isInteger(slotIndex) || slotIndex < 0 || slotIndex > 6) {
+      throw new RangeError(`Invalid slot index: ${slotIndex}. Expected 0 (quicksave) or 1-6.`);
+    }
+
+    await this.adapters.storage?.deleteSlot?.(slotIndex);
+
+    if (slotIndex === 0) {
+      this.state.quickSaveSlot = null;
+    } else {
+      const nextSlots = [...this.state.saveSlots];
+      nextSlots[slotIndex - 1] = null;
+      this.state.saveSlots = nextSlots;
+    }
+
+    this.refreshHasSaveData();
+    this.emit();
   }
 
   private async loadSlotData(slot: SaveSlotData): Promise<void> {
@@ -740,6 +861,7 @@ export class VNRuntimeKernel {
 
     this.state.mode = 'GAMEPLAY';
     this.state.activeModal = 'none';
+    this.state.pendingConfirm = null;
     this.pendingRestoreSnapshot = null;
     this.pendingDesyncSlot = null;
     this.emit();
