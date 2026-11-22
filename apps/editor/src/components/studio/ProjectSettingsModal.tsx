@@ -4,8 +4,10 @@ import type {
   ProjectDisplaySettings,
   ProjectEditorSettings,
   ProjectGameplaySettings,
+  ProjectTitleSettings,
 } from '@vn-engine/shared-types';
 import { XIcon, SettingsIcon, CheckIcon } from '../common/Icons';
+import { AssetPickerField } from './AssetPickerField';
 
 export interface ProjectSettingsModalProps {
   isOpen: boolean;
@@ -14,7 +16,44 @@ export interface ProjectSettingsModalProps {
   onSave: (updatedSettings: Project) => void;
 }
 
-export type SettingsTab = 'general' | 'display' | 'editor' | 'gameplay';
+export type SettingsTab = 'general' | 'display' | 'editor' | 'gameplay' | 'branding';
+
+export const setTitleSetting = (
+  prev: Project,
+  key: keyof ProjectTitleSettings,
+  id: string | undefined,
+): Project => {
+  const currentSettings: ProjectTitleSettings = { ...(prev.titleSettings ?? {}) };
+
+  if (id !== undefined) {
+    currentSettings[key] = id;
+  } else {
+    delete currentSettings[key];
+  }
+
+  const remainingKeys = (Object.keys(currentSettings) as (keyof ProjectTitleSettings)[]).filter(
+    k => currentSettings[k] !== undefined,
+  );
+
+  if (remainingKeys.length === 0) {
+    const { titleSettings: _omitted, ...rest } = prev;
+    void _omitted;
+    return rest;
+  }
+
+  const nextTitleSettings: ProjectTitleSettings = {};
+  for (const k of remainingKeys) {
+    const val = currentSettings[k];
+    if (val !== undefined) {
+      nextTitleSettings[k] = val;
+    }
+  }
+
+  return {
+    ...prev,
+    titleSettings: nextTitleSettings,
+  };
+};
 
 export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({
   isOpen,
@@ -72,6 +111,20 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({
     }));
   };
 
+  const backgroundAsset = formData.titleSettings?.backgroundAssetId
+    ? formData.assets?.find(
+        a => a.id === formData.titleSettings?.backgroundAssetId && a.type === 'image',
+      )
+    : undefined;
+
+  const logoAsset = formData.titleSettings?.logoAssetId
+    ? formData.assets?.find(a => a.id === formData.titleSettings?.logoAssetId && a.type === 'image')
+    : undefined;
+
+  const previewBgUrl = backgroundAsset?.storageUrl
+    ? backgroundAsset.storageUrl.replace(/["\\\r\n]/g, '')
+    : undefined;
+
   return (
     <div
       data-testid="modal-project-settings"
@@ -113,6 +166,19 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({
               }`}
             >
               <span>General</span>
+            </button>
+
+            <button
+              type="button"
+              data-testid="tab-settings-branding"
+              onClick={() => setActiveTab('branding')}
+              className={`w-full flex items-center gap-2 rounded px-3 py-2 text-xs font-medium text-left transition ${
+                activeTab === 'branding'
+                  ? 'bg-neutral-800 text-white'
+                  : 'text-neutral-400 hover:bg-neutral-900 hover:text-neutral-200'
+              }`}
+            >
+              <span>Branding</span>
             </button>
 
             <button
@@ -206,6 +272,68 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({
                   <span className="text-[10px] text-neutral-500 mt-1 block">
                     The starting script file loaded when the story begins.
                   </span>
+                </div>
+              </div>
+            )}
+
+            {/* Branding Tab */}
+            {activeTab === 'branding' && (
+              <div data-testid="settings-panel-branding" className="space-y-5">
+                <div>
+                  <label className="block text-xs font-medium text-neutral-300 mb-2">
+                    Title Screen Preview
+                  </label>
+                  <div
+                    data-testid="branding-title-preview"
+                    style={previewBgUrl ? { backgroundImage: `url("${previewBgUrl}")` } : undefined}
+                    className="relative flex aspect-video w-full max-w-sm items-center justify-center rounded-lg border border-neutral-800 bg-neutral-950 bg-cover bg-center overflow-hidden p-4 shadow-inner"
+                  >
+                    {logoAsset ? (
+                      <img
+                        src={logoAsset.storageUrl}
+                        alt={formData.title}
+                        className="max-h-16 max-w-full object-contain drop-shadow-md"
+                      />
+                    ) : (
+                      <span className="text-xs font-semibold text-white drop-shadow-md text-center px-4 truncate max-w-full">
+                        {formData.title}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div data-testid="branding-field-logo">
+                    <AssetPickerField
+                      label="Logo"
+                      accept="image"
+                      assets={formData.assets ?? []}
+                      value={formData.titleSettings?.logoAssetId}
+                      onChange={id => setFormData(prev => setTitleSetting(prev, 'logoAssetId', id))}
+                    />
+                  </div>
+
+                  <div data-testid="branding-field-background">
+                    <AssetPickerField
+                      label="Background"
+                      accept="image"
+                      assets={formData.assets ?? []}
+                      value={formData.titleSettings?.backgroundAssetId}
+                      onChange={id =>
+                        setFormData(prev => setTitleSetting(prev, 'backgroundAssetId', id))
+                      }
+                    />
+                  </div>
+
+                  <div data-testid="branding-field-bgm">
+                    <AssetPickerField
+                      label="Title Music"
+                      accept="audio"
+                      assets={formData.assets ?? []}
+                      value={formData.titleSettings?.bgmAssetId}
+                      onChange={id => setFormData(prev => setTitleSetting(prev, 'bgmAssetId', id))}
+                    />
+                  </div>
                 </div>
               </div>
             )}

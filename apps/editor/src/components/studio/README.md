@@ -19,7 +19,7 @@ Core visual novel authoring studio workspace. Integrates the 3-column director w
 - `DockDrawer`: Resizable bottom dock drawer (`DockDrawerProps`, `DrawerTab`)
 - `DockProblemsTable`: Interactive diagnostics problems table with quick fixes (`DockProblemsTableProps`, `DiagnosticItem`)
 - `PreviewDock`: Live sandbox player dock (`PreviewDockProps`, `formatAspectRatioString`, `isAllowedPreviewOrigin`, `buildPreviewUrl`)
-- `ProjectSettingsModal`: Comprehensive project configuration modal (`ProjectSettingsModalProps`, `SettingsTab`)
+- `ProjectSettingsModal`: Comprehensive project configuration modal managing General, Branding (`titleSettings`), Display, Editor, and Gameplay tabs (`ProjectSettingsModalProps`, `SettingsTab`)
 - `ExportWizardModal`: Release packaging modal for Web, Desktop, and backup formats (`ExportWizardModalProps`, `ExportTarget`)
 - `ColumnSplitter`: Resizable drag handle splitter for workspace panels (`ColumnSplitterProps`)
 - `UnsavedChangesModal`: Navigation guard modal preventing data loss (`UnsavedChangesModalProps`)
@@ -35,6 +35,7 @@ Core visual novel authoring studio workspace. Integrates the 3-column director w
 - Navigation away from dirty workspace triggers unsaved changes modal guard.
 - `AssetSelectorModal` filters assets strictly by type (`accept`) and performs case-insensitive name filtering.
 - `AssetPickerField` displays 'Missing asset' when referencing a deleted or nonexistent asset ID.
+- `ProjectSettingsModal` Branding tab edits `titleSettings` (logo, background, BGM) and omits the property entirely if all entries are cleared.
 
 ## Side Effects
 
