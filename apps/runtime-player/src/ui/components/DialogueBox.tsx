@@ -25,6 +25,11 @@ export function DialogueBox(props: DialogueBoxProps): JSX.Element {
     },
   });
 
+  const fontSize = state.settings.fontSize ?? 'medium';
+  const boxStyle: JSX.CSSProperties = {
+    '--vn-dialogue-opacity': String(state.settings.boxOpacity ?? 0.85),
+  };
+
   const handleClick = () => {
     if (!isComplete && typewriter.isTyping) {
       typewriter.skipTypewriter();
@@ -45,6 +50,7 @@ export function DialogueBox(props: DialogueBoxProps): JSX.Element {
     <div
       id="dialogue-box"
       className="dialogue-box"
+      style={boxStyle}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       role="button"
@@ -54,7 +60,7 @@ export function DialogueBox(props: DialogueBoxProps): JSX.Element {
       <span className="sr-only" style={{ display: 'none' }} aria-hidden="false">
         {stripControlTags(text)}
       </span>
-      <div id="dialogue-text" className="dialogue-text">
+      <div id="dialogue-text" className={`dialogue-text font-${fontSize}`}>
         {typewriter.segments.map((seg, index) => {
           if (seg.color) {
             return (

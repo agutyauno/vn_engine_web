@@ -341,7 +341,8 @@ body.is-embedded #game-root {
 
 /* HỘP THOẠI CHÍNH (DIALOGUE BOX) */
 .dialogue-box {
-  background: var(--vn-panel-bg);
+  /* Độ mờ nền điều khiển bởi settings.boxOpacity (DialogueBox gán --vn-dialogue-opacity inline) */
+  background: rgba(0, 0, 0, var(--vn-dialogue-opacity, 0.85));
   border: var(--vn-border-width) solid rgba(255, 255, 255, 0.28);
   border-radius: var(--vn-radius-base);
   padding: 20px 26px 16px 26px;
@@ -373,6 +374,19 @@ body.is-embedded #game-root {
   white-space: pre-wrap;
   font-weight: 400;
   letter-spacing: 0.2px;
+}
+
+/* CỠ CHỮ THOẠI THEO settings.fontSize (medium = --vn-font-size-dialogue mặc định 1.15rem) */
+.dialogue-text.font-small {
+  font-size: 1rem;
+}
+
+.dialogue-text.font-medium {
+  font-size: var(--vn-font-size-dialogue);
+}
+
+.dialogue-text.font-large {
+  font-size: 1.35rem;
 }
 
 /* CON TRỎ CHỜ TIẾP TỤC (NEXT INDICATOR) - CĂN GÓC DƯỚI BÊN PHẢI */
