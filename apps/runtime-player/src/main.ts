@@ -24,6 +24,7 @@ import {
   isAllowedEditorOrigin,
   hydrateForeignAssetBlobs,
 } from './adapters/PreviewBridgeAdapter';
+import { resolveTitleConfig } from './adapters/titleConfigResolver';
 import { PlayerUIProvider } from './ui/context/PlayerUIContext';
 import { PlayerApp } from './ui/components/PlayerApp';
 
@@ -171,8 +172,18 @@ window.addEventListener('DOMContentLoaded', async () => {
         };
         assetResolver.resetWarnedAssets();
       }
-      await kernel.loadProgram(newProgram, opts ? { ...opts, assets: effectiveAssets } : undefined);
-      if (kernel.getState().mode === 'STANDBY') {
+      if (opts?.title !== undefined || opts?.titleSettings !== undefined) {
+        kernel.setTitleConfig(
+          resolveTitleConfig(opts.title, opts.titleSettings, effectiveAssets ?? []),
+        );
+      }
+      const startAtTitle = opts?.startMode === 'title';
+      await kernel.loadProgram(newProgram, {
+        ...opts,
+        assets: effectiveAssets,
+        startAtTitle,
+      });
+      if (kernel.getState().mode === 'STANDBY' && !startAtTitle) {
         await kernel.startNewGame();
       }
     },

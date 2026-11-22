@@ -249,6 +249,7 @@ export interface LoadProgramOptions {
   preserveState?: boolean;
   projectId?: string;
   assets?: unknown[];
+  startAtTitle?: boolean;
 }
 
 // Lỗi dùng chung giữa kernel và StorageAdapter: đặt ở contracts để core
