@@ -1,7 +1,13 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
-import type { Project, AssetRef, Instruction, EngineDiagnostic } from '@vn-engine/shared-types';
+import type {
+  Project,
+  AssetRef,
+  Instruction,
+  EngineDiagnostic,
+  ProjectTitleSettings,
+} from '@vn-engine/shared-types';
 import { useCompilerPipeline } from '../../src/hooks/useCompilerPipeline';
 import { useProjectStore } from '../../src/core/stores/projectStore';
 import { useDiagnosticsStore } from '../../src/core/stores/diagnosticsStore';
@@ -246,5 +252,56 @@ describe('useCompilerPipeline Hook (Phase 2)', () => {
 
     // 2. Synchronous regex scanning on main thread must NOT be called for compilation
     expect(generateDiagnosticsSpy).not.toHaveBeenCalled();
+  });
+
+  it('dispatches hotReload with project title and titleSettings when project has branding settings, omitting startMode', async () => {
+    const titleSettings: ProjectTitleSettings = {
+      logoAssetId: 'asset-logo-1',
+      backgroundAssetId: 'asset-bg-1',
+      bgmAssetId: 'asset-bgm-1',
+    };
+
+    useProjectStore.getState().initProject({
+      ...sampleProject,
+      title: 'Branded Pipeline Novel',
+      titleSettings,
+    });
+
+    renderHook(() =>
+      useCompilerPipeline({
+        compilerService: mockCompilerService as unknown as CompilerService,
+        previewBridge: mockPreviewBridge as unknown as PreviewBridge,
+        debounceMs: 50,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(mockPreviewBridge.hotReload).toHaveBeenCalled();
+    });
+
+    const callPayload = mockPreviewBridge.hotReload.mock.calls[0]![0];
+    expect(callPayload.title).toBe('Branded Pipeline Novel');
+    expect(callPayload.titleSettings).toEqual(titleSettings);
+    expect(callPayload).not.toHaveProperty('startMode');
+  });
+
+  it('omits titleSettings from hotReload payload when project does not have titleSettings', async () => {
+    // sampleProject does not specify titleSettings
+    renderHook(() =>
+      useCompilerPipeline({
+        compilerService: mockCompilerService as unknown as CompilerService,
+        previewBridge: mockPreviewBridge as unknown as PreviewBridge,
+        debounceMs: 50,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(mockPreviewBridge.hotReload).toHaveBeenCalled();
+    });
+
+    const callPayload = mockPreviewBridge.hotReload.mock.calls[0]![0];
+    expect(callPayload.title).toBe(sampleProject.title);
+    expect(callPayload).not.toHaveProperty('titleSettings');
+    expect(callPayload).not.toHaveProperty('startMode');
   });
 });
