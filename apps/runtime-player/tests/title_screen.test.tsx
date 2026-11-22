@@ -318,7 +318,7 @@ describe('TitleScreen component (Phase T5 RED)', () => {
       const { unmount } = renderTitleScreen({}, actions);
 
       unmount();
-      actions.unlockAudio.mockClear();
+      vi.mocked(actions.unlockAudio).mockClear();
 
       fireEvent.keyDown(window, { key: 'Enter', code: 'Enter' });
       expect(actions.unlockAudio).not.toHaveBeenCalled();
