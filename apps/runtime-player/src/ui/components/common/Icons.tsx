@@ -231,3 +231,50 @@ export function BookOpenIcon({ size = 24, className }: IconProps): JSX.Element {
     </svg>
   );
 }
+
+export function VolumeMuteIcon({ size = 24, className }: IconProps): JSX.Element {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+      <line x1="23" y1="9" x2="17" y2="15" />
+      <line x1="17" y1="9" x2="23" y2="15" />
+    </svg>
+  );
+}
+
+export function KeyboardIcon({ size = 24, className }: IconProps): JSX.Element {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <rect x="2" y="4" width="20" height="16" rx="2" />
+      <line x1="6" y1="8" x2="6.01" y2="8" />
+      <line x1="10" y1="8" x2="10.01" y2="8" />
+      <line x1="14" y1="8" x2="14.01" y2="8" />
+      <line x1="18" y1="8" x2="18.01" y2="8" />
+      <line x1="6" y1="12" x2="6.01" y2="12" />
+      <line x1="10" y1="12" x2="10.01" y2="12" />
+      <line x1="14" y1="12" x2="14.01" y2="12" />
+      <line x1="18" y1="12" x2="18.01" y2="12" />
+      <line x1="7" y1="16" x2="17" y2="16" />
+    </svg>
+  );
+}
