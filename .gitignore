@@ -141,4 +141,6 @@ dist/
 
 .agents/
 AGENTS.md
+.claude/
+CLAUDE.md
 docs/tasks/
