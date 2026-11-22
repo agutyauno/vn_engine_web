@@ -208,3 +208,16 @@ export interface LoadProgramOptions {
   projectId?: string;
   assets?: unknown[];
 }
+
+// Lỗi dùng chung giữa kernel và StorageAdapter: đặt ở contracts để core
+// không phụ thuộc vào một adapter cụ thể.
+/** Ném khi localStorage đầy quota; KHÔNG bật memory fallback (TASK-PLY-SAVEFIX). */
+export class StorageQuotaError extends Error {
+  public readonly key: string;
+
+  constructor(key: string) {
+    super(`Storage quota exceeded while writing "${key}"`);
+    this.key = key;
+    this.name = 'StorageQuotaError';
+  }
+}

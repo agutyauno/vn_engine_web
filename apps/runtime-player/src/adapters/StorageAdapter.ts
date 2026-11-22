@@ -4,11 +4,27 @@
 // Phân vùng khóa theo Project ID & Chế độ Preview, kèm Sandboxed MemoryStorage Fallback
 // ============================================================================
 
-import type { SaveSlotData } from '../core/contracts';
+import { StorageQuotaError, type SaveSlotData } from '../core/contracts';
+
+// Re-export để bên ngoài vẫn import được từ adapter như trước.
+export { StorageQuotaError };
 
 export interface StorageAdapterOptions {
   projectId?: string;
   isPreview?: boolean;
+}
+
+/** Nhận diện lỗi quota trên Chromium, Firefox và Safari. */
+export function isQuotaExceededError(err: unknown): boolean {
+  if (typeof DOMException === 'undefined' || !(err instanceof DOMException)) {
+    return false;
+  }
+  return (
+    err.name === 'QuotaExceededError' ||
+    err.name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
+    err.code === 22 ||
+    err.code === 1014
+  );
 }
 
 class MemoryStorage {
@@ -83,7 +99,10 @@ export class StorageAdapter {
         localStorage.setItem(key, value);
         return;
       }
-    } catch {
+    } catch (err) {
+      if (isQuotaExceededError(err)) {
+        throw new StorageQuotaError(key);
+      }
       this.useMemoryFallback = true;
       this.memoryStorage.setItem(key, value);
     }
@@ -113,15 +132,39 @@ export class StorageAdapter {
   }
 
   /**
-   * Lưu slot vào vị trí tương ứng (slotIndex 1-6)
+   * Ghi slot; nếu đầy quota thì thử lại đúng 1 lần với slot đã tước thumbnail.
+   * Lần thử lại vẫn lỗi sẽ ném StorageQuotaError cho bên gọi.
+   */
+  private writeWithThumbnailFallback(
+    slotData: SaveSlotData,
+    write: (slot: SaveSlotData) => void,
+  ): void {
+    try {
+      write(slotData);
+    } catch (err) {
+      if (!(err instanceof StorageQuotaError)) throw err;
+      write({ ...slotData, thumbnailDataUrl: '' });
+    }
+  }
+
+  /**
+   * Lưu slot vào vị trí tương ứng (slotIndex 0 là quicksave, 1-6 là regular slots).
+   * Index khác ném RangeError trước khi ghi.
    */
   public async saveSlot(slotData: SaveSlotData): Promise<void> {
-    const slots = this.getSlots();
-    const idx = slotData.slotIndex - 1;
-    if (idx >= 0 && idx < 6) {
-      slots[idx] = slotData;
-      this.safeSet(this.slotsKey, JSON.stringify(slots));
+    const { slotIndex } = slotData;
+    if (slotIndex === 0) {
+      return this.saveQuickSave(slotData);
     }
+    if (!Number.isInteger(slotIndex) || slotIndex < 1 || slotIndex > 6) {
+      throw new RangeError(`Invalid slot index: ${slotIndex}. Expected 0 (quicksave) or 1-6.`);
+    }
+    const idx = slotIndex - 1;
+    this.writeWithThumbnailFallback(slotData, slot => {
+      const slots = this.getSlots();
+      slots[idx] = slot;
+      this.safeSet(this.slotsKey, JSON.stringify(slots));
+    });
   }
 
   /**
@@ -150,7 +193,9 @@ export class StorageAdapter {
   }
 
   public async saveQuickSave(slotData: SaveSlotData): Promise<void> {
-    this.safeSet(this.quickKey, JSON.stringify(slotData));
+    this.writeWithThumbnailFallback(slotData, slot => {
+      this.safeSet(this.quickKey, JSON.stringify(slot));
+    });
   }
 
   public getSeenDialogues(): Set<string> {
@@ -170,10 +215,20 @@ export class StorageAdapter {
   public saveSeenDialogue(key: string): void {
     const set = this.getSeenDialogues();
     set.add(key);
-    this.safeSet(this.seenKey, JSON.stringify(Array.from(set)));
+    this.writeSeen(set);
   }
 
   public saveSeenDialogues(seenSet: Set<string>): void {
-    this.safeSet(this.seenKey, JSON.stringify(Array.from(seenSet)));
+    this.writeSeen(seenSet);
+  }
+
+  private writeSeen(seenSet: Set<string>): void {
+    try {
+      this.safeSet(this.seenKey, JSON.stringify(Array.from(seenSet)));
+    } catch (err) {
+      // Seen dialogues chỉ là tiện ích (skip đã đọc): đầy quota thì bỏ qua lần ghi này,
+      // không để lỗi làm crash luồng thoại.
+      if (!(err instanceof StorageQuotaError)) throw err;
+    }
   }
 }

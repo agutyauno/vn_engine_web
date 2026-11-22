@@ -16,6 +16,7 @@ Houses the runtime player orchestration kernel (`VNRuntimeKernel`), typewriter p
   - `stripControlTags(rawText: string): string`: Removes formatting tags for clean backlog display.
   - `parseTypewriterSegments(rawText: string): TypewriterSegment[]`: Splits dialogue text into segments with pause, speed, and color metadata.
 - Classes:
+  - `StorageQuotaError` (in `contracts.ts`): Thrown by the storage adapter when `localStorage` is full. The kernel catches it in `saveSlot`/`quickSave`, shows a toast, and leaves save state unchanged. `adapters/StorageAdapter` re-exports it.
   - `VNRuntimeKernel`: Engine kernel coordinating VM execution, timer management, adapters, and UI subscription.
 
 ## Invariants

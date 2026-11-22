@@ -18,7 +18,8 @@ Provides decoupled integration adapters connecting the engine kernel to browser 
 
 - `PreviewBridgeAdapter` validates origin security and throttles state update broadcasts to 60ms.
 - `RendererAdapter.captureThumbnail` catches canvas security/taint errors and returns a fallback SVG data URL.
-- `StorageAdapter` automatically falls back to sandboxed `MemoryStorage` if `localStorage` throws quota or security exceptions.
+- `StorageAdapter` slot 0 is the quick save in both directions: `saveSlot({ slotIndex: 0 })` writes the `_quicksave` key, mirroring `loadSlot(0)`. Indices outside 0..6 (or non-integers) make `saveSlot` throw `RangeError` before anything is written.
+- `StorageAdapter` falls back to sandboxed `MemoryStorage` only when `localStorage` is blocked (`SecurityError` and other non-quota errors). A quota error (`isQuotaExceededError`) never enables the fallback: `saveSlot`/`saveQuickSave` retry once with the saved slot's `thumbnailDataUrl` set to `''`, then throw `StorageQuotaError`. Seen-dialogue writes ignore quota errors.
 - `AssetResolverAdapter` warns on missing assets once per asset key to prevent diagnostic flooding.
 
 ## Side Effects

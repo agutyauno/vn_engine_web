@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { StorageAdapter } from '../src/adapters/StorageAdapter';
+import {
+  StorageAdapter,
+  StorageQuotaError,
+  isQuotaExceededError,
+} from '../src/adapters/StorageAdapter';
 import type { SaveSlotData } from '../src/core/contracts';
 
 describe('StorageAdapter', () => {
@@ -264,6 +268,241 @@ describe('StorageAdapter', () => {
 
       expect(adapter.getSlots()).toHaveLength(6);
       expect(adapter.getSeenDialogues().size).toBe(0);
+    });
+  });
+});
+
+// ============================================================================
+// TASK-PLY-SAVEFIX: save persistence fixes (TC-SAVE-03..06, 08, 09)
+// Dùng localStorage THẬT của jsdom (gắn trong tests/setup.ts, không stub) để không
+// che bug định tuyến/quota.
+// ============================================================================
+
+describe('save persistence fixes', () => {
+  const PREFIX = 'vn_engine_player_p1';
+  const SLOTS_KEY = `${PREFIX}_save_slots`;
+  const QUICK_KEY = `${PREFIX}_quicksave`;
+  const SEEN_KEY = `${PREFIX}_seen_dialogues`;
+
+  function makeSlot(slotIndex: number, overrides: Partial<SaveSlotData> = {}): SaveSlotData {
+    return {
+      slotIndex,
+      timestamp: 1000 + slotIndex,
+      thumbnailDataUrl: `data:image/jpeg;base64,thumb${slotIndex}`,
+      currentScene: 'intro',
+      previewText: `Slot ${slotIndex}`,
+      dialogueCounter: slotIndex,
+      serializedState: `{"slot":${slotIndex}}`,
+      ...overrides,
+    };
+  }
+
+  function snapshotLocalStorage(): Record<string, string | null> {
+    const snapshot: Record<string, string | null> = {};
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key !== null) snapshot[key] = localStorage.getItem(key);
+    }
+    return snapshot;
+  }
+
+  function parseSlots(raw: string | null): Array<SaveSlotData | null> {
+    expect(raw).not.toBeNull();
+    const parsed: unknown = JSON.parse(raw ?? 'null');
+    expect(Array.isArray(parsed)).toBe(true);
+    return parsed as Array<SaveSlotData | null>;
+  }
+
+  /** setItem ném QuotaExceededError ở lần gọi đầu, sau đó ghi thật. */
+  function failFirstSetItemWithQuota(): void {
+    const originalSetItem = Storage.prototype.setItem;
+    let calls = 0;
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (
+      this: Storage,
+      key: string,
+      value: string,
+    ) {
+      calls += 1;
+      if (calls === 1) {
+        throw new DOMException('quota', 'QuotaExceededError');
+      }
+      originalSetItem.call(this, key, value);
+    });
+  }
+
+  beforeEach(() => {
+    // Gỡ các stub localStorage của describe phía trên, quay về Storage thật của jsdom.
+    vi.unstubAllGlobals();
+    localStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    localStorage.clear();
+    vi.unstubAllGlobals();
+  });
+
+  it('[TC-SAVE-03] saveSlot({ slotIndex: 0 }) routes to the quicksave key and leaves regular slots empty', async () => {
+    const adapter = new StorageAdapter({ projectId: 'p1', isPreview: false });
+    const quick = makeSlot(0);
+
+    await adapter.saveSlot(quick);
+
+    const raw = localStorage.getItem(QUICK_KEY);
+    expect(raw).not.toBeNull();
+    expect(JSON.parse(raw ?? 'null')).toEqual(quick);
+    expect(adapter.getQuickSave()).toEqual(quick);
+    expect(await adapter.loadSlot(0)).toEqual(quick);
+
+    const slots = adapter.getSlots();
+    expect(slots).toHaveLength(6);
+    expect(slots.every(s => s === null)).toBe(true);
+  });
+
+  it.each([7, -1, 1.5])(
+    '[TC-SAVE-04] saveSlot with invalid slotIndex %s rejects RangeError and leaves localStorage untouched',
+    async badIndex => {
+      const adapter = new StorageAdapter({ projectId: 'p1', isPreview: false });
+      await adapter.saveSlot(makeSlot(2));
+      const before = snapshotLocalStorage();
+
+      await expect(adapter.saveSlot(makeSlot(badIndex))).rejects.toBeInstanceOf(RangeError);
+
+      expect(snapshotLocalStorage()).toEqual(before);
+    },
+  );
+
+  it('[TC-SAVE-05] quota error on first write retries without thumbnail and keeps using real localStorage', async () => {
+    const adapter = new StorageAdapter({ projectId: 'p1', isPreview: false });
+    failFirstSetItemWithQuota();
+
+    const slot = makeSlot(1);
+    await expect(adapter.saveSlot(slot)).resolves.toBeUndefined();
+
+    const stored = parseSlots(localStorage.getItem(SLOTS_KEY));
+    expect(stored[0]).toEqual({ ...slot, thumbnailDataUrl: '' });
+    expect(adapter.getSlots()[0]?.thumbnailDataUrl).toBe('');
+
+    // Fallback memory KHÔNG được bật: lần ghi sau vẫn đi vào localStorage thật.
+    adapter.saveSeenDialogue('intro#0');
+    const seenRaw = localStorage.getItem(SEEN_KEY);
+    expect(seenRaw).not.toBeNull();
+    expect(JSON.parse(seenRaw ?? '[]')).toEqual(['intro#0']);
+  });
+
+  it('[TC-SAVE-05] quota retry only strips the thumbnail of the slot being saved', async () => {
+    const adapter = new StorageAdapter({ projectId: 'p1', isPreview: false });
+    const existing = makeSlot(2);
+    await adapter.saveSlot(existing);
+    failFirstSetItemWithQuota();
+
+    await adapter.saveSlot(makeSlot(1));
+
+    const stored = parseSlots(localStorage.getItem(SLOTS_KEY));
+    expect(stored[0]?.thumbnailDataUrl).toBe('');
+    expect(stored[1]).toEqual(existing);
+  });
+
+  it('[TC-SAVE-05] saveQuickSave retries without thumbnail on first quota error', async () => {
+    const adapter = new StorageAdapter({ projectId: 'p1', isPreview: false });
+    failFirstSetItemWithQuota();
+
+    const quick = makeSlot(0);
+    await expect(adapter.saveQuickSave(quick)).resolves.toBeUndefined();
+
+    const raw = localStorage.getItem(QUICK_KEY);
+    expect(raw).not.toBeNull();
+    expect(JSON.parse(raw ?? 'null')).toEqual({ ...quick, thumbnailDataUrl: '' });
+  });
+
+  it('[TC-SAVE-06] saveSlot and saveQuickSave reject StorageQuotaError when quota is always exceeded', async () => {
+    const adapter = new StorageAdapter({ projectId: 'p1', isPreview: false });
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('quota', 'QuotaExceededError');
+    });
+
+    await expect(adapter.saveSlot(makeSlot(1))).rejects.toBeInstanceOf(StorageQuotaError);
+    await expect(adapter.saveQuickSave(makeSlot(0))).rejects.toBeInstanceOf(StorageQuotaError);
+    await expect(adapter.saveSlot(makeSlot(0))).rejects.toBeInstanceOf(StorageQuotaError);
+
+    // Không chuyển âm thầm sang memory: không có slot "ma" nào được đọc lại.
+    expect(adapter.getSlots()[0]).toBeNull();
+    expect(adapter.getQuickSave()).toBeNull();
+  });
+
+  it('[TC-SAVE-06] StorageQuotaError carries the key and a stable name', async () => {
+    const adapter = new StorageAdapter({ projectId: 'p1', isPreview: false });
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('quota', 'QuotaExceededError');
+    });
+
+    let caught: unknown = null;
+    try {
+      await adapter.saveSlot(makeSlot(1));
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(StorageQuotaError);
+    expect(caught).toBeInstanceOf(Error);
+    if (caught instanceof StorageQuotaError) {
+      expect(caught.name).toBe('StorageQuotaError');
+      expect(caught.key).toBe(SLOTS_KEY);
+    }
+  });
+
+  it('[TC-SAVE-08] SecurityError on setItem still falls back to memory without throwing', async () => {
+    const adapter = new StorageAdapter({ projectId: 'p1', isPreview: false });
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('blocked', 'SecurityError');
+    });
+
+    const slot = makeSlot(1);
+    await expect(adapter.saveSlot(slot)).resolves.toBeUndefined();
+    expect(await adapter.loadSlot(1)).toEqual(slot);
+
+    const quick = makeSlot(0);
+    await expect(adapter.saveQuickSave(quick)).resolves.toBeUndefined();
+    expect(adapter.getQuickSave()).toEqual(quick);
+
+    expect(() => adapter.saveSeenDialogue('intro#0')).not.toThrow();
+    expect(adapter.getSeenDialogues().has('intro#0')).toBe(true);
+  });
+
+  describe('[TC-SAVE-09] isQuotaExceededError', () => {
+    function domExceptionWithCode(name: string, code: number): DOMException {
+      const err = new DOMException('quota', name);
+      Object.defineProperty(err, 'code', { value: code, configurable: true });
+      return err;
+    }
+
+    it('returns true for Chromium QuotaExceededError', () => {
+      expect(isQuotaExceededError(new DOMException('quota', 'QuotaExceededError'))).toBe(true);
+    });
+
+    it('returns true for Firefox NS_ERROR_DOM_QUOTA_REACHED', () => {
+      expect(isQuotaExceededError(new DOMException('quota', 'NS_ERROR_DOM_QUOTA_REACHED'))).toBe(
+        true,
+      );
+    });
+
+    it('returns true for a DOMException with legacy code 22 and a non-standard name', () => {
+      const err = domExceptionWithCode('LegacyQuotaError', 22);
+      expect(err.code).toBe(22);
+      expect(isQuotaExceededError(err)).toBe(true);
+    });
+
+    it('returns true for a DOMException with Firefox code 1014', () => {
+      const err = domExceptionWithCode('LegacyFirefoxQuota', 1014);
+      expect(err.code).toBe(1014);
+      expect(isQuotaExceededError(err)).toBe(true);
+    });
+
+    it('returns false for a plain Error, SecurityError, and non-error values', () => {
+      expect(isQuotaExceededError(new Error('QuotaExceededError'))).toBe(false);
+      expect(isQuotaExceededError(new DOMException('blocked', 'SecurityError'))).toBe(false);
+      expect(isQuotaExceededError({ name: 'QuotaExceededError', code: 22 })).toBe(false);
+      expect(isQuotaExceededError(null)).toBe(false);
+      expect(isQuotaExceededError(undefined)).toBe(false);
     });
   });
 });
