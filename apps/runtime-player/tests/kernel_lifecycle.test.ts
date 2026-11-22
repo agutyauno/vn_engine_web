@@ -11,11 +11,7 @@ import { render, cleanup, act } from '@testing-library/preact';
 import type { Instruction } from '@vn-engine/shared-types';
 import { VNRuntimeKernel } from '../src/core/VNRuntimeKernel';
 import { StorageAdapter, StorageQuotaError } from '../src/adapters/StorageAdapter';
-import type {
-  KernelAdapters,
-  PlayerViewState,
-  PlayerUIActions,
-} from '../src/core/contracts';
+import type { KernelAdapters, PlayerViewState, PlayerUIActions } from '../src/core/contracts';
 import {
   PlayerUIProvider,
   usePlayerActions,
