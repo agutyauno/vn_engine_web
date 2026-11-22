@@ -9,6 +9,8 @@ Provides decoupled integration adapters connecting the engine kernel to browser 
 - `ProjectDataAsset`, `ProjectDataCharacter`, `ProjectData`: Contract interfaces for project asset metadata.
 - `AssetResolverAdapter`: Resolves character sprites, props, and audio URLs; reports missing assets via `DiagnosticBus`.
 - `AudioAdapterOptions`, `AudioAdapter`: Controls audio channels, master volume, mute, voice auto-cut, voice replay, and state catch-up.
+  - `playMusic(track: string, options?: { loop?: boolean; fadeInMs?: number }): Promise<void>`: Plays background music on the 'music' channel with optional loop and fade-in in milliseconds.
+  - `stopMusic(fadeOutMs?: number): Promise<void>`: Stops the 'music' channel with optional fade-out in milliseconds.
 - `isAllowedEditorOrigin(origin, previewOrigin, localOrigin)`: Sanitizes postMessage sender origins.
 - `PreviewBridgeOptions`, `PreviewBridgeAdapter`: Establishes two-way postMessage communication between Web Studio Editor and Player sandbox.
 - `RendererAdapterOptions`, `RendererAdapter`: Translates instruction side effects to PixiJS `GameRenderer` calls and captures save thumbnails.
@@ -28,6 +30,7 @@ Provides decoupled integration adapters connecting the engine kernel to browser 
 - `StorageAdapter` settings live under `${prefix}_settings` (same `vn_engine_player`/`vn_engine_preview` + project prefix as the other keys). `getSettings()` always returns a fresh copy built only from known keys (never spreads parsed JSON, so `__proto__` and unknown keys are dropped). Corrupt JSON or a non-object payload yields `DEFAULT_PLAYER_SETTINGS`. Finite numbers are clamped (volumes 0..1, `textSpeed` 1..100, `autoDelayMs` 500..5000, `boxOpacity` 0.6..1.0); non-numbers, invalid `fontSize`/`stageScaleMode` and non-boolean `isMuted` fall back to defaults. The legacy `autoDelay` key is read when `autoDelayMs` is absent.
 - `saveSettings` merges the partial into current settings and writes once after 200ms; further calls within the window reset the timer, and `getSettings` returns the pending values meanwhile. `flushSettings` writes pending settings immediately and clears the timer (no-op when nothing is pending). Settings writes ignore quota errors (the pending write is dropped).
 - `AssetResolverAdapter` warns on missing assets once per asset key to prevent diagnostic flooding.
+- `AudioAdapter.playMusic` and `stopMusic` always operate on the 'music' channel, convert millisecond fade parameters (`fadeInMs`, `fadeOutMs`) to seconds, ignore empty or unresolvable tracks silently without throwing, and never invoke `stop` prior to `play` because `AudioManager` automatically ignores duplicate play requests when the same asset ID is already active.
 
 ## Side Effects
 

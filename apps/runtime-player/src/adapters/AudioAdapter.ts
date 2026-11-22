@@ -24,6 +24,13 @@ function canonicalizeChannel(channel: string): string {
   return CANONICAL_CHANNELS[channel] ?? channel;
 }
 
+function msToSeconds(ms?: number): number | undefined {
+  if (typeof ms === 'number' && Number.isFinite(ms) && ms > 0) {
+    return ms / 1000;
+  }
+  return undefined;
+}
+
 export class AudioAdapter {
   private audioManager: AudioManager;
   private options: AudioAdapterOptions;
@@ -71,6 +78,40 @@ export class AudioAdapter {
         format,
       });
     }
+  }
+
+  /**
+   * Phát nhạc nền (BGM) trên kênh music (title BGM hoặc gameplay)
+   */
+  public async playMusic(
+    track: string,
+    options?: { loop?: boolean; fadeInMs?: number },
+  ): Promise<void> {
+    if (!track || track.trim() === '') {
+      return;
+    }
+    const url = this.options.assetResolver ? this.options.assetResolver(track) : track;
+    if (!url) {
+      return;
+    }
+    const format = this.options.audioFormatResolver
+      ? this.options.audioFormatResolver(track)
+      : undefined;
+
+    this.audioManager.play('music', track, url, {
+      loop: options?.loop ?? true,
+      fadeIn: msToSeconds(options?.fadeInMs),
+      format,
+    });
+  }
+
+  /**
+   * Dừng kênh nhạc nền (music) với tùy chọn fade out
+   */
+  public async stopMusic(fadeOutMs?: number): Promise<void> {
+    this.audioManager.stop('music', {
+      fadeOut: msToSeconds(fadeOutMs),
+    });
   }
 
   public applySideEffect(instr: Instruction): void {
