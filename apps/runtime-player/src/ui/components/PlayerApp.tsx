@@ -9,6 +9,7 @@ import { BacklogDrawer } from './modals/BacklogDrawer';
 import { GameSettingsModal } from './modals/GameSettingsModal';
 import { InspectModal } from './InspectModal';
 import { DesyncModal } from './modals/DesyncModal';
+import { ToastNotification } from './ToastNotification';
 
 export function PlayerApp(): JSX.Element {
   const state = usePlayerState();
@@ -77,6 +78,7 @@ export function PlayerApp(): JSX.Element {
           />
         )}
         {state.activeModal === 'desync' && <DesyncModal data={state.desyncData} />}
+        <ToastNotification />
       </main>
     </div>
   );

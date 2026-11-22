@@ -963,6 +963,90 @@ kbd {
   pointer-events: none;
 }
 
+/* Toast Notification Pill (Phase T4) */
+#toast-notification,
+.toast-notification {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--vn-panel-bg);
+  color: var(--vn-text-primary);
+  border: var(--vn-border-width) solid var(--vn-border-primary);
+  border-radius: 9999px;
+  padding: 8px 18px;
+  font-family: var(--vn-font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  z-index: 3000;
+  cursor: pointer;
+  pointer-events: auto;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.8);
+  transition: opacity var(--vn-transition-fast), transform var(--vn-transition-fast);
+  user-select: none;
+}
+
+#toast-notification:hover,
+.toast-notification:hover {
+  background: #111111;
+}
+
+#toast-notification:focus-visible,
+.toast-notification:focus-visible {
+  outline: 2px solid var(--vn-border-active);
+  outline-offset: 2px;
+}
+
+#toast-notification .toast-icon,
+.toast-notification .toast-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+#toast-notification .toast-message,
+.toast-notification .toast-message {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 480px;
+}
+
+/* Tone variants */
+#toast-notification.toast-success,
+.toast-notification.toast-success {
+  border-color: #22c55e;
+}
+
+#toast-notification.toast-success .toast-icon,
+.toast-notification.toast-success .toast-icon {
+  color: #22c55e;
+}
+
+#toast-notification.toast-error,
+.toast-notification.toast-error {
+  border-color: #ef4444;
+}
+
+#toast-notification.toast-error .toast-icon,
+.toast-notification.toast-error .toast-icon {
+  color: #ef4444;
+}
+
+#toast-notification.toast-info,
+.toast-notification.toast-info {
+  border-color: var(--vn-border-primary);
+}
+
+#toast-notification.toast-info .toast-icon,
+.toast-notification.toast-info .toast-icon {
+  color: var(--vn-text-accent);
+}
+
 /* ================================================================
    10. TRANG WEB CHƠI GAME CÔNG KHAI (PUBLIC PLAYER SHELL)
    ================================================================ */

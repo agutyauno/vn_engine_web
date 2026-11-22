@@ -19,6 +19,7 @@ Implements the core Preact UI component tree for the visual novel player. It coo
 - `SpeakerNameplateProps`: Properties for speaker display name and color hex.
 - `SpeakerNameplate(props: SpeakerNameplateProps): JSX.Element | null`: Speaker label displaying character name and color.
 - `TitleScreen(): JSX.Element`: Main menu screen with New Game, Load Game, and Settings triggers.
+- `ToastNotification(): JSX.Element | null`: Non-blocking pill toast notification rendered at the top-right of the stage for transient system feedback (success, info, error).
 - Child Contracts:
   - `./common/README.md`: Monochrome vector SVG icon library.
   - `./modals/README.md`: Modal dialogs and drawers for backlog, desync, settings, and save/load.
@@ -30,6 +31,7 @@ Implements the core Preact UI component tree for the visual novel player. It coo
 - `SpeakerNameplate` returns `null` when no speaker name is specified or when the string is empty.
 - `#dialogue-text` always carries exactly one `font-*` class (`font-small` 1rem, `font-medium` 1.15rem, `font-large` 1.35rem).
 - Unsatisfied choices in `ChoiceOverlay` are disabled (`aria-disabled="true"`) and cannot be clicked.
+- `ToastNotification` returns `null` when `activeToast` is `null` or when the active toast id has been dismissed locally.
 
 ## Side Effects
 
