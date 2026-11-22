@@ -14,7 +14,7 @@ Houses modal dialogs and slide-out drawers for user interaction during gameplay:
   - Text & Playback: `#slider-text-speed` (`setTextSpeed`, `N chars/s`), live typewriter preview `#preview-typewriter-box`, `#slider-auto-delay` (`setAutoDelay`, `N.Ns`).
   - Display: `#btn-toggle-fullscreen`, `#btn-font-small|medium|large` (`setFontSize`), `#slider-box-opacity` (`setBoxOpacity`).
   - Shortcuts: reference-only `<kbd>` legend of controls handled by `GameplayOverlay` and `ChoiceOverlay`.
-  - Footer: `#btn-restore-defaults` (`restoreDefaultSettings`), `#btn-return-title` (GAMEPLAY only, opens an inline confirm with `#btn-confirm-return` / `#btn-cancel-return`), `#btn-done-settings`.
+  - Footer: `#btn-restore-defaults` (`restoreDefaultSettings`), `#btn-settings-load` (GAMEPLAY only, text 'Load Game', opens load modal via `actions.openModal('load')`), `#btn-return-title` (GAMEPLAY only, opens an inline confirm with `#btn-confirm-return` / `#btn-cancel-return`), `#btn-done-settings`.
 - `SaveLoadModalProps`: Modal mode configuration (`mode: 'save' | 'load'`).
 - `SaveLoadModal({ mode }: SaveLoadModalProps): JSX.Element`: 3x2 grid view of 6 save slots showing badge (`.slot-badge`), scene name (`.slot-scene`), date (`.slot-date`), text preview (`.slot-preview`), and 16:9 thumbnail (`img.slot-thumbnail`) or placeholder (`.slot-thumbnail-placeholder`). Occupied slots feature a delete button (`button.btn-delete-slot`). Inlines a confirmation overlay dialog (`#saveload-confirm`) for guards.
 
@@ -33,6 +33,8 @@ Houses modal dialogs and slide-out drawers for user interaction during gameplay:
 - All interactive buttons include `aria-label` and `title` attributes for accessibility.
 - `GameSettingsModal` registers its own `window` `keydown` listener in the capture phase. Escape calls `preventDefault` + `stopImmediatePropagation`, so it is handled exactly once even when `GameplayOverlay` is mounted, and it also works on the Title screen. Escape first dismisses the return-to-title confirm if open, otherwise calls `closeModal`.
 - "Return to Title" is rendered only when `mode === 'GAMEPLAY'`; confirming calls `closeModal()` then `returnToTitle()`.
+- "Load Game" (`#btn-settings-load`) in the footer is rendered only when `mode === 'GAMEPLAY'`; clicking it calls `actions.openModal('load')`.
+- Iframe Preview limitation: Keyboard shortcuts (including F5, F9, Escape) only reach the runtime-player when the preview iframe currently has focus.
 - The typewriter preview types the sample at `1000 / textSpeed` ms per char (min 10 ms), dwells 1500 ms, then loops; its timers are cleared when leaving the Text tab, when `textSpeed` changes, and on unmount.
 - Fullscreen is toggled only when `document.fullscreenEnabled` is true; request/exit promise rejections are swallowed (iframe without `allow="fullscreen"`).
 

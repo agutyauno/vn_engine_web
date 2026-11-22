@@ -5,6 +5,7 @@ import {
   AutoIcon,
   SkipIcon,
   SaveIcon,
+  QuickSaveIcon,
   FolderIcon,
   HistoryIcon,
   EyeOffIcon,
@@ -55,13 +56,22 @@ export function ControlBar(): JSX.Element {
         <SkipIcon size={16} />
       </button>
       <button
+        id="btn-save"
+        className="control-bar-btn"
+        onClick={() => actions.openModal('save')}
+        aria-label="Open Save Menu"
+        title="Save"
+      >
+        <SaveIcon size={16} />
+      </button>
+      <button
         id="btn-qsave"
         className="control-bar-btn"
         onClick={() => void actions.quickSave()}
         aria-label="Save Game (Quick Save)"
         title="Save Game"
       >
-        <SaveIcon size={16} />
+        <QuickSaveIcon size={16} />
       </button>
       <button
         id="btn-qload"

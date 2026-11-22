@@ -1975,3 +1975,33 @@ body.is-embedded #game-stage {
   gap: 10px;
   margin-top: 16px;
 }
+
+/* Quick Load Confirmation Dialog (#quickload-confirm) */
+.quickload-confirm-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.85);
+  z-index: 50;
+  pointer-events: auto;
+}
+
+.quickload-confirm-dialog {
+  max-width: 420px;
+  padding: 24px;
+  background: var(--vn-panel-bg);
+  border: var(--vn-border-width) solid var(--vn-border-primary);
+  border-radius: var(--vn-radius-base);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--vn-text-primary);
+}
+
+.quickload-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+}
