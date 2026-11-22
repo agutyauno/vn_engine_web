@@ -5,9 +5,12 @@
  * 4.2 (icons), 5 (SET-01..05, SET-08, SET-09 UI, SET-10, SET-11, SET-13) and
  * 7 items 6-7 (shortcuts legend drift, no double Escape handling).
  *
- * DialogueBox font/opacity application (SET-06/07 rendering) is phase S4 and is
- * intentionally not covered here; only the dispatches from the Display tab are.
+ * Phase S4 (RED) appends the 'S4: DialogueBox font size & opacity' block at the
+ * end of this file: spec 4.3 part 1 (.dialogue-box / .dialogue-text.font-* CSS),
+ * 4.3 part 2 (DialogueBox binding) and scenarios SET-06 / SET-07.
  */
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { JSX } from 'preact';
 import { render, fireEvent, cleanup, act } from '@testing-library/preact';
@@ -16,6 +19,10 @@ import { PlayerUIProvider } from '../src/ui/context/PlayerUIContext';
 import { GameSettingsModal } from '../src/ui/components/modals/GameSettingsModal';
 import { GameplayOverlay } from '../src/ui/components/GameplayOverlay';
 import * as Icons from '../src/ui/components/common/Icons';
+import { DialogueBox } from '../src/ui/components/DialogueBox';
+import { VNRuntimeKernel } from '../src/core/VNRuntimeKernel';
+import type { KernelAdapters } from '../src/core/contracts';
+import type { Instruction } from '@vn-engine/shared-types';
 
 const SAMPLE_TEXT = 'The quick brown fox jumps over the lazy dog.';
 const CONFIRM_TEXT =
@@ -624,6 +631,199 @@ describe('GameSettingsModal (S3 split-view)', () => {
           }
         }
       }
+    });
+  });
+});
+
+// ============================================================================
+// Phase S4: DialogueBox applies settings.fontSize / settings.boxOpacity.
+// Spec 4.3 part 1 (CSS) and part 2 (DialogueBox binding); SET-06, SET-07.
+// ============================================================================
+describe('S4: DialogueBox font size & opacity', () => {
+  const FONT_SIZES = ['small', 'medium', 'large'] as const;
+  type FontSize = (typeof FONT_SIZES)[number];
+
+  function settingsWith(fontSize: FontSize, boxOpacity: number): PlayerViewState['settings'] {
+    return { textSpeed: 40, autoDelayMs: 1500, fontSize, boxOpacity };
+  }
+
+  function dialogueTree(state: PlayerViewState, actions: PlayerUIActions): JSX.Element {
+    return (
+      <PlayerUIProvider state={state} actions={actions}>
+        <DialogueBox />
+      </PlayerUIProvider>
+    );
+  }
+
+  function renderDialogue(settings: PlayerViewState['settings']) {
+    const actions = createMockActions();
+    const state = createMockState({ activeModal: 'none', settings });
+    const utils = render(dialogueTree(state, actions));
+    return { ...utils, actions, state };
+  }
+
+  function fontClasses(el: Element): string[] {
+    return Array.from(el.classList).filter(c => c.startsWith('font-'));
+  }
+
+  function opacityVar(container: Element): string {
+    return q(container, '#dialogue-box').style.getPropertyValue('--vn-dialogue-opacity').trim();
+  }
+
+  describe('SET-06: #dialogue-text font-size class', () => {
+    it.each(FONT_SIZES)('settings.fontSize "%s" adds the matching font-* class', size => {
+      const { container } = renderDialogue(settingsWith(size, 0.85));
+      const text = q(container, '#dialogue-text');
+      expect(text.classList.contains('dialogue-text')).toBe(true);
+      expect(text.classList.contains(`font-${size}`)).toBe(true);
+      expect(fontClasses(text)).toEqual([`font-${size}`]);
+    });
+
+    it('re-rendering with a new fontSize swaps the class (exactly one font-* class)', () => {
+      const { container, rerender, actions } = renderDialogue(settingsWith('small', 0.85));
+      expect(fontClasses(q(container, '#dialogue-text'))).toEqual(['font-small']);
+
+      rerender(
+        dialogueTree(
+          createMockState({ activeModal: 'none', settings: settingsWith('large', 0.85) }),
+          actions,
+        ),
+      );
+      expect(fontClasses(q(container, '#dialogue-text'))).toEqual(['font-large']);
+    });
+  });
+
+  describe('SET-07: #dialogue-box --vn-dialogue-opacity custom property', () => {
+    it.each([
+      [0.6, '0.6'],
+      [0.85, '0.85'],
+      [1, '1'],
+    ] as const)('boxOpacity %s sets --vn-dialogue-opacity to "%s"', (opacity, expected) => {
+      const { container } = renderDialogue(settingsWith('medium', opacity));
+      expect(opacityVar(container)).toBe(expected);
+    });
+
+    it('re-rendering with a new boxOpacity updates the custom property', () => {
+      const { container, rerender, actions } = renderDialogue(settingsWith('medium', 0.6));
+      expect(opacityVar(container)).toBe('0.6');
+
+      rerender(
+        dialogueTree(
+          createMockState({ activeModal: 'none', settings: settingsWith('medium', 0.95) }),
+          actions,
+        ),
+      );
+      expect(opacityVar(container)).toBe('0.95');
+    });
+  });
+
+  describe('Integration: GameSettingsModal + DialogueBox under a real VNRuntimeKernel', () => {
+    const PROGRAM: Instruction[] = [
+      { type: 'SCENE', name: 'intro' },
+      { type: 'DIALOGUE', character: null, speaker: null, text: 'Hello from the kernel.' },
+    ];
+
+    function newKernel(): VNRuntimeKernel {
+      const adapters: KernelAdapters = {
+        renderer: {
+          applySideEffect: vi.fn().mockResolvedValue(undefined),
+          syncStateCatchUp: vi.fn().mockResolvedValue(undefined),
+        },
+        audio: {
+          applySideEffect: vi.fn(),
+          syncStateCatchUp: vi.fn(),
+          stopVoice: vi.fn(),
+          stopAll: vi.fn(),
+          setVolume: vi.fn(),
+          setMute: vi.fn(),
+          playVoice: vi.fn(),
+        },
+      };
+      return new VNRuntimeKernel(PROGRAM, adapters);
+    }
+
+    async function renderWithKernel() {
+      const kernel = newKernel();
+      const utils = render(
+        <PlayerUIProvider kernel={kernel}>
+          <DialogueBox />
+          <GameSettingsModal />
+        </PlayerUIProvider>,
+      );
+      await act(async () => {
+        await kernel.startNewGame();
+      });
+      expect(kernel.getState().mode).toBe('GAMEPLAY');
+      expect(kernel.getState().dialogue.rawText).toContain('Hello from the kernel.');
+      return { ...utils, kernel };
+    }
+
+    beforeEach(() => {
+      localStorage.clear();
+    });
+
+    afterEach(() => {
+      localStorage.clear();
+    });
+
+    it('clicking #btn-font-large on the Display tab gives #dialogue-text font-large', async () => {
+      const { container, kernel } = await renderWithKernel();
+      expect(fontClasses(q(container, '#dialogue-text'))).toEqual(['font-medium']);
+
+      act(() => {
+        openTab(container, 'display');
+      });
+      act(() => {
+        fireEvent.click(q(container, '#pane-display #btn-font-large'));
+      });
+
+      expect(kernel.getState().settings.fontSize).toBe('large');
+      expect(fontClasses(q(container, '#dialogue-text'))).toEqual(['font-large']);
+    });
+
+    it('changing #slider-box-opacity to 0.7 updates --vn-dialogue-opacity to "0.7"', async () => {
+      const { container, kernel } = await renderWithKernel();
+      expect(opacityVar(container)).toBe('0.85');
+
+      act(() => {
+        openTab(container, 'display');
+      });
+      act(() => {
+        fireEvent.change(q(container, '#pane-display #slider-box-opacity'), {
+          target: { value: '0.7' },
+        });
+      });
+
+      expect(kernel.getState().settings.boxOpacity).toBe(0.7);
+      expect(opacityVar(container)).toBe('0.7');
+    });
+  });
+
+  describe('CSS contract in src/wireframe.css (spec 4.3 part 1, text check)', () => {
+    const css = readFileSync(resolve(__dirname, '../src/wireframe.css'), 'utf8').replace(
+      /\/\*[\s\S]*?\*\//g,
+      '',
+    );
+
+    /** Bodies of every rule whose whole selector is exactly `selector`. */
+    function ruleBodies(selector: string): string[] {
+      const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const re = new RegExp(`(?:^|[};])\\s*${escaped}\\s*\\{([^}]*)\\}`, 'g');
+      return Array.from(css.matchAll(re), m => m[1] ?? '');
+    }
+
+    it('.dialogue-box background uses var(--vn-dialogue-opacity', () => {
+      const bodies = ruleBodies('.dialogue-box');
+      expect(bodies.length).toBeGreaterThan(0);
+      expect(
+        bodies.some(b => /background(?:-color)?\s*:[^;]*var\(\s*--vn-dialogue-opacity/.test(b)),
+      ).toBe(true);
+    });
+
+    it.each(FONT_SIZES)('defines a .dialogue-text.font-%s rule with a font-size', size => {
+      const bodies = ruleBodies(`.dialogue-text.font-${size}`);
+      expect(bodies.length).toBeGreaterThan(0);
+      expect(bodies.some(b => /font-size\s*:/.test(b))).toBe(true);
     });
   });
 });
