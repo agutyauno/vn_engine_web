@@ -1,10 +1,10 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, expectTypeOf } from 'vitest';
 import {
   StorageAdapter,
   StorageQuotaError,
   isQuotaExceededError,
 } from '../src/adapters/StorageAdapter';
-import type { SaveSlotData } from '../src/core/contracts';
+import type { KernelAdapters, SaveSlotData } from '../src/core/contracts';
 
 describe('StorageAdapter', () => {
   let mockStorageStore: Record<string, string>;
@@ -503,6 +503,283 @@ describe('save persistence fixes', () => {
       expect(isQuotaExceededError({ name: 'QuotaExceededError', code: 22 })).toBe(false);
       expect(isQuotaExceededError(null)).toBe(false);
       expect(isQuotaExceededError(undefined)).toBe(false);
+    });
+  });
+});
+
+// ============================================================================
+// TASK-title-branding-and-saveload-system, Phase T1 (§3.2, §4 T1)
+// deleteSlot(0..6) và getMostRecentSave() trên localStorage THẬT của jsdom.
+//
+// Quy tắc hòa timestamp (tie rule) chốt ở đây: khi nhiều save cùng có timestamp
+// lớn nhất, getMostRecentSave() trả về save tìm thấy ĐẦU TIÊN theo thứ tự
+// quicksave (slot 0), rồi slot 1, 2, ..., 6 (chỉ thay khi lớn hơn hẳn).
+// ============================================================================
+
+describe('title task: deleteSlot & getMostRecentSave', () => {
+  const OPTIONS = { projectId: 'p1' } as const;
+  const PREFIX = 'vn_engine_player_p1';
+  const SLOTS_KEY = `${PREFIX}_save_slots`;
+  const QUICK_KEY = `${PREFIX}_quicksave`;
+
+  function makeSlot(slotIndex: number, overrides: Partial<SaveSlotData> = {}): SaveSlotData {
+    return {
+      slotIndex,
+      timestamp: 1000 + slotIndex,
+      thumbnailDataUrl: `data:image/jpeg;base64,thumb${slotIndex}`,
+      currentScene: `scene_${slotIndex}`,
+      previewText: `Slot ${slotIndex}`,
+      dialogueCounter: slotIndex,
+      serializedState: `{"slot":${slotIndex}}`,
+      ...overrides,
+    };
+  }
+
+  function snapshotLocalStorage(): Record<string, string | null> {
+    const snapshot: Record<string, string | null> = {};
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key !== null) snapshot[key] = localStorage.getItem(key);
+    }
+    return snapshot;
+  }
+
+  /** Ghi quicksave + slot 1..6; trả về mảng theo index 0..6. */
+  async function fillAll(adapter: StorageAdapter): Promise<SaveSlotData[]> {
+    const saved: SaveSlotData[] = [];
+    const quick = makeSlot(0);
+    await adapter.saveQuickSave(quick);
+    saved.push(quick);
+    for (let i = 1; i <= 6; i++) {
+      const slot = makeSlot(i);
+      await adapter.saveSlot(slot);
+      saved.push(slot);
+    }
+    return saved;
+  }
+
+  beforeEach(() => {
+    // Gỡ stub localStorage của describe 'StorageAdapter', dùng Storage thật của jsdom.
+    vi.unstubAllGlobals();
+    localStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    localStorage.clear();
+    vi.unstubAllGlobals();
+  });
+
+  describe('deleteSlot', () => {
+    it('[TC-T1-01] deleteSlot(3) clears only slot 3; slots 1,2,4,5,6 and quicksave are unchanged', async () => {
+      const adapter = new StorageAdapter(OPTIONS);
+      const saved = await fillAll(adapter);
+      const quickRawBefore = localStorage.getItem(QUICK_KEY);
+
+      await adapter.deleteSlot(3);
+
+      const slots = adapter.getSlots();
+      expect(slots).toHaveLength(6);
+      expect(slots[2]).toBeNull();
+      expect(await adapter.loadSlot(3)).toBeNull();
+      for (const i of [1, 2, 4, 5, 6]) {
+        expect(slots[i - 1]).toEqual(saved[i]);
+      }
+      expect(adapter.getQuickSave()).toEqual(saved[0]);
+      expect(localStorage.getItem(QUICK_KEY)).toBe(quickRawBefore);
+    });
+
+    it('[TC-T1-02] deleteSlot(0) removes the quicksave key and leaves regular slots untouched', async () => {
+      const adapter = new StorageAdapter(OPTIONS);
+      const saved = await fillAll(adapter);
+      const slotsRawBefore = localStorage.getItem(SLOTS_KEY);
+
+      await adapter.deleteSlot(0);
+
+      expect(adapter.getQuickSave()).toBeNull();
+      expect(await adapter.loadSlot(0)).toBeNull();
+      expect(localStorage.getItem(QUICK_KEY)).toBeNull();
+      expect(Object.keys(snapshotLocalStorage())).not.toContain(QUICK_KEY);
+      expect(localStorage.getItem(SLOTS_KEY)).toBe(slotsRawBefore);
+      expect(adapter.getSlots()).toEqual(saved.slice(1));
+    });
+
+    it.each([7, -1, 1.5, Number.NaN])(
+      'deleteSlot(%s) rejects with RangeError and leaves storage unchanged',
+      async invalidIndex => {
+        const adapter = new StorageAdapter(OPTIONS);
+        await fillAll(adapter);
+        const before = snapshotLocalStorage();
+
+        await expect(adapter.deleteSlot(invalidIndex)).rejects.toBeInstanceOf(RangeError);
+
+        expect(snapshotLocalStorage()).toEqual(before);
+      },
+    );
+
+    it('deleting an already-empty regular slot resolves and changes nothing', async () => {
+      const adapter = new StorageAdapter(OPTIONS);
+      await adapter.saveSlot(makeSlot(1));
+      await adapter.saveQuickSave(makeSlot(0));
+      const before = snapshotLocalStorage();
+
+      await expect(adapter.deleteSlot(4)).resolves.toBeUndefined();
+
+      expect(snapshotLocalStorage()).toEqual(before);
+    });
+
+    it('deleting the quicksave when none exists resolves and changes nothing', async () => {
+      const adapter = new StorageAdapter(OPTIONS);
+      await adapter.saveSlot(makeSlot(2));
+      const before = snapshotLocalStorage();
+
+      await expect(adapter.deleteSlot(0)).resolves.toBeUndefined();
+
+      expect(snapshotLocalStorage()).toEqual(before);
+    });
+
+    it('deleteSlot on fully empty storage resolves for every valid index', async () => {
+      const adapter = new StorageAdapter(OPTIONS);
+      for (let i = 0; i <= 6; i++) {
+        await expect(adapter.deleteSlot(i)).resolves.toBeUndefined();
+      }
+      expect(adapter.getQuickSave()).toBeNull();
+      expect(adapter.getSlots()).toEqual([null, null, null, null, null, null]);
+    });
+
+    it('deletion persists: a fresh StorageAdapter with the same options sees it', async () => {
+      const writer = new StorageAdapter(OPTIONS);
+      const saved = await fillAll(writer);
+
+      await writer.deleteSlot(5);
+      await writer.deleteSlot(0);
+
+      const reader = new StorageAdapter(OPTIONS);
+      expect(reader.getQuickSave()).toBeNull();
+      const slots = reader.getSlots();
+      expect(slots[4]).toBeNull();
+      for (const i of [1, 2, 3, 4, 6]) {
+        expect(slots[i - 1]).toEqual(saved[i]);
+      }
+    });
+
+    it('only touches its own project partition (ADR-024)', async () => {
+      const mine = new StorageAdapter(OPTIONS);
+      const other = new StorageAdapter({ projectId: 'p2' });
+      await mine.saveSlot(makeSlot(3));
+      await other.saveSlot(makeSlot(3));
+      await other.saveQuickSave(makeSlot(0));
+
+      await mine.deleteSlot(3);
+      await mine.deleteSlot(0);
+
+      expect(other.getSlots()[2]).toEqual(makeSlot(3));
+      expect(other.getQuickSave()).toEqual(makeSlot(0));
+    });
+  });
+
+  describe('getMostRecentSave', () => {
+    it('[TC-T1-04] returns null on empty storage', () => {
+      const adapter = new StorageAdapter(OPTIONS);
+      expect(adapter.getMostRecentSave()).toBeNull();
+    });
+
+    it('[TC-T1-04] returns the quicksave when it is the only save', async () => {
+      const adapter = new StorageAdapter(OPTIONS);
+      const quick = makeSlot(0, { timestamp: 42 });
+      await adapter.saveQuickSave(quick);
+
+      expect(adapter.getMostRecentSave()).toEqual(quick);
+    });
+
+    it('returns the only regular slot when no quicksave exists', async () => {
+      const adapter = new StorageAdapter(OPTIONS);
+      const slot = makeSlot(6, { timestamp: 7 });
+      await adapter.saveSlot(slot);
+
+      expect(adapter.getMostRecentSave()).toEqual(slot);
+    });
+
+    it('[TC-T1-03] picks the quicksave when it has the greatest timestamp', async () => {
+      const adapter = new StorageAdapter(OPTIONS);
+      await fillAll(adapter);
+      const quick = makeSlot(0, { timestamp: 9999, previewText: 'newest quick' });
+      await adapter.saveQuickSave(quick);
+
+      expect(adapter.getMostRecentSave()).toEqual(quick);
+    });
+
+    it('[TC-T1-03] picks a regular slot when it has the greatest timestamp', async () => {
+      const adapter = new StorageAdapter(OPTIONS);
+      await fillAll(adapter);
+      const newest = makeSlot(4, { timestamp: 9999, previewText: 'newest slot 4' });
+      await adapter.saveSlot(newest);
+
+      expect(adapter.getMostRecentSave()).toEqual(newest);
+    });
+
+    it('[TC-T1-03] is driven by timestamp, not slot order (newest in slot 1)', async () => {
+      const adapter = new StorageAdapter(OPTIONS);
+      await adapter.saveQuickSave(makeSlot(0, { timestamp: 100 }));
+      const newest = makeSlot(1, { timestamp: 500 });
+      await adapter.saveSlot(newest);
+      await adapter.saveSlot(makeSlot(6, { timestamp: 300 }));
+
+      expect(adapter.getMostRecentSave()).toEqual(newest);
+    });
+
+    it('tie rule: quicksave wins a timestamp tie against regular slots', async () => {
+      const adapter = new StorageAdapter(OPTIONS);
+      const quick = makeSlot(0, { timestamp: 5000 });
+      await adapter.saveSlot(makeSlot(2, { timestamp: 5000 }));
+      await adapter.saveQuickSave(quick);
+      await adapter.saveSlot(makeSlot(5, { timestamp: 5000 }));
+
+      expect(adapter.getMostRecentSave()).toEqual(quick);
+    });
+
+    it('tie rule: among regular slots the lowest slot index wins', async () => {
+      const adapter = new StorageAdapter(OPTIONS);
+      await adapter.saveQuickSave(makeSlot(0, { timestamp: 10 }));
+      await adapter.saveSlot(makeSlot(5, { timestamp: 5000 }));
+      const lowest = makeSlot(3, { timestamp: 5000 });
+      await adapter.saveSlot(lowest);
+
+      expect(adapter.getMostRecentSave()).toEqual(lowest);
+    });
+
+    it('reflects deletions: after deleting the newest save, the next newest is returned', async () => {
+      const adapter = new StorageAdapter(OPTIONS);
+      await adapter.saveQuickSave(makeSlot(0, { timestamp: 300 }));
+      await adapter.saveSlot(makeSlot(2, { timestamp: 900 }));
+      const second = makeSlot(4, { timestamp: 600 });
+      await adapter.saveSlot(second);
+
+      await adapter.deleteSlot(2);
+      expect(adapter.getMostRecentSave()).toEqual(second);
+
+      await adapter.deleteSlot(4);
+      await adapter.deleteSlot(0);
+      expect(adapter.getMostRecentSave()).toBeNull();
+    });
+  });
+
+  describe('KernelAdapters.storage contract (§3.2)', () => {
+    type StorageContract = NonNullable<KernelAdapters['storage']>;
+
+    it('declares optional deleteSlot/getMostRecentSave with the spec signatures', () => {
+      expectTypeOf<NonNullable<StorageContract['deleteSlot']>>().toEqualTypeOf<
+        (slotIndex: number) => Promise<void>
+      >();
+      expectTypeOf<NonNullable<StorageContract['getMostRecentSave']>>().toEqualTypeOf<
+        () => SaveSlotData | null
+      >();
+    });
+
+    it('StorageAdapter is assignable to KernelAdapters.storage and exposes both methods', () => {
+      const storage: StorageContract = new StorageAdapter(OPTIONS);
+      expect(typeof storage.deleteSlot).toBe('function');
+      expect(typeof storage.getMostRecentSave).toBe('function');
     });
   });
 });
