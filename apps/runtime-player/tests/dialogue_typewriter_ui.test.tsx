@@ -26,6 +26,8 @@ function createMockState(overrides: Partial<PlayerViewState> = {}): PlayerViewSt
     settings: {
       textSpeed: 20, // 20 chars per second => 50ms per character
       autoDelayMs: 1500,
+      fontSize: 'medium',
+      boxOpacity: 0.85,
     },
     activeToast: null,
     audio: {
@@ -94,7 +96,7 @@ describe('Dialogue Typewriter Animation & Inline Colors (TASK-player-typewriter-
     it('should reveal text progressively over elapsed time based on configured textSpeed', () => {
       const actions = createMockActions();
       const state = createMockState({
-        settings: { textSpeed: 20, autoDelayMs: 1500 }, // 50ms per character
+        settings: { textSpeed: 20, autoDelayMs: 1500, fontSize: 'medium', boxOpacity: 0.85 }, // 50ms per character
         dialogue: {
           isVisible: true,
           rawText: 'Hello World!', // 12 chars: total 600ms
@@ -137,7 +139,7 @@ describe('Dialogue Typewriter Animation & Inline Colors (TASK-player-typewriter-
       const actions = createMockActions();
       // Base: 20 cps (50ms/char). slow = 0.5x (100ms/char), fast = 2.0x (25ms/char)
       const state = createMockState({
-        settings: { textSpeed: 20, autoDelayMs: 1500 },
+        settings: { textSpeed: 20, autoDelayMs: 1500, fontSize: 'medium', boxOpacity: 0.85 },
         dialogue: {
           isVisible: true,
           rawText: '{speed:slow}ABC{speed:fast}XYZ',
@@ -176,7 +178,7 @@ describe('Dialogue Typewriter Animation & Inline Colors (TASK-player-typewriter-
       const actions = createMockActions();
       // 20 cps = 50ms/char
       const state = createMockState({
-        settings: { textSpeed: 20, autoDelayMs: 1500 },
+        settings: { textSpeed: 20, autoDelayMs: 1500, fontSize: 'medium', boxOpacity: 0.85 },
         dialogue: {
           isVisible: true,
           rawText: 'Wait{pause:500ms}Go',
@@ -219,7 +221,7 @@ describe('Dialogue Typewriter Animation & Inline Colors (TASK-player-typewriter-
     it('should support {wait:0.5s} pause alias and strip tag from DOM', () => {
       const actions = createMockActions();
       const state = createMockState({
-        settings: { textSpeed: 20, autoDelayMs: 1500 },
+        settings: { textSpeed: 20, autoDelayMs: 1500, fontSize: 'medium', boxOpacity: 0.85 },
         dialogue: {
           isVisible: true,
           rawText: 'Stop{wait:0.5s}!',
@@ -259,7 +261,7 @@ describe('Dialogue Typewriter Animation & Inline Colors (TASK-player-typewriter-
     it('should immediately complete text reveal and trigger completeDialogue on click while typing', () => {
       const actions = createMockActions();
       const state = createMockState({
-        settings: { textSpeed: 10, autoDelayMs: 1500 }, // 100ms per char
+        settings: { textSpeed: 10, autoDelayMs: 1500, fontSize: 'medium', boxOpacity: 0.85 }, // 100ms per char
         dialogue: {
           isVisible: true,
           rawText: 'A long sentence that would take ten seconds to type out completely.',
@@ -300,7 +302,7 @@ describe('Dialogue Typewriter Animation & Inline Colors (TASK-player-typewriter-
     it('should complete text instantly on Space or Enter key press while typing', () => {
       const actions = createMockActions();
       const state = createMockState({
-        settings: { textSpeed: 10, autoDelayMs: 1500 },
+        settings: { textSpeed: 10, autoDelayMs: 1500, fontSize: 'medium', boxOpacity: 0.85 },
         dialogue: {
           isVisible: true,
           rawText: 'Pressing Space key finishes typing instantly.',
@@ -410,7 +412,7 @@ describe('Dialogue Typewriter Animation & Inline Colors (TASK-player-typewriter-
       const actions = createMockActions();
       const state = createMockState({
         playbackMode: 'SKIP',
-        settings: { textSpeed: 20, autoDelayMs: 1500 },
+        settings: { textSpeed: 20, autoDelayMs: 1500, fontSize: 'medium', boxOpacity: 0.85 },
         dialogue: {
           isVisible: true,
           rawText: 'Skipping through dialogue at warp speed!',
@@ -435,7 +437,7 @@ describe('Dialogue Typewriter Animation & Inline Colors (TASK-player-typewriter-
       const actions = createMockActions();
       const state = createMockState({
         playbackMode: 'NORMAL',
-        settings: { textSpeed: 0, autoDelayMs: 1500 },
+        settings: { textSpeed: 0, autoDelayMs: 1500, fontSize: 'medium', boxOpacity: 0.85 },
         dialogue: {
           isVisible: true,
           rawText: 'Instant text reveal with textSpeed 0',

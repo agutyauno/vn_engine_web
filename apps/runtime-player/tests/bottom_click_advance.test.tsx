@@ -27,6 +27,8 @@ function createMockState(overrides: Partial<PlayerViewState> = {}): PlayerViewSt
     settings: {
       textSpeed: 24,
       autoDelayMs: 1500,
+      fontSize: 'medium',
+      boxOpacity: 0.85,
     },
     activeToast: null,
     audio: {
