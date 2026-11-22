@@ -18,6 +18,7 @@ Centralized state management stores built with Zustand. Manages active project d
 ## Invariants
 
 - `isDirty` in `useProjectStore` accurately tracks whether unsaved modifications exist in scripts or metadata.
+- `deleteAsset` in `useProjectStore` purges deleted asset references from `project.titleSettings` via `removeAssetFromTitleSettings`, dropping the `titleSettings` property if no roles remain.
 - `saveProject` uses snapshot subtraction: only file IDs captured at save start are marked clean upon success, preserving edits made during an in-flight save.
 - Navigation panel and preview panel widths are clamped to composite window bounds (`getMaxCombinedWidth`).
 - Layout dimensions and last selected asset category are persisted to `localStorage`.

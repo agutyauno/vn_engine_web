@@ -8,6 +8,7 @@ import type {
 } from '@vn-engine/shared-types';
 import { XIcon, SettingsIcon, CheckIcon } from '../common/Icons';
 import { AssetPickerField } from './AssetPickerField';
+import { normalizeProjectTitleSettings } from '../../core/utils/titleSettings';
 
 export interface ProjectSettingsModalProps {
   isOpen: boolean;
@@ -31,28 +32,7 @@ export const setTitleSetting = (
     delete currentSettings[key];
   }
 
-  const remainingKeys = (Object.keys(currentSettings) as (keyof ProjectTitleSettings)[]).filter(
-    k => currentSettings[k] !== undefined,
-  );
-
-  if (remainingKeys.length === 0) {
-    const { titleSettings: _omitted, ...rest } = prev;
-    void _omitted;
-    return rest;
-  }
-
-  const nextTitleSettings: ProjectTitleSettings = {};
-  for (const k of remainingKeys) {
-    const val = currentSettings[k];
-    if (val !== undefined) {
-      nextTitleSettings[k] = val;
-    }
-  }
-
-  return {
-    ...prev,
-    titleSettings: nextTitleSettings,
-  };
+  return normalizeProjectTitleSettings(prev, currentSettings);
 };
 
 export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({

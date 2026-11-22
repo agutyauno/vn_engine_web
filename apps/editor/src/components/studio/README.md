@@ -13,7 +13,7 @@ Core visual novel authoring studio workspace. Integrates the 3-column director w
 - `StudioHeader`: Top header with title editing, save status indicator, and quick actions (`StudioHeaderProps`, `getAspectRatioBadge`)
 - `AssetLibraryPane`: Asset manager pane with category filter, preview, replace, and safe deletion (`AssetLibraryPaneProps`)
 - `CreateAssetModal`: Modal for uploading/configuring new assets (`CreateAssetModalProps`)
-- `SafeDeleteModal`: Dependency-aware asset deletion guard modal (`SafeDeleteModalProps`)
+- `SafeDeleteModal`: Dependency-aware asset deletion guard modal displaying script references and non-blocking title screen role warnings (`SafeDeleteModalProps`)
 - `EditorTabBar`: Multi-file tab bar with dirty indicators (`EditorTabBarProps`)
 - `MonacoEditorContainer`: Monaco editor wrapper with VNS syntax highlighting and marker synchronization (`MonacoEditorContainerProps`)
 - `DockDrawer`: Resizable bottom dock drawer (`DockDrawerProps`, `DrawerTab`)
@@ -32,6 +32,7 @@ Core visual novel authoring studio workspace. Integrates the 3-column director w
 - Scripts must end in `.vns` extension; forbidden filename characters (`\ / : * ? " < > |`) are rejected.
 - The entry scene script (default `main.vns`) cannot be deleted.
 - Assets referenced in script AST cannot be deleted without confirmation bypass or removing references.
+- Assets referenced in `titleSettings` display a non-blocking warning (`safe-delete-title-warning`) indicating removal from title screen roles upon deletion.
 - Navigation away from dirty workspace triggers unsaved changes modal guard.
 - `AssetSelectorModal` filters assets strictly by type (`accept`) and performs case-insensitive name filtering.
 - `AssetPickerField` displays 'Missing asset' when referencing a deleted or nonexistent asset ID.

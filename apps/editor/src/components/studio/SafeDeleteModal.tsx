@@ -2,6 +2,7 @@ import React from 'react';
 import type { AssetRef, Project } from '@vn-engine/shared-types';
 import { checkAssetDeletionSafety } from '../../core/services/reconciliation';
 import { AlertTriangleIcon, CloseIcon, TrashIcon } from '../common/Icons';
+import { formatTitleAssetRoles, getTitleAssetRoles } from '../../core/utils/titleSettings';
 
 export interface SafeDeleteModalProps {
   isOpen: boolean;
@@ -22,6 +23,8 @@ export const SafeDeleteModal: React.FC<SafeDeleteModalProps> = ({
 
   const safety = checkAssetDeletionSafety(asset.id, project);
   const isBlocked = !safety.safe;
+  const titleRoles = getTitleAssetRoles(project, asset.id);
+  const formattedRoles = formatTitleAssetRoles(titleRoles);
 
   return (
     <div
@@ -53,6 +56,18 @@ export const SafeDeleteModal: React.FC<SafeDeleteModalProps> = ({
 
         {/* Content */}
         <div className="p-5 space-y-4">
+          {titleRoles.length > 0 && (
+            <div
+              data-testid="safe-delete-title-warning"
+              className="rounded border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-300"
+            >
+              <p className="text-neutral-300">
+                This asset is used on the title screen as: {formattedRoles}. Deleting it will remove
+                it from the title screen.
+              </p>
+            </div>
+          )}
+
           {isBlocked ? (
             <div className="space-y-3">
               <div className="rounded border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-300">
