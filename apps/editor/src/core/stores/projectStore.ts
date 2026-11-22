@@ -9,6 +9,7 @@ import type {
 } from '@vn-engine/shared-types';
 import type { ProjectRepository } from '../contracts/repository';
 import { useDiagnosticsStore } from './diagnosticsStore';
+import { removeAssetFromTitleSettings } from '../utils/titleSettings';
 
 export interface ProjectStoreState {
   project: Project | null;
@@ -419,12 +420,16 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
       await activeRepository.deleteAssetBlob(assetId);
     }
 
+    const updatedProject: Project = {
+      ...currentProject,
+      assets: currentProject.assets.filter(a => a.id !== assetId),
+      updatedAt: Date.now(),
+    };
+
+    const finalProject = removeAssetFromTitleSettings(updatedProject, assetId);
+
     set({
-      project: {
-        ...currentProject,
-        assets: currentProject.assets.filter(a => a.id !== assetId),
-        updatedAt: Date.now(),
-      },
+      project: finalProject,
       isDirty: true,
     });
   },

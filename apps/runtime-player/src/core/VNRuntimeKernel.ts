@@ -55,14 +55,7 @@ export class VNRuntimeKernel {
     const initialQuickSave = this.adapters.storage?.getQuickSave?.() ?? null;
 
     const initialMode = options?.initialMode ?? 'TITLE';
-
-    const rawTitle = options?.titleConfig?.title;
-    const title =
-      typeof rawTitle === 'string' && rawTitle.trim().length > 0 ? rawTitle.trim() : 'Visual Novel';
-    const titleConfig: TitleScreenConfig = {
-      ...options?.titleConfig,
-      title,
-    };
+    const titleConfig = this.buildTitleConfig(options?.titleConfig);
     const hasSaveData = initialQuickSave !== null || initialSlots.some(s => s !== null);
 
     this.state = {
@@ -151,6 +144,34 @@ export class VNRuntimeKernel {
 
   private persistSettings(patch: Partial<PlayerSettingsData>): void {
     this.adapters.storage?.saveSettings?.(patch);
+  }
+
+  private buildTitleConfig(partial?: Partial<TitleScreenConfig>): TitleScreenConfig {
+    const rawTitle = partial?.title;
+    const title =
+      typeof rawTitle === 'string' && rawTitle.trim().length > 0 ? rawTitle.trim() : 'Visual Novel';
+    return {
+      ...partial,
+      title,
+    };
+  }
+
+  public setTitleConfig(config: Partial<TitleScreenConfig>): void {
+    const oldBgmTrack = this.state.titleConfig.bgmTrack;
+    this.state.titleConfig = this.buildTitleConfig(config);
+    this.emit();
+
+    if (
+      this.audioUnlocked &&
+      this.state.mode === 'TITLE' &&
+      this.state.titleConfig.bgmTrack !== oldBgmTrack
+    ) {
+      if (this.state.titleConfig.bgmTrack) {
+        void this.adapters.audio?.playMusic?.(this.state.titleConfig.bgmTrack, { loop: true });
+      } else {
+        void this.adapters.audio?.stopMusic?.();
+      }
+    }
   }
 
   public getState(): PlayerViewState {
@@ -951,13 +972,18 @@ export class VNRuntimeKernel {
       variables: preservedVars as Record<string, string | number | boolean>,
     });
 
+    if (options?.startAtTitle) {
+      this.returnToTitle();
+      return;
+    }
+
     if (options?.line !== undefined) {
       this.vm.jumpToLine(options.line, undefined, { seedCatchUp: true });
     } else if (options?.scene) {
       this.vm.jumpToScene(options.scene, { seedCatchUp: true });
     }
 
-    if (this.state.mode === 'STANDBY') {
+    if (this.state.mode === 'STANDBY' || (options?.startGameplay && this.state.mode === 'TITLE')) {
       await this.startNewGame();
       return;
     }

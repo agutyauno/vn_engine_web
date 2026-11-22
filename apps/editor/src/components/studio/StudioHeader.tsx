@@ -22,6 +22,8 @@ export interface StudioHeaderProps {
   scenes?: string[];
   selectedScene?: string;
   connectionStatus?: 'connected' | 'disconnected' | 'standby';
+  previewStartMode?: 'title' | 'scene';
+  onTogglePreviewStartMode?: () => void;
   onBack?: () => void;
   onBackToHub?: () => void;
   onTitleChange?: (newTitle: string) => void;
@@ -47,6 +49,8 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
   projectTitle,
   title,
   isDirty = false,
+  previewStartMode,
+  onTogglePreviewStartMode,
   onBack,
   onBackToHub,
   onTitleChange,
@@ -143,6 +147,23 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
 
       {/* Right: Actions */}
       <div className="flex items-center gap-2">
+        {onQuickPlay && onTogglePreviewStartMode && (
+          <button
+            type="button"
+            data-testid="btn-preview-start-mode"
+            aria-pressed={previewStartMode === 'title'}
+            title={
+              previewStartMode === 'title'
+                ? 'Preview starts at: Title screen'
+                : 'Preview starts at: Scene'
+            }
+            onClick={onTogglePreviewStartMode}
+            className="flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium text-neutral-300 hover:text-white hover:bg-neutral-800 transition"
+          >
+            <span>{previewStartMode === 'title' ? 'Title' : 'Scene'}</span>
+          </button>
+        )}
+
         {onQuickPlay && (
           <button
             type="button"

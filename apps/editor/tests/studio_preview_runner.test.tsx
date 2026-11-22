@@ -8,6 +8,7 @@ import { StudioWorkspacePage } from '../src/components/studio/StudioWorkspacePag
 import { IndexedDBProjectRepository } from '../src/core/repositories/IndexedDBProjectRepository';
 import { usePreviewStore } from '../src/core/stores/livePreviewStore';
 import { useProjectStore } from '../src/core/stores/projectStore';
+import { useEditorUIStore } from '../src/core/stores/uiStore';
 
 const testProject: Project = {
   id: 'proj-runner-test',
@@ -165,6 +166,84 @@ describe('Decoupled Studio Preview Runner (TASK-decouple-preview-and-hotreload)'
       const pending = usePreviewStore.getState().pendingProgram;
       expect(pending).not.toBeNull();
       expect(pending?.projectId).toBe(testProject.id);
+    });
+  });
+
+  it('sends startMode: "title" when Play is clicked and previewStartMode is "title"', async () => {
+    usePreviewStore.getState().setPendingProgram(null);
+    useEditorUIStore.getState().setPreviewStartMode('title');
+
+    render(
+      <StudioWorkspacePage
+        projectId={testProject.id}
+        repository={repo}
+        initialProject={testProject}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(useProjectStore.getState().project).not.toBeNull();
+    });
+
+    const playBtn = screen.getByTestId('btn-header-play');
+    fireEvent.click(playBtn);
+
+    await waitFor(() => {
+      const pending = usePreviewStore.getState().pendingProgram;
+      expect(pending).not.toBeNull();
+      expect(pending).toHaveProperty('startMode', 'title');
+    });
+  });
+
+  it('sends startMode: "scene" when Play is clicked and previewStartMode is "scene"', async () => {
+    usePreviewStore.getState().setPendingProgram(null);
+    useEditorUIStore.getState().setPreviewStartMode('scene');
+
+    render(
+      <StudioWorkspacePage
+        projectId={testProject.id}
+        repository={repo}
+        initialProject={testProject}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(useProjectStore.getState().project).not.toBeNull();
+    });
+
+    const playBtn = screen.getByTestId('btn-header-play');
+    fireEvent.click(playBtn);
+
+    await waitFor(() => {
+      const pending = usePreviewStore.getState().pendingProgram;
+      expect(pending).not.toBeNull();
+      expect(pending).toHaveProperty('startMode', 'scene');
+    });
+  });
+
+  it('always sends startMode: "scene" when Run from Cursor is clicked regardless of previewStartMode', async () => {
+    usePreviewStore.getState().setPendingProgram(null);
+    useEditorUIStore.getState().setPreviewStartMode('title');
+
+    render(
+      <StudioWorkspacePage
+        projectId={testProject.id}
+        repository={repo}
+        initialProject={testProject}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(useProjectStore.getState().project).not.toBeNull();
+    });
+
+    const runCursorBtn = screen.getByTestId('btn-header-run-cursor');
+    fireEvent.click(runCursorBtn);
+
+    await waitFor(() => {
+      const pending = usePreviewStore.getState().pendingProgram;
+      expect(pending).not.toBeNull();
+      expect(pending).toHaveProperty('startMode', 'scene');
     });
   });
 });

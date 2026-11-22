@@ -4,7 +4,12 @@
 // Throttling 60ms cho State Updates, Origin Sanitization & Diagnostic Forwarding
 // ============================================================================
 
-import type { Instruction, EngineDiagnostic, AssetRef } from '@vn-engine/shared-types';
+import type {
+  Instruction,
+  EngineDiagnostic,
+  AssetRef,
+  ProjectTitleSettings,
+} from '@vn-engine/shared-types';
 
 export function isAllowedEditorOrigin(
   origin: string,
@@ -38,6 +43,9 @@ export interface HotReloadOptions {
   preserveState?: boolean;
   projectId?: string;
   assets?: AssetRef[];
+  title?: string;
+  titleSettings?: ProjectTitleSettings;
+  startMode?: 'title' | 'scene';
 }
 
 export interface PreviewBridgeOptions {
@@ -123,6 +131,10 @@ export class PreviewBridgeAdapter {
         const preserveState = (payload?.preserveState ?? data.preserveState) as boolean | undefined;
         const projectId = (payload?.projectId ?? data.projectId) as string | undefined;
         const assets = (payload?.assets ?? data.assets) as AssetRef[] | undefined;
+        const title = (payload?.title ?? data.title) as string | undefined;
+        const titleSettings = (payload?.titleSettings ?? data.titleSettings) as
+          ProjectTitleSettings | undefined;
+        const startMode = (payload?.startMode ?? data.startMode) as 'title' | 'scene' | undefined;
 
         if (program) {
           const opts: HotReloadOptions = {};
@@ -131,6 +143,9 @@ export class PreviewBridgeAdapter {
           if (preserveState !== undefined) opts.preserveState = preserveState;
           if (projectId !== undefined) opts.projectId = projectId;
           if (assets !== undefined) opts.assets = assets;
+          if (title !== undefined) opts.title = title;
+          if (titleSettings !== undefined) opts.titleSettings = titleSettings;
+          if (startMode !== undefined) opts.startMode = startMode;
           this.options.onHotReload?.(program, Object.keys(opts).length > 0 ? opts : undefined);
         }
         break;

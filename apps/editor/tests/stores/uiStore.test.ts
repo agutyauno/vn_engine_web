@@ -155,4 +155,14 @@ describe('uiStore', () => {
     expect(state.isUnsavedModalOpen).toBe(false);
     expect(state.pendingNavigationTarget).toBeNull();
   });
+
+  it('manages previewStartMode with default "scene" and updates via setPreviewStartMode', () => {
+    expect(useEditorUIStore.getState().previewStartMode).toBe('scene');
+
+    useEditorUIStore.getState().setPreviewStartMode('title');
+    expect(useEditorUIStore.getState().previewStartMode).toBe('title');
+
+    useEditorUIStore.getState().setPreviewStartMode('scene');
+    expect(useEditorUIStore.getState().previewStartMode).toBe('scene');
+  });
 });

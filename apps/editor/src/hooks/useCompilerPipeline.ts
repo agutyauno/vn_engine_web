@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import type { Instruction, Project } from '@vn-engine/shared-types';
 import { useProjectStore } from '../core/stores/projectStore';
 import { useDiagnosticsStore } from '../core/stores/diagnosticsStore';
+import { buildHotReloadPayload } from '../core/services/hotReloadPayload';
 import type { PreviewBridge } from '../core/services/previewBridge';
 import type { CompilerService } from '../core/services/compilerService';
 
@@ -37,11 +38,7 @@ export function useCompilerPipeline(options: UseCompilerPipelineOptions): void {
       // 3. Hot reload if compilation succeeded
       if (output.success && output.bytecode) {
         lastBytecodeRef.current = output.bytecode;
-        previewBridge.hotReload({
-          projectId: currentProject.id,
-          program: output.bytecode,
-          assets: currentProject.assets,
-        });
+        previewBridge.hotReload(buildHotReloadPayload(currentProject, output.bytecode));
       }
     },
     [compilerService, previewBridge],

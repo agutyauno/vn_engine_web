@@ -24,6 +24,7 @@ import { useCompilerPipeline } from '../../hooks/useCompilerPipeline';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { CompilerService } from '../../core/services/compilerService';
 import { PreviewBridge, buildPreviewUrl } from '../../core/services/previewBridge';
+import { buildHotReloadPayload } from '../../core/services/hotReloadPayload';
 import { type EditorDiagnostic } from '../../core/services/reconciliation';
 
 export interface StudioWorkspacePageProps {
@@ -87,6 +88,8 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
   const isUnsavedModalOpen = useEditorUIStore(s => s.isUnsavedModalOpen);
   const triggerUnsavedGuard = useEditorUIStore(s => s.triggerUnsavedGuard);
   const resolveUnsavedGuard = useEditorUIStore(s => s.resolveUnsavedGuard);
+  const previewStartMode = useEditorUIStore(s => s.previewStartMode);
+  const setPreviewStartMode = useEditorUIStore(s => s.setPreviewStartMode);
 
   // --- Diagnostics Store Hook Injection ---
   const compilerDiagnostics = useDiagnosticsStore(s => s.compilerDiagnostics);
@@ -148,11 +151,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
           const activeProgram = compilerService.getLatestProgram?.();
           const proj = useProjectStore.getState().project;
           if (activeProgram && activeProgram.length > 0 && proj) {
-            return {
-              program: activeProgram,
-              projectId: proj.id,
-              assets: proj.assets,
-            };
+            return buildHotReloadPayload(proj, activeProgram);
           }
           return null;
         },
@@ -257,23 +256,30 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
       }
 
       if (activeProgram.length > 0) {
-        previewBridge.hotReload({
-          program: activeProgram,
-          scene: targetOptions?.scene,
-          line: targetOptions?.line,
-          projectId: currentProject.id,
-          assets: currentProject.assets,
-          preserveState: targetOptions?.line !== undefined,
-        });
+        const isRunFromCursor =
+          targetOptions?.line !== undefined || targetOptions?.scene !== undefined;
+        const startMode = isRunFromCursor ? 'scene' : previewStartMode;
+        previewBridge.hotReload(
+          buildHotReloadPayload(currentProject, activeProgram, {
+            scene: targetOptions?.scene,
+            line: targetOptions?.line,
+            preserveState: targetOptions?.line !== undefined,
+            startMode,
+          }),
+        );
       }
     },
-    [currentProject, compilerService, previewBridge, setIsPlaying],
+    [currentProject, compilerService, previewBridge, setIsPlaying, previewStartMode],
   );
 
   const handleQuickPlayAction = useCallback(() => {
     openOrFocusPopout();
     onQuickPlay?.();
   }, [openOrFocusPopout, onQuickPlay]);
+
+  const handleTogglePreviewStartMode = useCallback(() => {
+    setPreviewStartMode(previewStartMode === 'title' ? 'scene' : 'title');
+  }, [previewStartMode, setPreviewStartMode]);
 
   const handleRunFromCursorAction = useCallback(() => {
     openOrFocusPopout({ line: currentCursorLine });
@@ -713,6 +719,8 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
           height={canvasHeight}
           isDirty={isDirty}
           isSaving={isSaving}
+          previewStartMode={previewStartMode}
+          onTogglePreviewStartMode={handleTogglePreviewStartMode}
           onTitleChange={handleTitleChange}
           onSave={handleManualSave}
           onBack={handleBackToHub}

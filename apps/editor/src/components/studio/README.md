@@ -10,27 +10,34 @@ Core visual novel authoring studio workspace. Integrates the 3-column director w
 - `StudioWorkspacePageProps`: Props interface (`projectId`, `repository`, `initialProject`, `onBackToHub`, `onQuickPlay`, `onOpenSettings`, `onExport`)
 - `ActivityBar`: Leftmost icon navigation bar (`ActivityBarProps`, `StudioTab`)
 - `FileExplorerPane`: VNS file explorer pane (`FileExplorerPaneProps`, `cleanChapterName`, `normalizeScriptName`, `validateFileName`, `generateDefaultScriptName`)
-- `StudioHeader`: Top header with title editing, save status indicator, and quick actions (`StudioHeaderProps`, `getAspectRatioBadge`)
+- `StudioHeader`: Top header with title editing, save status indicator, and quick actions (`StudioHeaderProps`, `getAspectRatioBadge`, preview start mode toggle)
 - `AssetLibraryPane`: Asset manager pane with category filter, preview, replace, and safe deletion (`AssetLibraryPaneProps`)
 - `CreateAssetModal`: Modal for uploading/configuring new assets (`CreateAssetModalProps`)
-- `SafeDeleteModal`: Dependency-aware asset deletion guard modal (`SafeDeleteModalProps`)
+- `SafeDeleteModal`: Dependency-aware asset deletion guard modal displaying script references and non-blocking title screen role warnings (`SafeDeleteModalProps`)
 - `EditorTabBar`: Multi-file tab bar with dirty indicators (`EditorTabBarProps`)
 - `MonacoEditorContainer`: Monaco editor wrapper with VNS syntax highlighting and marker synchronization (`MonacoEditorContainerProps`)
 - `DockDrawer`: Resizable bottom dock drawer (`DockDrawerProps`, `DrawerTab`)
 - `DockProblemsTable`: Interactive diagnostics problems table with quick fixes (`DockProblemsTableProps`, `DiagnosticItem`)
 - `PreviewDock`: Live sandbox player dock (`PreviewDockProps`, `formatAspectRatioString`, `isAllowedPreviewOrigin`, `buildPreviewUrl`)
-- `ProjectSettingsModal`: Comprehensive project configuration modal (`ProjectSettingsModalProps`, `SettingsTab`)
+- `ProjectSettingsModal`: Comprehensive project configuration modal managing General, Branding (`titleSettings`), Display, Editor, and Gameplay tabs (`ProjectSettingsModalProps`, `SettingsTab`)
 - `ExportWizardModal`: Release packaging modal for Web, Desktop, and backup formats (`ExportWizardModalProps`, `ExportTarget`)
 - `ColumnSplitter`: Resizable drag handle splitter for workspace panels (`ColumnSplitterProps`)
 - `UnsavedChangesModal`: Navigation guard modal preventing data loss (`UnsavedChangesModalProps`)
 - `ShortcutsHelpModal`: Keyboard shortcuts modal (`ShortcutsHelpModalProps`)
+- `AssetSelectorModal`: Reusable modal for browsing and selecting assets (`AssetSelectorModalProps`)
+- `AssetPickerField`: Form field for selecting and clearing an asset with thumbnail preview and missing-state fallback (`AssetPickerFieldProps`)
 
 ## Invariants
 
 - Scripts must end in `.vns` extension; forbidden filename characters (`\ / : * ? " < > |`) are rejected.
 - The entry scene script (default `main.vns`) cannot be deleted.
 - Assets referenced in script AST cannot be deleted without confirmation bypass or removing references.
+- Assets referenced in `titleSettings` display a non-blocking warning (`safe-delete-title-warning`) indicating removal from title screen roles upon deletion.
 - Navigation away from dirty workspace triggers unsaved changes modal guard.
+- `AssetSelectorModal` filters assets strictly by type (`accept`) and performs case-insensitive name filtering.
+- `AssetPickerField` displays 'Missing asset' when referencing a deleted or nonexistent asset ID.
+- `ProjectSettingsModal` Branding tab edits `titleSettings` (logo, background, BGM) and omits the property entirely if all entries are cleared.
+- Studio header displays `btn-preview-start-mode` toggle button only when quick play is enabled. In popout preview, `startMode: 'scene'` is sent for cursor runs, `previewStartMode` is sent on Play, and omitted on background recompiles.
 
 ## Side Effects
 
