@@ -894,7 +894,10 @@ describe('Monaco DSL 1.1.0 Features, Scoped Interpolation & Hover Provider (TDD 
       }),
       getAssetDetails: () =>
         new Map([
-          ['ast-alice-happy', { category: 'sprite', type: 'image', tag: 'alice', variant: 'happy' }],
+          [
+            'ast-alice-happy',
+            { category: 'sprite', type: 'image', tag: 'alice', variant: 'happy' },
+          ],
           ['ast-alice-sad', { category: 'sprite', type: 'image', tag: 'alice', variant: 'sad' }],
           ['ast-bob-smile', { category: 'sprite', type: 'image', tag: 'bob', variant: 'smile' }],
         ]),
@@ -1062,4 +1065,3 @@ describe('Phase 6: Language Feature Provider Lifecycle & Disposable Management',
     expect(hoverDisposables[0]!.dispose).toHaveBeenCalledTimes(1);
   });
 });
-

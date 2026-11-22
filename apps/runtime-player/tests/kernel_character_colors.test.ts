@@ -49,10 +49,11 @@ describe('VNRuntimeKernel Literal Speaker Resolution (Unified Sprite Layer)', ()
         { type: 'DIALOGUE', character: 'Bob Smith', text: 'Hey there!' },
       ];
 
-      const kernel = new VNRuntimeKernel(
-        program,
-        { renderer: mockRenderer, audio: mockAudio, storage: mockStorage },
-      );
+      const kernel = new VNRuntimeKernel(program, {
+        renderer: mockRenderer,
+        audio: mockAudio,
+        storage: mockStorage,
+      });
 
       await kernel.startNewGame();
 
@@ -81,10 +82,11 @@ describe('VNRuntimeKernel Literal Speaker Resolution (Unified Sprite Layer)', ()
         { type: 'DIALOGUE', character: 'Charlie', text: 'Literal speaker character.' },
       ];
 
-      const kernel = new VNRuntimeKernel(
-        program,
-        { renderer: mockRenderer, audio: mockAudio, storage: mockStorage },
-      );
+      const kernel = new VNRuntimeKernel(program, {
+        renderer: mockRenderer,
+        audio: mockAudio,
+        storage: mockStorage,
+      });
 
       await kernel.startNewGame();
 
@@ -112,10 +114,11 @@ describe('VNRuntimeKernel Literal Speaker Resolution (Unified Sprite Layer)', ()
         },
       ];
 
-      const kernel = new VNRuntimeKernel(
-        program,
-        { renderer: mockRenderer, audio: mockAudio, storage: mockStorage },
-      );
+      const kernel = new VNRuntimeKernel(program, {
+        renderer: mockRenderer,
+        audio: mockAudio,
+        storage: mockStorage,
+      });
 
       await kernel.startNewGame();
 
@@ -138,10 +141,11 @@ describe('VNRuntimeKernel Literal Speaker Resolution (Unified Sprite Layer)', ()
         { type: 'DIALOGUE', character: 'Bob Smith', text: 'Line 2 by Bob.' },
       ];
 
-      const kernel = new VNRuntimeKernel(
-        program,
-        { renderer: mockRenderer, audio: mockAudio, storage: mockStorage },
-      );
+      const kernel = new VNRuntimeKernel(program, {
+        renderer: mockRenderer,
+        audio: mockAudio,
+        storage: mockStorage,
+      });
 
       await kernel.startNewGame();
       expect(kernel.getState().dialogue.speakerColorHex).toBe('#ffffff');

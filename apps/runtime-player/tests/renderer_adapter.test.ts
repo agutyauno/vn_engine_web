@@ -1,7 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { RendererAdapter } from '../src/adapters/RendererAdapter';
 import type { GameRenderer, CatchUpVisualState } from '@vn-engine/renderer';
-import type { ShowInstruction, HideInstruction, BackgroundInstruction } from '@vn-engine/shared-types';
+import type {
+  ShowInstruction,
+  HideInstruction,
+  BackgroundInstruction,
+} from '@vn-engine/shared-types';
 import type { DiagnosticBus } from '../src/services/diagnosticBus';
 
 describe('RendererAdapter', () => {
@@ -57,10 +61,7 @@ describe('RendererAdapter', () => {
       };
 
       await adapter.applySideEffect(showInstr);
-      expect(mockGameRenderer.showSprite).toHaveBeenCalledWith(
-        showInstr,
-        expect.any(Function),
-      );
+      expect(mockGameRenderer.showSprite).toHaveBeenCalledWith(showInstr, expect.any(Function));
 
       const propInstr: ShowInstruction = {
         type: 'SHOW',
@@ -70,10 +71,7 @@ describe('RendererAdapter', () => {
       };
 
       await adapter.applySideEffect(propInstr);
-      expect(mockGameRenderer.showSprite).toHaveBeenCalledWith(
-        propInstr,
-        expect.any(Function),
-      );
+      expect(mockGameRenderer.showSprite).toHaveBeenCalledWith(propInstr, expect.any(Function));
     });
 
     it('[TC-SPRITE-REND-ADAPT-02] should dispatch HIDE instruction directly to GameRenderer.hideSprite by targetId', async () => {
@@ -117,15 +115,21 @@ describe('RendererAdapter', () => {
       const catchUp: CatchUpVisualState = {
         background: { type: 'BACKGROUND', assetId: 'bg_bedroom' },
         sprites: new Map([
-          ['alice', { type: 'SHOW', targetId: 'alice', variant: 'smile', character: 'alice', position: 'left' }],
+          [
+            'alice',
+            {
+              type: 'SHOW',
+              targetId: 'alice',
+              variant: 'smile',
+              character: 'alice',
+              position: 'left',
+            },
+          ],
         ]),
       };
 
       await adapter.syncStateCatchUp(catchUp);
-      expect(mockGameRenderer.syncStateCatchUp).toHaveBeenCalledWith(
-        catchUp,
-        expect.any(Function),
-      );
+      expect(mockGameRenderer.syncStateCatchUp).toHaveBeenCalledWith(catchUp, expect.any(Function));
     });
   });
 

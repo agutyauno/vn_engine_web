@@ -53,11 +53,11 @@ function createMockEditor(overrides?: {
 }) {
   const executeEditsMock = vi.fn();
   const focusMock = vi.fn();
-  const getPositionMock = vi.fn().mockReturnValue(
-    overrides?.position !== undefined
-      ? overrides.position
-      : { lineNumber: 1, column: 1 },
-  );
+  const getPositionMock = vi
+    .fn()
+    .mockReturnValue(
+      overrides?.position !== undefined ? overrides.position : { lineNumber: 1, column: 1 },
+    );
   const getTargetAtClientPointMock = vi.fn().mockImplementation((_x: number, _y: number) => {
     if (overrides?.targetPosition !== undefined) {
       return overrides.targetPosition ? { position: overrides.targetPosition } : null;
@@ -395,4 +395,3 @@ describe('Phase 2.3: Monaco Drop Text Cleaner & Container Drop Handler (RED Phas
     });
   });
 });
-

@@ -17,14 +17,14 @@ describe('Integration Tests: Monaco CodeActionProvider (QuickFix Lightbulb & Ctr
 
     // Capture the registered CodeActionProvider
     codeActionProvider = null;
-    registerCodeActionSpy = vi.spyOn(monaco.languages, 'registerCodeActionProvider').mockImplementation(
-      ((languageId: string, provider: monaco.languages.CodeActionProvider) => {
+    registerCodeActionSpy = vi
+      .spyOn(monaco.languages, 'registerCodeActionProvider')
+      .mockImplementation(((languageId: string, provider: monaco.languages.CodeActionProvider) => {
         if (languageId === 'vns') {
           codeActionProvider = provider;
         }
         return { dispose: vi.fn() };
-      }) as any,
-    );
+      }) as any);
 
     mockContext = {
       getFiles: () => ({
@@ -92,7 +92,10 @@ describe('Integration Tests: Monaco CodeActionProvider (QuickFix Lightbulb & Ctr
       trigger: 1,
     };
 
-    const token = { isCancellationRequested: false, onCancellationRequested: vi.fn() } as unknown as monaco.CancellationToken;
+    const token = {
+      isCancellationRequested: false,
+      onCancellationRequested: vi.fn(),
+    } as unknown as monaco.CancellationToken;
 
     const result = await codeActionProvider!.provideCodeActions(
       mockModel,
@@ -133,7 +136,12 @@ describe('Integration Tests: Monaco CodeActionProvider (QuickFix Lightbulb & Ctr
       getLineContent: () => '    background bg_garden.png',
     } as unknown as monaco.editor.ITextModel;
 
-    const mockRange = { startLineNumber: 1, startColumn: 1, endLineNumber: 1, endColumn: 20 } as monaco.Range;
+    const mockRange = {
+      startLineNumber: 1,
+      startColumn: 1,
+      endLineNumber: 1,
+      endColumn: 20,
+    } as monaco.Range;
     const mockContextData: monaco.languages.CodeActionContext = {
       markers: [
         {
@@ -190,7 +198,12 @@ describe('Integration Tests: Monaco CodeActionProvider (QuickFix Lightbulb & Ctr
       getLineContent: (line: number) => (line === 2 ? '    gold = gold + 1' : 'scene intro {'),
     } as unknown as monaco.editor.ITextModel;
 
-    const mockRange = { startLineNumber: 2, startColumn: 5, endLineNumber: 2, endColumn: 9 } as monaco.Range;
+    const mockRange = {
+      startLineNumber: 2,
+      startColumn: 5,
+      endLineNumber: 2,
+      endColumn: 9,
+    } as monaco.Range;
     const mockContextData: monaco.languages.CodeActionContext = {
       markers: [
         {
@@ -233,7 +246,12 @@ describe('Integration Tests: Monaco CodeActionProvider (QuickFix Lightbulb & Ctr
       getLineContent: () => 'scene intro {}',
     } as unknown as monaco.editor.ITextModel;
 
-    const mockRange = { startLineNumber: 99, startColumn: 1, endLineNumber: 99, endColumn: 10 } as monaco.Range;
+    const mockRange = {
+      startLineNumber: 99,
+      startColumn: 1,
+      endLineNumber: 99,
+      endColumn: 10,
+    } as monaco.Range;
     const mockContextData: monaco.languages.CodeActionContext = {
       markers: [
         {
@@ -316,7 +334,10 @@ describe('Integration Tests: Monaco CodeActionProvider (QuickFix Lightbulb & Ctr
       } as unknown as monaco.editor.IMarker,
     ]);
 
-    const token = { isCancellationRequested: false, onCancellationRequested: vi.fn() } as unknown as monaco.CancellationToken;
+    const token = {
+      isCancellationRequested: false,
+      onCancellationRequested: vi.fn(),
+    } as unknown as monaco.CancellationToken;
 
     const result = await codeActionProvider!.provideCodeActions(
       mockModel,
@@ -386,7 +407,10 @@ describe('Integration Tests: Monaco CodeActionProvider (QuickFix Lightbulb & Ctr
       trigger: 1,
     };
 
-    const token = { isCancellationRequested: false, onCancellationRequested: vi.fn() } as unknown as monaco.CancellationToken;
+    const token = {
+      isCancellationRequested: false,
+      onCancellationRequested: vi.fn(),
+    } as unknown as monaco.CancellationToken;
 
     const result = await codeActionProvider!.provideCodeActions(
       mockModel,
@@ -449,7 +473,12 @@ describe('Integration Tests: Monaco CodeActionProvider (QuickFix Lightbulb & Ctr
       getLineContent: () => 'background bg_garden.png',
     } as unknown as monaco.editor.ITextModel;
 
-    const mockRange = { startLineNumber: 1, startColumn: 1, endLineNumber: 1, endColumn: 24 } as monaco.Range;
+    const mockRange = {
+      startLineNumber: 1,
+      startColumn: 1,
+      endLineNumber: 1,
+      endColumn: 24,
+    } as monaco.Range;
 
     // Monaco truyền 2 markers trên cùng dòng 1
     const mockContextData: monaco.languages.CodeActionContext = {
@@ -536,7 +565,12 @@ describe('Integration Tests: Monaco CodeActionProvider (QuickFix Lightbulb & Ctr
       getLineContent: () => 'background bg_city.png speed = 10',
     } as unknown as monaco.editor.ITextModel;
 
-    const mockRange = { startLineNumber: 1, startColumn: 1, endLineNumber: 1, endColumn: 30 } as monaco.Range;
+    const mockRange = {
+      startLineNumber: 1,
+      startColumn: 1,
+      endLineNumber: 1,
+      endColumn: 30,
+    } as monaco.Range;
 
     const mockContextData: monaco.languages.CodeActionContext = {
       markers: [

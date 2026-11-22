@@ -374,12 +374,9 @@ describe('Phase 2.4: Uncreated Expression Warning & QuickFix Pipeline (TC-EXPR-0
           {
             id: 'file-1',
             name: 'main.vns',
-            content: [
-              'scene intro {',
-              '  show alice.default',
-              '  show alice.smile',
-              '}',
-            ].join('\n'),
+            content: ['scene intro {', '  show alice.default', '  show alice.smile', '}'].join(
+              '\n',
+            ),
             order: 0,
             version: 1,
           },

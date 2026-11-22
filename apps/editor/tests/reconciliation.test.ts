@@ -1,7 +1,11 @@
 // apps/editor/tests/reconciliation.test.ts
 import { describe, it, expect } from 'vitest';
 import type { Project, ScriptFile, AssetRef } from '@vn-engine/shared-types';
-import { scanActiveReconciliation, generateDiagnostics, checkAssetDeletionSafety } from '../src/core/services/reconciliation';
+import {
+  scanActiveReconciliation,
+  generateDiagnostics,
+  checkAssetDeletionSafety,
+} from '../src/core/services/reconciliation';
 
 function createMockProject(options?: {
   files?: ScriptFile[];
@@ -626,12 +630,9 @@ describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () 
         {
           id: 'file-1',
           name: 'main.vns',
-          content: [
-            'scene lab {',
-            '  play music "bgm_lab"',
-            '  "Welcome to the lab"',
-            '}',
-          ].join('\n'),
+          content: ['scene lab {', '  play music "bgm_lab"', '  "Welcome to the lab"', '}'].join(
+            '\n',
+          ),
           order: 0,
           version: 1,
         },
@@ -643,9 +644,7 @@ describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () 
     expect(report.uncreatedAssets).toContain('bgm_lab');
 
     const diagnostics = generateDiagnostics(project);
-    const audioWarning = diagnostics.find(
-      d => d.category === 'asset' && d.assetKey === 'bgm_lab',
-    );
+    const audioWarning = diagnostics.find(d => d.category === 'asset' && d.assetKey === 'bgm_lab');
 
     expect(audioWarning).toBeDefined();
     expect(audioWarning?.severity).toBe('warning');
@@ -670,11 +669,7 @@ describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () 
         {
           id: 'file-1',
           name: 'chapter1.vns',
-          content: [
-            'scene classroom {',
-            '  background bg_room',
-            '}',
-          ].join('\n'),
+          content: ['scene classroom {', '  background bg_room', '}'].join('\n'),
           order: 0,
           version: 1,
         },
@@ -700,11 +695,7 @@ describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () 
         {
           id: 'file-1',
           name: 'show_test.vns',
-          content: [
-            'scene visual_scene {',
-            '  show charlie.happy',
-            '}',
-          ].join('\n'),
+          content: ['scene visual_scene {', '  show charlie.happy', '}'].join('\n'),
           order: 0,
           version: 1,
         },

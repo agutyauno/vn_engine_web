@@ -59,7 +59,10 @@ export const ImageLightboxModal: React.FC<ImageLightboxModalProps> = ({
               </span>
             )}
             {subtitle && (
-              <span data-testid="lightbox-subtitle" className="text-[10px] text-neutral-500 font-mono">
+              <span
+                data-testid="lightbox-subtitle"
+                className="text-[10px] text-neutral-500 font-mono"
+              >
                 {subtitle}
               </span>
             )}
@@ -90,4 +93,3 @@ export const ImageLightboxModal: React.FC<ImageLightboxModalProps> = ({
     </div>
   );
 };
-

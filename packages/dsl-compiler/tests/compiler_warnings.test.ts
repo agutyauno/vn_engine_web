@@ -36,9 +36,7 @@ scene intro {
     expect(result.errors).toBeUndefined();
     expect(result.program).toBeDefined();
 
-    const playInst = result.program?.find(
-      (inst): inst is PlayInstruction => inst.type === 'PLAY',
-    );
+    const playInst = result.program?.find((inst): inst is PlayInstruction => inst.type === 'PLAY');
     expect(playInst).toBeDefined();
     expect(playInst?.channel).toBe('music');
     expect(playInst?.assetId).toBe('bgm_missing');
@@ -90,4 +88,3 @@ scene intro {
     expect(Array.isArray(validationResult.warnings)).toBe(true);
   });
 });
-

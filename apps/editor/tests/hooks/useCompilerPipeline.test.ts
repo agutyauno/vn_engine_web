@@ -1,12 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
-import type {
-  Project,
-  AssetRef,
-  Instruction,
-  EngineDiagnostic,
-} from '@vn-engine/shared-types';
+import type { Project, AssetRef, Instruction, EngineDiagnostic } from '@vn-engine/shared-types';
 import { useCompilerPipeline } from '../../src/hooks/useCompilerPipeline';
 import { useProjectStore } from '../../src/core/stores/projectStore';
 import { useDiagnosticsStore } from '../../src/core/stores/diagnosticsStore';
@@ -227,9 +222,11 @@ describe('useCompilerPipeline Hook (Phase 2)', () => {
     });
 
     const setAllDiagnosticsSpy = vi.fn();
-    (useDiagnosticsStore.getState() as unknown as {
-      setAllDiagnostics: (c: EngineDiagnostic[], r: EngineDiagnostic[]) => void;
-    }).setAllDiagnostics = setAllDiagnosticsSpy;
+    (
+      useDiagnosticsStore.getState() as unknown as {
+        setAllDiagnostics: (c: EngineDiagnostic[], r: EngineDiagnostic[]) => void;
+      }
+    ).setAllDiagnostics = setAllDiagnosticsSpy;
 
     renderHook(() =>
       useCompilerPipeline({

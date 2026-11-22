@@ -22,7 +22,11 @@ describe('Renderer Resilience & Asset Fallback (TASK-renderer-null-texture-and-b
 
     // Asset resolver returns a blob URL which Pixi fails to parse (resolves to null)
     await expect(
-      renderer.setBackground('bg_corrupted', undefined, () => 'blob:http://localhost:3001/dead-uuid'),
+      renderer.setBackground(
+        'bg_corrupted',
+        undefined,
+        () => 'blob:http://localhost:3001/dead-uuid',
+      ),
     ).resolves.not.toThrow();
 
     expect(renderer.getCurrentBackgroundId()).toBe('bg_corrupted');
@@ -82,7 +86,11 @@ describe('Renderer Resilience & Asset Fallback (TASK-renderer-null-texture-and-b
       placeholderMode: 'procedural',
     });
 
-    await renderer.setBackground('bg_blob', undefined, () => 'blob:http://localhost:3001/good-uuid');
+    await renderer.setBackground(
+      'bg_blob',
+      undefined,
+      () => 'blob:http://localhost:3001/good-uuid',
+    );
 
     expect(loadSpy).toHaveBeenCalledWith({
       src: 'blob:http://localhost:3001/good-uuid',

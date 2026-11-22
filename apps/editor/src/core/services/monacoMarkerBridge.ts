@@ -61,7 +61,10 @@ export function resolveMarkerSpan(
       const wordMatch = /^[a-zA-Z0-9_.-]+/.exec(sub);
       if (wordMatch && wordMatch[0].length > 0) {
         const startColumn = Math.min(Math.max(1, rawCol), maxColumn);
-        const endColumn = Math.min(Math.max(startColumn, startColumn + wordMatch[0].length), maxColumn);
+        const endColumn = Math.min(
+          Math.max(startColumn, startColumn + wordMatch[0].length),
+          maxColumn,
+        );
         return { startColumn, endColumn };
       }
     }

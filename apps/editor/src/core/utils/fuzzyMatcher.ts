@@ -21,9 +21,9 @@ function levenshteinDistance(s1: string, s2: string): number {
       const c2 = s2.charCodeAt(j - 1);
       const cost = c1 === c2 ? 0 : 1;
       currRow[j] = Math.min(
-        currRow[j - 1]! + 1,      // insertion
-        prevRow[j]! + 1,          // deletion
-        prevRow[j - 1]! + cost,   // substitution
+        currRow[j - 1]! + 1, // insertion
+        prevRow[j]! + 1, // deletion
+        prevRow[j - 1]! + cost, // substitution
       );
     }
     const temp = prevRow;
@@ -77,4 +77,3 @@ export function findClosestMatches(
 
   return scored.slice(0, maxResults).map(s => s.candidate);
 }
-

@@ -115,22 +115,12 @@ describe('Unit Tests: QuickFix Service (Variable Insertion & Action Resolution)'
       ].join('\n');
 
       // Local scene variable inside .branch1 (line 2)
-      const localResult = calculateVariableInsertion(
-        scriptWithSubscene,
-        'sub_val',
-        'scene',
-        3,
-      );
+      const localResult = calculateVariableInsertion(scriptWithSubscene, 'sub_val', 'scene', 3);
       expect(localResult.insertLine).toBe(3);
       expect(localResult.text).toBe('        define sub_val = 0\n');
 
       // Global variable insertion should go before outer scene main (line 1)
-      const globalResult = calculateVariableInsertion(
-        scriptWithSubscene,
-        'sub_val',
-        'global',
-        3,
-      );
+      const globalResult = calculateVariableInsertion(scriptWithSubscene, 'sub_val', 'global', 3);
       expect(globalResult.insertLine).toBe(1);
       expect(globalResult.insertCol).toBe(1);
       expect(globalResult.text).toBe('define sub_val = 0\n');
@@ -260,13 +250,17 @@ describe('Unit Tests: QuickFix Service (Variable Insertion & Action Resolution)'
       const actions = resolveQuickFixActions(context);
 
       // 1. Declare global variable action
-      const globalAction = actions.find(a => a.id.includes('global') || a.title.toLowerCase().includes('global'));
+      const globalAction = actions.find(
+        a => a.id.includes('global') || a.title.toLowerCase().includes('global'),
+      );
       expect(globalAction).toBeDefined();
       expect(globalAction?.edit?.newText).toContain('define scrore = 0');
       expect(globalAction?.edit?.range.startLine).toBe(1);
 
       // 2. Declare scene local variable action
-      const sceneAction = actions.find(a => a.id.includes('scene') || a.title.toLowerCase().includes('scene'));
+      const sceneAction = actions.find(
+        a => a.id.includes('scene') || a.title.toLowerCase().includes('scene'),
+      );
       expect(sceneAction).toBeDefined();
       expect(sceneAction?.edit?.newText).toContain('define scrore = 0');
       expect(sceneAction?.edit?.range.startLine).toBe(2);
@@ -280,11 +274,7 @@ describe('Unit Tests: QuickFix Service (Variable Insertion & Action Resolution)'
 
     it('TC-QF-ACTION-04: should prioritize declare-scene-var as first action with isPreferred=true when error is inside a scene, and only generate global action when outside scene', () => {
       // 1. Error inside a scene block
-      const insideSceneContent = [
-        'scene intro {',
-        '    score = 1',
-        '}',
-      ].join('\n');
+      const insideSceneContent = ['scene intro {', '    score = 1', '}'].join('\n');
 
       const varDiagInside: EditorDiagnostic = {
         id: 'diag-var-inside',
@@ -331,12 +321,9 @@ describe('Unit Tests: QuickFix Service (Variable Insertion & Action Resolution)'
       expect(secondAction.edit?.range.startLine).toBe(1);
 
       // 2. Error outside any scene block (top-level)
-      const outsideSceneContent = [
-        'score = 1',
-        'scene intro {',
-        '    "Alice" "Hello"',
-        '}',
-      ].join('\n');
+      const outsideSceneContent = ['score = 1', 'scene intro {', '    "Alice" "Hello"', '}'].join(
+        '\n',
+      );
 
       const varDiagOutside: EditorDiagnostic = {
         id: 'diag-var-outside',
@@ -618,11 +605,7 @@ describe('Unit Tests: QuickFix Service (Variable Insertion & Action Resolution)'
 
     // TC-QF-EDGE-03: Hyphenated asset identifiers and fallback range finding
     it('TC-QF-EDGE-03: should accurately find target range for hyphenated asset names and extensions', () => {
-      const customScript = [
-        'scene intro {',
-        '    background bg-forest-01.png',
-        '}',
-      ].join('\n');
+      const customScript = ['scene intro {', '    background bg-forest-01.png', '}'].join('\n');
 
       const hyphenDiag: EditorDiagnostic = {
         id: 'diag-hyphen-1',
@@ -703,4 +686,3 @@ describe('Unit Tests: QuickFix Service (Variable Insertion & Action Resolution)'
     });
   });
 });
-

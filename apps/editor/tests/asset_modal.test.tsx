@@ -3,7 +3,11 @@
 import '@testing-library/jest-dom';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { validateAssetFile, slugifyAssetId, parseSpriteFilename } from '../src/core/utils/assetValidation';
+import {
+  validateAssetFile,
+  slugifyAssetId,
+  parseSpriteFilename,
+} from '../src/core/utils/assetValidation';
 import { CreateAssetModal } from '../src/components/studio/CreateAssetModal';
 import type { AssetRef } from '@vn-engine/shared-types';
 

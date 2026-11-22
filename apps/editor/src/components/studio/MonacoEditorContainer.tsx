@@ -136,7 +136,12 @@ export interface MonacoEditorContainerProps {
   cursorJumpTarget?: { line: number; col: number } | null;
   onChange?: (newContent: string) => void;
   onCursorChange?: (line: number, col: number) => void;
-  onRequestCreateAsset?: (targetId: string, category?: AssetCategory, tag?: string, variant?: string) => void;
+  onRequestCreateAsset?: (
+    targetId: string,
+    category?: AssetCategory,
+    tag?: string,
+    variant?: string,
+  ) => void;
   onRequestCreateCharacter?: (targetId: string) => void;
   onRequestCreateExpression?: (charId: string, expressionKey: string) => void;
   readOnly?: boolean;
@@ -315,7 +320,13 @@ export const MonacoEditorContainer = React.forwardRef<
     try {
       d1 = monacoInstanceRef.current.editor.registerCommand(
         'vn.editor.createAsset',
-        (_accessor, targetId?: string, category?: AssetCategory, tag?: string, variant?: string) => {
+        (
+          _accessor,
+          targetId?: string,
+          category?: AssetCategory,
+          tag?: string,
+          variant?: string,
+        ) => {
           if (targetId) {
             onRequestCreateAssetRef.current?.(targetId, category, tag, variant);
           }

@@ -1,10 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type {
-  Project,
-  AssetRef,
-  VariableDeclaration,
-  ScriptFile,
-} from '@vn-engine/shared-types';
+import type { Project, AssetRef, VariableDeclaration, ScriptFile } from '@vn-engine/shared-types';
 import {
   createVnsProjectContext,
   type SceneItem,

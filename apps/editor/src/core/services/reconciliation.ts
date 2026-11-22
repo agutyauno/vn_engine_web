@@ -149,7 +149,11 @@ export function scanActiveReconciliation(project: Project): ReconciliationReport
   };
 
   const legacyChars: Array<{ id: string; name?: string; sprites?: Record<string, string> }> =
-    (project as unknown as { characters?: Array<{ id: string; name?: string; sprites?: Record<string, string> }> }).characters || [];
+    (
+      project as unknown as {
+        characters?: Array<{ id: string; name?: string; sprites?: Record<string, string> }>;
+      }
+    ).characters || [];
   const knownCharIds = new Set(legacyChars.map(c => (c.id || '').trim().toLowerCase()));
   const charMap = new Map<string, (typeof legacyChars)[0]>();
   for (const c of legacyChars) {
@@ -186,7 +190,10 @@ export function scanActiveReconciliation(project: Project): ReconciliationReport
       }
       if (asset.name) {
         knownSpriteKeys.add(asset.name.trim().toLowerCase());
-        const clean = asset.name.replace(/\.[^/.]+$/, '').trim().toLowerCase();
+        const clean = asset.name
+          .replace(/\.[^/.]+$/, '')
+          .trim()
+          .toLowerCase();
         knownSpriteKeys.add(clean);
       }
     }
@@ -334,8 +341,6 @@ export function scanActiveReconciliation(project: Project): ReconciliationReport
     }
   }
 
-
-
   const uncreatedCharacters: string[] = [];
   if (knownCharIds.size > 0 || (project as unknown as { characters?: unknown[] }).characters) {
     for (const charId of Object.keys(charRefMap)) {
@@ -454,7 +459,11 @@ export function checkAssetDeletionSafety(
 
   // Quét thêm tham chiếu chéo từ Character Sprites nếu có legacy project
   const legacyChars: Array<{ id?: string; name?: string; sprites?: Record<string, string> }> =
-    (project as unknown as { characters?: Array<{ id?: string; name?: string; sprites?: Record<string, string> }> }).characters || [];
+    (
+      project as unknown as {
+        characters?: Array<{ id?: string; name?: string; sprites?: Record<string, string> }>;
+      }
+    ).characters || [];
   const clean = target.toLowerCase();
   const matchedId = matchedAsset?.id?.toLowerCase();
   const matchedName = matchedAsset?.name?.toLowerCase();
@@ -790,7 +799,13 @@ function extractReferencesViaRegex(content: string, fileId: string): ScriptRefer
           assetKey: introMatch[1],
           category: 'audio',
           expectedType: 'audio',
-          loc: { fileId, line: lineNum, col: introSpan.col, endLine: lineNum, endCol: introSpan.endCol },
+          loc: {
+            fileId,
+            line: lineNum,
+            col: introSpan.col,
+            endLine: lineNum,
+            endCol: introSpan.endCol,
+          },
         });
       }
     }
@@ -819,10 +834,12 @@ function extractReferencesViaRegex(content: string, fileId: string): ScriptRefer
  */
 export function computeReconciliationDiagnostics(
   files: ScriptFile[],
-  options: {
-    characters?: Array<{ id: string; name?: string; sprites?: Record<string, string> }>;
-    assets?: Array<{ id: string; name?: string; type?: string; category?: string }>;
-  } | undefined,
+  options:
+    | {
+        characters?: Array<{ id: string; name?: string; sprites?: Record<string, string> }>;
+        assets?: Array<{ id: string; name?: string; type?: string; category?: string }>;
+      }
+    | undefined,
   cache: Map<string, ScriptReferences>,
 ): GeneratedEditorDiagnostic[] {
   const currentFileKeys = new Set(files.map(f => f.id || f.name));

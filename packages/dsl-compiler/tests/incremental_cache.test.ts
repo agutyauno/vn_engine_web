@@ -74,7 +74,8 @@ describe('Incremental AST Caching & Bytecode Checksum (Phase 6)', () => {
     const result1 = compiler.compile([fileA]);
     expect(result1.success).toBe(true);
     expect(compiler.getCacheSize()).toBe(1);
-    const dialogue1 = (result1.program?.find(i => i.type === 'DIALOGUE') as DialogueInstruction)?.text;
+    const dialogue1 = (result1.program?.find(i => i.type === 'DIALOGUE') as DialogueInstruction)
+      ?.text;
     expect(dialogue1).toBe('hello');
 
     // Biên dịch lần 2 với fileA sửa đổi nội dung
@@ -83,7 +84,8 @@ describe('Incremental AST Caching & Bytecode Checksum (Phase 6)', () => {
     expect(result2.success).toBe(true);
     expect(compiler.getCacheSize()).toBe(1);
 
-    const dialogue2 = (result2.program?.find(i => i.type === 'DIALOGUE') as DialogueInstruction)?.text;
+    const dialogue2 = (result2.program?.find(i => i.type === 'DIALOGUE') as DialogueInstruction)
+      ?.text;
     expect(dialogue2).toBe('goodbye');
     expect(result2.ast?.scenes[0]?.body).not.toEqual(result1.ast?.scenes[0]?.body);
   });

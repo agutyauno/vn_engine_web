@@ -1,13 +1,5 @@
 export type ConsolidatedCategory =
-  | 'all'
-  | 'backgrounds'
-  | 'sprites'
-  | 'audio'
-  | 'bgm'
-  | 'sfx'
-  | 'voice'
-  | 'ui'
-  | 'other';
+  'all' | 'backgrounds' | 'sprites' | 'audio' | 'bgm' | 'sfx' | 'voice' | 'ui' | 'other';
 
 /**
  * Chuẩn hóa các category đầu vào (cả số ít và số nhiều) về canonical filter tab.

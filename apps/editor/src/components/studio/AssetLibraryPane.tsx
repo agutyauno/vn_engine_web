@@ -28,10 +28,7 @@ import {
 import { validateAssetFile, parseSpriteFilename } from '../../core/utils/assetValidation';
 import { generateDslSnippet } from '../../core/utils/dslSnippetGenerator';
 import { useEditorUIStore } from '../../core/stores/uiStore';
-import {
-  normalizeCategoryTab,
-  type ConsolidatedCategory,
-} from '../../core/utils/assetCategories';
+import { normalizeCategoryTab, type ConsolidatedCategory } from '../../core/utils/assetCategories';
 
 export interface AssetLibraryPaneProps {
   project: Project;
@@ -504,7 +501,11 @@ export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
           <option value="other">Other</option>
         </select>
         <div className="hidden" aria-hidden="true">
-          <button data-testid="tab-asset-all" type="button" onClick={() => handleCategoryFilterChange('all')}>
+          <button
+            data-testid="tab-asset-all"
+            type="button"
+            onClick={() => handleCategoryFilterChange('all')}
+          >
             All
           </button>
           <button
@@ -521,22 +522,46 @@ export const AssetLibraryPane: React.FC<AssetLibraryPaneProps> = ({
           >
             Sprites
           </button>
-          <button data-testid="tab-asset-bgm" type="button" onClick={() => handleCategoryFilterChange('bgm')}>
+          <button
+            data-testid="tab-asset-bgm"
+            type="button"
+            onClick={() => handleCategoryFilterChange('bgm')}
+          >
             BGM
           </button>
-          <button data-testid="tab-asset-sfx" type="button" onClick={() => handleCategoryFilterChange('sfx')}>
+          <button
+            data-testid="tab-asset-sfx"
+            type="button"
+            onClick={() => handleCategoryFilterChange('sfx')}
+          >
             SFX
           </button>
-          <button data-testid="tab-asset-voice" type="button" onClick={() => handleCategoryFilterChange('voice')}>
+          <button
+            data-testid="tab-asset-voice"
+            type="button"
+            onClick={() => handleCategoryFilterChange('voice')}
+          >
             Voice
           </button>
-          <button data-testid="tab-asset-ui" type="button" onClick={() => handleCategoryFilterChange('ui')}>
+          <button
+            data-testid="tab-asset-ui"
+            type="button"
+            onClick={() => handleCategoryFilterChange('ui')}
+          >
             UI
           </button>
-          <button data-testid="tab-asset-other" type="button" onClick={() => handleCategoryFilterChange('other')}>
+          <button
+            data-testid="tab-asset-other"
+            type="button"
+            onClick={() => handleCategoryFilterChange('other')}
+          >
             Other
           </button>
-          <button data-testid="tab-asset-audio" type="button" onClick={() => handleCategoryFilterChange('audio')}>
+          <button
+            data-testid="tab-asset-audio"
+            type="button"
+            onClick={() => handleCategoryFilterChange('audio')}
+          >
             Audio
           </button>
         </div>

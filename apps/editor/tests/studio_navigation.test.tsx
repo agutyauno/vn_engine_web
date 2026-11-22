@@ -257,7 +257,9 @@ describe('Studio Shell & Navigation (Milestone 3 TDD)', () => {
   describe('ActivityBar', () => {
     it('TC-SPRITE-ED-05: renders only 2 monochrome tabs (Scripts and Assets) and does NOT render Characters tab', () => {
       const handleTabChange = vi.fn();
-      const { rerender } = render(<ActivityBar activeTab="scripts" onSelectTab={handleTabChange} />);
+      const { rerender } = render(
+        <ActivityBar activeTab="scripts" onSelectTab={handleTabChange} />,
+      );
 
       // Only Scripts and Assets
       expect(screen.getByTestId('tab-scripts')).toBeInTheDocument();

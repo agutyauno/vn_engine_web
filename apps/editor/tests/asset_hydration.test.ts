@@ -142,9 +142,7 @@ describe('Phase 2: Editor Asset Blob Hydration & Lifecycle', () => {
 
     await useProjectStore.getState().saveAsset(targetAsset, fileBlob);
 
-    const savedAsset = useProjectStore
-      .getState()
-      .project?.assets.find(a => a.id === 'bg_castle');
+    const savedAsset = useProjectStore.getState().project?.assets.find(a => a.id === 'bg_castle');
 
     expect(savedAsset).toBeDefined();
     expect(savedAsset?.storageUrl).toBe(freshLiveUrl);
@@ -187,9 +185,7 @@ describe('Phase 2: Editor Asset Blob Hydration & Lifecycle', () => {
 
     await useProjectStore.getState().saveAsset(assetMeta);
 
-    const savedAsset = useProjectStore
-      .getState()
-      .project?.assets.find(a => a.id === 'bgm_theme');
+    const savedAsset = useProjectStore.getState().project?.assets.find(a => a.id === 'bgm_theme');
 
     expect(savedAsset).toBeDefined();
     expect(savedAsset?.storageUrl).toBe(existingUrl);
@@ -198,4 +194,3 @@ describe('Phase 2: Editor Asset Blob Hydration & Lifecycle', () => {
     await repo.close();
   });
 });
-

@@ -163,4 +163,3 @@ describe('Integration Tests: Dock Problems Table QuickFix (TC-DRAWER-QF-01 & 02)
     expect(updatedFile!.content).not.toMatch(/^define score = 0/);
   });
 });
-

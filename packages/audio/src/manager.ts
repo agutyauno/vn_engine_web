@@ -223,7 +223,11 @@ export class AudioManager {
 
     const isHtml5 = channelName === 'music'; // Dùng HTML5 Audio cho nhạc nền dung lượng lớn
 
-    if (options?.introUrl && typeof options.introUrl === 'string' && options.introUrl.trim().length > 0) {
+    if (
+      options?.introUrl &&
+      typeof options.introUrl === 'string' &&
+      options.introUrl.trim().length > 0
+    ) {
       // LUỒNG PHÁT INTRO + LOOP (CHAINING)
       try {
         const introExplicitFormat =

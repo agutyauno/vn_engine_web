@@ -49,8 +49,7 @@ describe('DSL Compiler: Play Music with Intro Parameter (TASK-audio-intro-loop)'
     const sceneNode = result.ast?.scenes?.find(s => s.name === 'audio_intro_test');
     expect(sceneNode).toBeDefined();
     const playStmt = sceneNode?.body?.find(stmt => stmt.type === 'PlayStatement') as
-      | PlayStatement
-      | undefined;
+      PlayStatement | undefined;
     expect(playStmt).toBeDefined();
     expect(playStmt?.channel).toBe('music');
     expect(playStmt?.assetId).toBe('loop.mp3');
@@ -78,7 +77,9 @@ describe('DSL Compiler: Play Music with Intro Parameter (TASK-audio-intro-loop)'
     expect(result.ast).toBeDefined();
 
     const refs = extractScriptReferences(result.ast!);
-    const audioAssets = refs.assets.filter(a => a.category === 'audio' || a.expectedType === 'audio');
+    const audioAssets = refs.assets.filter(
+      a => a.category === 'audio' || a.expectedType === 'audio',
+    );
 
     // Must extract exactly 2 audio references: main loop and intro track
     expect(audioAssets).toHaveLength(2);

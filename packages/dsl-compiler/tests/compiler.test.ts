@@ -501,7 +501,9 @@ Dẫn chuyện dòng 2"
         expect(result.success).toBe(true);
         expect(result.errors).toBeUndefined();
 
-        const dialogues = result.program!.filter(i => i.type === 'DIALOGUE') as DialogueInstruction[];
+        const dialogues = result.program!.filter(
+          i => i.type === 'DIALOGUE',
+        ) as DialogueInstruction[];
         expect(dialogues).toHaveLength(5);
 
         // 1. Identifier speaker: alice

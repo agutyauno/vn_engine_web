@@ -1,8 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { AssetRef } from '@vn-engine/shared-types';
-import {
-  PreviewBridgeAdapter,
-} from '../src/adapters/PreviewBridgeAdapter';
+import { PreviewBridgeAdapter } from '../src/adapters/PreviewBridgeAdapter';
 import * as PreviewBridgeModule from '../src/adapters/PreviewBridgeAdapter';
 
 /**
@@ -266,9 +264,7 @@ describe('Cross-Origin Asset Blob Hydration & Preview Bridge', () => {
       };
 
       const newLocalBlobUrl = 'blob:http://localhost:3000/newly-rehydrated-uuid';
-      const createObjectURLSpy = vi
-        .spyOn(URL, 'createObjectURL')
-        .mockReturnValue(newLocalBlobUrl);
+      const createObjectURLSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue(newLocalBlobUrl);
 
       const result = await hydrateForeignAssetBlobs(assets, mockBridge, 'http://localhost:3000');
 
@@ -332,7 +328,11 @@ describe('Cross-Origin Asset Blob Hydration & Preview Bridge', () => {
         },
       ];
 
-      const res = await hydrateForeignAssetBlobs(assetsWithEmptyUrl, mockBridge, 'http://localhost:3000');
+      const res = await hydrateForeignAssetBlobs(
+        assetsWithEmptyUrl,
+        mockBridge,
+        'http://localhost:3000',
+      );
       expect(res[0]!.storageUrl).toBe('');
       expect(mockBridge.requestAssetBlob).not.toHaveBeenCalled();
     });

@@ -19,9 +19,9 @@ beforeAll(async () => {
   }
 
   // Intercept self.postMessage
-  (globalThis as unknown as { self: { postMessage: (data: CompilerWorkerResponse) => void } }).self.postMessage = (
-    response: CompilerWorkerResponse,
-  ) => {
+  (
+    globalThis as unknown as { self: { postMessage: (data: CompilerWorkerResponse) => void } }
+  ).self.postMessage = (response: CompilerWorkerResponse) => {
     postedResponses.push(response);
   };
 
@@ -101,7 +101,8 @@ describe('Compiler Worker Diagnostics & Audio Decoupling (TDD Phase 2)', () => {
     expect(response.bytecode!.length).toBeGreaterThan(0);
 
     const playInstruction = response.bytecode!.find(
-      inst => inst.type === 'PLAY' && (inst as unknown as { assetId: string }).assetId === 'bgm_missing',
+      inst =>
+        inst.type === 'PLAY' && (inst as unknown as { assetId: string }).assetId === 'bgm_missing',
     );
     expect(playInstruction).toBeDefined();
 
@@ -300,4 +301,3 @@ describe('Compiler Worker Diagnostics & Audio Decoupling (TDD Phase 2)', () => {
     });
   });
 });
-

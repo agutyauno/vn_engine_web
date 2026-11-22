@@ -168,7 +168,11 @@ describe('@vn-engine/renderer - Coordinate Resolution & GameRenderer Setup', () 
       const baseH = 1080;
 
       // 1. Mặc định không có tham số x/y/position/anchor
-      const defaultPlacement = resolveSpritePlacement({ type: 'SHOW', character: 'alice' }, baseW, baseH);
+      const defaultPlacement = resolveSpritePlacement(
+        { type: 'SHOW', character: 'alice' },
+        baseW,
+        baseH,
+      );
       expect(defaultPlacement.x).toBeCloseTo(baseW * 0.5);
       expect(defaultPlacement.y).toBe(baseH);
       expect(defaultPlacement.anchorX).toBe(0.5);

@@ -113,10 +113,7 @@ describe('diagnosticsStore', () => {
 
   it('TC-STORE-01 (setAllDiagnostics Atomic Batching): updates compiler and reconciliation diagnostics atomically with proper count aggregation', () => {
     const store = useDiagnosticsStore.getState() as unknown as {
-      setAllDiagnostics: (
-        compiler: EngineDiagnostic[],
-        reconciliation: EngineDiagnostic[],
-      ) => void;
+      setAllDiagnostics: (compiler: EngineDiagnostic[], reconciliation: EngineDiagnostic[]) => void;
     };
 
     // 1. Single atomic call with compiler error and reconciliation warning

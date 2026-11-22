@@ -167,4 +167,3 @@ describe('@vn-engine/audio - Audio Format Resolution (TASK-audio-format-resoluti
     expect(mockHowlInstances[0].options.format).toBeUndefined();
   });
 });
-

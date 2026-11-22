@@ -24,9 +24,7 @@ import { useCompilerPipeline } from '../../hooks/useCompilerPipeline';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { CompilerService } from '../../core/services/compilerService';
 import { PreviewBridge, buildPreviewUrl } from '../../core/services/previewBridge';
-import {
-  type EditorDiagnostic,
-} from '../../core/services/reconciliation';
+import { type EditorDiagnostic } from '../../core/services/reconciliation';
 
 export interface StudioWorkspacePageProps {
   projectId: string;
@@ -591,7 +589,9 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
           updateFileContent(targetFile.id, newContent);
           handleSelectTab(targetFile.id);
           setCursorJumpTarget({ line: insResult.newCursorLine, col: 1 });
-          saveProject(repository).catch(err => console.error('Failed to save after quickfix:', err));
+          saveProject(repository).catch(err =>
+            console.error('Failed to save after quickfix:', err),
+          );
         }
       }
     },
