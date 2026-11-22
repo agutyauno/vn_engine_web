@@ -849,6 +849,7 @@ describe('Modals', () => {
       expect(slotCards.length).toBe(6);
 
       fireEvent.click(slotCards[0]!);
+      fireEvent.click(container.querySelector('#btn-confirm-action')!);
       expect(actions.saveSlot).toHaveBeenCalledWith(1);
 
       fireEvent.click(container.querySelector('#btn-close-modal')!);
@@ -870,6 +871,7 @@ describe('Modals', () => {
       const slotCards = container.querySelectorAll('.save-slot-card');
 
       fireEvent.click(slotCards[0]!);
+      fireEvent.click(container.querySelector('#btn-confirm-action')!);
       expect(actions.loadSlot).toHaveBeenCalledWith(1);
 
       fireEvent.click(slotCards[1]!);
@@ -1541,6 +1543,7 @@ describe('Phase 3: Player Ergonomics, Shortcuts, Modals & Navigation (RED Gate)'
 
       const cards = container.querySelectorAll('.save-slot-card');
       fireEvent.click(cards[0]!);
+      fireEvent.click(container.querySelector('#btn-confirm-action')!);
       expect(actions.saveSlot).toHaveBeenCalledWith(1);
 
       fireEvent.click(cards[1]!);
@@ -1564,6 +1567,7 @@ describe('Phase 3: Player Ergonomics, Shortcuts, Modals & Navigation (RED Gate)'
 
       const cards = container.querySelectorAll('.save-slot-card');
       fireEvent.click(cards[0]!);
+      fireEvent.click(container.querySelector('#btn-confirm-action')!);
       expect(actions.loadSlot).toHaveBeenCalledWith(1);
 
       fireEvent.click(cards[1]!);
