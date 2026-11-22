@@ -341,7 +341,8 @@ body.is-embedded #game-root {
 
 /* HỘP THOẠI CHÍNH (DIALOGUE BOX) */
 .dialogue-box {
-  background: var(--vn-panel-bg);
+  /* Độ mờ nền điều khiển bởi settings.boxOpacity (DialogueBox gán --vn-dialogue-opacity inline) */
+  background: rgba(0, 0, 0, var(--vn-dialogue-opacity, 0.85));
   border: var(--vn-border-width) solid rgba(255, 255, 255, 0.28);
   border-radius: var(--vn-radius-base);
   padding: 20px 26px 16px 26px;
@@ -373,6 +374,19 @@ body.is-embedded #game-root {
   white-space: pre-wrap;
   font-weight: 400;
   letter-spacing: 0.2px;
+}
+
+/* CỠ CHỮ THOẠI THEO settings.fontSize (medium = --vn-font-size-dialogue mặc định 1.15rem) */
+.dialogue-text.font-small {
+  font-size: 1rem;
+}
+
+.dialogue-text.font-medium {
+  font-size: var(--vn-font-size-dialogue);
+}
+
+.dialogue-text.font-large {
+  font-size: 1.35rem;
 }
 
 /* CON TRỎ CHỜ TIẾP TỤC (NEXT INDICATOR) - CĂN GÓC DƯỚI BÊN PHẢI */
@@ -660,13 +674,33 @@ body.is-embedded #game-root {
 
 .shortcut-legend {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  grid-template-columns: minmax(180px, auto) 1fr;
+  column-gap: 20px;
+  row-gap: 10px;
   font-family: var(--vn-font-mono);
   font-size: 12px;
   color: var(--vn-text-secondary);
-  margin-top: 10px;
   line-height: 1.6;
+}
+
+/* Each row is a <div> wrapping <dt>/<dd>; display: contents lets them join the grid. */
+.shortcut-row {
+  display: contents;
+}
+
+.shortcut-keys {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.shortcut-sep {
+  color: var(--vn-text-muted);
+}
+
+.shortcut-action {
+  color: var(--vn-text-primary);
 }
 
 kbd {
@@ -1563,4 +1597,180 @@ body.is-embedded #game-stage {
 .desync-actions button:hover {
   background: var(--vn-btn-hover-bg);
   color: var(--vn-btn-hover-text);
+}
+
+/* ================================================================
+   GAME SETTINGS MODAL (SPLIT VIEW) - TASK-player-settings-modal S3
+   ================================================================ */
+.modal-settings-window.settings-menu-modal {
+  position: relative; /* anchor for .settings-confirm-overlay */
+  padding: 0;
+  height: 560px;
+}
+
+.modal-settings-window .modal-settings-header {
+  margin-bottom: 0;
+  padding: 12px 20px;
+}
+
+.settings-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-split-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.settings-sidebar {
+  width: 200px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px 12px;
+  border-right: var(--vn-border-width) solid var(--vn-border-secondary);
+  background: var(--vn-panel-header-bg);
+}
+
+.settings-sidebar .settings-tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  text-align: left;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.settings-pane-container {
+  flex: 1;
+  min-width: 0;
+  padding: 20px 24px;
+  overflow-y: auto;
+}
+
+.settings-pane-container .settings-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.settings-pane .setting-row {
+  gap: 16px;
+  font-size: 13px;
+}
+
+.setting-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.setting-control input[type='range'] {
+  width: 260px;
+  accent-color: var(--vn-text-accent);
+}
+
+.wf-btn-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.settings-hint {
+  font-size: 12px;
+  color: var(--vn-text-muted);
+}
+
+.typewriter-preview-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.preview-typewriter-box {
+  min-height: 48px;
+  padding: 12px;
+  background: var(--vn-bg-viewport);
+  border: var(--vn-border-width) solid var(--vn-border-secondary);
+  border-radius: var(--vn-radius-base);
+  font-family: var(--vn-font-body);
+  font-size: var(--vn-font-size-dialogue);
+  line-height: var(--vn-line-height-dialogue);
+  color: var(--vn-text-primary);
+}
+
+.typewriter-cursor {
+  opacity: 0.7;
+}
+
+.settings-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 20px;
+  border-top: var(--vn-border-width) solid var(--vn-border-secondary);
+}
+
+.settings-footer-group {
+  display: flex;
+  gap: 8px;
+}
+
+/* Button color modifiers */
+.wf-btn.wf-btn-danger {
+  color: #ef4444;
+  border-color: #ef4444;
+}
+
+.wf-btn.wf-btn-danger:hover:not(:disabled) {
+  background: #ef4444;
+  color: #000000;
+  border-color: #ef4444;
+}
+
+.wf-btn.wf-btn-primary {
+  background: var(--vn-btn-hover-bg);
+  color: var(--vn-btn-hover-text);
+  border-color: var(--vn-btn-border-hover);
+  font-weight: 700;
+}
+
+.wf-btn.wf-btn-primary:hover:not(:disabled) {
+  background: #dddddd;
+}
+
+/* Inline "Return to Title" confirmation, covers the settings window only */
+.settings-confirm-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.85);
+  z-index: 50;
+}
+
+.settings-confirm-dialog {
+  max-width: 420px;
+  padding: 24px;
+  background: var(--vn-panel-bg);
+  border: var(--vn-border-width) solid var(--vn-border-primary);
+  border-radius: var(--vn-radius-base);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.settings-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
 }

@@ -9,7 +9,7 @@ Implements the core Preact UI component tree for the visual novel player. It coo
 - `ChoiceOverlay(): JSX.Element | null`: Interactive choice list overlay with emergency rollback fallback.
 - `ControlBar(): JSX.Element`: Bottom action bar for rollback, auto, skip, q.save, q.load, backlog, hide UI, and settings.
 - `DialogueBoxProps`: Properties for raw dialogue text and completion status.
-- `DialogueBox(props: DialogueBoxProps): JSX.Element`: Clickable dialogue container supporting typewriter advancement.
+- `DialogueBox(props: DialogueBoxProps): JSX.Element`: Clickable dialogue container supporting typewriter advancement. Binds `settings.fontSize` to a `font-${fontSize}` class on `#dialogue-text` (default `medium`) and `settings.boxOpacity` to the inline CSS custom property `--vn-dialogue-opacity` on `#dialogue-box` (default `0.85`), consumed by `.dialogue-box { background: rgba(0, 0, 0, var(--vn-dialogue-opacity, 0.85)) }` in `wireframe.css`.
 - `DialogueGroup(): JSX.Element`: Compound layout binding speaker nameplate, dialogue box, and control bar.
 - `GameplayOverlay(): JSX.Element`: Keyboard shortcut listener and presentation wrapper for gameplay state.
 - `InspectModalProps`: Properties for inspected item image URL and title.
@@ -28,6 +28,7 @@ Implements the core Preact UI component tree for the visual novel player. It coo
 - `PlayerApp` renders stage layers conditionally based on `PlayerViewState.mode` (`STANDBY`, `TITLE`, `GAMEPLAY`).
 - `GameplayOverlay` global keyboard navigation ignores keystrokes when focus is inside text input or textarea elements.
 - `SpeakerNameplate` returns `null` when no speaker name is specified or when the string is empty.
+- `#dialogue-text` always carries exactly one `font-*` class (`font-small` 1rem, `font-medium` 1.15rem, `font-large` 1.35rem).
 - Unsatisfied choices in `ChoiceOverlay` are disabled (`aria-disabled="true"`) and cannot be clicked.
 
 ## Side Effects

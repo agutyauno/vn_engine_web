@@ -28,6 +28,8 @@ function createMockState(overrides: Partial<PlayerViewState> = {}): PlayerViewSt
     settings: {
       textSpeed: 20,
       autoDelayMs: 1500,
+      fontSize: 'medium',
+      boxOpacity: 0.85,
     },
     activeToast: null,
     audio: {
@@ -67,6 +69,9 @@ function createMockActions(overrides: Partial<PlayerUIActions> = {}): PlayerUIAc
     setAudioVolume: vi.fn(),
     setTextSpeed: vi.fn(),
     setAutoDelay: vi.fn(),
+    setFontSize: vi.fn(),
+    setBoxOpacity: vi.fn(),
+    restoreDefaultSettings: vi.fn(),
     showToast: vi.fn(),
     saveSlot: vi.fn().mockResolvedValue(undefined),
     loadSlot: vi.fn().mockResolvedValue(undefined),

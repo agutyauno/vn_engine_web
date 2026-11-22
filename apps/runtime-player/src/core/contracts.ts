@@ -11,13 +11,18 @@ import type { CatchUpVisualState } from '@vn-engine/renderer';
 export type PlayerMode = 'TITLE' | 'GAMEPLAY' | 'INSPECT' | 'STANDBY' | 'HALTED';
 export type TextPlaybackMode = 'NORMAL' | 'AUTO' | 'SKIP';
 
+export type DialogueFontSize = 'small' | 'medium' | 'large';
+
 export interface PlayerSettingsData {
   masterVolume: number;
   musicVolume: number;
   sfxVolume: number;
   voiceVolume: number;
+  isMuted: boolean;
   textSpeed: number;
-  autoDelay: number;
+  autoDelayMs: number;
+  fontSize: DialogueFontSize;
+  boxOpacity: number;
   stageScaleMode: 'auto' | 'native';
 }
 
@@ -26,8 +31,11 @@ export const DEFAULT_PLAYER_SETTINGS: PlayerSettingsData = {
   musicVolume: 0.8,
   sfxVolume: 0.8,
   voiceVolume: 1.0,
+  isMuted: false,
   textSpeed: 40,
-  autoDelay: 1500,
+  autoDelayMs: 1500,
+  fontSize: 'medium',
+  boxOpacity: 0.85,
   stageScaleMode: 'auto',
 };
 
@@ -126,6 +134,8 @@ export interface PlayerViewState {
   settings: {
     textSpeed: number;
     autoDelayMs: number;
+    fontSize: DialogueFontSize;
+    boxOpacity: number;
   };
   activeToast: {
     message: string;
@@ -161,6 +171,8 @@ export interface KernelAdapters {
     getQuickSave?: () => SaveSlotData | null;
     saveSlot?: (data: SaveSlotData) => Promise<void>;
     loadSlot?: (slotIndex: number) => Promise<SaveSlotData | null>;
+    getSettings?: () => PlayerSettingsData;
+    saveSettings?: (settings: Partial<PlayerSettingsData>) => void;
   };
 }
 
@@ -182,6 +194,9 @@ export interface PlayerUIActions {
   setAudioVolume: (channel: string, volume: number) => void;
   setTextSpeed: (charsPerSec: number) => void;
   setAutoDelay: (delayMs: number) => void;
+  setFontSize: (size: DialogueFontSize) => void;
+  setBoxOpacity: (opacity: number) => void;
+  restoreDefaultSettings: () => void;
   showToast: (message: string) => void;
   saveSlot: (slotIndex: number) => Promise<void>;
   loadSlot: (slotIndex: number) => Promise<void>;

@@ -64,6 +64,8 @@ function createMockState(overrides: Partial<PlayerViewState> = {}): PlayerViewSt
     settings: {
       textSpeed: 24,
       autoDelayMs: 1500,
+      fontSize: 'medium',
+      boxOpacity: 0.85,
     },
     activeToast: null,
     audio: {
@@ -103,6 +105,9 @@ function createMockActions(overrides: Partial<PlayerUIActions> = {}): PlayerUIAc
     setAudioVolume: vi.fn(),
     setTextSpeed: vi.fn(),
     setAutoDelay: vi.fn(),
+    setFontSize: vi.fn(),
+    setBoxOpacity: vi.fn(),
+    restoreDefaultSettings: vi.fn(),
     showToast: vi.fn(),
     saveSlot: vi.fn().mockResolvedValue(undefined),
     loadSlot: vi.fn().mockResolvedValue(undefined),
@@ -931,6 +936,9 @@ describe('Modals', () => {
         expect(actions.setAudioVolume).toHaveBeenCalledWith('music', 0.75);
       }
 
+      // S3 split-view: text speed and auto delay live in the "Text & Playback" tab.
+      fireEvent.click(container.querySelector('#tab-btn-text')!);
+
       const textSpeedSlider = container.querySelector('#slider-text-speed');
       if (textSpeedSlider) {
         fireEvent.change(textSpeedSlider, { target: { value: '30' } });
@@ -1644,6 +1652,9 @@ describe('Phase 3: Player Ergonomics, Shortcuts, Modals & Navigation (RED Gate)'
           <GameSettingsModal />
         </PlayerUIProvider>,
       );
+
+      // S3 split-view: the fullscreen toggle lives in the Display tab.
+      fireEvent.click(container.querySelector('#tab-btn-display')!);
 
       const fullscreenBtn = container.querySelector(
         '#btn-toggle-fullscreen, button[aria-label*="Fullscreen"], button[title*="Fullscreen"]',

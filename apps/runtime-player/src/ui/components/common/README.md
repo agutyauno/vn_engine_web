@@ -17,6 +17,10 @@ Provides a library of clean, monochrome vector SVG icons tailored for the Visual
 - `EyeIcon({ size, className }: IconProps): JSX.Element`: Eye icon indicating visible UI elements.
 - `EyeOffIcon({ size, className }: IconProps): JSX.Element`: Eye slash icon for hiding UI overlays.
 - `HistoryIcon({ size, className }: IconProps): JSX.Element`: Clockwise arrow icon for opening the dialogue backlog.
+- `FolderIcon({ size, className }: IconProps): JSX.Element`: Folder icon for load/file actions.
+- `BookOpenIcon({ size, className }: IconProps): JSX.Element`: Open book icon (settings "Text & Playback" tab).
+- `VolumeMuteIcon({ size, className }: IconProps): JSX.Element`: Speaker with a cross, shown on the settings mute toggle when audio is muted.
+- `KeyboardIcon({ size, className }: IconProps): JSX.Element`: Keyboard icon for the settings "Shortcuts" tab.
 
 ## Invariants
 

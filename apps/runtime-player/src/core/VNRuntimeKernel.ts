@@ -7,7 +7,9 @@ import type {
 } from '@vn-engine/shared-types';
 import { VisualNovelVM } from '@vn-engine/core-vm';
 import type {
+  DialogueFontSize,
   KernelAdapters,
+  PlayerSettingsData,
   PlayerViewState,
   SaveSlotData,
   BacklogEntry,
@@ -15,7 +17,7 @@ import type {
   LoadProgramOptions,
 } from './contracts';
 import { stripControlTags, stripRhythmTags } from './typewriter';
-import { StorageQuotaError } from './contracts';
+import { DEFAULT_PLAYER_SETTINGS, StorageQuotaError } from './contracts';
 
 export class VNRuntimeKernel {
   private vm: VisualNovelVM;
@@ -68,16 +70,18 @@ export class VNRuntimeKernel {
       activeInspectModal: null,
       activeModal: 'none',
       settings: {
-        textSpeed: 24,
-        autoDelayMs: 1500,
+        textSpeed: DEFAULT_PLAYER_SETTINGS.textSpeed,
+        autoDelayMs: DEFAULT_PLAYER_SETTINGS.autoDelayMs,
+        fontSize: DEFAULT_PLAYER_SETTINGS.fontSize,
+        boxOpacity: DEFAULT_PLAYER_SETTINGS.boxOpacity,
       },
       activeToast: null,
       audio: {
-        masterVolume: 1.0,
+        masterVolume: DEFAULT_PLAYER_SETTINGS.masterVolume,
         channelVolumes: {
-          music: 1.0,
-          sound: 1.0,
-          voice: 1.0,
+          music: DEFAULT_PLAYER_SETTINGS.musicVolume,
+          sound: DEFAULT_PLAYER_SETTINGS.sfxVolume,
+          voice: DEFAULT_PLAYER_SETTINGS.voiceVolume,
           ambience: 1.0,
         },
         isMuted: false,
@@ -88,6 +92,43 @@ export class VNRuntimeKernel {
       quickSaveSlot: initialQuickSave,
       desyncData: undefined,
     };
+
+    const stored = this.adapters.storage?.getSettings?.() ?? DEFAULT_PLAYER_SETTINGS;
+    this.applyPlayerSettings({ ...stored });
+  }
+
+  /**
+   * Ghi một bộ PlayerSettingsData vào state (tạo object settings/audio mới để
+   * snapshot cũ không đổi) và đồng bộ audio adapter. Kênh ambience giữ nguyên.
+   * Không persist; bên gọi tự quyết định có saveSettings hay không.
+   */
+  private applyPlayerSettings(settings: PlayerSettingsData): void {
+    this.state.settings = {
+      textSpeed: settings.textSpeed,
+      autoDelayMs: settings.autoDelayMs,
+      fontSize: settings.fontSize,
+      boxOpacity: settings.boxOpacity,
+    };
+    this.state.audio = {
+      ...this.state.audio,
+      masterVolume: settings.masterVolume,
+      isMuted: settings.isMuted,
+      channelVolumes: {
+        ...this.state.audio.channelVolumes,
+        music: settings.musicVolume,
+        sound: settings.sfxVolume,
+        voice: settings.voiceVolume,
+      },
+    };
+    this.adapters.audio?.setVolume?.('master', settings.masterVolume);
+    this.adapters.audio?.setVolume?.('music', settings.musicVolume);
+    this.adapters.audio?.setVolume?.('sound', settings.sfxVolume);
+    this.adapters.audio?.setVolume?.('voice', settings.voiceVolume);
+    this.adapters.audio?.setMute?.(settings.isMuted);
+  }
+
+  private persistSettings(patch: Partial<PlayerSettingsData>): void {
+    this.adapters.storage?.saveSettings?.(patch);
   }
 
   public getState(): PlayerViewState {
@@ -475,8 +516,10 @@ export class VNRuntimeKernel {
   }
 
   public toggleMute(): void {
-    this.state.audio.isMuted = !this.state.audio.isMuted;
-    this.adapters.audio?.setMute?.(this.state.audio.isMuted);
+    const isMuted = !this.state.audio.isMuted;
+    this.state.audio = { ...this.state.audio, isMuted };
+    this.adapters.audio?.setMute?.(isMuted);
+    this.persistSettings({ isMuted });
     this.emit();
   }
 
@@ -499,18 +542,53 @@ export class VNRuntimeKernel {
   }
 
   public setAudioVolume(channel: string, volume: number): void {
-    this.state.audio.channelVolumes[channel] = volume;
-    this.adapters.audio?.setVolume?.(channel, volume);
+    if (channel === 'master') {
+      this.state.audio = { ...this.state.audio, masterVolume: volume };
+      this.adapters.audio?.setVolume?.('master', volume);
+      this.persistSettings({ masterVolume: volume });
+      this.emit();
+      return;
+    }
+
+    const canonical = channel === 'sfx' ? 'sound' : channel === 'bgm' ? 'music' : channel;
+    this.state.audio = {
+      ...this.state.audio,
+      channelVolumes: { ...this.state.audio.channelVolumes, [canonical]: volume },
+    };
+    this.adapters.audio?.setVolume?.(canonical, volume);
+    if (canonical === 'music') this.persistSettings({ musicVolume: volume });
+    else if (canonical === 'sound') this.persistSettings({ sfxVolume: volume });
+    else if (canonical === 'voice') this.persistSettings({ voiceVolume: volume });
     this.emit();
   }
 
   public setTextSpeed(charsPerSec: number): void {
-    this.state.settings.textSpeed = charsPerSec;
+    this.state.settings = { ...this.state.settings, textSpeed: charsPerSec };
+    this.persistSettings({ textSpeed: charsPerSec });
     this.emit();
   }
 
   public setAutoDelay(delayMs: number): void {
-    this.state.settings.autoDelayMs = delayMs;
+    this.state.settings = { ...this.state.settings, autoDelayMs: delayMs };
+    this.persistSettings({ autoDelayMs: delayMs });
+    this.emit();
+  }
+
+  public setFontSize(size: DialogueFontSize): void {
+    this.state.settings = { ...this.state.settings, fontSize: size };
+    this.persistSettings({ fontSize: size });
+    this.emit();
+  }
+
+  public setBoxOpacity(opacity: number): void {
+    this.state.settings = { ...this.state.settings, boxOpacity: opacity };
+    this.persistSettings({ boxOpacity: opacity });
+    this.emit();
+  }
+
+  public restoreDefaultSettings(): void {
+    this.applyPlayerSettings({ ...DEFAULT_PLAYER_SETTINGS });
+    this.persistSettings({ ...DEFAULT_PLAYER_SETTINGS });
     this.emit();
   }
 

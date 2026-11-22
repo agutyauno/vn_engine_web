@@ -105,6 +105,8 @@ window.addEventListener('DOMContentLoaded', async () => {
     projectId,
     isPreview: isEmbedded || isModePreview,
   });
+  // Ghi nốt settings đang chờ debounce (200ms) trước khi trang bị ẩn/đóng.
+  window.addEventListener('pagehide', () => storageAdapter.flushSettings());
 
   // 3. Biên dịch kịch bản mặc định nếu không phải chế độ Live Preview
   let program: Instruction[] = [];
