@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { PreviewBridgeAdapter, isAllowedEditorOrigin } from '../src/adapters/PreviewBridgeAdapter';
-import type { Instruction, EngineDiagnostic } from '@vn-engine/shared-types';
+import type { Instruction, EngineDiagnostic, ProjectTitleSettings } from '@vn-engine/shared-types';
 
 describe('PreviewBridgeAdapter', () => {
   let mockTargetWindow: Window;
@@ -337,6 +337,79 @@ describe('PreviewBridgeAdapter', () => {
 
       adapter.init();
       expect(() => adapter.dispose()).not.toThrow();
+    });
+  });
+
+  describe('HOT_RELOAD_PROGRAM Branding and Start Mode Forwarding (TASK-EDT-TITLE Phase E4)', () => {
+    it('forwards title, titleSettings, and startMode when present in payload', () => {
+      const onHotReload = vi.fn();
+      const adapter = new PreviewBridgeAdapter({
+        targetWindow: () => mockTargetWindow,
+        editorOrigin: 'http://localhost:3000',
+        onHotReload,
+      });
+
+      adapter.init();
+
+      const testProgram: Instruction[] = [{ type: 'SCENE', name: 'main' }];
+      const testTitleSettings: ProjectTitleSettings = {
+        logoAssetId: 'logo_1',
+        bgmAssetId: 'bgm_1',
+      };
+
+      adapter.handleMessage(
+        new MessageEvent('message', {
+          origin: 'http://localhost:3000',
+          data: {
+            type: 'HOT_RELOAD_PROGRAM',
+            payload: {
+              program: testProgram,
+              title: 'Starfall',
+              titleSettings: testTitleSettings,
+              startMode: 'title',
+            },
+          },
+        }),
+      );
+
+      expect(onHotReload).toHaveBeenCalledWith(testProgram, {
+        title: 'Starfall',
+        titleSettings: testTitleSettings,
+        startMode: 'title',
+      });
+    });
+
+    it('does not include title, titleSettings, or startMode keys when omitted in message', () => {
+      const onHotReload = vi.fn();
+      const adapter = new PreviewBridgeAdapter({
+        targetWindow: () => mockTargetWindow,
+        editorOrigin: 'http://localhost:3000',
+        onHotReload,
+      });
+
+      adapter.init();
+
+      const testProgram: Instruction[] = [{ type: 'SCENE', name: 'main' }];
+
+      adapter.handleMessage(
+        new MessageEvent('message', {
+          origin: 'http://localhost:3000',
+          data: {
+            type: 'HOT_RELOAD_PROGRAM',
+            payload: {
+              program: testProgram,
+              scene: 'main',
+            },
+          },
+        }),
+      );
+
+      expect(onHotReload).toHaveBeenCalledWith(testProgram, { scene: 'main' });
+      const lastCall = onHotReload.mock.calls[0];
+      const opts = lastCall ? lastCall[1] : undefined;
+      expect(opts).not.toHaveProperty('title');
+      expect(opts).not.toHaveProperty('titleSettings');
+      expect(opts).not.toHaveProperty('startMode');
     });
   });
 });

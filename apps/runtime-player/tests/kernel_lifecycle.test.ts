@@ -731,4 +731,165 @@ describe('VNRuntimeKernel Phase T3: Lifecycle, Quick Actions & Toast Tone (RED)'
       expect(toast?.tone).toBe('success');
     });
   });
+
+  // ==========================================================================
+  // 9. Phase E4: Dynamic Branding (setTitleConfig) & startAtTitle Mode (RED)
+  // ==========================================================================
+  describe('Dynamic Branding (setTitleConfig) & startAtTitle Mode (TASK-EDT-TITLE Phase E4)', () => {
+    describe('setTitleConfig()', () => {
+      it('updates state.titleConfig and emits to subscribers', () => {
+        const kernel = new VNRuntimeKernel(PROGRAM, {
+          renderer: createRenderer(),
+          audio: createAudio(),
+          storage: newStorage(),
+        });
+
+        const subscriber = vi.fn();
+        kernel.subscribe(subscriber);
+
+        kernel.setTitleConfig({
+          title: 'Starfall',
+          logoUrl: 'blob:x',
+          bgmTrack: 'blob:m',
+        });
+
+        expect(kernel.getState().titleConfig).toEqual({
+          title: 'Starfall',
+          logoUrl: 'blob:x',
+          bgmTrack: 'blob:m',
+        });
+        expect(subscriber).toHaveBeenCalled();
+      });
+
+      it('falls back title to "Visual Novel" when title is whitespace-only', () => {
+        const kernel = new VNRuntimeKernel(PROGRAM, {
+          renderer: createRenderer(),
+          audio: createAudio(),
+          storage: newStorage(),
+        });
+
+        kernel.setTitleConfig({ title: '  ' });
+
+        expect(kernel.getState().titleConfig.title).toBe('Visual Novel');
+      });
+
+      it('completely replaces previous branding config without merging previous fields, resetting title to fallback', () => {
+        const kernel = new VNRuntimeKernel(PROGRAM, {
+          renderer: createRenderer(),
+          audio: createAudio(),
+          storage: newStorage(),
+        });
+
+        kernel.setTitleConfig({
+          title: 'Starfall',
+          logoUrl: 'blob:x',
+          bgmTrack: 'blob:m',
+        });
+
+        kernel.setTitleConfig({ backgroundUrl: 'blob:b' });
+
+        expect(kernel.getState().titleConfig).toEqual({
+          title: 'Visual Novel',
+          backgroundUrl: 'blob:b',
+        });
+      });
+
+      it('plays new bgmTrack when in TITLE mode and audio is already unlocked', () => {
+        const audio = createAudio();
+        const kernel = new VNRuntimeKernel(
+          PROGRAM,
+          { renderer: createRenderer(), audio, storage: newStorage() },
+          { titleConfig: { bgmTrack: 'blob:track_a' } },
+        );
+
+        kernel.unlockAudio();
+        expect(audio.playMusic).toHaveBeenCalledWith('blob:track_a', { loop: true });
+        audio.playMusic.mockClear();
+
+        kernel.setTitleConfig({ bgmTrack: 'blob:track_b' });
+
+        expect(audio.playMusic).toHaveBeenCalledTimes(1);
+        expect(audio.playMusic).toHaveBeenCalledWith('blob:track_b', { loop: true });
+      });
+
+      it('does NOT play music on setTitleConfig if audio is not unlocked yet', () => {
+        const audio = createAudio();
+        const kernel = new VNRuntimeKernel(PROGRAM, {
+          renderer: createRenderer(),
+          audio,
+          storage: newStorage(),
+        });
+
+        kernel.setTitleConfig({ bgmTrack: 'blob:track_b' });
+
+        expect(audio.playMusic).not.toHaveBeenCalled();
+      });
+
+      it('does NOT play music on setTitleConfig when in GAMEPLAY mode', async () => {
+        const audio = createAudio();
+        const kernel = new VNRuntimeKernel(
+          PROGRAM,
+          { renderer: createRenderer(), audio, storage: newStorage() },
+          { titleConfig: { bgmTrack: 'blob:track_a' } },
+        );
+
+        kernel.unlockAudio();
+        audio.playMusic.mockClear();
+
+        await kernel.startNewGame();
+        expect(kernel.getState().mode).toBe('GAMEPLAY');
+
+        kernel.setTitleConfig({ bgmTrack: 'blob:track_b' });
+
+        expect(audio.playMusic).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('loadProgram() with startAtTitle', () => {
+      it('switches to TITLE mode and does not run script when in STANDBY with startAtTitle: true', async () => {
+        const kernel = new VNRuntimeKernel(
+          PROGRAM,
+          { renderer: createRenderer(), audio: createAudio(), storage: newStorage() },
+          { initialMode: 'STANDBY' },
+        );
+
+        expect(kernel.getState().mode).toBe('STANDBY');
+
+        await kernel.loadProgram(PROGRAM, { startAtTitle: true });
+
+        expect(kernel.getState().mode).toBe('TITLE');
+        expect(kernel.getState().dialogue.isVisible).toBe(false);
+      });
+
+      it('preserves legacy behavior of starting new game from STANDBY when startAtTitle is omitted', async () => {
+        const kernel = new VNRuntimeKernel(
+          PROGRAM,
+          { renderer: createRenderer(), audio: createAudio(), storage: newStorage() },
+          { initialMode: 'STANDBY' },
+        );
+
+        expect(kernel.getState().mode).toBe('STANDBY');
+
+        await kernel.loadProgram(PROGRAM);
+
+        expect(kernel.getState().mode).toBe('GAMEPLAY');
+        expect(kernel.getState().dialogue.isVisible).toBe(true);
+      });
+
+      it('switches from GAMEPLAY to TITLE mode when called with startAtTitle: true', async () => {
+        const kernel = new VNRuntimeKernel(PROGRAM, {
+          renderer: createRenderer(),
+          audio: createAudio(),
+          storage: newStorage(),
+        });
+
+        await kernel.startNewGame();
+        expect(kernel.getState().mode).toBe('GAMEPLAY');
+
+        await kernel.loadProgram(PROGRAM, { startAtTitle: true });
+
+        expect(kernel.getState().mode).toBe('TITLE');
+      });
+    });
+  });
 });
