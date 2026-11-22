@@ -274,11 +274,9 @@ describe('StorageAdapter', () => {
 
 // ============================================================================
 // TASK-PLY-SAVEFIX: save persistence fixes (TC-SAVE-03..06, 08, 09)
-// Dùng localStorage THẬT của jsdom (không stub) để không che bug định tuyến/quota.
+// Dùng localStorage THẬT của jsdom (gắn trong tests/setup.ts, không stub) để không
+// che bug định tuyến/quota.
 // ============================================================================
-function jsdomLocalStorage(): Storage {
-  return (globalThis as unknown as { jsdom: { window: Window } }).jsdom.window.localStorage;
-}
 
 describe('save persistence fixes', () => {
   const PREFIX = 'vn_engine_player_p1';
@@ -333,10 +331,8 @@ describe('save persistence fixes', () => {
   }
 
   beforeEach(() => {
+    // Gỡ các stub localStorage của describe phía trên, quay về Storage thật của jsdom.
     vi.unstubAllGlobals();
-    // Node >= 25 cài sẵn localStorage toàn cục (webstorage) che mất bản của jsdom;
-    // gắn lại Storage THẬT của jsdom để test chạy trên hành vi trình duyệt.
-    vi.stubGlobal('localStorage', jsdomLocalStorage());
     localStorage.clear();
   });
 

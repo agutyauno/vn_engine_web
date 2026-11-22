@@ -4,22 +4,14 @@
 // Phân vùng khóa theo Project ID & Chế độ Preview, kèm Sandboxed MemoryStorage Fallback
 // ============================================================================
 
-import type { SaveSlotData } from '../core/contracts';
+import { StorageQuotaError, type SaveSlotData } from '../core/contracts';
+
+// Re-export để bên ngoài vẫn import được từ adapter như trước.
+export { StorageQuotaError };
 
 export interface StorageAdapterOptions {
   projectId?: string;
   isPreview?: boolean;
-}
-
-/** Ném khi localStorage đầy quota; KHÔNG bật memory fallback (TASK-PLY-SAVEFIX). */
-export class StorageQuotaError extends Error {
-  public readonly key: string;
-
-  constructor(key: string) {
-    super(`Storage quota exceeded while writing "${key}"`);
-    this.key = key;
-    this.name = 'StorageQuotaError';
-  }
 }
 
 /** Nhận diện lỗi quota trên Chromium, Firefox và Safari. */

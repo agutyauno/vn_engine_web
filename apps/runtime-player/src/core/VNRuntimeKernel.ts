@@ -15,7 +15,7 @@ import type {
   LoadProgramOptions,
 } from './contracts';
 import { stripControlTags, stripRhythmTags } from './typewriter';
-import { StorageQuotaError } from '../adapters/StorageAdapter';
+import { StorageQuotaError } from './contracts';
 
 export class VNRuntimeKernel {
   private vm: VisualNovelVM;
@@ -180,7 +180,7 @@ export class VNRuntimeKernel {
 
     if (index < 0 || !this.state.activeChoices[index]) {
       throw new Error(
-        `Choice index ${index} is out of bounds (total choices: ${this.state.activeChoices.length})`
+        `Choice index ${index} is out of bounds (total choices: ${this.state.activeChoices.length})`,
       );
     }
 

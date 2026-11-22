@@ -2,6 +2,7 @@
 // TASK-PLY-SAVEFIX: Kernel save persistence (TC-SAVE-01, 02, 07)
 // TC-01/02 dùng StorageAdapter THẬT trên localStorage của jsdom (không mock storage),
 // để test không che bug định tuyến slot 0 như mock cũ trong kernel_reveal.test.ts.
+// localStorage của jsdom được gắn sẵn trong tests/setup.ts.
 // ============================================================================
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { Instruction } from '@vn-engine/shared-types';
@@ -14,10 +15,6 @@ const PROGRAM: Instruction[] = [
   { type: 'DIALOGUE', character: null, speaker: null, text: 'Dòng thoại đầu tiên.' },
   { type: 'DIALOGUE', character: null, speaker: null, text: 'Dòng thoại thứ hai.' },
 ];
-
-function jsdomLocalStorage(): Storage {
-  return (globalThis as unknown as { jsdom: { window: Window } }).jsdom.window.localStorage;
-}
 
 function createRenderer(): NonNullable<KernelAdapters['renderer']> {
   return {
@@ -53,9 +50,6 @@ function makeSlot(slotIndex: number, label: string): SaveSlotData {
 describe('VNRuntimeKernel: save persistence with real StorageAdapter', () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    // Node >= 25 cài sẵn localStorage toàn cục (webstorage) che mất bản của jsdom;
-    // gắn lại Storage THẬT của jsdom (không mock) cho StorageAdapter.
-    vi.stubGlobal('localStorage', jsdomLocalStorage());
     localStorage.clear();
   });
 
@@ -63,7 +57,6 @@ describe('VNRuntimeKernel: save persistence with real StorageAdapter', () => {
     vi.useRealTimers();
     vi.restoreAllMocks();
     localStorage.clear();
-    vi.unstubAllGlobals();
   });
 
   it('[TC-SAVE-01] quickSave() persists to localStorage so a fresh StorageAdapter can read it back', async () => {
