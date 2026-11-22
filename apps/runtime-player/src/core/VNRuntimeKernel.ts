@@ -15,6 +15,7 @@ import type {
   LoadProgramOptions,
 } from './contracts';
 import { stripControlTags, stripRhythmTags } from './typewriter';
+import { StorageQuotaError } from '../adapters/StorageAdapter';
 
 export class VNRuntimeKernel {
   private vm: VisualNovelVM;
@@ -554,9 +555,26 @@ export class VNRuntimeKernel {
       scriptHash: this.vm.getScriptHash(),
     };
 
-    await this.adapters.storage?.saveSlot?.(slotData);
+    if (!(await this.persistSlot(slotData))) return;
     this.state.saveSlots[slotIndex - 1] = slotData;
     this.emit();
+  }
+
+  /**
+   * Ghi slot xuống storage. Trả false (kèm toast) khi đầy quota để bên gọi
+   * không cập nhật state cho một bản save không tồn tại; lỗi khác ném tiếp.
+   */
+  private async persistSlot(slotData: SaveSlotData): Promise<boolean> {
+    try {
+      await this.adapters.storage?.saveSlot?.(slotData);
+      return true;
+    } catch (err) {
+      if (err instanceof StorageQuotaError) {
+        this.showToast('Save failed: storage is full');
+        return false;
+      }
+      throw err;
+    }
   }
 
   public async loadSlot(slotIndex: number): Promise<void> {
@@ -595,7 +613,7 @@ export class VNRuntimeKernel {
       scriptHash: this.vm.getScriptHash(),
     };
 
-    await this.adapters.storage?.saveSlot?.(slotData);
+    if (!(await this.persistSlot(slotData))) return;
     this.state.quickSaveSlot = slotData;
     this.emit();
   }
