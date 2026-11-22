@@ -37,6 +37,9 @@ function createMockState(overrides: Partial<PlayerViewState> = {}): PlayerViewSt
       boxOpacity: 0.85,
     },
     activeToast: null,
+    titleConfig: { title: 'Visual Novel' },
+    hasSaveData: false,
+    pendingConfirm: null,
     audio: {
       masterVolume: 1.0,
       channelVolumes: {
@@ -84,6 +87,11 @@ function createMockActions(overrides: Partial<PlayerUIActions> = {}): PlayerUIAc
     quickLoad: vi.fn(),
     replayVoice: vi.fn(),
     resolveDesync: vi.fn(),
+    continueGame: vi.fn(),
+    deleteSlot: vi.fn(),
+    confirmPending: vi.fn(),
+    cancelPending: vi.fn(),
+    unlockAudio: vi.fn(),
     ...overrides,
   };
 }

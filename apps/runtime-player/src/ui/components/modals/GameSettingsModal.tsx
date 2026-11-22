@@ -381,6 +381,15 @@ export function GameSettingsModal(): JSX.Element {
             </button>
             {mode === 'GAMEPLAY' && (
               <button
+                id="btn-settings-load"
+                className="wf-btn"
+                onClick={() => actions.openModal('load')}
+              >
+                Load Game
+              </button>
+            )}
+            {mode === 'GAMEPLAY' && (
+              <button
                 id="btn-return-title"
                 className="wf-btn wf-btn-danger"
                 onClick={() => setShowReturnConfirm(true)}

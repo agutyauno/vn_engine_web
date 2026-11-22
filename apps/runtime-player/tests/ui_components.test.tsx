@@ -68,6 +68,9 @@ function createMockState(overrides: Partial<PlayerViewState> = {}): PlayerViewSt
       boxOpacity: 0.85,
     },
     activeToast: null,
+    titleConfig: { title: 'Visual Novel' },
+    hasSaveData: false,
+    pendingConfirm: null,
     audio: {
       masterVolume: 1.0,
       channelVolumes: {
@@ -115,6 +118,11 @@ function createMockActions(overrides: Partial<PlayerUIActions> = {}): PlayerUIAc
     quickLoad: vi.fn().mockResolvedValue(undefined),
     replayVoice: vi.fn(),
     resolveDesync: vi.fn(),
+    continueGame: vi.fn(),
+    deleteSlot: vi.fn(),
+    confirmPending: vi.fn(),
+    cancelPending: vi.fn(),
+    unlockAudio: vi.fn(),
     ...overrides,
   };
 }
@@ -841,6 +849,7 @@ describe('Modals', () => {
       expect(slotCards.length).toBe(6);
 
       fireEvent.click(slotCards[0]!);
+      fireEvent.click(container.querySelector('#btn-confirm-action')!);
       expect(actions.saveSlot).toHaveBeenCalledWith(1);
 
       fireEvent.click(container.querySelector('#btn-close-modal')!);
@@ -862,6 +871,7 @@ describe('Modals', () => {
       const slotCards = container.querySelectorAll('.save-slot-card');
 
       fireEvent.click(slotCards[0]!);
+      fireEvent.click(container.querySelector('#btn-confirm-action')!);
       expect(actions.loadSlot).toHaveBeenCalledWith(1);
 
       fireEvent.click(slotCards[1]!);
@@ -1533,6 +1543,7 @@ describe('Phase 3: Player Ergonomics, Shortcuts, Modals & Navigation (RED Gate)'
 
       const cards = container.querySelectorAll('.save-slot-card');
       fireEvent.click(cards[0]!);
+      fireEvent.click(container.querySelector('#btn-confirm-action')!);
       expect(actions.saveSlot).toHaveBeenCalledWith(1);
 
       fireEvent.click(cards[1]!);
@@ -1556,6 +1567,7 @@ describe('Phase 3: Player Ergonomics, Shortcuts, Modals & Navigation (RED Gate)'
 
       const cards = container.querySelectorAll('.save-slot-card');
       fireEvent.click(cards[0]!);
+      fireEvent.click(container.querySelector('#btn-confirm-action')!);
       expect(actions.loadSlot).toHaveBeenCalledWith(1);
 
       fireEvent.click(cards[1]!);

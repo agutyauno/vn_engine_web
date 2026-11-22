@@ -21,6 +21,11 @@ Provides a library of clean, monochrome vector SVG icons tailored for the Visual
 - `BookOpenIcon({ size, className }: IconProps): JSX.Element`: Open book icon (settings "Text & Playback" tab).
 - `VolumeMuteIcon({ size, className }: IconProps): JSX.Element`: Speaker with a cross, shown on the settings mute toggle when audio is muted.
 - `KeyboardIcon({ size, className }: IconProps): JSX.Element`: Keyboard icon for the settings "Shortcuts" tab.
+- `CheckCircleIcon({ size, className }: IconProps): JSX.Element`: Circle checkmark icon for success notifications and confirmations.
+- `AlertCircleIcon({ size, className }: IconProps): JSX.Element`: Circle exclamation icon for error and alert notifications.
+- `InfoIcon({ size, className }: IconProps): JSX.Element`: Circle info icon for informational toast notifications.
+- `TrashIcon({ size, className }: IconProps): JSX.Element`: Trash can icon for deleting save slots.
+- `PlayIcon({ size, className }: IconProps): JSX.Element`: Play triangle icon for starting playback or scene execution.
 
 ## Invariants
 

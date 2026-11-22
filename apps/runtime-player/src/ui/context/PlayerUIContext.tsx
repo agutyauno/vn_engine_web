@@ -64,13 +64,18 @@ export function PlayerUIProvider({
       setFontSize: size => kernel.setFontSize(size),
       setBoxOpacity: opacity => kernel.setBoxOpacity(opacity),
       restoreDefaultSettings: () => kernel.restoreDefaultSettings(),
-      showToast: message => kernel.showToast(message),
+      showToast: (message, tone) => kernel.showToast(message, tone),
       saveSlot: slotIndex => kernel.saveSlot(slotIndex),
       loadSlot: slotIndex => kernel.loadSlot(slotIndex),
       quickSave: () => kernel.quickSave(),
       quickLoad: () => kernel.quickLoad(),
       replayVoice: assetId => kernel.replayVoice(assetId),
       resolveDesync: choice => kernel.resolveDesync(choice),
+      continueGame: () => kernel.continueGame(),
+      deleteSlot: slotIndex => kernel.deleteSlot(slotIndex),
+      confirmPending: () => kernel.confirmPending(),
+      cancelPending: () => kernel.cancelPending(),
+      unlockAudio: () => kernel.unlockAudio(),
     };
   }, [propActions, kernel]);
 

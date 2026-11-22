@@ -12,11 +12,16 @@ export function GameplayOverlay(): JSX.Element {
   useEffect(() => {
     if (isCleanArtMode) {
       const handleDismiss = () => actions.toggleCleanArt();
+      // F5/F9 vẫn phải chặn mặc định ở Clean Art, nếu không F5 sẽ reload trang và mất tiến trình.
+      const handleDismissKey = (e: KeyboardEvent) => {
+        if (e.key === 'F5' || e.key === 'F9') e.preventDefault();
+        handleDismiss();
+      };
       window.addEventListener('pointerdown', handleDismiss);
-      window.addEventListener('keydown', handleDismiss);
+      window.addEventListener('keydown', handleDismissKey);
       return () => {
         window.removeEventListener('pointerdown', handleDismiss);
-        window.removeEventListener('keydown', handleDismiss);
+        window.removeEventListener('keydown', handleDismissKey);
       };
     }
 
@@ -30,8 +35,33 @@ export function GameplayOverlay(): JSX.Element {
       }
 
       const activeModal = state?.activeModal ?? 'none';
+      const pendingConfirm = state?.pendingConfirm ?? null;
       const choices = state?.activeChoices ?? [];
       const isDialogueComplete = state?.dialogue?.isComplete ?? false;
+
+      if (e.key === 'F5') {
+        e.preventDefault();
+        if (activeModal === 'none' && pendingConfirm === null) {
+          void actions.quickSave();
+        }
+        return;
+      }
+
+      if (e.key === 'F9') {
+        e.preventDefault();
+        if (activeModal === 'none' && pendingConfirm === null) {
+          void actions.quickLoad();
+        }
+        return;
+      }
+
+      if (pendingConfirm !== null) {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          actions.cancelPending();
+        }
+        return;
+      }
 
       if (activeModal !== 'none') {
         if (e.key === 'Escape') {
@@ -114,6 +144,7 @@ export function GameplayOverlay(): JSX.Element {
   }, [
     isCleanArtMode,
     state?.activeModal,
+    state?.pendingConfirm,
     state?.activeChoices?.length,
     state?.dialogue?.isComplete,
     actions,
@@ -123,6 +154,7 @@ export function GameplayOverlay(): JSX.Element {
     e.stopPropagation();
 
     if (isCleanArtMode) return;
+    if ((state?.pendingConfirm ?? null) !== null) return;
 
     const activeModal = state?.activeModal ?? 'none';
     if (activeModal !== 'none') return;
@@ -159,6 +191,38 @@ export function GameplayOverlay(): JSX.Element {
       />
       <ChoiceOverlay />
       <DialogueGroup />
+      {state?.pendingConfirm === 'quick_load_overwrite' && (
+        <div
+          id="quickload-confirm"
+          className="quickload-confirm-overlay"
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="quickload-confirm-message"
+          onClick={e => e.stopPropagation()}
+        >
+          <div className="quickload-confirm-dialog">
+            <p id="quickload-confirm-message">
+              Load your quick save? Any unsaved progress will be lost.
+            </p>
+            <div className="quickload-confirm-actions">
+              <button
+                id="btn-quickload-confirm"
+                className="wf-btn wf-btn-danger"
+                onClick={() => void actions.confirmPending()}
+              >
+                Load
+              </button>
+              <button
+                id="btn-quickload-cancel"
+                className="wf-btn"
+                onClick={() => actions.cancelPending()}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

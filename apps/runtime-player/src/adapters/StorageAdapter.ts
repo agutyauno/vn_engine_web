@@ -158,6 +158,21 @@ export class StorageAdapter {
     }
   }
 
+  private safeRemove(key: string): void {
+    if (this.useMemoryFallback) {
+      this.memoryStorage.removeItem(key);
+      return;
+    }
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem(key);
+      }
+    } catch {
+      this.useMemoryFallback = true;
+      this.memoryStorage.removeItem(key);
+    }
+  }
+
   /**
    * Lấy danh sách 6 slots lưu trữ thường (indices 0..5 tương ứng slots 1..6)
    */
@@ -229,6 +244,39 @@ export class StorageAdapter {
       return slots[slotIndex - 1] ?? null;
     }
     return null;
+  }
+
+  /**
+   * Xóa slot (0 là quicksave, 1-6 là regular slots). Index khác ném RangeError trước khi
+   * chạm storage. Xóa slot đang trống không ghi gì.
+   */
+  public async deleteSlot(slotIndex: number): Promise<void> {
+    if (!Number.isInteger(slotIndex) || slotIndex < 0 || slotIndex > 6) {
+      throw new RangeError(`Invalid slot index: ${slotIndex}. Expected 0 (quicksave) or 1-6.`);
+    }
+    if (slotIndex === 0) {
+      this.safeRemove(this.quickKey);
+      return;
+    }
+    const slots = this.getSlots();
+    const idx = slotIndex - 1;
+    if (!slots[idx]) return;
+    slots[idx] = null;
+    this.safeSet(this.slotsKey, JSON.stringify(slots));
+  }
+
+  /**
+   * Save có timestamp lớn nhất trong quicksave và slot 1-6, hoặc null nếu không có save.
+   * Hòa timestamp thì bản gặp trước thắng (quicksave, rồi slot index nhỏ nhất).
+   */
+  public getMostRecentSave(): SaveSlotData | null {
+    let best: SaveSlotData | null = this.getQuickSave();
+    for (const slot of this.getSlots()) {
+      if (slot !== null && (best === null || slot.timestamp > best.timestamp)) {
+        best = slot;
+      }
+    }
+    return best;
   }
 
   public getQuickSave(): SaveSlotData | null {

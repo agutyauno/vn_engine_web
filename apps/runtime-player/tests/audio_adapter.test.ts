@@ -1,7 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, expectTypeOf } from 'vitest';
 import { AudioAdapter } from '../src/adapters/AudioAdapter';
 import type { AudioManager } from '@vn-engine/audio';
 import type { PlayInstruction, StopInstruction, Instruction } from '@vn-engine/shared-types';
+import type { AudioAdapterContract } from '../src/core/contracts';
 
 describe('AudioAdapter', () => {
   let mockAudioManager: AudioManager;
@@ -319,6 +320,127 @@ describe('AudioAdapter', () => {
       expect(passedMap.has('sfx')).toBe(false);
       expect(passedMap.get('music')?.channel).toBe('music');
       expect(passedMap.get('sound')?.channel).toBe('sound');
+    });
+  });
+
+  describe('T2: playMusic / stopMusic (title BGM)', () => {
+    it('plays music on "music" channel with loop: true by default and resolves undefined', async () => {
+      const adapter = new AudioAdapter(mockAudioManager, { assetResolver: mockAssetResolver });
+
+      const result = await adapter.playMusic('bgm_theme');
+
+      expect(result).toBeUndefined();
+      expect(mockAssetResolver).toHaveBeenCalledWith('bgm_theme');
+      expect(mockAudioManager.play).toHaveBeenCalledWith(
+        'music',
+        'bgm_theme',
+        'https://cdn.example.com/theme.mp3',
+        expect.objectContaining({ loop: true }),
+      );
+    });
+
+    it('converts fadeInMs to seconds and respects loop: false', async () => {
+      const adapter = new AudioAdapter(mockAudioManager, { assetResolver: mockAssetResolver });
+
+      await adapter.playMusic('bgm_theme', { loop: false, fadeInMs: 1500 });
+
+      expect(mockAudioManager.play).toHaveBeenCalledWith(
+        'music',
+        'bgm_theme',
+        'https://cdn.example.com/theme.mp3',
+        expect.objectContaining({
+          loop: false,
+          fadeIn: 1.5,
+        }),
+      );
+    });
+
+    it('passes format resolved from audioFormatResolver if provided', async () => {
+      const mockAudioFormatResolver = vi.fn((key: string) =>
+        key === 'bgm_theme' ? 'mp3' : undefined,
+      );
+      const adapter = new AudioAdapter(mockAudioManager, {
+        assetResolver: mockAssetResolver,
+        audioFormatResolver: mockAudioFormatResolver,
+      });
+
+      await adapter.playMusic('bgm_theme');
+
+      expect(mockAudioFormatResolver).toHaveBeenCalledWith('bgm_theme');
+      expect(mockAudioManager.play).toHaveBeenCalledWith(
+        'music',
+        'bgm_theme',
+        'https://cdn.example.com/theme.mp3',
+        expect.objectContaining({
+          format: 'mp3',
+        }),
+      );
+    });
+
+    it('resolves without playing when track cannot be resolved or is empty/whitespace', async () => {
+      const adapter = new AudioAdapter(mockAudioManager, { assetResolver: mockAssetResolver });
+
+      await expect(adapter.playMusic('missing_track')).resolves.toBeUndefined();
+      await expect(adapter.playMusic('')).resolves.toBeUndefined();
+      await expect(adapter.playMusic('   ')).resolves.toBeUndefined();
+
+      expect(mockAudioManager.play).not.toHaveBeenCalled();
+    });
+
+    it('uses track directly as URL when assetResolver is not provided', async () => {
+      const adapter = new AudioAdapter(mockAudioManager);
+
+      await adapter.playMusic('https://cdn.example.com/direct-music.mp3');
+
+      expect(mockAudioManager.play).toHaveBeenCalledWith(
+        'music',
+        'https://cdn.example.com/direct-music.mp3',
+        'https://cdn.example.com/direct-music.mp3',
+        expect.objectContaining({ loop: true }),
+      );
+    });
+
+    it('stops music channel with converted fadeOut in seconds or no positive fade when omitted', async () => {
+      const adapter = new AudioAdapter(mockAudioManager, { assetResolver: mockAssetResolver });
+
+      await adapter.stopMusic(800);
+      expect(mockAudioManager.stop).toHaveBeenCalledWith(
+        'music',
+        expect.objectContaining({ fadeOut: 0.8 }),
+      );
+
+      vi.clearAllMocks();
+
+      await adapter.stopMusic();
+      expect(mockAudioManager.stop).toHaveBeenCalledTimes(1);
+      const [stopChannel, stopOptions] = vi.mocked(mockAudioManager.stop).mock.lastCall ?? [];
+      expect(stopChannel).toBe('music');
+      const fadeOutVal = stopOptions?.fadeOut;
+      expect(fadeOutVal === undefined || fadeOutVal <= 0).toBe(true);
+    });
+
+    it('does not stop music channel between consecutive playMusic calls of the same track', async () => {
+      const adapter = new AudioAdapter(mockAudioManager, { assetResolver: mockAssetResolver });
+
+      await adapter.playMusic('bgm_theme');
+      await adapter.playMusic('bgm_theme');
+
+      expect(mockAudioManager.stop).not.toHaveBeenCalled();
+      expect(mockAudioManager.play).toHaveBeenCalledTimes(2);
+      expect(vi.mocked(mockAudioManager.play).mock.calls[0]?.[1]).toBe('bgm_theme');
+      expect(vi.mocked(mockAudioManager.play).mock.calls[1]?.[1]).toBe('bgm_theme');
+    });
+
+    it('satisfies Pick<Required<AudioAdapterContract>, "playMusic" | "stopMusic"> at type level', () => {
+      expectTypeOf<AudioAdapter>().toMatchTypeOf<
+        Pick<Required<AudioAdapterContract>, 'playMusic' | 'stopMusic'>
+      >();
+
+      const _contractCheck: Pick<
+        Required<AudioAdapterContract>,
+        'playMusic' | 'stopMusic'
+      > = new AudioAdapter(mockAudioManager);
+      expect(_contractCheck).toBeDefined();
     });
   });
 });

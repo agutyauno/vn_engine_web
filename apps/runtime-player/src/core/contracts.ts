@@ -39,9 +39,22 @@ export const DEFAULT_PLAYER_SETTINGS: PlayerSettingsData = {
   stageScaleMode: 'auto',
 };
 
+/** Cấu hình title đã được phân giải thành URL/key, kernel không biết gì về AssetRef. */
+export interface TitleScreenConfig {
+  /** Fallback 'Visual Novel'. */
+  title: string;
+  version?: string;
+  backgroundUrl?: string;
+  logoUrl?: string;
+  /** Key mà AudioAdapter.playMusic hiểu được. */
+  bgmTrack?: string;
+}
+
+export type ToastTone = 'success' | 'info' | 'error';
+
 export interface AudioAdapterContract {
-  playMusic?(track: string, options?: { loop?: boolean; volume?: number }): Promise<void>;
-  stopMusic?(fadeDurationMs?: number): Promise<void>;
+  playMusic?(track: string, options?: { loop?: boolean; fadeInMs?: number }): Promise<void>;
+  stopMusic?(fadeOutMs?: number): Promise<void>;
   playSound?(effect: string, options?: { volume?: number }): Promise<void>;
   playVoice(voiceFile: string): void | Promise<void>;
   stopVoice(): void;
@@ -140,7 +153,11 @@ export interface PlayerViewState {
   activeToast: {
     message: string;
     id: number;
+    tone: ToastTone;
   } | null;
+  titleConfig: TitleScreenConfig;
+  hasSaveData: boolean;
+  pendingConfirm: 'quick_load_overwrite' | null;
   audio: AudioChannelState;
   backlog: BacklogEntry[];
   saveSlots: Array<SaveSlotData | null>;
@@ -162,6 +179,8 @@ export interface KernelAdapters {
     setVolume?: (channel: string, volume: number) => void;
     setMute?: (muted: boolean) => void;
     playVoice?: (assetId: string) => void;
+    playMusic?: (track: string, options?: { loop?: boolean; fadeInMs?: number }) => Promise<void>;
+    stopMusic?: (fadeOutMs?: number) => Promise<void>;
   };
   storage?: {
     getSeenDialogues: () => Set<string>;
@@ -173,6 +192,8 @@ export interface KernelAdapters {
     loadSlot?: (slotIndex: number) => Promise<SaveSlotData | null>;
     getSettings?: () => PlayerSettingsData;
     saveSettings?: (settings: Partial<PlayerSettingsData>) => void;
+    deleteSlot?: (slotIndex: number) => Promise<void>;
+    getMostRecentSave?: () => SaveSlotData | null;
   };
 }
 
@@ -197,13 +218,18 @@ export interface PlayerUIActions {
   setFontSize: (size: DialogueFontSize) => void;
   setBoxOpacity: (opacity: number) => void;
   restoreDefaultSettings: () => void;
-  showToast: (message: string) => void;
+  showToast: (message: string, tone?: ToastTone) => void;
   saveSlot: (slotIndex: number) => Promise<void>;
   loadSlot: (slotIndex: number) => Promise<void>;
   quickSave: () => Promise<void>;
   quickLoad: () => Promise<void>;
   replayVoice: (assetId: string) => void;
   resolveDesync: (choice: 'continue' | 'restart' | 'cancel') => void;
+  continueGame: () => Promise<void>;
+  deleteSlot: (slotIndex: number) => Promise<void>;
+  confirmPending: () => Promise<void>;
+  cancelPending: () => void;
+  unlockAudio: () => void;
 }
 
 export interface PlayerUIContract {
@@ -214,6 +240,7 @@ export interface PlayerUIContract {
 export interface VNRuntimeKernelOptions {
   initialMode?: PlayerMode;
   projectId?: string;
+  titleConfig?: Partial<TitleScreenConfig>;
 }
 
 export interface LoadProgramOptions {

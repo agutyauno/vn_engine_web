@@ -211,6 +211,26 @@ body.is-embedded #game-root {
   transition: opacity 0.3s ease, visibility 0.3s ease;
 }
 
+.title-screen-container.has-background {
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.title-screen-container.has-background::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.5);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.title-screen-container.has-background > * {
+  position: relative;
+  z-index: 1;
+}
+
 .title-screen-container.hidden {
   display: none !important;
 }
@@ -258,6 +278,13 @@ body.is-embedded #game-root {
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
 }
 
+#title-logo {
+  max-width: 100%;
+  max-height: 120px;
+  object-fit: contain;
+  display: block;
+}
+
 .title-screen-subheading {
   font-family: var(--vn-font-mono);
   font-size: 13px;
@@ -290,7 +317,7 @@ body.is-embedded #game-root {
   border-radius: 2px;
 }
 
-.title-screen-btn:hover {
+.title-screen-btn:hover:not(:disabled) {
   background: var(--vn-text, #f8fafc);
   color: #0f172a;
   border-color: var(--vn-text, #f8fafc);
@@ -298,8 +325,27 @@ body.is-embedded #game-root {
   transform: translateY(-1px);
 }
 
-.title-screen-btn:active {
+.title-screen-btn:active:not(:disabled) {
   transform: translateY(0);
+}
+
+.title-screen-btn:disabled {
+  opacity: 0.35;
+  border-color: var(--vn-border, #334155);
+  color: var(--vn-text-muted, #94a3b8);
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+#title-version,
+.title-version {
+  margin-top: 24px;
+  font-family: var(--vn-font-mono);
+  font-size: 11px;
+  color: var(--vn-text-muted, #64748b);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
 }
 
 /* ================================================================
@@ -762,6 +808,7 @@ kbd {
 .save-slots-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(2, 1fr);
   gap: 16px;
 }
 
@@ -804,19 +851,15 @@ kbd {
   font-weight: 700;
 }
 
-.slot-thumbnail {
+.slot-thumbnail,
+.slot-thumbnail-placeholder {
   width: 100%;
   aspect-ratio: 16 / 9;
   background: #000000;
   border: var(--vn-border-width) solid var(--vn-border-secondary);
   border-radius: var(--vn-radius-base);
   object-fit: cover;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  font-family: var(--vn-font-mono);
-  color: var(--vn-text-muted);
+  display: block;
 }
 
 .slot-meta {
@@ -961,6 +1004,90 @@ kbd {
   opacity: 0;
   transform: translateX(-50%) translateY(-10px);
   pointer-events: none;
+}
+
+/* Toast Notification Pill (Phase T4) */
+#toast-notification,
+.toast-notification {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--vn-panel-bg);
+  color: var(--vn-text-primary);
+  border: var(--vn-border-width) solid var(--vn-border-primary);
+  border-radius: 9999px;
+  padding: 8px 18px;
+  font-family: var(--vn-font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  z-index: 3000;
+  cursor: pointer;
+  pointer-events: auto;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.8);
+  transition: opacity var(--vn-transition-fast), transform var(--vn-transition-fast);
+  user-select: none;
+}
+
+#toast-notification:hover,
+.toast-notification:hover {
+  background: #111111;
+}
+
+#toast-notification:focus-visible,
+.toast-notification:focus-visible {
+  outline: 2px solid var(--vn-border-active);
+  outline-offset: 2px;
+}
+
+#toast-notification .toast-icon,
+.toast-notification .toast-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+#toast-notification .toast-message,
+.toast-notification .toast-message {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 480px;
+}
+
+/* Tone variants */
+#toast-notification.toast-success,
+.toast-notification.toast-success {
+  border-color: #22c55e;
+}
+
+#toast-notification.toast-success .toast-icon,
+.toast-notification.toast-success .toast-icon {
+  color: #22c55e;
+}
+
+#toast-notification.toast-error,
+.toast-notification.toast-error {
+  border-color: #ef4444;
+}
+
+#toast-notification.toast-error .toast-icon,
+.toast-notification.toast-error .toast-icon {
+  color: #ef4444;
+}
+
+#toast-notification.toast-info,
+.toast-notification.toast-info {
+  border-color: var(--vn-border-primary);
+}
+
+#toast-notification.toast-info .toast-icon,
+.toast-notification.toast-info .toast-icon {
+  color: var(--vn-text-accent);
 }
 
 /* ================================================================
@@ -1464,19 +1591,21 @@ body.is-embedded #game-stage {
   color: var(--vn-text-primary);
 }
 
-.modal-backlog-window {
-  height: 80%;
+.modal-saveload-window {
+  position: relative;
 }
 
 .save-slots-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(2, 1fr);
   gap: 16px;
   margin-top: 16px;
   overflow-y: auto;
 }
 
 .save-slot-card {
+  position: relative;
   border: 1px solid var(--vn-border-secondary);
   background: rgba(20, 20, 20, 0.8);
   padding: 12px;
@@ -1485,14 +1614,86 @@ body.is-embedded #game-stage {
   flex-direction: column;
   gap: 8px;
   min-height: 120px;
+  outline: none;
+  transition: border-color var(--vn-transition-fast), background-color var(--vn-transition-fast);
 }
 
-.save-slot-card:hover {
+.save-slot-card:hover,
+.save-slot-card:focus-visible {
   border-color: var(--vn-border-primary);
+}
+
+.save-slot-card:focus-visible {
+  outline: 2px solid var(--vn-border-active);
+  outline-offset: 2px;
 }
 
 .save-slot-card.empty {
   opacity: 0.6;
+}
+
+.btn-delete-slot {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: transparent;
+  border: var(--vn-border-width) solid var(--vn-border-secondary);
+  color: var(--vn-text-muted);
+  padding: 4px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--vn-radius-button);
+  transition: all var(--vn-transition-fast);
+  z-index: 2;
+}
+
+.btn-delete-slot:hover {
+  color: #ef4444;
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.slot-empty-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-height: 80px;
+  color: var(--vn-text-muted);
+  font-family: var(--vn-font-mono);
+  font-size: 13px;
+  letter-spacing: 0.5px;
+}
+
+/* Save/Load Confirmation Modal Overlay & Dialog */
+.saveload-confirm-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.85);
+  z-index: 50;
+}
+
+.saveload-confirm-dialog {
+  max-width: 420px;
+  padding: 24px;
+  background: var(--vn-panel-bg);
+  border: var(--vn-border-width) solid var(--vn-border-primary);
+  border-radius: var(--vn-radius-base);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--vn-text-primary);
+}
+
+.saveload-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
 }
 
 .backlog-header,
@@ -1769,6 +1970,36 @@ body.is-embedded #game-stage {
 }
 
 .settings-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+/* Quick Load Confirmation Dialog (#quickload-confirm) */
+.quickload-confirm-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.85);
+  z-index: 50;
+  pointer-events: auto;
+}
+
+.quickload-confirm-dialog {
+  max-width: 420px;
+  padding: 24px;
+  background: var(--vn-panel-bg);
+  border: var(--vn-border-width) solid var(--vn-border-primary);
+  border-radius: var(--vn-radius-base);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--vn-text-primary);
+}
+
+.quickload-confirm-actions {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
