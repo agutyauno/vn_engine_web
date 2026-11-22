@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Instruction, AssetRef } from '@vn-engine/shared-types';
+import type { Instruction, AssetRef, ProjectTitleSettings } from '@vn-engine/shared-types';
 
 export interface HotReloadPayload {
   program: Instruction[];
@@ -8,6 +8,9 @@ export interface HotReloadPayload {
   scene?: string;
   line?: number;
   preserveState?: boolean;
+  title?: string;
+  titleSettings?: ProjectTitleSettings;
+  startMode?: 'title' | 'scene';
 }
 
 export interface LivePreviewStoreState {

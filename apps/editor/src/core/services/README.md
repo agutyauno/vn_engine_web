@@ -16,6 +16,7 @@ Core application services powering compilation, sandboxed runtime communication,
 - `syncMonacoMarkers(options: MonacoMarkerSyncOptions): void`: Synchronizes diagnostics into Monaco editor markers
 - `extractScenesFromFile(fileName: string, content: string): SceneItem[]`: AST/regex scene and subscene extractor
 - `createVnsProjectContext(getProject: () => Project | null, fallback?: Project): VnsProjectContext`: Dynamic project context provider for Monaco language features
+- `buildHotReloadPayload(project: Project, program: Instruction[], extra?: HotReloadPayloadExtra): HotReloadPayload`: Constructs preview hot reload payload preserving branding settings without undefined keys
 
 ## Invariants
 
@@ -23,6 +24,7 @@ Core application services powering compilation, sandboxed runtime communication,
 - `CompilerService` enforces a 2000ms watchdog timer terminating the worker if unresponsive.
 - `PreviewBridge` enforces zero-trust origin verification via `isAllowedPreviewOrigin` rejecting untrusted message origins.
 - `checkAssetDeletionSafety` flags any asset referenced by background/audio/inspect AST statements as unsafe to delete.
+- `buildHotReloadPayload` omits `titleSettings` when undefined and omits `startMode` during automatic compilation to avoid resetting runtime player state to Title screen.
 
 ## Side Effects
 

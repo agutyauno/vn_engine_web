@@ -22,6 +22,7 @@ export interface EditorUIStoreState {
   activeFileId: string | null;
   isDrawerOpen: boolean;
   cursorJumpTarget: { line: number; col: number } | null;
+  previewStartMode: 'title' | 'scene';
 
   // Modal Visibility & Navigation Guard
   isSettingsOpen: boolean;
@@ -36,6 +37,8 @@ export interface EditorUIStoreState {
   setDrawerHeight: (height: number) => void;
   clampCompositeBounds: () => void;
   resetDimensions: () => void;
+
+  setPreviewStartMode: (mode: 'title' | 'scene') => void;
 
   setActiveTab: (tab: 'scripts' | 'assets' | null) => void;
   setLastAssetCategory: (category: string) => void;
@@ -140,6 +143,7 @@ export const initialUIState: Omit<
   | 'setLightboxImageUrl'
   | 'triggerUnsavedGuard'
   | 'resolveUnsavedGuard'
+  | 'setPreviewStartMode'
 > = {
   ...getInitialDimensions(),
   lastAssetCategory: getInitialAssetCategory(),
@@ -154,6 +158,7 @@ export const initialUIState: Omit<
   isUnsavedModalOpen: false,
   pendingNavigationTarget: null,
   lightboxImageUrl: null,
+  previewStartMode: 'scene',
 };
 
 function clamp(value: number, min: number, max: number): number {
@@ -240,6 +245,8 @@ export const useEditorUIStore = create<EditorUIStoreState>((set, get) => ({
     set(defaults);
     persistDimensions(defaults);
   },
+
+  setPreviewStartMode: mode => set({ previewStartMode: mode }),
 
   setActiveTab: tab => set({ activeTab: tab }),
 

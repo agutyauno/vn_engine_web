@@ -10,7 +10,7 @@ Core visual novel authoring studio workspace. Integrates the 3-column director w
 - `StudioWorkspacePageProps`: Props interface (`projectId`, `repository`, `initialProject`, `onBackToHub`, `onQuickPlay`, `onOpenSettings`, `onExport`)
 - `ActivityBar`: Leftmost icon navigation bar (`ActivityBarProps`, `StudioTab`)
 - `FileExplorerPane`: VNS file explorer pane (`FileExplorerPaneProps`, `cleanChapterName`, `normalizeScriptName`, `validateFileName`, `generateDefaultScriptName`)
-- `StudioHeader`: Top header with title editing, save status indicator, and quick actions (`StudioHeaderProps`, `getAspectRatioBadge`)
+- `StudioHeader`: Top header with title editing, save status indicator, and quick actions (`StudioHeaderProps`, `getAspectRatioBadge`, preview start mode toggle)
 - `AssetLibraryPane`: Asset manager pane with category filter, preview, replace, and safe deletion (`AssetLibraryPaneProps`)
 - `CreateAssetModal`: Modal for uploading/configuring new assets (`CreateAssetModalProps`)
 - `SafeDeleteModal`: Dependency-aware asset deletion guard modal displaying script references and non-blocking title screen role warnings (`SafeDeleteModalProps`)
@@ -37,6 +37,7 @@ Core visual novel authoring studio workspace. Integrates the 3-column director w
 - `AssetSelectorModal` filters assets strictly by type (`accept`) and performs case-insensitive name filtering.
 - `AssetPickerField` displays 'Missing asset' when referencing a deleted or nonexistent asset ID.
 - `ProjectSettingsModal` Branding tab edits `titleSettings` (logo, background, BGM) and omits the property entirely if all entries are cleared.
+- Studio header displays `btn-preview-start-mode` toggle button only when quick play is enabled. In popout preview, `startMode: 'scene'` is sent for cursor runs, `previewStartMode` is sent on Play, and omitted on background recompiles.
 
 ## Side Effects
 

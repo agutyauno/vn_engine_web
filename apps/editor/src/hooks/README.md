@@ -16,6 +16,7 @@ Custom React hooks encapsulating the reactive compilation pipeline and global ke
 - `useCompilerPipeline` debounces compilation runs by default (200ms) on file changes to prevent thrashing.
 - Changes to characters or assets re-run reconciliation diagnostics and re-dispatch cached bytecode without re-compiling all scripts.
 - Text input elements (`INPUT`, `TEXTAREA`, Monaco editor) suppress single-key shortcuts like `?` to prevent capturing character typing.
+- `useCompilerPipeline` constructs hot reload payloads without `startMode` so background script recompilations do not kick the player back to the Title screen.
 
 ## Side Effects
 
