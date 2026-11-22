@@ -891,5 +891,33 @@ describe('VNRuntimeKernel Phase T3: Lifecycle, Quick Actions & Toast Tone (RED)'
         expect(kernel.getState().mode).toBe('TITLE');
       });
     });
+
+    describe('loadProgram() with startGameplay (Play in Scene mode while on Title)', () => {
+      it('starts the game from TITLE when startGameplay is true', async () => {
+        const kernel = new VNRuntimeKernel(PROGRAM, {
+          renderer: createRenderer(),
+          audio: createAudio(),
+          storage: newStorage(),
+        });
+        expect(kernel.getState().mode).toBe('TITLE');
+
+        await kernel.loadProgram(PROGRAM, { startGameplay: true });
+
+        expect(kernel.getState().mode).toBe('GAMEPLAY');
+        expect(kernel.getState().dialogue.rawText).toContain('Line 1');
+      });
+
+      it('stays on TITLE after a plain recompile (no startGameplay)', async () => {
+        const kernel = new VNRuntimeKernel(PROGRAM, {
+          renderer: createRenderer(),
+          audio: createAudio(),
+          storage: newStorage(),
+        });
+
+        await kernel.loadProgram(PROGRAM);
+
+        expect(kernel.getState().mode).toBe('TITLE');
+      });
+    });
   });
 });
