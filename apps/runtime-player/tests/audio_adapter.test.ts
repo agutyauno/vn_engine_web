@@ -214,17 +214,20 @@ describe('AudioAdapter', () => {
       expect(DEFAULT_PLAYER_SETTINGS).toBeDefined();
       const settings = DEFAULT_PLAYER_SETTINGS;
 
-      expect(settings).toEqual(
-        expect.objectContaining({
-          masterVolume: 1.0,
-          musicVolume: 0.8,
-          sfxVolume: 0.8,
-          voiceVolume: 1.0,
-          textSpeed: 40,
-          autoDelay: 1500,
-          stageScaleMode: 'auto',
-        }),
-      );
+      // TASK-player-settings-modal §3.1/§7.1: autoDelay -> autoDelayMs, thêm isMuted/fontSize/boxOpacity.
+      expect(settings).toStrictEqual({
+        masterVolume: 1.0,
+        musicVolume: 0.8,
+        sfxVolume: 0.8,
+        voiceVolume: 1.0,
+        isMuted: false,
+        textSpeed: 40,
+        autoDelayMs: 1500,
+        fontSize: 'medium',
+        boxOpacity: 0.85,
+        stageScaleMode: 'auto',
+      });
+      expect(settings).not.toHaveProperty('autoDelay');
     });
   });
 
