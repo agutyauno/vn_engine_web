@@ -218,6 +218,31 @@ describe('Phase T7: ControlBar, Hotkeys & Settings Footer (RED phase)', () => {
       expect(vi.mocked(actions.quickLoad)).toHaveBeenCalledTimes(1);
     });
 
+    it.each(['F5', 'F9'])(
+      'prevents default on %s in Clean Art mode so the page never reloads, and only exits Clean Art',
+      key => {
+        const actions = createMockActions();
+        const state = createMockState({
+          mode: 'GAMEPLAY',
+          activeModal: 'none',
+          isCleanArtMode: true,
+        });
+        render(
+          <PlayerUIProvider state={state} actions={actions}>
+            <GameplayOverlay />
+          </PlayerUIProvider>,
+        );
+
+        const ev = new KeyboardEvent('keydown', { key, cancelable: true, bubbles: true });
+        window.dispatchEvent(ev);
+
+        expect(ev.defaultPrevented).toBe(true);
+        expect(vi.mocked(actions.toggleCleanArt)).toHaveBeenCalledTimes(1);
+        expect(vi.mocked(actions.quickSave)).not.toHaveBeenCalled();
+        expect(vi.mocked(actions.quickLoad)).not.toHaveBeenCalled();
+      },
+    );
+
     it('prevents default on F5/F9 but does NOT call quickSave/quickLoad when activeModal is "settings"', () => {
       const actions = createMockActions();
       const state = createMockState({ mode: 'GAMEPLAY', activeModal: 'settings' });
