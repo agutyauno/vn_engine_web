@@ -808,6 +808,7 @@ kbd {
 .save-slots-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(2, 1fr);
   gap: 16px;
 }
 
@@ -850,19 +851,15 @@ kbd {
   font-weight: 700;
 }
 
-.slot-thumbnail {
+.slot-thumbnail,
+.slot-thumbnail-placeholder {
   width: 100%;
   aspect-ratio: 16 / 9;
   background: #000000;
   border: var(--vn-border-width) solid var(--vn-border-secondary);
   border-radius: var(--vn-radius-base);
   object-fit: cover;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  font-family: var(--vn-font-mono);
-  color: var(--vn-text-muted);
+  display: block;
 }
 
 .slot-meta {
@@ -1594,19 +1591,21 @@ body.is-embedded #game-stage {
   color: var(--vn-text-primary);
 }
 
-.modal-backlog-window {
-  height: 80%;
+.modal-saveload-window {
+  position: relative;
 }
 
 .save-slots-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(2, 1fr);
   gap: 16px;
   margin-top: 16px;
   overflow-y: auto;
 }
 
 .save-slot-card {
+  position: relative;
   border: 1px solid var(--vn-border-secondary);
   background: rgba(20, 20, 20, 0.8);
   padding: 12px;
@@ -1615,14 +1614,86 @@ body.is-embedded #game-stage {
   flex-direction: column;
   gap: 8px;
   min-height: 120px;
+  outline: none;
+  transition: border-color var(--vn-transition-fast), background-color var(--vn-transition-fast);
 }
 
-.save-slot-card:hover {
+.save-slot-card:hover,
+.save-slot-card:focus-visible {
   border-color: var(--vn-border-primary);
+}
+
+.save-slot-card:focus-visible {
+  outline: 2px solid var(--vn-border-active);
+  outline-offset: 2px;
 }
 
 .save-slot-card.empty {
   opacity: 0.6;
+}
+
+.btn-delete-slot {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: transparent;
+  border: var(--vn-border-width) solid var(--vn-border-secondary);
+  color: var(--vn-text-muted);
+  padding: 4px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--vn-radius-button);
+  transition: all var(--vn-transition-fast);
+  z-index: 2;
+}
+
+.btn-delete-slot:hover {
+  color: #ef4444;
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.slot-empty-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-height: 80px;
+  color: var(--vn-text-muted);
+  font-family: var(--vn-font-mono);
+  font-size: 13px;
+  letter-spacing: 0.5px;
+}
+
+/* Save/Load Confirmation Modal Overlay & Dialog */
+.saveload-confirm-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.85);
+  z-index: 50;
+}
+
+.saveload-confirm-dialog {
+  max-width: 420px;
+  padding: 24px;
+  background: var(--vn-panel-bg);
+  border: var(--vn-border-width) solid var(--vn-border-primary);
+  border-radius: var(--vn-radius-base);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--vn-text-primary);
+}
+
+.saveload-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
 }
 
 .backlog-header,
