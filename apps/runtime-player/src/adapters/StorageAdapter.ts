@@ -4,7 +4,13 @@
 // Phân vùng khóa theo Project ID & Chế độ Preview, kèm Sandboxed MemoryStorage Fallback
 // ============================================================================
 
-import { StorageQuotaError, type SaveSlotData } from '../core/contracts';
+import {
+  DEFAULT_PLAYER_SETTINGS,
+  StorageQuotaError,
+  type DialogueFontSize,
+  type PlayerSettingsData,
+  type SaveSlotData,
+} from '../core/contracts';
 
 // Re-export để bên ngoài vẫn import được từ adapter như trước.
 export { StorageQuotaError };
@@ -25,6 +31,46 @@ export function isQuotaExceededError(err: unknown): boolean {
     err.code === 22 ||
     err.code === 1014
   );
+}
+
+/** Thời gian gom các lần saveSettings liên tiếp (kéo slider) thành một lần ghi. */
+const SETTINGS_DEBOUNCE_MS = 200;
+
+const FONT_SIZES: readonly DialogueFontSize[] = ['small', 'medium', 'large'];
+
+/** Số hữu hạn thì kẹp vào [min, max]; mọi kiểu khác (chuỗi, boolean, null...) dùng fallback. */
+function clampNumber(val: unknown, min: number, max: number, fallback: number): number {
+  if (typeof val !== 'number' || !Number.isFinite(val)) return fallback;
+  return Math.min(max, Math.max(min, val));
+}
+
+function isFontSize(val: unknown): val is DialogueFontSize {
+  return FONT_SIZES.some(size => size === val);
+}
+
+/**
+ * Dựng object settings mới chỉ từ các key đã biết (không spread input),
+ * nên key lạ hay `__proto__` không lọt vào kết quả.
+ */
+function sanitizeSettings(input: Record<string, unknown>): PlayerSettingsData {
+  const d = DEFAULT_PLAYER_SETTINGS;
+  return {
+    masterVolume: clampNumber(input.masterVolume, 0, 1, d.masterVolume),
+    musicVolume: clampNumber(input.musicVolume, 0, 1, d.musicVolume),
+    sfxVolume: clampNumber(input.sfxVolume, 0, 1, d.sfxVolume),
+    voiceVolume: clampNumber(input.voiceVolume, 0, 1, d.voiceVolume),
+    isMuted: typeof input.isMuted === 'boolean' ? input.isMuted : d.isMuted,
+    textSpeed: clampNumber(input.textSpeed, 1, 100, d.textSpeed),
+    // `autoDelay` là tên cũ trước khi đổi sang `autoDelayMs`.
+    autoDelayMs: clampNumber(input.autoDelayMs ?? input.autoDelay, 500, 5000, d.autoDelayMs),
+    fontSize: isFontSize(input.fontSize) ? input.fontSize : d.fontSize,
+    boxOpacity: clampNumber(input.boxOpacity, 0.6, 1.0, d.boxOpacity),
+    stageScaleMode: input.stageScaleMode === 'native' ? 'native' : 'auto',
+  };
+}
+
+function isRecord(val: unknown): val is Record<string, unknown> {
+  return typeof val === 'object' && val !== null && !Array.isArray(val);
 }
 
 class MemoryStorage {
@@ -53,6 +99,9 @@ export class StorageAdapter {
   private slotsKey: string;
   private quickKey: string;
   private seenKey: string;
+  private settingsKey: string;
+  private pendingSettings: PlayerSettingsData | null = null;
+  private settingsTimer: ReturnType<typeof setTimeout> | null = null;
   private memoryStorage = new MemoryStorage();
   private useMemoryFallback = false;
 
@@ -72,6 +121,7 @@ export class StorageAdapter {
     this.slotsKey = `${prefix}_save_slots`;
     this.quickKey = `${prefix}_quicksave`;
     this.seenKey = `${prefix}_seen_dialogues`;
+    this.settingsKey = `${prefix}_settings`;
   }
 
   private safeGet(key: string): string | null {
@@ -228,6 +278,53 @@ export class StorageAdapter {
     } catch (err) {
       // Seen dialogues chỉ là tiện ích (skip đã đọc): đầy quota thì bỏ qua lần ghi này,
       // không để lỗi làm crash luồng thoại.
+      if (!(err instanceof StorageQuotaError)) throw err;
+    }
+  }
+
+  /**
+   * Đọc settings đã lưu (hoặc giá trị đang chờ ghi), luôn trả về bản sao đã kiểm tra
+   * và kẹp giá trị. Dữ liệu hỏng hoặc sai kiểu thì dùng DEFAULT_PLAYER_SETTINGS.
+   */
+  public getSettings(): PlayerSettingsData {
+    if (this.pendingSettings) {
+      return { ...this.pendingSettings };
+    }
+    const raw = this.safeGet(this.settingsKey);
+    if (!raw) return { ...DEFAULT_PLAYER_SETTINGS };
+    try {
+      const parsed: unknown = JSON.parse(raw);
+      if (isRecord(parsed)) {
+        return sanitizeSettings(parsed);
+      }
+    } catch {
+      // Dữ liệu hỏng
+    }
+    return { ...DEFAULT_PLAYER_SETTINGS };
+  }
+
+  /** Gộp partial vào settings hiện tại và ghi sau SETTINGS_DEBOUNCE_MS (gọi lại thì đặt lại timer). */
+  public saveSettings(settings: Partial<PlayerSettingsData>): void {
+    this.pendingSettings = sanitizeSettings({ ...this.getSettings(), ...settings });
+    if (this.settingsTimer !== null) {
+      clearTimeout(this.settingsTimer);
+    }
+    this.settingsTimer = setTimeout(() => this.flushSettings(), SETTINGS_DEBOUNCE_MS);
+  }
+
+  /** Ghi ngay settings đang chờ (nếu có) và hủy timer debounce. */
+  public flushSettings(): void {
+    if (this.settingsTimer !== null) {
+      clearTimeout(this.settingsTimer);
+      this.settingsTimer = null;
+    }
+    const pending = this.pendingSettings;
+    if (!pending) return;
+    this.pendingSettings = null;
+    try {
+      this.safeSet(this.settingsKey, JSON.stringify(pending));
+    } catch (err) {
+      // Settings không quan trọng như save slot: đầy quota thì bỏ qua lần ghi này.
       if (!(err instanceof StorageQuotaError)) throw err;
     }
   }

@@ -10,6 +10,7 @@ Houses the runtime player orchestration kernel (`VNRuntimeKernel`), typewriter p
   - `PlayerMode`: Player lifecycle mode (`TITLE`, `GAMEPLAY`, `INSPECT`, `STANDBY`, `HALTED`).
   - `TextPlaybackMode`: Playback rate mode (`NORMAL`, `AUTO`, `SKIP`).
   - `StepResult`: Discriminated union of VM step suspension types.
+  - `DialogueFontSize` (`small` | `medium` | `large`), `PlayerSettingsData`, `DEFAULT_PLAYER_SETTINGS`: Persisted player settings (volumes, `isMuted`, `textSpeed`, `autoDelayMs`, `fontSize`, `boxOpacity`, `stageScaleMode`) and their defaults. `KernelAdapters.storage` optionally exposes `getSettings`/`saveSettings`.
   - `AudioChannelState`, `SaveSlotData`, `BacklogEntry`, `TypewriterSegment`, `DesyncModalData`.
   - `PlayerViewState`, `KernelAdapters`, `PlayerUIActions`, `PlayerUIContract`, `VNRuntimeKernelOptions`.
 - Functions:
