@@ -128,9 +128,7 @@ export function calculateVariableInsertion(
   const lines = content.split('\n');
   const scenes = parseScenes(lines);
 
-  const enclosingScenes = scenes.filter(
-    s => s.startLine <= errorLine && errorLine <= s.endLine,
-  );
+  const enclosingScenes = scenes.filter(s => s.startLine <= errorLine && errorLine <= s.endLine);
 
   if (scope === 'global') {
     if (enclosingScenes.length === 0) {
@@ -286,7 +284,8 @@ export function resolveQuickFixActions(
       }
       case 'create_asset': {
         const rawCat = (qf.prefillData?.category as string) || 'background';
-        const category = rawCat === 'audio' ? 'bgm' : rawCat === 'backgrounds' ? 'background' : rawCat;
+        const category =
+          rawCat === 'audio' ? 'bgm' : rawCat === 'backgrounds' ? 'background' : rawCat;
         const tag = qf.prefillData?.tag as string | undefined;
         const variant = qf.prefillData?.variant as string | undefined;
 
@@ -531,4 +530,3 @@ export function resolveQuickFixActions(
 
   return deduplicatedActions;
 }
-

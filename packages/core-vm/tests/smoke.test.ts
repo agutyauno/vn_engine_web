@@ -53,7 +53,9 @@ describe('Headless Smoke Test (Golden Scenario P0 End-to-End)', () => {
     // Kiểm tra đã nạp đúng tài nguyên hình ảnh và âm thanh ở đầu game
     const catchup1 = vm.getStateCatchUp();
     expect(catchup1.background?.assetId).toBe('bg_classroom');
-    expect(catchup1.sprites.get('alice')?.variant ?? catchup1.sprites.get('alice')?.sprite).toBe('happy');
+    expect(catchup1.sprites.get('alice')?.variant ?? catchup1.sprites.get('alice')?.sprite).toBe(
+      'happy',
+    );
     expect(catchup1.audio.get('music')?.assetId).toBe('bgm_school.mp3');
 
     // -------------------------------------------------------------

@@ -54,10 +54,7 @@ import {
 // Dynamically resolve checkCharacterDeletionSafety to allow clean module loading
 const checkCharacterDeletionSafety = (
   reconciliationModule as unknown as {
-    checkCharacterDeletionSafety?: (
-      characterId: string,
-      project: Project,
-    ) => DeletionSafetyResult;
+    checkCharacterDeletionSafety?: (characterId: string, project: Project) => DeletionSafetyResult;
   }
 ).checkCharacterDeletionSafety;
 
@@ -73,7 +70,9 @@ const CharacterManagerPaneComponent: React.FC<{
   const [deletingCharId, setDeletingCharId] = React.useState<string | null>(null);
 
   const handleDeleteClick = (id: string) => {
-    const safety = checkCharacterDeletionSafety ? checkCharacterDeletionSafety(id, project) : { safe: true, references: [] };
+    const safety = checkCharacterDeletionSafety
+      ? checkCharacterDeletionSafety(id, project)
+      : { safe: true, references: [] };
     if (!safety.safe) {
       setDeletingCharId(id);
     } else {
@@ -201,7 +200,9 @@ show bob.default
     variables: [],
     uiScreens: [],
     customScripts: [],
-    ...(options?.characters !== undefined ? { characters: options.characters } : { characters: sampleCharacters }),
+    ...(options?.characters !== undefined
+      ? { characters: options.characters }
+      : { characters: sampleCharacters }),
   } as Project;
 }
 
@@ -304,7 +305,9 @@ describe('Phase 2.2: Safe Delete Unblock (RED)', () => {
 
       expect(result.safe).toBe(false);
       expect(result.references.length).toBeGreaterThanOrEqual(1);
-      expect(result.references.some(r => r.file === 'chapter1.vns' || r.file === 'chapter2.vns')).toBe(true);
+      expect(
+        result.references.some(r => r.file === 'chapter1.vns' || r.file === 'chapter2.vns'),
+      ).toBe(true);
     });
 
     it('handles case-insensitivity and whitespace trimming for character id', () => {
@@ -526,4 +529,3 @@ scene "bg_classroom.png"
     });
   });
 });
-

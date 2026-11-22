@@ -1,8 +1,4 @@
-import type {
-  ProgramAST,
-  StatementAST,
-  SceneASTNode,
-} from '@vn-engine/shared-types';
+import type { ProgramAST, StatementAST, SceneASTNode } from '@vn-engine/shared-types';
 
 export interface ScriptReferenceLocation {
   fileId: string;
@@ -159,4 +155,3 @@ export function extractScriptReferences(ast: ProgramAST): ScriptReferences {
 
   return { assets };
 }
-

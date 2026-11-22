@@ -37,7 +37,9 @@ describe('Pause Statement DSL Compiler Suite (Micro-Phase 1B)', () => {
     const scene = result.ast?.scenes.find(s => s.name === 'test_pause_ast');
     expect(scene).toBeDefined();
 
-    const pauseStmt = scene?.body.find((stmt): stmt is PauseStatement => stmt.type === 'PauseStatement');
+    const pauseStmt = scene?.body.find(
+      (stmt): stmt is PauseStatement => stmt.type === 'PauseStatement',
+    );
     expect(pauseStmt).toBeDefined();
     expect(pauseStmt?.type).toBe('PauseStatement');
     expect(pauseStmt?.loc).toBeDefined();
@@ -188,8 +190,7 @@ pause
 
     // 3. Dialogue with literal string speaker "Người Bí Ẩn"
     const literalDialogue = program.find(
-      (i): i is DialogueInstruction =>
-        i.type === 'DIALOGUE' && i.character === 'Người Bí Ẩn',
+      (i): i is DialogueInstruction => i.type === 'DIALOGUE' && i.character === 'Người Bí Ẩn',
     );
     expect(literalDialogue).toBeDefined();
     expect(literalDialogue?.character).toBe('Người Bí Ẩn');

@@ -28,7 +28,8 @@ export function generateDslSnippet(entity: DslSnippetEntity): string {
       }
       if (category === 'sprite') {
         if (entity.tag) {
-          const variant = entity.variant && entity.variant !== 'default' ? `.${entity.variant}` : '';
+          const variant =
+            entity.variant && entity.variant !== 'default' ? `.${entity.variant}` : '';
           return `show ${entity.tag}${variant}`;
         }
         return `show ${cleanName}`;

@@ -42,7 +42,10 @@ export class AssetResolverAdapter {
    * Trả về resolver đồ họa phân giải asset key thành URL hình ảnh
    * Hỗ trợ Unified Sprite Asset (tag + variant) và các asset nền / UI
    */
-  public getAssetGraphicResolver(): (targetIdOrKey: string, variant?: string) => string | undefined {
+  public getAssetGraphicResolver(): (
+    targetIdOrKey: string,
+    variant?: string,
+  ) => string | undefined {
     return (targetIdOrKey: string, variant?: string): string | undefined => {
       if (!targetIdOrKey || !targetIdOrKey.trim()) {
         return undefined;
@@ -60,7 +63,10 @@ export class AssetResolverAdapter {
       if (!resolvedVariant && trimmedKey.includes('.')) {
         const dotIndex = trimmedKey.indexOf('.');
         resolvedTag = trimmedKey.slice(0, dotIndex).trim().toLowerCase();
-        resolvedVariant = trimmedKey.slice(dotIndex + 1).trim().toLowerCase();
+        resolvedVariant = trimmedKey
+          .slice(dotIndex + 1)
+          .trim()
+          .toLowerCase();
       }
 
       // 2. Tìm kiếm trong data.assets

@@ -63,7 +63,12 @@ describe('VNRuntimeKernel: Literal Speaker Resolution (TC-SPRITE-PLAYER-03)', ()
     const { mockRenderer, mockAudio, mockStorage } = createMockAdapters();
     const program: Instruction[] = [
       { type: 'SCENE', name: 'intro' },
-      { type: 'DIALOGUE', character: 'Alice - Hội phó', speaker: 'Alice - Hội phó', text: 'Chào bạn' },
+      {
+        type: 'DIALOGUE',
+        character: 'Alice - Hội phó',
+        speaker: 'Alice - Hội phó',
+        text: 'Chào bạn',
+      },
     ];
 
     const kernel = new VNRuntimeKernel(program, {
@@ -125,7 +130,12 @@ describe('VNRuntimeKernel: Literal Speaker Resolution (TC-SPRITE-PLAYER-03)', ()
     const { mockRenderer, mockAudio, mockStorage } = createMockAdapters();
     const program: Instruction[] = [
       { type: 'SCENE', name: 'intro' },
-      { type: 'DIALOGUE', character: 'Alice - Hội phó', speaker: 'Alice - Hội phó', text: 'Chào bạn lần đầu' },
+      {
+        type: 'DIALOGUE',
+        character: 'Alice - Hội phó',
+        speaker: 'Alice - Hội phó',
+        text: 'Chào bạn lần đầu',
+      },
     ];
 
     const kernel = new VNRuntimeKernel(program, {
@@ -172,7 +182,12 @@ describe('VNRuntimeKernel: Literal Speaker Resolution (TC-SPRITE-PLAYER-03)', ()
     const { mockRenderer, mockAudio, mockStorage } = createMockAdapters();
     const program: Instruction[] = [
       { type: 'SCENE', name: 'intro' },
-      { type: 'DIALOGUE', character: 'Alice Carroll', speaker: 'Alice Carroll', text: 'Save snapshot dialogue' },
+      {
+        type: 'DIALOGUE',
+        character: 'Alice Carroll',
+        speaker: 'Alice Carroll',
+        text: 'Save snapshot dialogue',
+      },
     ];
 
     const kernel = new VNRuntimeKernel(program, {

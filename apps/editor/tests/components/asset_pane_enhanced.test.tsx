@@ -203,13 +203,19 @@ describe('Phase 3: AssetLibraryPane Enhanced (Grid/List, Filter/Sort & Sticky Au
     const spriteItem = screen.getByTestId('asset-item-asset-sprite-alice');
     const spriteDataTransfer = { setData: vi.fn(), effectAllowed: '' };
     fireEvent.dragStart(spriteItem, { dataTransfer: spriteDataTransfer });
-    expect(spriteDataTransfer.setData).toHaveBeenCalledWith('text/plain', 'show char_alice_smile\n');
+    expect(spriteDataTransfer.setData).toHaveBeenCalledWith(
+      'text/plain',
+      'show char_alice_smile\n',
+    );
 
     // Drag bgm asset -> `play music "theme_epic.mp3"\n`
     const bgmItem = screen.getByTestId('asset-item-asset-bgm-theme');
     const bgmDataTransfer = { setData: vi.fn(), effectAllowed: '' };
     fireEvent.dragStart(bgmItem, { dataTransfer: bgmDataTransfer });
-    expect(bgmDataTransfer.setData).toHaveBeenCalledWith('text/plain', 'play music "theme_epic.mp3"\n');
+    expect(bgmDataTransfer.setData).toHaveBeenCalledWith(
+      'text/plain',
+      'play music "theme_epic.mp3"\n',
+    );
   });
 
   it('TC-ASSET-COPY-01: copies asset DSL snippet with in-place CheckIcon feedback for 1500ms', () => {

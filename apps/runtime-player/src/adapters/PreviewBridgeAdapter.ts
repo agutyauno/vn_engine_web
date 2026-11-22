@@ -193,7 +193,7 @@ export class PreviewBridgeAdapter {
   }
 
   public requestAssetBlob(assetId: string, timeoutMs = 5000): Promise<Blob | null> {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       const requestId = 'blob_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
       const timer = setTimeout(() => {
         this.pendingBlobRequests.delete(requestId);
@@ -254,7 +254,7 @@ export async function hydrateForeignAssetBlobs(
     : '';
 
   return Promise.all(
-    assets.map(async (asset) => {
+    assets.map(async asset => {
       const url = asset.storageUrl;
       const isForeignBlob =
         typeof url === 'string' &&

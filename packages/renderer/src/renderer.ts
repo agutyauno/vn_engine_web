@@ -335,7 +335,8 @@ export class GameRenderer {
     const targetAlpha = instr.alpha !== undefined ? instr.alpha : 1.0;
 
     const texture =
-      (await this.resolveOrGenerateSpriteTexture(targetId, variant, assetResolver)) || Texture.EMPTY;
+      (await this.resolveOrGenerateSpriteTexture(targetId, variant, assetResolver)) ||
+      Texture.EMPTY;
 
     const existing = this.activeSprites.get(targetId);
 
@@ -674,7 +675,10 @@ export class GameRenderer {
 
     // 2. Xóa bỏ những sprite không còn trong danh sách catch-up
     for (const [id, managed] of this.activeSprites.entries()) {
-      if (!catchUp.sprites.has(id) && (!managed.targetId || !catchUp.sprites.has(managed.targetId))) {
+      if (
+        !catchUp.sprites.has(id) &&
+        (!managed.targetId || !catchUp.sprites.has(managed.targetId))
+      ) {
         if (managed.cancelAnimation) {
           managed.cancelAnimation();
           managed.cancelAnimation = undefined;
@@ -720,9 +724,7 @@ export class GameRenderer {
     const url = assetResolver?.(assetId);
     if (url) {
       try {
-        const loadParam = url.startsWith('blob:')
-          ? { src: url, parser: 'loadTextures' }
-          : url;
+        const loadParam = url.startsWith('blob:') ? { src: url, parser: 'loadTextures' } : url;
         const tex = await Assets.load<Texture>(loadParam);
         if (tex) {
           return tex;
@@ -849,9 +851,7 @@ export class GameRenderer {
 
     if (url) {
       try {
-        const loadParam = url.startsWith('blob:')
-          ? { src: url, parser: 'loadTextures' }
-          : url;
+        const loadParam = url.startsWith('blob:') ? { src: url, parser: 'loadTextures' } : url;
         const tex = await Assets.load<Texture>(loadParam);
         if (tex) {
           return tex;

@@ -92,4 +92,3 @@ describe('Phase 1: ImageLightboxModal Component (TDD)', () => {
     expect(modal.className).not.toContain('z-50');
   });
 });
-

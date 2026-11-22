@@ -160,7 +160,7 @@ describe('Player Choice Resilience & Safe Re-entrancy (RED Phase)', () => {
 
     // Concurrent execution: Promise.all calling selectChoice(0) simultaneously
     await expect(
-      Promise.all([kernel.selectChoice(0), kernel.selectChoice(0)])
+      Promise.all([kernel.selectChoice(0), kernel.selectChoice(0)]),
     ).resolves.not.toThrow();
 
     const postState = kernel.getState();
@@ -176,17 +176,15 @@ describe('Player Choice Resilience & Safe Re-entrancy (RED Phase)', () => {
     let delaySideEffect = false;
     let sideEffectResolver: (() => void) | null = null;
     const delayedRenderer: NonNullable<KernelAdapters['renderer']> = {
-      applySideEffect: vi.fn(
-        (effect: { type: string }) => {
-          if (delaySideEffect && effect.type === 'SCENE') {
-            delaySideEffect = false;
-            return new Promise<void>((resolve) => {
-              sideEffectResolver = resolve;
-            });
-          }
-          return Promise.resolve();
+      applySideEffect: vi.fn((effect: { type: string }) => {
+        if (delaySideEffect && effect.type === 'SCENE') {
+          delaySideEffect = false;
+          return new Promise<void>(resolve => {
+            sideEffectResolver = resolve;
+          });
         }
-      ),
+        return Promise.resolve();
+      }),
       syncStateCatchUp: vi.fn().mockResolvedValue(undefined),
       captureThumbnail: vi.fn().mockResolvedValue('data:image/jpeg;base64,mockthumb'),
     };
@@ -195,9 +193,7 @@ describe('Player Choice Resilience & Safe Re-entrancy (RED Phase)', () => {
       { type: 'SCENE', name: 'choice_scene' },
       {
         type: 'CHOICE',
-        choices: [
-          { text: 'Choice A', targetScene: 'scene_a' },
-        ],
+        choices: [{ text: 'Choice A', targetScene: 'scene_a' }],
       },
       { type: 'SCENE', name: 'scene_a' },
       { type: 'BACKGROUND', assetId: 'bg_async_delay' }, // Triggers applySideEffect
@@ -214,7 +210,7 @@ describe('Player Choice Resilience & Safe Re-entrancy (RED Phase)', () => {
     expect(kernel.getState().activeChoices).not.toBeNull();
 
     const emittedChoiceStates: (unknown[] | null)[] = [];
-    kernel.subscribe((state) => {
+    kernel.subscribe(state => {
       emittedChoiceStates.push(state.activeChoices);
     });
 
@@ -309,7 +305,7 @@ describe('Player Choice Resilience & Safe Re-entrancy (RED Phase)', () => {
       render(
         <PlayerUIProvider state={state} actions={actions}>
           <ChoiceOverlay />
-        </PlayerUIProvider>
+        </PlayerUIProvider>,
       );
 
       // Fire repeating Enter key (user holds down Enter key)
@@ -333,7 +329,7 @@ describe('Player Choice Resilience & Safe Re-entrancy (RED Phase)', () => {
       render(
         <PlayerUIProvider state={state} actions={actions}>
           <ChoiceOverlay />
-        </PlayerUIProvider>
+        </PlayerUIProvider>,
       );
 
       // Fire repeating '2' key
@@ -354,9 +350,12 @@ describe('Player Choice Resilience & Safe Re-entrancy (RED Phase)', () => {
       const actions = createMockActions();
 
       const { rerender, container } = render(
-        <PlayerUIProvider state={createMockState({ activeChoices: initialChoices })} actions={actions}>
+        <PlayerUIProvider
+          state={createMockState({ activeChoices: initialChoices })}
+          actions={actions}
+        >
           <ChoiceOverlay />
-        </PlayerUIProvider>
+        </PlayerUIProvider>,
       );
 
       // Move focus down to choice index 1
@@ -373,7 +372,7 @@ describe('Player Choice Resilience & Safe Re-entrancy (RED Phase)', () => {
       rerender(
         <PlayerUIProvider state={createMockState({ activeChoices: nextChoices })} actions={actions}>
           <ChoiceOverlay />
-        </PlayerUIProvider>
+        </PlayerUIProvider>,
       );
 
       // Pressing enter now must select index 0, not residual index 1

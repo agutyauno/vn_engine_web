@@ -43,8 +43,8 @@ describe('Unit Tests: Fuzzy Typo Matcher (Levenshtein Distance with Pruning)', (
     it('should prune candidates whose length difference exceeds default maxDistance (2)', () => {
       const candidates = [
         'bg_school_courtyard_day_extra_long', // len diff >> 2
-        'bg_school',                          // len diff 0
-        'b',                                  // len diff 8
+        'bg_school', // len diff 0
+        'b', // len diff 8
       ];
       const matches = findClosestMatches('bg_scholl', candidates);
       expect(matches).toEqual(['bg_school']);
@@ -72,8 +72,8 @@ describe('Unit Tests: Fuzzy Typo Matcher (Levenshtein Distance with Pruning)', (
       const candidates = ['alicia', 'alice', 'unrelated'];
       const matches = findClosestMatches('alic', candidates, 2, 2);
       expect(matches.length).toBe(2);
-      expect(matches[0]).toBe('alice');   // dist 1
-      expect(matches[1]).toBe('alicia');  // dist 2
+      expect(matches[0]).toBe('alice'); // dist 1
+      expect(matches[1]).toBe('alicia'); // dist 2
     });
 
     it('should return empty array if no candidate is within maxDistance', () => {
@@ -108,4 +108,3 @@ describe('Unit Tests: Fuzzy Typo Matcher (Levenshtein Distance with Pruning)', (
     });
   });
 });
-

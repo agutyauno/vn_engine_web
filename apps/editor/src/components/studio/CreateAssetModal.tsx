@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { AssetRef, AssetCategory } from '@vn-engine/shared-types';
-import { validateAssetFile, slugifyAssetId, parseSpriteFilename } from '../../core/utils/assetValidation';
+import {
+  validateAssetFile,
+  slugifyAssetId,
+  parseSpriteFilename,
+} from '../../core/utils/assetValidation';
 import { CloseIcon, ImageIcon, FolderIcon } from '../common/Icons';
 
 export interface CreateAssetModalProps {

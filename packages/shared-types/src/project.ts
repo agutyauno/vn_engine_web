@@ -79,8 +79,8 @@ export interface AssetRef {
   version?: number; // Optimistic Concurrency Check (ADR-011)
 
   // Metadata định danh Sprite (khi category === 'sprite')
-  tag?: string;      // Nhóm sprite, ví dụ: "alice", "sword"
-  variant?: string;  // Biến thể/biểu cảm, ví dụ: "happy", "default", "broken"
+  tag?: string; // Nhóm sprite, ví dụ: "alice", "sword"
+  variant?: string; // Biến thể/biểu cảm, ví dụ: "happy", "default", "broken"
 }
 
 export interface UICustomScreen {

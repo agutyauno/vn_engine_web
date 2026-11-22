@@ -104,7 +104,7 @@ describe('VNRuntimeKernel: Hide Dialogue Execution (TASK-player-core-bugs)', () 
         dialogue: expect.objectContaining({
           isVisible: false,
         }),
-      })
+      }),
     );
   });
 
@@ -168,4 +168,3 @@ describe('VNRuntimeKernel: Hide Dialogue Execution (TASK-player-core-bugs)', () 
     expect(stateAfterRollback.dialogue.speakerName).toBe('alice');
   });
 });
-

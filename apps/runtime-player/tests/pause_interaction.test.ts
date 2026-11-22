@@ -413,4 +413,3 @@ describe('Pause Interaction & Runtime Player Integration (TASK-pause-statement)'
     expect(postLoadState.dialogue.rawText).toBe('Resumed after load');
   });
 });
-

@@ -128,4 +128,3 @@ export const StickyAudioPlayer: React.FC<StickyAudioPlayerProps> = ({ asset, onC
     </div>
   );
 };
-

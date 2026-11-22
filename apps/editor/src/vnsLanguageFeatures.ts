@@ -20,7 +20,10 @@ export interface SceneItem {
 export interface VnsProjectContext {
   getFiles: () => Record<string, string>;
   getScenes: () => SceneItem[] | string[];
-  getCharacters: () => Map<string, { displayName?: string; colorHex?: string; sprites: Set<string> }>;
+  getCharacters: () => Map<
+    string,
+    { displayName?: string; colorHex?: string; sprites: Set<string> }
+  >;
   getAssets: () => { backgrounds: Set<string>; audio: Set<string>; voices?: Set<string> };
   getAssetDetails?: () => Map<
     string,
@@ -500,7 +503,10 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): monaco.
             { tag: '{pause:300ms}', doc: 'Pause typewriter rendering for 300 milliseconds' },
             { tag: '{wait:1.0s}', doc: 'Pause typewriter rendering for 1.0 second' },
             { tag: '{speed:slow}', doc: 'Change typewriter text rendering speed to slow (0.5x)' },
-            { tag: '{speed:normal}', doc: 'Reset typewriter text rendering speed to normal (1.0x)' },
+            {
+              tag: '{speed:normal}',
+              doc: 'Reset typewriter text rendering speed to normal (1.0x)',
+            },
             { tag: '{speed:fast}', doc: 'Change typewriter text rendering speed to fast (2.0x)' },
             { tag: '{speed:2.0}', doc: 'Set custom numeric speed multiplier (e.g. 2.0x)' },
             { tag: '{color:#38bdf8}', doc: 'Colorize subsequent dialogue text with HEX color' },
@@ -963,8 +969,8 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): monaco.
         const category = primaryKeywords.has(kw.label)
           ? '01'
           : mediaKeywords.has(kw.label)
-          ? '03'
-          : '04';
+            ? '03'
+            : '04';
         const sortText = `${category}_${kw.label}`;
 
         if (kw.snippet) {
@@ -1196,8 +1202,15 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): monaco.
       const matchDiagnosticToFile = (d: EditorDiagnostic): boolean => {
         if (!d.fileId && !d.fileName) return true;
         if (activeFileId && (d.fileId === activeFileId || d.fileName === activeFileId)) return true;
-        if (d.fileId && (modelUriStr.includes(d.fileId) || modelUriPath.includes(d.fileId))) return true;
-        if (d.fileName && (modelUriStr.includes(d.fileName) || modelUriPath.includes(d.fileName) || modelUriPath === `/${d.fileName}`)) return true;
+        if (d.fileId && (modelUriStr.includes(d.fileId) || modelUriPath.includes(d.fileId)))
+          return true;
+        if (
+          d.fileName &&
+          (modelUriStr.includes(d.fileName) ||
+            modelUriPath.includes(d.fileName) ||
+            modelUriPath === `/${d.fileName}`)
+        )
+          return true;
         return false;
       };
 
@@ -1251,7 +1264,13 @@ export function registerVnsLanguageFeatures(context: VnsProjectContext): monaco.
       const projectVariables = context.getVariables ? context.getVariables() : [];
       const cursorLine = range.startLineNumber;
       const cursorCol = range.startColumn;
-      const fileId = activeFileId || modelUriStr.split('/').pop()?.replace(/\.vns$/, '') || 'active-file';
+      const fileId =
+        activeFileId ||
+        modelUriStr
+          .split('/')
+          .pop()
+          ?.replace(/\.vns$/, '') ||
+        'active-file';
 
       const qfContext: QuickFixContext = {
         fileId,

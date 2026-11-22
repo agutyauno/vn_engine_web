@@ -88,7 +88,7 @@ export class CodeGenerator {
     switch (stmt.type) {
       case 'DialogueStatement': {
         const d = stmt as DialogueStatement;
-        const speaker = d.speaker !== undefined ? d.speaker : d.character ?? null;
+        const speaker = d.speaker !== undefined ? d.speaker : (d.character ?? null);
         this.instructions.push({
           type: 'DIALOGUE',
           character: speaker,

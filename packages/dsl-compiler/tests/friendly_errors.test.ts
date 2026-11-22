@@ -78,7 +78,8 @@ describe('Friendly Diagnostics & Error Formatter (TDD RED)', () => {
 
   // TC-FE-07: Comment # chứa { sau lỗi cú pháp dòng đầu
   it('TC-FE-07: Comment # containing { does not mask earlier syntax error or report false unclosed brace', () => {
-    const code = 'wrong_syntax\n# Main visual novel script: test\n# scene bla {\n#   bla:"bruh"\n#\n#\n';
+    const code =
+      'wrong_syntax\n# Main visual novel script: test\n# scene bla {\n#   bla:"bruh"\n#\n#\n';
     const result = compileString(code, 'test.vns');
     expect(result.success).toBe(false);
     expect(result.errors).toBeDefined();

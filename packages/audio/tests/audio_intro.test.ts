@@ -234,26 +234,18 @@ describe('AudioManager: Chaining Intro and Loop (TASK-audio-intro-loop)', () => 
   // -------------------------------------------------------------------------
   it('TC-AUD-INTRO-03: should cancel pending intro/loop and prevent ghost audio when a new track plays', () => {
     // 1. Bắt đầu phát bài 1 có intro
-    audioManager.play(
-      'music',
-      'bgm_track1',
-      'https://cdn.example.com/audio/track1_loop.mp3',
-      {
-        introAssetId: 'bgm_track1_intro',
-        introUrl: 'https://cdn.example.com/audio/track1_intro.mp3',
-      } as ExtendedAudioPlayOptions as AudioPlayOptions,
-    );
+    audioManager.play('music', 'bgm_track1', 'https://cdn.example.com/audio/track1_loop.mp3', {
+      introAssetId: 'bgm_track1_intro',
+      introUrl: 'https://cdn.example.com/audio/track1_intro.mp3',
+    } as ExtendedAudioPlayOptions as AudioPlayOptions);
 
     const [intro1, loop1] = mockHowlInstances;
     expect(intro1.play).toHaveBeenCalledTimes(1);
 
     // 2. Chuyển ngay sang bài 2 (không có intro) khi bài 1 đang dạo đầu
-    audioManager.play(
-      'music',
-      'bgm_track2',
-      'https://cdn.example.com/audio/track2.mp3',
-      { volume: 0.5 } as AudioPlayOptions,
-    );
+    audioManager.play('music', 'bgm_track2', 'https://cdn.example.com/audio/track2.mp3', {
+      volume: 0.5,
+    } as AudioPlayOptions);
 
     // intro1 và loop1 cũ phải bị dừng và unload
     expect(intro1.stop).toHaveBeenCalled();
@@ -277,15 +269,10 @@ describe('AudioManager: Chaining Intro and Loop (TASK-audio-intro-loop)', () => 
   // TC-AUD-INTRO-04: Pause / Resume in Intro
   // -------------------------------------------------------------------------
   it('TC-AUD-INTRO-04: should pause and resume introHowl correctly while in intro phase', () => {
-    audioManager.play(
-      'music',
-      'bgm_battle',
-      'https://cdn.example.com/audio/battle_loop.mp3',
-      {
-        introAssetId: 'bgm_battle_intro',
-        introUrl: 'https://cdn.example.com/audio/battle_intro.mp3',
-      } as ExtendedAudioPlayOptions as AudioPlayOptions,
-    );
+    audioManager.play('music', 'bgm_battle', 'https://cdn.example.com/audio/battle_loop.mp3', {
+      introAssetId: 'bgm_battle_intro',
+      introUrl: 'https://cdn.example.com/audio/battle_intro.mp3',
+    } as ExtendedAudioPlayOptions as AudioPlayOptions);
 
     const [introHowl, loopHowl] = mockHowlInstances;
 
@@ -309,16 +296,11 @@ describe('AudioManager: Chaining Intro and Loop (TASK-audio-intro-loop)', () => 
   // TC-AUD-INTRO-05: Volume Adjustment in Intro
   // -------------------------------------------------------------------------
   it('TC-AUD-INTRO-05: should adjust volume on active introHowl and sync target volume to loopHowl', () => {
-    audioManager.play(
-      'music',
-      'bgm_battle',
-      'https://cdn.example.com/audio/battle_loop.mp3',
-      {
-        introAssetId: 'bgm_battle_intro',
-        introUrl: 'https://cdn.example.com/audio/battle_intro.mp3',
-        volume: 0.5, // script volume
-      } as ExtendedAudioPlayOptions as AudioPlayOptions,
-    );
+    audioManager.play('music', 'bgm_battle', 'https://cdn.example.com/audio/battle_loop.mp3', {
+      introAssetId: 'bgm_battle_intro',
+      introUrl: 'https://cdn.example.com/audio/battle_intro.mp3',
+      volume: 0.5, // script volume
+    } as ExtendedAudioPlayOptions as AudioPlayOptions);
 
     const [introHowl, loopHowl] = mockHowlInstances;
 
@@ -377,17 +359,12 @@ describe('AudioManager: Chaining Intro and Loop (TASK-audio-intro-loop)', () => 
   // TC-AUD-INTRO-07 (Edge Case): Fade In during Intro Phase
   // -------------------------------------------------------------------------
   it('TC-AUD-INTRO-07: should apply fadeIn to introHowl instead of main track when intro is present', () => {
-    audioManager.play(
-      'music',
-      'bgm_peaceful',
-      'https://cdn.example.com/audio/peaceful_loop.mp3',
-      {
-        introAssetId: 'bgm_peaceful_intro',
-        introUrl: 'https://cdn.example.com/audio/peaceful_intro.mp3',
-        fadeIn: 2.0, // 2s
-        volume: 1.0,
-      } as ExtendedAudioPlayOptions as AudioPlayOptions,
-    );
+    audioManager.play('music', 'bgm_peaceful', 'https://cdn.example.com/audio/peaceful_loop.mp3', {
+      introAssetId: 'bgm_peaceful_intro',
+      introUrl: 'https://cdn.example.com/audio/peaceful_intro.mp3',
+      fadeIn: 2.0, // 2s
+      volume: 1.0,
+    } as ExtendedAudioPlayOptions as AudioPlayOptions);
 
     const [introHowl, loopHowl] = mockHowlInstances;
 

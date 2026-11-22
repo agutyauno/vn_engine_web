@@ -13,10 +13,7 @@ import {
 } from '../../src/core/services/reconciliation';
 import { normalizeCategoryTab } from '../../src/core/utils/assetCategories';
 
-function createMockProject(options?: {
-  assets?: AssetRef[];
-  files?: ScriptFile[];
-}): Project {
+function createMockProject(options?: { assets?: AssetRef[]; files?: ScriptFile[] }): Project {
   return {
     id: 'test-proj-category-filter',
     title: 'Category Filter Test Project',
@@ -277,12 +274,9 @@ describe('Phase 2.1: Asset Category Filter Normalization & Reconciliation Prefil
           {
             id: 'file-chap1',
             name: 'chapter1.vns',
-            content: [
-              'scene intro {',
-              '  background bg_forest',
-              '  scene "bg_town.png"',
-              '}',
-            ].join('\n'),
+            content: ['scene intro {', '  background bg_forest', '  scene "bg_town.png"', '}'].join(
+              '\n',
+            ),
             order: 0,
             version: 1,
           },

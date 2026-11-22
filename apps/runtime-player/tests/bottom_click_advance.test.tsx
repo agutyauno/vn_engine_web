@@ -103,7 +103,7 @@ describe('Bottom Click Zone & DialogueGroup Visibility (TASK-player-core-bugs)',
     const { container } = render(
       <PlayerUIProvider state={state} actions={actions}>
         <GameplayOverlay />
-      </PlayerUIProvider>
+      </PlayerUIProvider>,
     );
 
     const bottomZone = container.querySelector('#bottom-click-zone');
@@ -131,7 +131,7 @@ describe('Bottom Click Zone & DialogueGroup Visibility (TASK-player-core-bugs)',
     const { container } = render(
       <PlayerUIProvider state={state} actions={actions}>
         <GameplayOverlay />
-      </PlayerUIProvider>
+      </PlayerUIProvider>,
     );
 
     const bottomZone = container.querySelector('#bottom-click-zone');
@@ -159,7 +159,7 @@ describe('Bottom Click Zone & DialogueGroup Visibility (TASK-player-core-bugs)',
     const { container } = render(
       <PlayerUIProvider state={state} actions={actions}>
         <GameplayOverlay />
-      </PlayerUIProvider>
+      </PlayerUIProvider>,
     );
 
     const bottomZone = container.querySelector('#bottom-click-zone');
@@ -184,7 +184,7 @@ describe('Bottom Click Zone & DialogueGroup Visibility (TASK-player-core-bugs)',
     const { container: containerChoices, unmount: unmountChoices } = render(
       <PlayerUIProvider state={stateWithChoices} actions={actions}>
         <GameplayOverlay />
-      </PlayerUIProvider>
+      </PlayerUIProvider>,
     );
 
     const bottomZoneA = containerChoices.querySelector('#bottom-click-zone');
@@ -203,7 +203,7 @@ describe('Bottom Click Zone & DialogueGroup Visibility (TASK-player-core-bugs)',
     const { container: containerModal, unmount: unmountModal } = render(
       <PlayerUIProvider state={stateWithModal} actions={actions}>
         <GameplayOverlay />
-      </PlayerUIProvider>
+      </PlayerUIProvider>,
     );
 
     const bottomZoneB = containerModal.querySelector('#bottom-click-zone');
@@ -231,7 +231,7 @@ describe('Bottom Click Zone & DialogueGroup Visibility (TASK-player-core-bugs)',
     const { container: containerNull } = render(
       <PlayerUIProvider state={stateNullChoices} actions={actions}>
         <GameplayOverlay />
-      </PlayerUIProvider>
+      </PlayerUIProvider>,
     );
 
     const bottomZoneC = containerNull.querySelector('#bottom-click-zone');
@@ -258,7 +258,7 @@ describe('Bottom Click Zone & DialogueGroup Visibility (TASK-player-core-bugs)',
     const { container } = render(
       <PlayerUIProvider state={state} actions={actions}>
         <GameplayOverlay />
-      </PlayerUIProvider>
+      </PlayerUIProvider>,
     );
 
     const bottomZone = container.querySelector('#bottom-click-zone');
@@ -289,7 +289,7 @@ describe('Bottom Click Zone & DialogueGroup Visibility (TASK-player-core-bugs)',
     const { container: containerHidden, unmount: unmountHidden } = render(
       <PlayerUIProvider state={stateHidden} actions={actions}>
         <DialogueGroup />
-      </PlayerUIProvider>
+      </PlayerUIProvider>,
     );
 
     const dialogueGroupHidden = containerHidden.querySelector('#dialogue-group');
@@ -315,7 +315,7 @@ describe('Bottom Click Zone & DialogueGroup Visibility (TASK-player-core-bugs)',
     const { container: containerVisible } = render(
       <PlayerUIProvider state={stateVisible} actions={actions}>
         <DialogueGroup />
-      </PlayerUIProvider>
+      </PlayerUIProvider>,
     );
 
     const dialogueGroupVisible = containerVisible.querySelector('#dialogue-group');
@@ -324,4 +324,3 @@ describe('Bottom Click Zone & DialogueGroup Visibility (TASK-player-core-bugs)',
     expect((dialogueGroupVisible as HTMLElement).style.display).not.toBe('none');
   });
 });
-

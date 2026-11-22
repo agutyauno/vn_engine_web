@@ -51,7 +51,7 @@ describe('Pause Instruction & Interactive Suspend (TASK-pause-statement)', () =>
 
       // 5. Snapshot phải được lưu vào ringBuffer với interactionType: 'PAUSE'
       expect(vm.canRollback()).toBe(true);
-      const rollbackResult = (vm.rollback() as any);
+      const rollbackResult = vm.rollback() as any;
       expect(rollbackResult.success).toBe(true);
       expect(rollbackResult.poppedInteractionType).toBe('PAUSE');
       expect(rollbackResult.restoredInteractionType).toBe('DIALOGUE');
@@ -197,4 +197,3 @@ describe('Pause Instruction & Interactive Suspend (TASK-pause-statement)', () =>
     });
   });
 });
-
