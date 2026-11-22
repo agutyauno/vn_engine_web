@@ -18,7 +18,7 @@ Implements the core Preact UI component tree for the visual novel player. It coo
 - `PreviewStandbyScreen(): JSX.Element`: Standby screen displayed when awaiting script hot-reload from the editor.
 - `SpeakerNameplateProps`: Properties for speaker display name and color hex.
 - `SpeakerNameplate(props: SpeakerNameplateProps): JSX.Element | null`: Speaker label displaying character name and color.
-- `TitleScreen(): JSX.Element`: Main menu screen with New Game, Load Game, and Settings triggers.
+- `TitleScreen(): JSX.Element`: Main menu screen coordinating title or logo rendering with error fallback, background cover styling, Continue Game button (disabled without save data), New Game, Load Game, Settings triggers, version indicator, and audio unlock triggers.
 - `ToastNotification(): JSX.Element | null`: Non-blocking pill toast notification rendered at the top-right of the stage for transient system feedback (success, info, error).
 - Child Contracts:
   - `./common/README.md`: Monochrome vector SVG icon library.
@@ -31,12 +31,13 @@ Implements the core Preact UI component tree for the visual novel player. It coo
 - `SpeakerNameplate` returns `null` when no speaker name is specified or when the string is empty.
 - `#dialogue-text` always carries exactly one `font-*` class (`font-small` 1rem, `font-medium` 1.15rem, `font-large` 1.35rem).
 - Unsatisfied choices in `ChoiceOverlay` are disabled (`aria-disabled="true"`) and cannot be clicked.
+- `TitleScreen` disables `#btn-continue` when `hasSaveData` is false and falls back from broken logo to text heading.
 - `ToastNotification` returns `null` when `activeToast` is `null` or when the active toast id has been dismissed locally.
 
 ## Side Effects
 
-- Binds global `keydown` and `pointerdown` listeners on `window`.
-- Triggers engine transitions through `PlayerUIActions` (`advance`, `completeDialogue`, `selectChoice`, `rollback`, `toggleAuto`, `toggleSkip`, `openModal`).
+- Binds global `keydown` and `pointerdown` listeners on `window` (`GameplayOverlay`, `TitleScreen`).
+- Triggers engine transitions through `PlayerUIActions` (`advance`, `completeDialogue`, `selectChoice`, `rollback`, `toggleAuto`, `toggleSkip`, `openModal`, `continueGame`, `startNewGame`, `unlockAudio`).
 
 ## Verification
 
