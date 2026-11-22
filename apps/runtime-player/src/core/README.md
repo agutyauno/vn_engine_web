@@ -13,12 +13,15 @@ Houses the runtime player orchestration kernel (`VNRuntimeKernel`), typewriter p
   - `DialogueFontSize` (`small` | `medium` | `large`), `PlayerSettingsData`, `DEFAULT_PLAYER_SETTINGS`: Persisted player settings (volumes, `isMuted`, `textSpeed`, `autoDelayMs`, `fontSize`, `boxOpacity`, `stageScaleMode`) and their defaults. `KernelAdapters.storage` optionally exposes `getSettings`/`saveSettings`.
   - `AudioChannelState`, `SaveSlotData`, `BacklogEntry`, `TypewriterSegment`, `DesyncModalData`.
   - `PlayerViewState`, `KernelAdapters`, `PlayerUIActions`, `PlayerUIContract`, `VNRuntimeKernelOptions`.
+  - `PlayerViewState.settings`: `{ textSpeed, autoDelayMs, fontSize: DialogueFontSize, boxOpacity }`.
+  - `PlayerUIActions` settings actions: `setAudioVolume`, `toggleMute`, `setTextSpeed`, `setAutoDelay`, `setFontSize(size)`, `setBoxOpacity(opacity)`, `restoreDefaultSettings()`.
 - Functions:
   - `stripControlTags(rawText: string): string`: Removes formatting tags for clean backlog display.
   - `parseTypewriterSegments(rawText: string): TypewriterSegment[]`: Splits dialogue text into segments with pause, speed, and color metadata.
 - Classes:
   - `StorageQuotaError` (in `contracts.ts`): Thrown by the storage adapter when `localStorage` is full. The kernel catches it in `saveSlot`/`quickSave`, shows a toast, and leaves save state unchanged. `adapters/StorageAdapter` re-exports it.
   - `VNRuntimeKernel`: Engine kernel coordinating VM execution, timer management, adapters, and UI subscription.
+    Settings methods: `setAudioVolume(channel, volume)` (`master` plus aliases `sfx` -> `sound`, `bgm` -> `music`), `toggleMute()`, `setTextSpeed()`, `setAutoDelay()`, `setFontSize()`, `setBoxOpacity()`, `restoreDefaultSettings()`. Each one persists through `storage.saveSettings` and emits once.
 
 ## Invariants
 
@@ -27,6 +30,10 @@ Houses the runtime player orchestration kernel (`VNRuntimeKernel`), typewriter p
 - Choice selection verifies that condition requirements are satisfied before dispatching to VM.
 - State emissions through `subscribe()` deliver immutable state snapshots.
 - Save/load performs script hash verification and invokes desync handling if hashes mismatch.
+- Settings hydrate at construction from `storage.getSettings()`, falling back to `DEFAULT_PLAYER_SETTINGS`. The kernel then pushes master/music/sound/voice volumes and mute to the audio adapter.
+- Master volume lives in `audio.masterVolume`, never in `audio.channelVolumes`. Channel aliases are canonicalized before they reach state or the adapter.
+- The `ambience` channel stays at 1.0 on boot, is not persisted, and `restoreDefaultSettings()` leaves it unchanged.
+- Settings changes replace the `settings`, `audio` and `channelVolumes` objects rather than mutating them, so earlier `getState()` and subscriber snapshots keep their values.
 
 ## Side Effects
 

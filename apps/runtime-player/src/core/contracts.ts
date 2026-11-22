@@ -134,6 +134,8 @@ export interface PlayerViewState {
   settings: {
     textSpeed: number;
     autoDelayMs: number;
+    fontSize: DialogueFontSize;
+    boxOpacity: number;
   };
   activeToast: {
     message: string;
@@ -192,6 +194,9 @@ export interface PlayerUIActions {
   setAudioVolume: (channel: string, volume: number) => void;
   setTextSpeed: (charsPerSec: number) => void;
   setAutoDelay: (delayMs: number) => void;
+  setFontSize: (size: DialogueFontSize) => void;
+  setBoxOpacity: (opacity: number) => void;
+  restoreDefaultSettings: () => void;
   showToast: (message: string) => void;
   saveSlot: (slotIndex: number) => Promise<void>;
   loadSlot: (slotIndex: number) => Promise<void>;

@@ -10,6 +10,7 @@ Encapsulates reactive Preact state management for the player UI. It connects the
 - `PlayerUIProvider(props: PlayerUIProviderProps): JSX.Element`: Root provider supplying state and action contexts.
 - `usePlayerState(): PlayerViewState`: Hook returning current reactive player view state.
 - `usePlayerActions(): PlayerUIActions`: Hook returning player action dispatchers.
+- With a `kernel`, every `PlayerUIActions` entry forwards to the kernel method of the same name, including `setFontSize`, `setBoxOpacity` and `restoreDefaultSettings`.
 
 ## Invariants
 
