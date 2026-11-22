@@ -13,6 +13,9 @@ Houses the runtime player orchestration kernel (`VNRuntimeKernel`), typewriter p
   - `DialogueFontSize` (`small` | `medium` | `large`), `PlayerSettingsData`, `DEFAULT_PLAYER_SETTINGS`: Persisted player settings (volumes, `isMuted`, `textSpeed`, `autoDelayMs`, `fontSize`, `boxOpacity`, `stageScaleMode`) and their defaults. `KernelAdapters.storage` optionally exposes `getSettings`/`saveSettings`.
   - `AudioChannelState`, `SaveSlotData`, `BacklogEntry`, `TypewriterSegment`, `DesyncModalData`.
   - `PlayerViewState`, `KernelAdapters`, `PlayerUIActions`, `PlayerUIContract`, `VNRuntimeKernelOptions`.
+  - `TitleScreenConfig` (`title`, `version?`, `backgroundUrl?`, `logoUrl?`, `bgmTrack?`): Title data already resolved to URLs/keys (the kernel never sees `AssetRef`). `VNRuntimeKernelOptions.titleConfig?: Partial<TitleScreenConfig>`.
+  - `ToastTone` (`success` | `info` | `error`).
+  - `KernelAdapters.storage` optionally exposes `deleteSlot(slotIndex)` and `getMostRecentSave()`. `KernelAdapters.audio` and `AudioAdapterContract` optionally expose `playMusic(track, { loop?, fadeInMs? })` and `stopMusic(fadeOutMs?)` (milliseconds).
   - `PlayerViewState.settings`: `{ textSpeed, autoDelayMs, fontSize: DialogueFontSize, boxOpacity }`.
   - `PlayerUIActions` settings actions: `setAudioVolume`, `toggleMute`, `setTextSpeed`, `setAutoDelay`, `setFontSize(size)`, `setBoxOpacity(opacity)`, `restoreDefaultSettings()`.
 - Functions:

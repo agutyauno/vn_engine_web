@@ -29,6 +29,13 @@ export interface ProjectEditorSettings {
 }
 export type EditorSettings = ProjectEditorSettings;
 
+/** Branding cho Title Screen; mỗi trường là AssetRef.id (TASK-title-branding-and-saveload-system §3.1). */
+export interface ProjectTitleSettings {
+  backgroundAssetId?: string;
+  logoAssetId?: string;
+  bgmAssetId?: string;
+}
+
 export interface ProjectMetadata {
   id: string; // UUIDv4
   title: string;
@@ -42,6 +49,7 @@ export interface ProjectMetadata {
   gameplaySettings?: ProjectGameplaySettings;
   editorSettings?: ProjectEditorSettings;
   publishedGameId?: string; // Lưu game-id trên Cloudflare R2 khi publish (TAD 7.1, ADR-019)
+  titleSettings?: ProjectTitleSettings; // optional nên project cũ không cần migrate
 }
 
 export interface Project extends ProjectMetadata {
