@@ -24,6 +24,8 @@ Core visual novel authoring studio workspace. Integrates the 3-column director w
 - `ColumnSplitter`: Resizable drag handle splitter for workspace panels (`ColumnSplitterProps`)
 - `UnsavedChangesModal`: Navigation guard modal preventing data loss (`UnsavedChangesModalProps`)
 - `ShortcutsHelpModal`: Keyboard shortcuts modal (`ShortcutsHelpModalProps`)
+- `AssetSelectorModal`: Reusable modal for browsing and selecting assets (`AssetSelectorModalProps`)
+- `AssetPickerField`: Form field for selecting and clearing an asset with thumbnail preview and missing-state fallback (`AssetPickerFieldProps`)
 
 ## Invariants
 
@@ -31,6 +33,8 @@ Core visual novel authoring studio workspace. Integrates the 3-column director w
 - The entry scene script (default `main.vns`) cannot be deleted.
 - Assets referenced in script AST cannot be deleted without confirmation bypass or removing references.
 - Navigation away from dirty workspace triggers unsaved changes modal guard.
+- `AssetSelectorModal` filters assets strictly by type (`accept`) and performs case-insensitive name filtering.
+- `AssetPickerField` displays 'Missing asset' when referencing a deleted or nonexistent asset ID.
 
 ## Side Effects
 
