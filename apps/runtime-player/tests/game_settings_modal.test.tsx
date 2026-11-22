@@ -440,7 +440,7 @@ describe('GameSettingsModal (S3 split-view)', () => {
     });
   });
 
-  describe('Shortcuts tab legend (spec 7.6: only keys that exist in GameplayOverlay)', () => {
+  describe('Shortcuts tab legend (spec 7.6: only keys that exist in GameplayOverlay and ChoiceOverlay)', () => {
     function kbdTexts(container: Element): string[] {
       return Array.from(q(container, '#pane-shortcuts').querySelectorAll('kbd')).map(k =>
         (k.textContent ?? '').trim(),
@@ -469,17 +469,22 @@ describe('GameSettingsModal (S3 split-view)', () => {
       }
     });
 
-    it('does not mention Clean Art button, non-existent controls, or 1-9 choice keys', () => {
+    it('lists the choice keys handled by ChoiceOverlay (1–9 and ↑/↓)', () => {
+      const { container } = renderModal();
+      openTab(container, 'shortcuts');
+      const keys = kbdTexts(container);
+      for (const key of ['1', '9', '↑', '↓']) {
+        expect(keys, `missing <kbd>${key}</kbd>`).toContain(key);
+      }
+    });
+
+    it('does not mention the Clean Art button or other non-existent controls', () => {
       const { container } = renderModal();
       openTab(container, 'shortcuts');
       const pane = q(container, '#pane-shortcuts');
       expect(pane.textContent ?? '').not.toMatch(/clean art button/i);
       expect(pane.innerHTML).not.toContain('btn-clean-art');
       expect(pane.innerHTML).not.toContain('btn-restore-controls');
-      const keys = kbdTexts(container);
-      for (const digit of ['1', '2', '3', '4', '5', '6', '7', '8', '9', '1–9', '1-9']) {
-        expect(keys).not.toContain(digit);
-      }
     });
   });
 
