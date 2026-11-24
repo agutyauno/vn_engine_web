@@ -12,7 +12,7 @@ Provides decoupled integration adapters connecting the engine kernel to browser 
   - `playMusic(track: string, options?: { loop?: boolean; fadeInMs?: number }): Promise<void>`: Plays background music on the 'music' channel with optional loop and fade-in in milliseconds.
   - `stopMusic(fadeOutMs?: number): Promise<void>`: Stops the 'music' channel with optional fade-out in milliseconds.
 - `isAllowedEditorOrigin(origin, previewOrigin, localOrigin)`: Sanitizes postMessage sender origins.
-- `PreviewBridgeOptions`, `PreviewBridgeAdapter`, `HotReloadOptions`: Establishes two-way postMessage communication between Web Studio Editor and Player sandbox. `HotReloadOptions` supports `title?`, `titleSettings?`, and `startMode?: 'title' | 'scene'`.
+- `PreviewBridgeOptions`, `PreviewBridgeAdapter`, `HotReloadOptions`: Establishes two-way postMessage communication between Web Studio Editor and Player sandbox. `HotReloadOptions` supports `title?`, `titleSettings?`, `startMode?: 'title' | 'scene'`, and `entryScene?` (forwarded only when it is a non-empty string). `main.ts` calls `kernel.setEntryScene(opts?.entryScene)` before every `loadProgram`, so a reload without it clears the previous entry; explicit `line`/`scene` targets still win.
 - `resolveTitleConfig(title?: string, titleSettings?: ProjectTitleSettings, assets?: AssetRef[]): Partial<TitleScreenConfig>`: Resolves title branding assets (logo, background, BGM) against hydrated assets.
 - `RendererAdapterOptions`, `RendererAdapter`: Translates instruction side effects to PixiJS `GameRenderer` calls and captures save thumbnails.
 - `StorageAdapterOptions`, `StorageAdapter`: Manages 6 save slots, quicksave, seen dialogue sets, and player settings with project-scoped keys and memory fallback.
