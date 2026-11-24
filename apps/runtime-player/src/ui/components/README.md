@@ -7,10 +7,10 @@ Implements the core Preact UI component tree for the visual novel player. It coo
 ## Interface
 
 - `ChoiceOverlay(): JSX.Element | null`: Interactive choice list overlay with emergency rollback fallback.
-- `ControlBar(): JSX.Element`: Bottom action bar for rollback, auto, skip, save menu (`#btn-save`), quick save (`#btn-qsave`), quick load (`#btn-qload`), backlog, hide UI, and settings.
+- `ControlBar({ variant }: ControlBarProps): JSX.Element`: Bottom action bar for rollback, auto, skip, save menu (`#btn-save`), quick save (`#btn-qsave`), quick load (`#btn-qload`), backlog, hide UI, and settings. `variant: 'choice'` renders only Back, Save, Q.Save, Q.Load, Log and Menu.
 - `DialogueBoxProps`: Properties for raw dialogue text and completion status.
 - `DialogueBox(props: DialogueBoxProps): JSX.Element`: Clickable dialogue container supporting typewriter advancement. Binds `settings.fontSize` to a `font-${fontSize}` class on `#dialogue-text` (default `medium`) and `settings.boxOpacity` to the inline CSS custom property `--vn-dialogue-opacity` on `#dialogue-box` (default `0.85`), consumed by `.dialogue-box { background: rgba(0, 0, 0, var(--vn-dialogue-opacity, 0.85)) }` in `wireframe.css`.
-- `DialogueGroup(): JSX.Element`: Compound layout binding speaker nameplate, dialogue box, and control bar.
+- `DialogueGroup(): JSX.Element`: Compound layout binding speaker nameplate, dialogue box, and control bar. While choices are active it keeps `#dialogue-group` hidden without a control bar and renders `#choice-controls` (`ControlBar variant="choice"`) above `#choice-overlay`.
 - `GameplayOverlay(): JSX.Element`: Keyboard shortcut listener and presentation wrapper for gameplay state. Coordinates hotkeys: F5 (quick save), F9 (quick load), dialogue advance (Space, Enter, ArrowRight), rollback (ArrowLeft, PageUp), auto forward (A), skip (S, Tab), backlog (L), hide UI (H), and settings (Escape). Renders `#quickload-confirm` alertdialog when `pendingConfirm === 'quick_load_overwrite'`. Note on iframe preview: keyboard shortcuts reach the player only when the preview iframe has focus.
 - `InspectModalProps`: Properties for inspected item image URL and title.
 - `InspectModal(props: InspectModalProps): JSX.Element`: Modal overlay for inspecting full-screen items and graphics.
@@ -36,6 +36,8 @@ Implements the core Preact UI component tree for the visual novel player. It coo
 - `SpeakerNameplate` applies `speakerColorHex` inline as `color` and `borderColor`. The kernel's default speaker color is `#ffffff`, so the `.speaker-nameplate` rule in `wireframe.css` must use a dark background (never white) and light default text so the name stays readable with the default color.
 - `#dialogue-text` always carries exactly one `font-*` class (`font-small` 1rem, `font-medium` 1.15rem, `font-large` 1.35rem).
 - Unsatisfied choices in `ChoiceOverlay` are disabled (`aria-disabled="true"`) and cannot be clicked.
+- At the choice menu the player can still save, load, open Settings and the Backlog: `#choice-controls` is shown unless `isControlsHidden`, and `GameplayOverlay` maps Escape to `openModal('settings')` and L to `openModal('backlog')` besides ArrowLeft/PageUp rollback. Advance keys stay ignored. Each control id exists only once in the DOM.
+- `ChoiceOverlay` ignores choice keys (1-9, Enter, arrows) while `activeModal !== 'none'` or `pendingConfirm !== null`, so typing in a modal never picks a choice.
 - `TitleScreen` disables `#btn-continue` when `hasSaveData` is false and falls back from broken logo to text heading.
 - `ToastNotification` returns `null` when `activeToast` is `null` or when the active toast id has been dismissed locally.
 - `GameDataErrorScreen` strictly adheres to Clean Monochrome Iconography: contains no inline `<svg>` elements (imports `AlertCircleIcon` with `stroke="currentColor"`), contains zero emoji characters across all error states, and displays error codes inside `.game-data-error-code`.

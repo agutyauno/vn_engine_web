@@ -33,6 +33,7 @@ Houses the runtime player orchestration kernel (`VNRuntimeKernel`), typewriter p
 ## Invariants
 
 - Deterministic voice cut: Active voice channel stops immediately on advance, rollback, or choice selection.
+- Choice state follows the VM after every restore: `rollback()`, `loadSlot()`/`quickLoad()`/`continueGame()` and both `resolveDesync('continue' | 'cancel')` paths call `syncChoicesFromVm()`, which rebuilds `activeChoices` (pausing AUTO, leaving SKIP) when the VM stops at a `CHOICE`, and sets it to `null` otherwise. A save made at the choice menu therefore reopens the menu on load. The rollback history is not part of a save, so `rollback()` right after a load returns `false`.
 - Skip mode cancels immediately upon hitting unread (unseen) dialogue.
 - Choice selection verifies that condition requirements are satisfied before dispatching to VM.
 - State emissions through `subscribe()` deliver immutable state snapshots.
