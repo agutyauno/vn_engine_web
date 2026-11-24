@@ -131,7 +131,8 @@ describe('loadGameBundle (Phase L2b RED)', () => {
 
     it('ignores script element when type is not "application/json" and falls back to fetch', async () => {
       const embeddedBundle = { ...createValidBundle(), projectId: 'embedded-id' };
-      injectEmbeddedScript(JSON.stringify(embeddedBundle), 'text/javascript');
+      // 'text/plain': không phải application/json nhưng jsdom không thực thi (text/javascript sẽ bị chạy như JS).
+      injectEmbeddedScript(JSON.stringify(embeddedBundle), 'text/plain');
 
       const fileBundle = { ...createValidBundle(), projectId: 'file-id' };
       const fetchFn = vi.fn((_url: string) =>
