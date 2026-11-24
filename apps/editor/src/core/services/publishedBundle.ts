@@ -15,6 +15,12 @@ export interface BuildPublishedGameZipResult {
   warnings: string[];
 }
 
+/**
+ * Thư mục chứa asset của game trong gói xuất bản. Không dùng `assets/` vì trùng với thư mục
+ * JS/CSS mà Vite tạo cho bản build runtime player đi kèm.
+ */
+export const GAME_ASSETS_DIR = 'game-assets';
+
 const MIME_EXTENSION_MAP: Record<string, string> = {
   'image/png': 'png',
   'image/jpeg': 'jpg',
@@ -130,7 +136,7 @@ export async function buildPublishedGameZip({
       const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
       const hash16 = hashHex.slice(0, 16);
       const ext = resolveAssetExtension(asset.name, blob.type);
-      const relativePath = `assets/${hash16}.${ext}`;
+      const relativePath = `${GAME_ASSETS_DIR}/${hash16}.${ext}`;
 
       if (!assetFiles.has(relativePath)) {
         assetFiles.set(relativePath, bytes);
