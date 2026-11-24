@@ -10,7 +10,7 @@ import { AudioManager } from '@vn-engine/audio';
 import type { Instruction, AssetRef, EngineDiagnostic } from '@vn-engine/shared-types';
 
 import { VNRuntimeKernel } from './core/VNRuntimeKernel';
-import type { PlayerMode } from './core/contracts';
+import type { PlayerMode, TitleScreenConfig } from './core/contracts';
 import { RendererAdapter } from './adapters/RendererAdapter';
 import { AudioAdapter } from './adapters/AudioAdapter';
 import { StorageAdapter } from './adapters/StorageAdapter';
@@ -25,6 +25,8 @@ import {
   hydrateForeignAssetBlobs,
 } from './adapters/PreviewBridgeAdapter';
 import { resolveTitleConfig } from './adapters/titleConfigResolver';
+import { loadGameBundle } from './adapters/gameBundleLoader';
+import { GameDataErrorScreen } from './ui/components/GameDataErrorScreen';
 import { PlayerUIProvider } from './ui/context/PlayerUIContext';
 import { PlayerApp } from './ui/components/PlayerApp';
 
@@ -63,7 +65,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     urlParams.get('embedded') === 'true' ||
     isModePreview;
 
-  const projectId = urlParams.get('projectId') || urlParams.get('project') || undefined;
+  let projectId = urlParams.get('projectId') || urlParams.get('project') || undefined;
 
   if (isEmbedded) {
     document.documentElement.classList.add('is-embedded');
@@ -71,7 +73,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   }
 
   // 1. Quản lý Project Data và Asset Resolver
-  let currentProjectData: ProjectData = {
+  const currentProjectData: ProjectData = {
     id: projectId,
     assets:
       !isEmbedded && !isModePreview
@@ -79,6 +81,63 @@ window.addEventListener('DOMContentLoaded', async () => {
         : [],
   };
 
+  let program: Instruction[] = [];
+  let titleConfig: Partial<TitleScreenConfig> | undefined;
+  let entryScene: string | undefined;
+
+  // 2. Nạp game bundle cho chế độ standalone (không áp dụng khi preview/embedded)
+  if (!isEmbedded) {
+    const loadResult = await loadGameBundle({
+      document,
+      fetchFn: url => fetch(url, { cache: 'no-cache' }),
+      baseUrl: document.baseURI,
+    });
+
+    if (loadResult.kind === 'error') {
+      const uiRoot = document.getElementById('ui-root');
+      if (uiRoot) {
+        render(h(GameDataErrorScreen, { error: loadResult.error }), uiRoot);
+      }
+      return;
+    }
+
+    if (loadResult.kind === 'none') {
+      if (!import.meta.env.DEV) {
+        const uiRoot = document.getElementById('ui-root');
+        if (uiRoot) {
+          render(h(GameDataErrorScreen, { error: 'not_found' }), uiRoot);
+        }
+        return;
+      }
+
+      // Giữ hành vi biên dịch kịch bản mặc định trong môi trường dev
+      try {
+        const compileResult = compileString(scenarioSource, 'scenario.vns');
+        if (compileResult.success && compileResult.program) {
+          program = compileResult.program;
+        } else {
+          console.error('[RuntimePlayer] Scenario compile error:', compileResult.errors);
+        }
+      } catch (err) {
+        console.error('[RuntimePlayer] Failed to compile scenario:', err);
+      }
+    } else {
+      // loadResult.kind === 'bundle'
+      const { bundle, warnings } = loadResult;
+      projectId = bundle.projectId;
+      currentProjectData.id = projectId;
+      currentProjectData.assets = bundle.assets.map(asset => ({ ...asset }));
+      program = bundle.program;
+      titleConfig = resolveTitleConfig(bundle.title, bundle.titleSettings, bundle.assets);
+      entryScene = bundle.entryScene;
+      document.title = bundle.title;
+      for (const warning of warnings) {
+        console.warn(warning);
+      }
+    }
+  }
+
+  // 3. Khởi tạo Platform Adapters (chỉ khi nạp thành công hoặc preview/embedded)
   let bridge: PreviewBridgeAdapter;
 
   const assetResolver = new AssetResolverAdapter(() => currentProjectData, {
@@ -89,7 +148,6 @@ window.addEventListener('DOMContentLoaded', async () => {
     },
   });
 
-  // 2. Khởi tạo Platform Adapters
   const gameRenderer = new GameRenderer();
   await gameRenderer.init();
   const rendererAdapter = new RendererAdapter(gameRenderer, {
@@ -109,21 +167,6 @@ window.addEventListener('DOMContentLoaded', async () => {
   // Ghi nốt settings đang chờ debounce (200ms) trước khi trang bị ẩn/đóng.
   window.addEventListener('pagehide', () => storageAdapter.flushSettings());
 
-  // 3. Biên dịch kịch bản mặc định nếu không phải chế độ Live Preview
-  let program: Instruction[] = [];
-  if (!isEmbedded && !isModePreview) {
-    try {
-      const compileResult = compileString(scenarioSource, 'scenario.vns');
-      if (compileResult.success && compileResult.program) {
-        program = compileResult.program;
-      } else {
-        console.error('[RuntimePlayer] Scenario compile error:', compileResult.errors);
-      }
-    } catch (err) {
-      console.error('[RuntimePlayer] Failed to compile scenario:', err);
-    }
-  }
-
   // 4. Khởi tạo VNRuntimeKernel
   const initialMode: PlayerMode = isEmbedded || isModePreview ? 'STANDBY' : 'TITLE';
   const kernel = new VNRuntimeKernel(
@@ -136,6 +179,8 @@ window.addEventListener('DOMContentLoaded', async () => {
     {
       initialMode,
       projectId,
+      titleConfig,
+      entryScene,
     },
   );
 
@@ -165,11 +210,9 @@ window.addEventListener('DOMContentLoaded', async () => {
         effectiveAssets = await hydrateForeignAssetBlobs(opts.assets, bridge);
       }
       if (effectiveAssets) {
-        currentProjectData = {
-          ...currentProjectData,
-          id: opts?.projectId || currentProjectData.id,
-          assets: (effectiveAssets as unknown as ProjectDataAsset[]) || currentProjectData.assets,
-        };
+        currentProjectData.id = opts?.projectId || currentProjectData.id;
+        currentProjectData.assets =
+          (effectiveAssets as unknown as ProjectDataAsset[]) || currentProjectData.assets;
         assetResolver.resetWarnedAssets();
       }
       if (opts?.title !== undefined || opts?.titleSettings !== undefined) {

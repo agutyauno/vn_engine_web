@@ -20,6 +20,7 @@ Provides decoupled integration adapters connecting the engine kernel to browser 
   - `deleteSlot(slotIndex: number): Promise<void>`: Deletes slot 0 (quicksave) or 1..6.
   - `getMostRecentSave(): SaveSlotData | null`: Returns the save with the greatest `timestamp` across the quicksave and slots 1..6, or `null` when there is none.
 - `GameBundleError`, `GameBundleParseResult`, `parseGameBundle(raw: unknown, baseUrl?: string): GameBundleParseResult`: Zero-Trust parser and validator for published game bundles.
+- `GameBundleLoadResult`, `LoadGameBundleOptions`, `loadGameBundle({ document, fetchFn, baseUrl }): Promise<GameBundleLoadResult>`: Asynchronously loads a published game bundle by checking embedded HTML script first, then falling back to fetching `./project.json`.
 
 ## Invariants
 
@@ -37,6 +38,10 @@ Provides decoupled integration adapters connecting the engine kernel to browser 
 - `parseGameBundle` enforces Zero-Trust validation: raw input must be an object (`not_object` otherwise) and `formatVersion` must equal 1 (`PUBLISHED_BUNDLE_FORMAT_VERSION`, returning `unsupported_version` otherwise). Required fields (`projectId`, `title`, `program` instructions with string type, `assets` array with valid id/name/type, finite `publishedAt` number) are strictly validated; missing or invalid fields yield `invalid_field`.
 - `parseGameBundle` sanitizes `storageUrl` against control characters (< 0x20 or 0x7F), dangerous schemes (`javascript:`, `file:`, `blob:`, `data:text/...`), and escaping prefixes (`//`, `\`, `/\`). Allowed schemes include `http:`, `https:`, `data:image/`, `data:audio/`, and safe relative paths. When `baseUrl` is provided, relative paths are resolved against `baseUrl` and strictly validated to preserve the same origin (`resolved.origin === baseUrl.origin`) and use `http:`/`https:` protocol. When `baseUrl` is omitted, relative paths are preserved as-is provided they do not start with `//`, `\`, or `/\`. Disallowed, escaping, cross-origin, or malformed URLs cause the asset to be excluded from `bundle.assets`, pushing a warning string containing the asset id into `warnings`.
 - `parseGameBundle` constructs new objects exclusively from known whitelisted fields (no object spreading), preventing prototype pollution (`__proto__`) and stripping unknown metadata.
+- `loadGameBundle` evaluates bundle sources strictly by priority:
+  1. Embedded script: `<script id="vn-game-bundle" type="application/json">` parsed with `JSON.parse` (malformed JSON yields `{ kind: 'error', error: 'invalid_json' }`) and validated via `parseGameBundle`. When present, `fetchFn` is never invoked. Non-matching `type` attributes cause the element to be ignored.
+  2. File fallback: Resolves `project.json` against `baseUrl` and invokes `fetchFn`. Rejections or non-OK HTTP status codes other than 404 yield `{ kind: 'error', error: 'fetch_failed' }`. HTTP 404 yields `{ kind: 'none' }`. When HTTP status is 200 and the `content-type` header contains `text/html` (case-insensitive SPA fallback from hosts like Vite preview, Cloudflare Pages, Netlify), it returns `{ kind: 'none' }` without parsing. For other content-types, HTTP 200 with an invalid JSON body yields `{ kind: 'error', error: 'invalid_json' }`.
+  3. Validation errors from `parseGameBundle` (such as `unsupported_version`, `invalid_field`, `not_object`) yield `{ kind: 'error', error }`.
 
 ## Side Effects
 

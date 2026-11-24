@@ -281,3 +281,103 @@ export function parseGameBundle(raw: unknown, baseUrl?: string): GameBundleParse
     warnings,
   };
 }
+
+export type GameBundleLoadResult =
+  | {
+      kind: 'bundle';
+      bundle: PublishedGameBundle;
+      warnings: string[];
+      source: 'embedded' | 'file';
+    }
+  | { kind: 'none' }
+  | {
+      kind: 'error';
+      error: GameBundleError | 'invalid_json' | 'fetch_failed';
+    };
+
+export interface LoadGameBundleOptions {
+  document: Document;
+  fetchFn: (url: string) => Promise<Response>;
+  baseUrl: string;
+}
+
+/**
+ * Nạp PublishedGameBundle theo thứ tự ưu tiên:
+ * 1. Script nhúng trong HTML: <script id="vn-game-bundle" type="application/json">
+ * 2. File project.json cạnh player qua fetchFn
+ * 3. Không tìm thấy (404) -> kind: 'none'
+ */
+export async function loadGameBundle({
+  document,
+  fetchFn,
+  baseUrl,
+}: LoadGameBundleOptions): Promise<GameBundleLoadResult> {
+  // 1. Kiểm tra script nhúng trong HTML
+  const scriptElement = document.getElementById('vn-game-bundle');
+  if (
+    scriptElement &&
+    scriptElement.tagName.toUpperCase() === 'SCRIPT' &&
+    (scriptElement as HTMLScriptElement).type === 'application/json'
+  ) {
+    let raw: unknown;
+    try {
+      raw = JSON.parse(scriptElement.textContent ?? '');
+    } catch {
+      return { kind: 'error', error: 'invalid_json' };
+    }
+
+    const parseResult = parseGameBundle(raw, baseUrl);
+    if (!parseResult.ok) {
+      return { kind: 'error', error: parseResult.error };
+    }
+
+    return {
+      kind: 'bundle',
+      bundle: parseResult.bundle,
+      warnings: parseResult.warnings,
+      source: 'embedded',
+    };
+  }
+
+  // 2. Không có script hợp lệ -> fetch file project.json cạnh player
+  const projectUrl = new URL('project.json', baseUrl).href;
+  let response: Response;
+  try {
+    response = await fetchFn(projectUrl);
+  } catch {
+    return { kind: 'error', error: 'fetch_failed' };
+  }
+
+  if (response.status === 404) {
+    return { kind: 'none' };
+  }
+
+  if (!response.ok) {
+    return { kind: 'error', error: 'fetch_failed' };
+  }
+
+  // SPA fallback (vite preview, Cloudflare Pages, Netlify): trả 200 + text/html khi không tìm thấy project.json
+  const contentType = response.headers?.get ? response.headers.get('content-type') : null;
+  if (contentType && contentType.toLowerCase().includes('text/html')) {
+    return { kind: 'none' };
+  }
+
+  let raw: unknown;
+  try {
+    raw = await response.json();
+  } catch {
+    return { kind: 'error', error: 'invalid_json' };
+  }
+
+  const parseResult = parseGameBundle(raw, baseUrl);
+  if (!parseResult.ok) {
+    return { kind: 'error', error: parseResult.error };
+  }
+
+  return {
+    kind: 'bundle',
+    bundle: parseResult.bundle,
+    warnings: parseResult.warnings,
+    source: 'file',
+  };
+}
