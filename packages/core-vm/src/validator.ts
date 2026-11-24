@@ -100,15 +100,12 @@ export function isValidInstruction(item: unknown): item is Instruction {
 
     case 'SHOW':
       return (
-        (typeof instr.targetId === 'string' ||
-          (typeof instr.character === 'string' &&
-            (typeof instr.sprite === 'string' || typeof instr.variant === 'string'))) &&
-        (instr.variant === undefined || typeof instr.variant === 'string') &&
-        (instr.sprite === undefined || typeof instr.sprite === 'string')
+        typeof instr.targetId === 'string' &&
+        (instr.variant === undefined || typeof instr.variant === 'string')
       );
 
     case 'HIDE':
-      return typeof instr.targetId === 'string' || typeof instr.character === 'string';
+      return typeof instr.targetId === 'string';
 
     case 'PLAY':
       return typeof instr.channel === 'string' && typeof instr.assetId === 'string';

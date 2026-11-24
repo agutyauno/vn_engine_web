@@ -206,11 +206,11 @@ export class VisualNovelVM {
         this.state.activeBackground = instr;
       } else if (instr.type === 'SHOW') {
         if (!this.state.activeSprites) this.state.activeSprites = {};
-        const spriteKey = instr.targetId || (instr as { character?: string }).character || '';
+        const spriteKey = instr.targetId;
         this.state.activeSprites[spriteKey] = instr;
       } else if (instr.type === 'HIDE') {
         if (this.state.activeSprites) {
-          const spriteKey = instr.targetId || (instr as { character?: string }).character || '';
+          const spriteKey = instr.targetId;
           delete this.state.activeSprites[spriteKey];
         }
       } else if (instr.type === 'PLAY') {
@@ -449,7 +449,7 @@ export class VisualNovelVM {
 
       case 'SHOW': {
         if (!this.state.activeSprites) this.state.activeSprites = {};
-        const spriteKey = instr.targetId || (instr as { character?: string }).character || '';
+        const spriteKey = instr.targetId;
         this.state.activeSprites[spriteKey] = instr;
         this.state.instructionPointer++;
         return { type: 'SIDE_EFFECT', instruction: instr };
@@ -457,7 +457,7 @@ export class VisualNovelVM {
 
       case 'HIDE': {
         if (this.state.activeSprites) {
-          const spriteKey = instr.targetId || (instr as { character?: string }).character || '';
+          const spriteKey = instr.targetId;
           delete this.state.activeSprites[spriteKey];
         }
         this.state.instructionPointer++;
@@ -852,8 +852,7 @@ export class VisualNovelVM {
     const sprites = new Map<string, ShowInstruction>();
     if (this.state.activeSprites) {
       for (const [key, instr] of Object.entries(this.state.activeSprites)) {
-        const targetKey = instr.targetId || (instr as { character?: string }).character || key;
-        sprites.set(targetKey, instr);
+        sprites.set(instr.targetId || key, instr);
       }
     }
     const audio = new Map<string, PlayInstruction>(Object.entries(this.state.activeAudio || {}));

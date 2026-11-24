@@ -17,6 +17,7 @@ Headless runtime virtual machine executing compiled Bytecode IR (`Instruction[]`
 
 ## Invariants
 
+- `SHOW`/`HIDE` are keyed only by `targetId` (state `activeSprites`, catch-up map); the removed legacy fields `character`/`sprite` are ignored, and `isValidInstruction` rejects SHOW/HIDE without a string `targetId`. Saves are not migrated for this (no shipped games yet).
 - Headless & Pure TypeScript: Absolute ban on DOM/browser global APIs (`window`, `document`, `HTMLCanvasElement`, `AudioContext`). Operates purely in memory.
 - Zero-Trust evaluation: Expression evaluation blocks prototype pollution (`__proto__`, `constructor`, `prototype`) and requires identifier whitelisting for custom functions.
 - Deterministic state: All state stored in `VMState` is pure JSON-serializable data. State catch-up and snapshot rollback produce idempotent snapshots.

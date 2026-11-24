@@ -316,8 +316,8 @@ export class GameRenderer {
     instr: ShowInstruction,
     assetResolver?: AssetGraphicResolver,
   ): Promise<void> {
-    const targetId = instr.targetId || (instr as { character?: string }).character || '';
-    const variant = instr.variant || (instr as { sprite?: string }).sprite;
+    const targetId = instr.targetId;
+    const variant = instr.variant;
     const duration = instr.duration !== undefined ? instr.duration * 1000 : 300;
     const easingKey = (instr.easing ? instr.easing : 'ease_out').toLowerCase();
     const easingFn: EasingFunction = EASING_FUNCTIONS[easingKey] ?? defaultEaseOut;
@@ -691,7 +691,7 @@ export class GameRenderer {
 
     // 3. Đặt lại vị trí và texture của những sprite cần hiển thị
     for (const [key, showInstr] of catchUp.sprites.entries()) {
-      const targetId = showInstr.targetId || (showInstr as { character?: string }).character || key;
+      const targetId = showInstr.targetId || key;
       await this.showSprite({ ...showInstr, targetId, duration: 0 }, assetResolver);
     }
   }

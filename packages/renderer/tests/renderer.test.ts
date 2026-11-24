@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   resolveCharacterCoordinates,
   resolveCharacterPlacement,
@@ -501,5 +501,35 @@ describe('@vn-engine/renderer - Coordinate Resolution & GameRenderer Setup', () 
       expect(char?.sprite.texture.width).toBe(360);
       renderer.destroy();
     });
+  });
+});
+
+describe('legacy SHOW fields are ignored (TASK-LEGACY-SPRITE)', () => {
+  it('does not read the removed sprite field as the variant', async () => {
+    const renderer = new GameRenderer({ width: 1280, height: 720, placeholderMode: 'transparent' });
+    const resolver = vi.fn((_key: string, _variant?: string): string | undefined => undefined);
+    const legacyShow: ShowInstruction & { sprite: string } = {
+      type: 'SHOW',
+      targetId: 'alice',
+      sprite: 'happy',
+    };
+
+    await renderer.showSprite(legacyShow, resolver);
+
+    expect(resolver).toHaveBeenCalled();
+    for (const call of resolver.mock.calls) {
+      expect(call[1]).toBeUndefined();
+    }
+    renderer.destroy();
+  });
+
+  it('passes the contract variant to the resolver', async () => {
+    const renderer = new GameRenderer({ width: 1280, height: 720, placeholderMode: 'transparent' });
+    const resolver = vi.fn((_key: string, _variant?: string): string | undefined => undefined);
+
+    await renderer.showSprite({ type: 'SHOW', targetId: 'alice', variant: 'sad' }, resolver);
+
+    expect(resolver.mock.calls.some(call => call[0] === 'alice' && call[1] === 'sad')).toBe(true);
+    renderer.destroy();
   });
 });
