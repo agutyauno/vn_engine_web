@@ -12,7 +12,7 @@ Houses the runtime player orchestration kernel (`VNRuntimeKernel`), typewriter p
   - `StepResult`: Discriminated union of VM step suspension types.
   - `DialogueFontSize` (`small` | `medium` | `large`), `PlayerSettingsData`, `DEFAULT_PLAYER_SETTINGS`: Persisted player settings (volumes, `isMuted`, `textSpeed`, `autoDelayMs`, `fontSize`, `boxOpacity`, `stageScaleMode`) and their defaults. `KernelAdapters.storage` optionally exposes `getSettings`/`saveSettings`.
   - `AudioChannelState`, `SaveSlotData`, `BacklogEntry`, `TypewriterSegment`, `DesyncModalData`.
-  - `PlayerViewState`, `KernelAdapters`, `PlayerUIActions`, `PlayerUIContract`, `VNRuntimeKernelOptions`.
+  - `PlayerViewState`, `KernelAdapters`, `PlayerUIActions`, `PlayerUIContract`, `VNRuntimeKernelOptions` (`initialMode?`, `projectId?`, `titleConfig?`, `entryScene?`).
   - `TitleScreenConfig` (`title`, `version?`, `backgroundUrl?`, `logoUrl?`, `bgmTrack?`): Title data already resolved to URLs/keys (the kernel never sees `AssetRef`). `VNRuntimeKernelOptions.titleConfig?: Partial<TitleScreenConfig>`.
   - `LoadProgramOptions`: Supports `scene?`, `line?`, `preserveState?`, `projectId?`, `assets?`, `startAtTitle?: boolean`, and `startGameplay?: boolean`.
   - `ToastTone` (`success` | `info` | `error`).
@@ -28,7 +28,7 @@ Houses the runtime player orchestration kernel (`VNRuntimeKernel`), typewriter p
   - `StorageQuotaError` (in `contracts.ts`): Thrown by the storage adapter when `localStorage` is full. The kernel catches it in `saveSlot`/`quickSave`, shows a toast with 'error' tone, and leaves save state unchanged. `adapters/StorageAdapter` re-exports it.
   - `VNRuntimeKernel`: Engine kernel coordinating VM execution, timer management, adapters, and UI subscription.
     Settings methods: `setAudioVolume(channel, volume)` (`master` plus aliases `sfx` -> `sound`, `bgm` -> `music`), `toggleMute()`, `setTextSpeed()`, `setAutoDelay()`, `setFontSize()`, `setBoxOpacity()`, `restoreDefaultSettings()`. Each one persists through `storage.saveSettings` and emits once.
-    Lifecycle & quick methods: `startNewGame()`, `continueGame()`, `returnToTitle()`, `unlockAudio()`, `saveSlot()`, `loadSlot()`, `deleteSlot()`, `quickSave()`, `quickLoad()`, `confirmPending()`, `cancelPending()`, `setTitleConfig(config: Partial<TitleScreenConfig>): void`.
+    Lifecycle & quick methods: `startNewGame()`, `continueGame()`, `returnToTitle()`, `unlockAudio()`, `saveSlot()`, `loadSlot()`, `deleteSlot()`, `quickSave()`, `quickLoad()`, `confirmPending()`, `cancelPending()`, `setTitleConfig(config: Partial<TitleScreenConfig>): void`, `setEntryScene(scene?: string): void`.
 
 ## Invariants
 
@@ -47,6 +47,8 @@ Houses the runtime player orchestration kernel (`VNRuntimeKernel`), typewriter p
 - Toast tone & duration: Toasts auto-dismiss after exactly 2500ms (`TOAST_DURATION_MS`), with semantic tone (`success`, `info`, `error`). Storage quota failure displays an `error` toast.
 - Confirmation guard: When in `GAMEPLAY` mode and dialogue backlog > 0, `quickLoad()` sets `pendingConfirm = 'quick_load_overwrite'` without loading immediately until `confirmPending()` is called. `cancelPending()` resets confirmation.
 - `hasSaveData` state flag reactively reflects whether at least one save exists (slot 0..6), updated on boot, save, and slot deletion.
+- New Game reset & entryScene: `startNewGame()` always restarts from the beginning (or `entryScene` if configured), resets runtime variables by instantiating a fresh VM, clears dialogue state and backlog (`backlog = []`, `activeChoices = null`), while preserving read text history (`seenDialogues`). If `entryScene` does not exist in the program, it falls back to the beginning without throwing.
+- Explicit target priority: Explicit jump targets (`scene` or `line`) passed to `loadProgram()` take precedence over `entryScene`. When `loadProgram()` starts gameplay from `STANDBY` or `TITLE` (via `startGameplay`) without an explicit target, `entryScene` is applied if present.
 
 ## Side Effects
 

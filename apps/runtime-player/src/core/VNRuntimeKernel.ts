@@ -40,8 +40,12 @@ export class VNRuntimeKernel {
   private pendingRestoreSnapshot: string | null = null;
   private pendingDesyncSlot: SaveSlotData | null = null;
   private isAdvancing = false;
+  private program: Instruction[];
+  private entryScene?: string;
 
   constructor(program: Instruction[], adapters?: KernelAdapters, options?: VNRuntimeKernelOptions) {
+    this.program = program;
+    this.entryScene = options?.entryScene;
     this.adapters = adapters ?? {};
     this.options = options;
     this.vm = new VisualNovelVM(program);
@@ -174,6 +178,10 @@ export class VNRuntimeKernel {
     }
   }
 
+  public setEntryScene(scene?: string): void {
+    this.entryScene = scene;
+  }
+
   public getState(): PlayerViewState {
     return { ...this.state };
   }
@@ -215,7 +223,7 @@ export class VNRuntimeKernel {
     }, this.state.settings.autoDelayMs);
   }
 
-  public async startNewGame(): Promise<void> {
+  private async beginGameplay(): Promise<void> {
     this.clearTimers();
     await this.adapters.audio?.stopMusic?.();
     this.state.mode = 'GAMEPLAY';
@@ -223,6 +231,32 @@ export class VNRuntimeKernel {
     this.state.pendingConfirm = null;
     this.isAutoPaused = false;
     await this.runForward();
+  }
+
+  public async startNewGame(): Promise<void> {
+    this.vm = new VisualNovelVM(this.program);
+    this.state.backlog = [];
+    this.state.activeChoices = null;
+    this.state.dialogue = {
+      isVisible: false,
+      rawText: '',
+      isComplete: false,
+      canAdvance: false,
+      isSeen: false,
+      speakerName: undefined,
+      speakerColorHex: undefined,
+    };
+    this.state.isAwaitingPauseAdvance = false;
+
+    if (this.entryScene) {
+      try {
+        this.vm.jumpToScene(this.entryScene);
+      } catch {
+        // Scene không tồn tại -> bỏ qua, chạy từ đầu
+      }
+    }
+
+    await this.beginGameplay();
   }
 
   public returnToTitle(): void {
@@ -961,6 +995,7 @@ export class VNRuntimeKernel {
   }
 
   public async loadProgram(program: Instruction[], options?: LoadProgramOptions): Promise<void> {
+    this.program = program;
     this.clearTimers();
     this.state.isAwaitingPauseAdvance = false;
 
@@ -977,6 +1012,8 @@ export class VNRuntimeKernel {
       return;
     }
 
+    const hasExplicitTarget = options?.line !== undefined || Boolean(options?.scene);
+
     if (options?.line !== undefined) {
       this.vm.jumpToLine(options.line, undefined, { seedCatchUp: true });
     } else if (options?.scene) {
@@ -984,7 +1021,14 @@ export class VNRuntimeKernel {
     }
 
     if (this.state.mode === 'STANDBY' || (options?.startGameplay && this.state.mode === 'TITLE')) {
-      await this.startNewGame();
+      if (!hasExplicitTarget && this.entryScene) {
+        try {
+          this.vm.jumpToScene(this.entryScene);
+        } catch {
+          // Scene không tồn tại -> bỏ qua, chạy từ đầu
+        }
+      }
+      await this.beginGameplay();
       return;
     }
 
