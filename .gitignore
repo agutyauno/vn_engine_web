@@ -147,3 +147,6 @@ docs/tasks/
 
 # Runtime player build copied into the editor by apps/editor/scripts/bundle-runtime.mjs
 apps/editor/public/runtime/
+
+# Local media for manual export checks (never committed)
+test-assets/
