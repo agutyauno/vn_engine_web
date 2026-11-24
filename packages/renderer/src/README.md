@@ -16,6 +16,7 @@
 
 ## Invariants
 
+- `showSprite`/`showCharacter` and `syncStateCatchUp` read only `targetId` and `variant`; the removed legacy fields `character`/`sprite` are ignored.
 - Unidirectional data flow: Consumes instructions and catch-up states (`CatchUpVisualState`) emitted by the VM; never mutates internal VMState directly.
 - Missing asset resiliency: If graphic assets fail to resolve, automatically generates Swiss-style wireframe placeholder textures with asset label text, preventing engine crashes.
 - Aspect ratio preservation: Maintains 16:9 base aspect ratio (default 1920x1080) through letterbox/pillarbox responsive scaling.
