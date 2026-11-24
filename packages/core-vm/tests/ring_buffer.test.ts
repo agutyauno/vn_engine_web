@@ -81,7 +81,7 @@ describe('SnapshotRingBuffer (Rollback Engine ADR-022)', () => {
     expect(buffer.canRollforward()).toBe(false);
 
     // Rollback lần 1: từ snapshot 3 quay về snapshot 2
-    const prev1 = buffer.rollback() as any;
+    const prev1 = buffer.rollback();
     expect(prev1).toBeDefined();
     expect(prev1?.restored.dialogueIndex).toBe(2);
     expect(prev1?.restored.state.variables['affection']).toBe(20);
@@ -90,7 +90,7 @@ describe('SnapshotRingBuffer (Rollback Engine ADR-022)', () => {
     expect(buffer.canRollforward()).toBe(true);
 
     // Rollback lần 2: từ snapshot 2 quay về snapshot 1
-    const prev2 = buffer.rollback() as any;
+    const prev2 = buffer.rollback();
     expect(prev2).toBeDefined();
     expect(prev2?.restored.dialogueIndex).toBe(1);
     expect(prev2?.restored.state.variables['affection']).toBe(10);
@@ -145,7 +145,7 @@ describe('SnapshotRingBuffer (Rollback Engine ADR-022)', () => {
 
     // Push second snapshot and rollback
     buffer.push(createMockSnapshot(2, 200));
-    const rolled = buffer.rollback() as any;
+    const rolled = buffer.rollback();
     expect(rolled?.restored.state.variables['affection']).toBe(100);
     expect(rolled?.popped.state.variables['affection']).toBe(200);
 
@@ -184,13 +184,13 @@ describe('SnapshotRingBuffer (Rollback Engine ADR-022)', () => {
     expect(history[1]?.interactionType).toBe('PAUSE');
     expect(history[2]?.interactionType).toBe('CHOICE');
 
-    const rollbackResult1 = buffer.rollback() as any;
+    const rollbackResult1 = buffer.rollback();
     expect(rollbackResult1).toBeDefined();
     expect(rollbackResult1?.popped.interactionType).toBe('CHOICE');
     expect(rollbackResult1?.restored.interactionType).toBe('PAUSE');
     expect(rollbackResult1?.restored.dialogueIndex).toBe(2);
 
-    const rollbackResult2 = buffer.rollback() as any;
+    const rollbackResult2 = buffer.rollback();
     expect(rollbackResult2).toBeDefined();
     expect(rollbackResult2?.popped.interactionType).toBe('PAUSE');
     expect(rollbackResult2?.restored.interactionType).toBe('DIALOGUE');

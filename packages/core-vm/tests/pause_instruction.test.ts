@@ -4,8 +4,22 @@ import type {
   Instruction,
   PauseInstruction,
   DialogueInstruction,
-  RollbackResult,
+  StepResult,
 } from '@vn-engine/shared-types';
+
+function asPause(stepResult: StepResult): { type: 'SUSPEND_PAUSE'; instruction: PauseInstruction } {
+  if (stepResult.type !== 'SUSPEND_PAUSE') {
+    throw new Error(`Expected SUSPEND_PAUSE, got ${stepResult.type}`);
+  }
+  return stepResult;
+}
+
+function asDialogue(stepResult: StepResult): DialogueInstruction {
+  if (stepResult.type !== 'SUSPEND_DIALOGUE') {
+    throw new Error(`Expected SUSPEND_DIALOGUE, got ${stepResult.type}`);
+  }
+  return stepResult.instruction as DialogueInstruction;
+}
 
 describe('Pause Instruction & Interactive Suspend (TASK-pause-statement)', () => {
   // ---------------------------------------------------------------------------
@@ -38,20 +52,20 @@ describe('Pause Instruction & Interactive Suspend (TASK-pause-statement)', () =>
 
       // 1. Phải trả về { type: 'SUSPEND_PAUSE', instruction: pauseInstr }
       expect(pauseStep.type).toBe('SUSPEND_PAUSE');
-      expect((pauseStep as any).instruction).toEqual(pauseInstr);
+      expect(asPause(pauseStep).instruction).toEqual(pauseInstr);
 
       // 2. activeExecutingPc phải lưu vị trí chỉ lệnh PAUSE (index 2)
       expect(vm.getState().activeExecutingPc).toBe(2);
 
       // 3. getActiveInstruction() phải trả về chính chỉ lệnh PAUSE
-      expect((vm as any).getActiveInstruction?.()).toEqual(pauseInstr);
+      expect(vm.getActiveInstruction()).toEqual(pauseInstr);
 
       // 4. instructionPointer phải được tăng lên 3 TRƯỚC KHI lưu snapshot để tránh Double-Pause
       expect(vm.getState().instructionPointer).toBe(3);
 
       // 5. Snapshot phải được lưu vào ringBuffer với interactionType: 'PAUSE'
       expect(vm.canRollback()).toBe(true);
-      const rollbackResult = vm.rollback() as any;
+      const rollbackResult = vm.rollback();
       expect(rollbackResult.success).toBe(true);
       expect(rollbackResult.poppedInteractionType).toBe('PAUSE');
       expect(rollbackResult.restoredInteractionType).toBe('DIALOGUE');
@@ -80,7 +94,7 @@ describe('Pause Instruction & Interactive Suspend (TASK-pause-statement)', () =>
 
       // 1. Dừng lại chính xác tại PAUSE với suspendReason.type === 'SUSPEND_PAUSE'
       expect(result.stepResult.type).toBe('SUSPEND_PAUSE');
-      expect((result.stepResult as any).instruction).toEqual(pauseInstr);
+      expect(asPause(result.stepResult).instruction).toEqual(pauseInstr);
 
       // 2. Thu thập đầy đủ tất cả side-effects đứng trước
       expect(result.sideEffects).toHaveLength(4);
@@ -95,9 +109,7 @@ describe('Pause Instruction & Interactive Suspend (TASK-pause-statement)', () =>
       // 4. Tiếp tục chạy sau khi người chơi bấm tiếp tục -> chuyển tới câu thoại tiếp theo
       const nextResult = vm.runUntilInteractive();
       expect(nextResult.stepResult.type).toBe('SUSPEND_DIALOGUE');
-      expect(((nextResult.stepResult as any).instruction as DialogueInstruction).text).toBe(
-        'Ánh chiều tà buông xuống...',
-      );
+      expect(asDialogue(nextResult.stepResult).text).toBe('Ánh chiều tà buông xuống...');
     });
   });
 
@@ -131,36 +143,34 @@ describe('Pause Instruction & Interactive Suspend (TASK-pause-statement)', () =>
       expect(vm.getState().instructionPointer).toBe(4);
 
       // 4. Tua lùi lần 1: từ Câu thoại 2 ngược về điểm PAUSE
-      const rb1 = vm.rollback() as any;
+      const rb1 = vm.rollback();
       expect(rb1.success).toBe(true);
       expect(rb1.poppedInteractionType).toBe('DIALOGUE');
       expect(rb1.restoredInteractionType).toBe('PAUSE');
       expect(vm.getState().activeExecutingPc).toBe(2);
-      expect((vm as any).getActiveInstruction?.()).toEqual(pauseInstr);
+      expect(vm.getActiveInstruction()).toEqual(pauseInstr);
 
       // 5. Kiểm tra No Double-Pause: người chơi nhấn tiếp tục từ điểm PAUSE
       // Do IP đã được tăng lên 3 trước khi chụp snapshot, lần chạy tiếp theo
       // PHẢI tiến thẳng tới Câu thoại 2, KHÔNG ĐƯỢC kẹt lại ở PAUSE lần thứ 2!
       const resumeResult = vm.runUntilInteractive();
       expect(resumeResult.stepResult.type).toBe('SUSPEND_DIALOGUE');
-      expect(((resumeResult.stepResult as any).instruction as DialogueInstruction).text).toBe(
-        'Câu thoại 2',
-      );
+      expect(asDialogue(resumeResult.stepResult).text).toBe('Câu thoại 2');
 
       // 6. Tua lùi lại về PAUSE, rồi tua lùi tiếp về Câu thoại 1
-      const rb2 = vm.rollback() as any; // Từ Câu thoại 2 về PAUSE
+      const rb2 = vm.rollback(); // Từ Câu thoại 2 về PAUSE
       expect(rb2.success).toBe(true);
       expect(rb2.poppedInteractionType).toBe('DIALOGUE');
       expect(rb2.restoredInteractionType).toBe('PAUSE');
 
-      const rb3 = vm.rollback() as any; // Từ PAUSE về Câu thoại 1
+      const rb3 = vm.rollback(); // Từ PAUSE về Câu thoại 1
       expect(rb3.success).toBe(true);
       expect(rb3.poppedInteractionType).toBe('PAUSE');
       expect(rb3.restoredInteractionType).toBe('DIALOGUE');
       expect(vm.getState().currentDialogue?.text).toBe('Câu thoại 1');
 
       // 7. Tua lùi khi đã ở đầu lịch sử -> success: false
-      const rb4 = vm.rollback() as any;
+      const rb4 = vm.rollback();
       expect(rb4.success).toBe(false);
     });
 
@@ -186,14 +196,12 @@ describe('Pause Instruction & Interactive Suspend (TASK-pause-statement)', () =>
       restoredVM.restore(savedStateJson);
 
       expect(restoredVM.getState().activeExecutingPc).toBe(2);
-      expect((restoredVM as any).getActiveInstruction?.()).toEqual(pauseInstr);
+      expect(restoredVM.getActiveInstruction()).toEqual(pauseInstr);
 
       // Sau khi khôi phục, người chơi bấm tiếp tục -> tiến thẳng đến "Sau pause"
       const resume = restoredVM.runUntilInteractive();
       expect(resume.stepResult.type).toBe('SUSPEND_DIALOGUE');
-      expect(((resume.stepResult as any).instruction as DialogueInstruction).text).toBe(
-        'Sau pause',
-      );
+      expect(asDialogue(resume.stepResult).text).toBe('Sau pause');
     });
   });
 });

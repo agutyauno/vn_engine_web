@@ -4,6 +4,7 @@ import {
   resolveCharacterPlacement,
   resolveSpritePlacement,
   EASING_FUNCTIONS,
+  type ManagedSprite,
 } from '../src/types';
 import { GameRenderer, computeTargetScale, computeTargetRotation } from '../src/renderer';
 import type { ShowInstruction } from '@vn-engine/shared-types';
@@ -270,7 +271,10 @@ describe('@vn-engine/renderer - Coordinate Resolution & GameRenderer Setup', () 
       expect(resolverCalls).toEqual([{ targetId: 'alice', variant: 'happy' }]);
 
       interface TestableGameRenderer {
-        activeSprites: Map<string, any>;
+        activeSprites: {
+          get(id: string): ManagedSprite;
+          has(id: string): boolean;
+        };
       }
       const priv = renderer as unknown as TestableGameRenderer;
       const managed = priv.activeSprites.get('alice');
@@ -309,7 +313,10 @@ describe('@vn-engine/renderer - Coordinate Resolution & GameRenderer Setup', () 
       expect(renderer.hasSprite('mystery_item')).toBe(true);
 
       interface TestableGameRenderer {
-        activeSprites: Map<string, any>;
+        activeSprites: {
+          get(id: string): ManagedSprite;
+          has(id: string): boolean;
+        };
       }
       const priv = renderer as unknown as TestableGameRenderer;
       const managed = priv.activeSprites.get('mystery_item');
@@ -339,7 +346,10 @@ describe('@vn-engine/renderer - Coordinate Resolution & GameRenderer Setup', () 
       expect(renderer.hasSprite('alice')).toBe(false);
 
       interface TestableGameRenderer {
-        activeSprites: Map<string, any>;
+        activeSprites: {
+          get(id: string): ManagedSprite;
+          has(id: string): boolean;
+        };
       }
       const priv = renderer as unknown as TestableGameRenderer;
       expect(priv.activeSprites.has('alice')).toBe(false);
@@ -410,7 +420,10 @@ describe('@vn-engine/renderer - Coordinate Resolution & GameRenderer Setup', () 
       expect(renderer.hasSprite('key_gold')).toBe(true);
 
       interface TestableGameRenderer {
-        activeSprites: Map<string, any>;
+        activeSprites: {
+          get(id: string): ManagedSprite;
+          has(id: string): boolean;
+        };
       }
       const priv = renderer as unknown as TestableGameRenderer;
       const managed = priv.activeSprites.get('key_gold');
