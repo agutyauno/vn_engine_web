@@ -228,14 +228,57 @@ describe('Milestone 9: Project Settings & Export Wizard', () => {
         />,
       );
 
-      // Select Desktop target
-      fireEvent.click(screen.getByTestId('export-target-desktop'));
+      // Select Backup target
+      fireEvent.click(screen.getByTestId('export-target-backup'));
 
       // Click download button
       fireEvent.click(screen.getByTestId('btn-export-download'));
 
       expect(handleExport).toHaveBeenCalledTimes(1);
-      expect(handleExport).toHaveBeenCalledWith('desktop');
+      expect(handleExport).toHaveBeenCalledWith('backup');
+    });
+
+    describe('Desktop target is not available yet (TASK-EXP-DESKTOP)', () => {
+      const renderWizard = (onExport = vi.fn()) => {
+        render(
+          <ExportWizardModal
+            isOpen={true}
+            project={sampleProject}
+            onClose={vi.fn()}
+            onExport={onExport}
+          />,
+        );
+        return onExport;
+      };
+
+      it('marks the desktop card as disabled with a Coming soon label and explanation', () => {
+        renderWizard();
+        const card = screen.getByTestId('export-target-desktop');
+        expect(card).toHaveAttribute('aria-disabled', 'true');
+        expect(card).toHaveTextContent(/coming soon/i);
+        expect(card).toHaveTextContent(/not available yet/i);
+        const radio = card.querySelector('input[type="radio"]');
+        expect(radio).not.toBeNull();
+        expect(radio).toBeDisabled();
+      });
+
+      it('keeps the web target selected when the desktop card is clicked', () => {
+        const onExport = renderWizard();
+        fireEvent.click(screen.getByTestId('export-target-desktop'));
+        const radio = screen.getByTestId('export-target-desktop').querySelector('input');
+        if (radio) fireEvent.click(radio);
+        fireEvent.click(screen.getByTestId('btn-export-download'));
+        expect(onExport).toHaveBeenCalledTimes(1);
+        expect(onExport).toHaveBeenCalledWith('web');
+      });
+
+      it('lets the user move from desktop click to backup normally', () => {
+        const onExport = renderWizard();
+        fireEvent.click(screen.getByTestId('export-target-desktop'));
+        fireEvent.click(screen.getByTestId('export-target-backup'));
+        fireEvent.click(screen.getByTestId('btn-export-download'));
+        expect(onExport).toHaveBeenCalledWith('backup');
+      });
     });
 
     it('strictly satisfies Rule 8: zero colored OS emojis in DOM', () => {
