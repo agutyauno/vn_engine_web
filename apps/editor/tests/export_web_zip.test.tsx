@@ -167,4 +167,26 @@ describe('L3 Integration Tests: StudioWorkspacePage Export Flow', () => {
       expect(parsed.title).toBe(sampleProject.title);
     }
   });
+  it('never downloads a _desktop.json file when the desktop card is clicked (TASK-EXP-DESKTOP)', async () => {
+    render(
+      <StudioWorkspacePage
+        projectId={sampleProject.id}
+        repository={repo}
+        initialProject={sampleProject}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId('btn-header-export'));
+    fireEvent.click(screen.getByTestId('export-target-desktop'));
+    fireEvent.click(screen.getByTestId('btn-export-download'));
+
+    await waitFor(() => {
+      expect(capturedDownloads.length).toBeGreaterThan(0);
+    });
+
+    expect(capturedDownloads.some(d => d.download.endsWith('_desktop.json'))).toBe(false);
+    expect(capturedDownloads[capturedDownloads.length - 1]?.download.endsWith('_web.zip')).toBe(
+      true,
+    );
+  });
 });

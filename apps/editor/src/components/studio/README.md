@@ -20,7 +20,7 @@ Core visual novel authoring studio workspace. Integrates the 3-column director w
 - `DockProblemsTable`: Interactive diagnostics problems table with quick fixes (`DockProblemsTableProps`, `DiagnosticItem`)
 - `PreviewDock`: Live sandbox player dock (`PreviewDockProps`, `formatAspectRatioString`, `isAllowedPreviewOrigin`, `buildPreviewUrl`)
 - `ProjectSettingsModal`: Comprehensive project configuration modal managing General, Branding (`titleSettings`), Display, Editor, and Gameplay tabs (`ProjectSettingsModalProps`, `SettingsTab`)
-- `ExportWizardModal`: Release packaging modal for Web, Desktop, and backup formats (`ExportWizardModalProps`, `ExportTarget`, supporting `errorMessage` alert and `isExporting` pending state)
+- `ExportWizardModal`: Release packaging modal for Web and backup formats (`ExportWizardModalProps`, `ExportTarget = 'web' | 'backup'`, supporting `errorMessage` alert and `isExporting` pending state)
 - `ColumnSplitter`: Resizable drag handle splitter for workspace panels (`ColumnSplitterProps`)
 - `UnsavedChangesModal`: Navigation guard modal preventing data loss (`UnsavedChangesModalProps`)
 - `ShortcutsHelpModal`: Keyboard shortcuts modal (`ShortcutsHelpModalProps`)
@@ -39,7 +39,8 @@ Core visual novel authoring studio workspace. Integrates the 3-column director w
 - `ProjectSettingsModal` Branding tab edits `titleSettings` (logo, background, BGM) and omits the property entirely if all entries are cleared.
 - Studio header displays `btn-preview-start-mode` toggle button only when quick play is enabled. In popout preview, `startMode: 'scene'` is sent for cursor runs, `previewStartMode` is sent on Play, and omitted on background recompiles.
 - `StudioWorkspacePage` `handlePerformExport` coordinates asynchronous export for Web target: compiles via `compilerService.compile({ forceSync: true })`, generates ZIP via `buildPublishedGameZip`, triggers download of `<slug>_web.zip`, and surfaces compilation errors in `ExportWizardModal` without closing the modal.
-- `StudioWorkspacePage` exports raw project JSON snapshot for Backup target as `<slug>_backup.json` and for Desktop target as `<slug>_desktop.json` (note: packaging desktop app via Electron is not yet supported).
+- `StudioWorkspacePage` exports raw project JSON snapshot for Backup target as `<slug>_backup.json`.
+- The Desktop Electron card in `ExportWizardModal` is shown as "Coming soon": `aria-disabled="true"`, disabled radio, no click handler, so it can never be selected and nothing downloads `_desktop.json`. Real packaging waits for `apps/desktop-shell` (ADR-003).
 
 ## Side Effects
 
