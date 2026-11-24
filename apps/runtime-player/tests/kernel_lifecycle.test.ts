@@ -920,4 +920,239 @@ describe('VNRuntimeKernel Phase T3: Lifecycle, Quick Actions & Toast Tone (RED)'
       });
     });
   });
+
+  // ==========================================================================
+  // 10. Phase L2a: New Game reset & entryScene (TASK-PLY-LOADER L2a) (RED)
+  // ==========================================================================
+  describe('New Game reset & entryScene (TASK-PLY-LOADER L2a)', () => {
+    const TWO_SCENE_PROGRAM: Instruction[] = [
+      { type: 'SCENE', name: 'prologue' },
+      { type: 'DIALOGUE', character: 'Alice', text: 'P1: Prologue line 1' },
+      { type: 'DIALOGUE', character: 'Alice', text: 'P2: Prologue line 2' },
+      { type: 'SCENE', name: 'chapter1' },
+      { type: 'DIALOGUE', character: 'Bob', text: 'C1: Chapter 1 line 1' },
+      { type: 'DIALOGUE', character: 'Bob', text: 'C2: Chapter 1 line 2' },
+    ];
+
+    it('resets VM, dialogue, backlog, and activeChoices on startNewGame after returnToTitle', async () => {
+      const kernel = new VNRuntimeKernel(TWO_SCENE_PROGRAM, {
+        renderer: createRenderer(),
+        audio: createAudio(),
+        storage: newStorage(),
+      });
+
+      await kernel.startNewGame();
+      expect(kernel.getState().dialogue.rawText).toContain('P1');
+      expect(kernel.getState().backlog).toHaveLength(1);
+
+      await kernel.advance();
+      expect(kernel.getState().dialogue.rawText).toContain('P2');
+      expect(kernel.getState().backlog).toHaveLength(2);
+
+      kernel.returnToTitle();
+      expect(kernel.getState().mode).toBe('TITLE');
+
+      await kernel.startNewGame();
+
+      expect(kernel.getState().mode).toBe('GAMEPLAY');
+      expect(kernel.getState().dialogue.rawText).toContain('P1');
+      expect(kernel.getState().backlog).toHaveLength(1);
+      expect(kernel.getState().backlog[0]?.text).toContain('P1');
+      expect(kernel.getState().activeChoices).toBeNull();
+    });
+
+    it('resets runtime variables to default state on startNewGame after returning to title', async () => {
+      const kernel = new VNRuntimeKernel(TWO_SCENE_PROGRAM, {
+        renderer: createRenderer(),
+        audio: createAudio(),
+        storage: newStorage(),
+      });
+
+      await kernel.startNewGame();
+      kernel.setVariable('x', 5);
+      expect(kernel.getVariables().x).toBe(5);
+
+      kernel.returnToTitle();
+      await kernel.startNewGame();
+
+      expect(kernel.getVariables().x).not.toBe(5);
+      expect(kernel.getVariables().x).toBeUndefined();
+    });
+
+    it('starts gameplay at entryScene specified in constructor options', async () => {
+      const kernel = new VNRuntimeKernel(
+        TWO_SCENE_PROGRAM,
+        {
+          renderer: createRenderer(),
+          audio: createAudio(),
+          storage: newStorage(),
+        },
+        { entryScene: 'chapter1' },
+      );
+
+      await kernel.startNewGame();
+
+      expect(kernel.getState().mode).toBe('GAMEPLAY');
+      expect(kernel.getState().dialogue.rawText).toContain('C1');
+      expect(kernel.getState().backlog).toHaveLength(1);
+      expect(kernel.getState().backlog[0]?.text).toContain('C1');
+    });
+
+    it('falls back to the beginning without throwing when entryScene does not exist', async () => {
+      const kernel = new VNRuntimeKernel(
+        TWO_SCENE_PROGRAM,
+        {
+          renderer: createRenderer(),
+          audio: createAudio(),
+          storage: newStorage(),
+        },
+        { entryScene: 'nope' },
+      );
+
+      await expect(kernel.startNewGame()).resolves.toBeUndefined();
+
+      expect(kernel.getState().mode).toBe('GAMEPLAY');
+      expect(kernel.getState().dialogue.rawText).toContain('P1');
+    });
+
+    it('updates entryScene dynamically via setEntryScene() and reverts when undefined', async () => {
+      const kernel = new VNRuntimeKernel(TWO_SCENE_PROGRAM, {
+        renderer: createRenderer(),
+        audio: createAudio(),
+        storage: newStorage(),
+      });
+
+      kernel.setEntryScene('chapter1');
+      await kernel.startNewGame();
+      expect(kernel.getState().dialogue.rawText).toContain('C1');
+
+      kernel.returnToTitle();
+      kernel.setEntryScene(undefined);
+      await kernel.startNewGame();
+      expect(kernel.getState().dialogue.rawText).toContain('P1');
+    });
+
+    it('reapplies entryScene on each consecutive startNewGame after returnToTitle', async () => {
+      const kernel = new VNRuntimeKernel(
+        TWO_SCENE_PROGRAM,
+        {
+          renderer: createRenderer(),
+          audio: createAudio(),
+          storage: newStorage(),
+        },
+        { entryScene: 'chapter1' },
+      );
+
+      await kernel.startNewGame();
+      expect(kernel.getState().dialogue.rawText).toContain('C1');
+
+      await kernel.advance();
+      expect(kernel.getState().dialogue.rawText).toContain('C2');
+      expect(kernel.getState().backlog).toHaveLength(2);
+
+      kernel.returnToTitle();
+      expect(kernel.getState().mode).toBe('TITLE');
+
+      await kernel.startNewGame();
+      expect(kernel.getState().dialogue.rawText).toContain('C1');
+      expect(kernel.getState().backlog).toHaveLength(1);
+      expect(kernel.getState().backlog[0]?.text).toContain('C1');
+    });
+
+    it('preserves target scene when loading from STANDBY (Run from Cursor regression)', async () => {
+      const kernel = new VNRuntimeKernel(
+        TWO_SCENE_PROGRAM,
+        {
+          renderer: createRenderer(),
+          audio: createAudio(),
+          storage: newStorage(),
+        },
+        { initialMode: 'STANDBY' },
+      );
+
+      await kernel.loadProgram(TWO_SCENE_PROGRAM, { scene: 'chapter1' });
+
+      expect(kernel.getState().mode).toBe('GAMEPLAY');
+      expect(kernel.getState().dialogue.rawText).toContain('C1');
+    });
+
+    it('prioritizes explicit loadProgram target scene over entryScene from STANDBY', async () => {
+      const kernel = new VNRuntimeKernel(
+        TWO_SCENE_PROGRAM,
+        {
+          renderer: createRenderer(),
+          audio: createAudio(),
+          storage: newStorage(),
+        },
+        { initialMode: 'STANDBY', entryScene: 'chapter1' },
+      );
+
+      await kernel.loadProgram(TWO_SCENE_PROGRAM, { scene: 'prologue' });
+
+      expect(kernel.getState().mode).toBe('GAMEPLAY');
+      expect(kernel.getState().dialogue.rawText).toContain('P1');
+    });
+
+    it('starts gameplay at specified scene when startGameplay is true from TITLE mode', async () => {
+      const kernel = new VNRuntimeKernel(TWO_SCENE_PROGRAM, {
+        renderer: createRenderer(),
+        audio: createAudio(),
+        storage: newStorage(),
+      });
+      expect(kernel.getState().mode).toBe('TITLE');
+
+      await kernel.loadProgram(TWO_SCENE_PROGRAM, { startGameplay: true, scene: 'chapter1' });
+
+      expect(kernel.getState().mode).toBe('GAMEPLAY');
+      expect(kernel.getState().dialogue.rawText).toContain('C1');
+    });
+
+    it('uses updated program on startNewGame after loadProgram replaces the script', async () => {
+      const kernel = new VNRuntimeKernel(TWO_SCENE_PROGRAM, {
+        renderer: createRenderer(),
+        audio: createAudio(),
+        storage: newStorage(),
+      });
+
+      await kernel.startNewGame();
+      expect(kernel.getState().dialogue.rawText).toContain('P1');
+
+      const NEW_PROGRAM: Instruction[] = [
+        { type: 'SCENE', name: 'new_prologue' },
+        { type: 'DIALOGUE', character: 'Charlie', text: 'N1: Brand new story' },
+      ];
+
+      await kernel.loadProgram(NEW_PROGRAM);
+      kernel.returnToTitle();
+      await kernel.startNewGame();
+
+      expect(kernel.getState().mode).toBe('GAMEPLAY');
+      expect(kernel.getState().dialogue.rawText).toContain('N1');
+      expect(kernel.getState().backlog).toHaveLength(1);
+      expect(kernel.getState().backlog[0]?.text).toContain('N1');
+    });
+
+    it('does not break quickSave and quickLoad restoration across title transitions', async () => {
+      const kernel = new VNRuntimeKernel(TWO_SCENE_PROGRAM, {
+        renderer: createRenderer(),
+        audio: createAudio(),
+        storage: newStorage('save_regression'),
+      });
+
+      await kernel.startNewGame();
+      expect(kernel.getState().dialogue.rawText).toContain('P1');
+
+      await kernel.advance();
+      expect(kernel.getState().dialogue.rawText).toContain('P2');
+
+      await kernel.quickSave();
+      kernel.returnToTitle();
+      expect(kernel.getState().mode).toBe('TITLE');
+
+      await kernel.quickLoad();
+
+      expect(kernel.getState().mode).toBe('GAMEPLAY');
+      expect(kernel.getState().dialogue.rawText).toContain('P2');
+    });
+  });
 });

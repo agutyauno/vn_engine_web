@@ -20,7 +20,7 @@ Core visual novel authoring studio workspace. Integrates the 3-column director w
 - `DockProblemsTable`: Interactive diagnostics problems table with quick fixes (`DockProblemsTableProps`, `DiagnosticItem`)
 - `PreviewDock`: Live sandbox player dock (`PreviewDockProps`, `formatAspectRatioString`, `isAllowedPreviewOrigin`, `buildPreviewUrl`)
 - `ProjectSettingsModal`: Comprehensive project configuration modal managing General, Branding (`titleSettings`), Display, Editor, and Gameplay tabs (`ProjectSettingsModalProps`, `SettingsTab`)
-- `ExportWizardModal`: Release packaging modal for Web, Desktop, and backup formats (`ExportWizardModalProps`, `ExportTarget`)
+- `ExportWizardModal`: Release packaging modal for Web, Desktop, and backup formats (`ExportWizardModalProps`, `ExportTarget`, supporting `errorMessage` alert and `isExporting` pending state)
 - `ColumnSplitter`: Resizable drag handle splitter for workspace panels (`ColumnSplitterProps`)
 - `UnsavedChangesModal`: Navigation guard modal preventing data loss (`UnsavedChangesModalProps`)
 - `ShortcutsHelpModal`: Keyboard shortcuts modal (`ShortcutsHelpModalProps`)
@@ -38,6 +38,8 @@ Core visual novel authoring studio workspace. Integrates the 3-column director w
 - `AssetPickerField` displays 'Missing asset' when referencing a deleted or nonexistent asset ID.
 - `ProjectSettingsModal` Branding tab edits `titleSettings` (logo, background, BGM) and omits the property entirely if all entries are cleared.
 - Studio header displays `btn-preview-start-mode` toggle button only when quick play is enabled. In popout preview, `startMode: 'scene'` is sent for cursor runs, `previewStartMode` is sent on Play, and omitted on background recompiles.
+- `StudioWorkspacePage` `handlePerformExport` coordinates asynchronous export for Web target: compiles via `compilerService.compile({ forceSync: true })`, generates ZIP via `buildPublishedGameZip`, triggers download of `<slug>_web.zip`, and surfaces compilation errors in `ExportWizardModal` without closing the modal.
+- `StudioWorkspacePage` exports raw project JSON snapshot for Backup target as `<slug>_backup.json` and for Desktop target as `<slug>_desktop.json` (note: packaging desktop app via Electron is not yet supported).
 
 ## Side Effects
 

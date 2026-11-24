@@ -2005,3 +2005,70 @@ body.is-embedded #game-stage {
   gap: 10px;
   margin-top: 16px;
 }
+
+/* ================================================================
+   MÀN HÌNH LỖI NẠP DỮ LIỆU GAME (GAME DATA ERROR SCREEN)
+   ================================================================ */
+#game-data-error {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--vn-bg-viewport, #0a0a0a);
+  color: var(--vn-text-primary, #ffffff);
+  font-family: var(--vn-font-body);
+  z-index: 9999;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.game-data-error-card {
+  max-width: 480px;
+  width: 100%;
+  padding: 32px;
+  background: var(--vn-panel-bg, rgba(0, 0, 0, 0.94));
+  border: var(--vn-border-width, 1px) solid var(--vn-border-primary, #ffffff);
+  border-radius: var(--vn-radius-base, 0px);
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.game-data-error-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+  color: var(--vn-text-primary, #ffffff);
+}
+
+.game-data-error-title {
+  margin: 0 0 12px 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--vn-text-primary, #ffffff);
+}
+
+.game-data-error-description {
+  margin: 0 0 20px 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--vn-text-secondary, #cccccc);
+}
+
+.game-data-error-meta {
+  margin: 0;
+}
+
+.game-data-error-code {
+  display: inline-block;
+  padding: 4px 10px;
+  background: var(--vn-btn-bg, #000000);
+  border: 1px solid var(--vn-border-muted, #333333);
+  border-radius: var(--vn-radius-base, 0px);
+  font-family: var(--vn-font-mono, monospace);
+  font-size: 0.85rem;
+  color: var(--vn-text-muted, #777777);
+  user-select: text;
+}

@@ -241,6 +241,7 @@ export interface VNRuntimeKernelOptions {
   initialMode?: PlayerMode;
   projectId?: string;
   titleConfig?: Partial<TitleScreenConfig>;
+  entryScene?: string;
 }
 
 export interface LoadProgramOptions {

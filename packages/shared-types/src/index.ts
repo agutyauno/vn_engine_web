@@ -4,3 +4,4 @@ export * from './project';
 export * from './ast';
 export * from './instruction';
 export * from './runtime';
+export * from './published';

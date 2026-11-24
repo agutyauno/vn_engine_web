@@ -26,6 +26,7 @@ import { CompilerService } from '../../core/services/compilerService';
 import { PreviewBridge, buildPreviewUrl } from '../../core/services/previewBridge';
 import { buildHotReloadPayload } from '../../core/services/hotReloadPayload';
 import { type EditorDiagnostic } from '../../core/services/reconciliation';
+import { buildPublishedGameZip } from '../../core/services/publishedBundle';
 
 export interface StudioWorkspacePageProps {
   projectId: string;
@@ -39,6 +40,15 @@ export interface StudioWorkspacePageProps {
 }
 
 let lastLoadedProjectId: string | null = null;
+
+function triggerFileDownload(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
   projectId,
@@ -109,6 +119,8 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
   const [currentCursorLine, setCurrentCursorLine] = useState<number>(1);
   const [isAssetModalOpen, setIsAssetModalOpen] = useState<boolean>(false);
   const [isExportOpen, setIsExportOpen] = useState<boolean>(false);
+  const [isExporting, setIsExporting] = useState<boolean>(false);
+  const [exportErrorMessage, setExportErrorMessage] = useState<string | undefined>(undefined);
   const [pendingQuickFixAsset, setPendingQuickFixAsset] = useState<{
     id?: string;
     category?: AssetCategory;
@@ -637,28 +649,99 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
   );
 
   const handleOpenExportModal = useCallback(() => {
+    setExportErrorMessage(undefined);
+    setIsExporting(false);
     setIsExportOpen(true);
     onExport?.();
   }, [onExport]);
 
+  const handleCloseExportModal = useCallback(() => {
+    setExportErrorMessage(undefined);
+    setIsExporting(false);
+    setIsExportOpen(false);
+  }, []);
+
   const handlePerformExport = useCallback(
-    (target: ExportTarget) => {
-      if (!project) return;
-      try {
-        const jsonString = JSON.stringify(project, null, 2);
-        const blob = new Blob([jsonString], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${project.title.toLowerCase().replace(/[^a-z0-9_-]/g, '_')}_${target}_release.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-      } catch (err) {
-        console.error('Failed to export release:', err);
+    async (target: ExportTarget) => {
+      const activeProject = project ?? currentProject;
+      if (!activeProject) return;
+
+      const slug = activeProject.title.toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+
+      if (target === 'web') {
+        setIsExporting(true);
+        setExportErrorMessage(undefined);
+        try {
+          const compileResult = await compilerService.compile(activeProject.files, {
+            assets: activeProject.assets,
+            forceSync: true,
+          });
+
+          if (!compileResult.success || !compileResult.bytecode) {
+            const firstError = compileResult.diagnostics.find(d => d.severity === 'error');
+            setExportErrorMessage(
+              firstError?.message ||
+                'Compilation failed. Please fix syntax errors before exporting.',
+            );
+            return;
+          }
+
+          const { zip, warnings } = await buildPublishedGameZip({
+            project: activeProject,
+            program: compileResult.bytecode,
+            getAssetBlob: id => repository.getAssetBlob(id),
+          });
+
+          for (const warning of warnings) {
+            console.warn('[Export Web]', warning);
+          }
+
+          const zipBlob = new Blob([new Uint8Array(zip)], { type: 'application/zip' });
+          triggerFileDownload(zipBlob, `${slug}_web.zip`);
+          setExportErrorMessage(undefined);
+          setIsExportOpen(false);
+        } catch (err) {
+          console.error('Failed to export web package:', err);
+          setExportErrorMessage(
+            err instanceof Error ? err.message : 'Failed to generate web release package.',
+          );
+        } finally {
+          setIsExporting(false);
+        }
+        return;
       }
-      setIsExportOpen(false);
+
+      if (target === 'backup') {
+        try {
+          const jsonString = JSON.stringify(activeProject, null, 2);
+          const blob = new Blob([jsonString], { type: 'application/json' });
+          triggerFileDownload(blob, `${slug}_backup.json`);
+          setExportErrorMessage(undefined);
+          setIsExportOpen(false);
+        } catch (err) {
+          console.error('Failed to export backup:', err);
+          setExportErrorMessage(err instanceof Error ? err.message : 'Failed to export backup.');
+        }
+        return;
+      }
+
+      if (target === 'desktop') {
+        try {
+          const jsonString = JSON.stringify(activeProject, null, 2);
+          const blob = new Blob([jsonString], { type: 'application/json' });
+          triggerFileDownload(blob, `${slug}_desktop.json`);
+          setExportErrorMessage(undefined);
+          setIsExportOpen(false);
+        } catch (err) {
+          console.error('Failed to export desktop package:', err);
+          setExportErrorMessage(
+            err instanceof Error ? err.message : 'Failed to export desktop release.',
+          );
+        }
+        return;
+      }
     },
-    [project],
+    [project, currentProject, compilerService, repository],
   );
 
   if (loading) {
@@ -882,7 +965,9 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
         <ExportWizardModal
           isOpen={isExportOpen}
           project={currentProject}
-          onClose={() => setIsExportOpen(false)}
+          errorMessage={exportErrorMessage}
+          isExporting={isExporting}
+          onClose={handleCloseExportModal}
           onExport={handlePerformExport}
         />
       )}

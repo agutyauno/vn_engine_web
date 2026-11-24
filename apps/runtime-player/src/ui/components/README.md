@@ -14,6 +14,7 @@ Implements the core Preact UI component tree for the visual novel player. It coo
 - `GameplayOverlay(): JSX.Element`: Keyboard shortcut listener and presentation wrapper for gameplay state. Coordinates hotkeys: F5 (quick save), F9 (quick load), dialogue advance (Space, Enter, ArrowRight), rollback (ArrowLeft, PageUp), auto forward (A), skip (S, Tab), backlog (L), hide UI (H), and settings (Escape). Renders `#quickload-confirm` alertdialog when `pendingConfirm === 'quick_load_overwrite'`. Note on iframe preview: keyboard shortcuts reach the player only when the preview iframe has focus.
 - `InspectModalProps`: Properties for inspected item image URL and title.
 - `InspectModal(props: InspectModalProps): JSX.Element`: Modal overlay for inspecting full-screen items and graphics.
+- `GameDataErrorCode`, `GameDataErrorScreenProps`, `GameDataErrorScreen(props: GameDataErrorScreenProps): JSX.Element`: Fullscreen alert screen (`#game-data-error`, `role="alert"`) displayed when game data fails to load or is not found. Renders monochrome `AlertCircleIcon`, context-specific title ('No game data found' for `not_found`, 'Could not load game data' for errors), English explanation, and `.game-data-error-code`.
 - `PlayerApp(): JSX.Element`: Root Preact component rendering standby, title, or gameplay stages and active modals.
 - `PreviewStandbyScreen(): JSX.Element`: Standby screen displayed when awaiting script hot-reload from the editor.
 - `SpeakerNameplateProps`: Properties for speaker display name and color hex.
@@ -36,6 +37,7 @@ Implements the core Preact UI component tree for the visual novel player. It coo
 - Unsatisfied choices in `ChoiceOverlay` are disabled (`aria-disabled="true"`) and cannot be clicked.
 - `TitleScreen` disables `#btn-continue` when `hasSaveData` is false and falls back from broken logo to text heading.
 - `ToastNotification` returns `null` when `activeToast` is `null` or when the active toast id has been dismissed locally.
+- `GameDataErrorScreen` strictly adheres to Clean Monochrome Iconography: contains no inline `<svg>` elements (imports `AlertCircleIcon` with `stroke="currentColor"`), contains zero emoji characters across all error states, and displays error codes inside `.game-data-error-code`.
 
 ## Side Effects
 
