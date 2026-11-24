@@ -8,10 +8,11 @@ export interface ExportWizardModalProps {
   errorMessage?: string;
   isExporting?: boolean;
   onClose: () => void;
-  onExport: (target: 'web' | 'desktop' | 'backup') => void | Promise<void>;
+  onExport: (target: ExportTarget) => void | Promise<void>;
 }
 
-export type ExportTarget = 'web' | 'desktop' | 'backup';
+/** Desktop (Electron) chưa có `apps/desktop-shell` nên không phải là một target chọn được. */
+export type ExportTarget = 'web' | 'backup';
 
 export const ExportWizardModal: React.FC<ExportWizardModalProps> = ({
   isOpen,
@@ -46,6 +47,7 @@ export const ExportWizardModal: React.FC<ExportWizardModalProps> = ({
             type="button"
             data-testid="btn-close-export"
             onClick={onClose}
+            aria-label="Close export wizard"
             className="rounded p-1 text-neutral-400 hover:bg-neutral-800 hover:text-white transition"
           >
             <XIcon size={16} />
@@ -98,24 +100,26 @@ export const ExportWizardModal: React.FC<ExportWizardModalProps> = ({
             {/* 2. Desktop Electron Bundle */}
             <div
               data-testid="export-target-desktop"
-              onClick={() => setSelectedTarget('desktop')}
-              className={`flex items-start gap-3 p-3 rounded border cursor-pointer transition ${
-                selectedTarget === 'desktop'
-                  ? 'border-neutral-400 bg-neutral-800/80'
-                  : 'border-neutral-800 bg-neutral-950/60 hover:bg-neutral-800/40'
-              }`}
+              aria-disabled="true"
+              className="flex items-start gap-3 p-3 rounded border border-neutral-800 bg-neutral-950/30 cursor-not-allowed opacity-60"
             >
               <input
                 type="radio"
                 name="export-target"
-                checked={selectedTarget === 'desktop'}
-                onChange={() => setSelectedTarget('desktop')}
+                checked={false}
+                disabled
+                readOnly
                 className="mt-0.5 accent-white"
               />
               <div>
-                <span className="block font-semibold text-white">Desktop Electron App Bundle</span>
-                <span className="text-[11px] text-neutral-400">
-                  Pre-packaged offline release build for Windows, macOS, and Linux.
+                <span className="flex items-center gap-2 font-semibold text-neutral-300">
+                  Desktop Electron App Bundle
+                  <span className="rounded border border-neutral-700 px-1.5 py-px text-[10px] font-medium uppercase tracking-wide text-neutral-400">
+                    Coming soon
+                  </span>
+                </span>
+                <span className="text-[11px] text-neutral-500">
+                  Desktop packaging is not available yet. Use the Web Release ZIP for now.
                 </span>
               </div>
             </div>

@@ -724,22 +724,6 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
         }
         return;
       }
-
-      if (target === 'desktop') {
-        try {
-          const jsonString = JSON.stringify(activeProject, null, 2);
-          const blob = new Blob([jsonString], { type: 'application/json' });
-          triggerFileDownload(blob, `${slug}_desktop.json`);
-          setExportErrorMessage(undefined);
-          setIsExportOpen(false);
-        } catch (err) {
-          console.error('Failed to export desktop package:', err);
-          setExportErrorMessage(
-            err instanceof Error ? err.message : 'Failed to export desktop release.',
-          );
-        }
-        return;
-      }
     },
     [project, currentProject, compilerService, repository],
   );
