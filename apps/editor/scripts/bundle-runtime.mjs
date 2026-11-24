@@ -6,11 +6,16 @@
  *
  * Chạy tự động trước `vite build` của editor. `@vn-engine/runtime-player` là devDependency của
  * editor chỉ để `pnpm -r run build` build player trước; editor không import code của player.
+ *
+ * Bản `index.html` được chép sang có sẵn thẻ meta published, nên bản runtime deploy cùng editor
+ * (`/runtime/index.html`) cũng luôn chạy standalone và không mở kênh preview, kể cả khi bị trang
+ * khác nhúng. Bản build gốc của player (dùng cho preview trong editor) không bị đổi.
  */
 import {
   cpSync,
   existsSync,
   mkdirSync,
+  readFileSync,
   readdirSync,
   rmSync,
   statSync,
@@ -21,6 +26,27 @@ import { fileURLToPath } from 'node:url';
 
 export const RUNTIME_MANIFEST_FORMAT_VERSION = 1;
 export const RUNTIME_MANIFEST_FILE = 'manifest.json';
+
+/**
+ * Phải giống `PUBLISHED_MARKER_META` trong `src/core/services/runtimePackage.ts` (script này chạy
+ * bằng Node trước khi build nên không import được file TypeScript của editor).
+ */
+export const PUBLISHED_MARKER_META = '<meta name="taleforge-mode" content="published">';
+
+/**
+ * Chèn thẻ meta published làm phần tử đầu tiên của `<head>`; không chèn lần hai.
+ * @param {string} html
+ * @returns {string}
+ */
+export function injectPublishedMarker(html) {
+  if (html.includes(PUBLISHED_MARKER_META)) return html;
+  const headOpen = /<head(\s[^>]*)?>/i.exec(html);
+  if (!headOpen) {
+    throw new Error('Runtime index.html has no <head> element.');
+  }
+  const insertAt = headOpen.index + headOpen[0].length;
+  return html.slice(0, insertAt) + PUBLISHED_MARKER_META + html.slice(insertAt);
+}
 
 /**
  * Liệt kê mọi file trong thư mục dưới dạng đường dẫn POSIX tương đối, đã sắp xếp.
@@ -66,7 +92,12 @@ export function bundleRuntime({ sourceDir, targetDir }) {
   for (const file of files) {
     const destination = join(targetDir, ...file.split('/'));
     mkdirSync(dirname(destination), { recursive: true });
-    cpSync(join(sourceDir, ...file.split('/')), destination);
+    const source = join(sourceDir, ...file.split('/'));
+    if (file === 'index.html') {
+      writeFileSync(destination, injectPublishedMarker(readFileSync(source, 'utf-8')));
+    } else {
+      cpSync(source, destination);
+    }
   }
 
   const manifest = { formatVersion: RUNTIME_MANIFEST_FORMAT_VERSION, files };

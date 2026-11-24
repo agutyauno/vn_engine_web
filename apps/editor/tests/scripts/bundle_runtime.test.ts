@@ -3,7 +3,12 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { bundleRuntime, collectRuntimeFiles } from '../../scripts/bundle-runtime.mjs';
+import {
+  PUBLISHED_MARKER_META as SCRIPT_MARKER,
+  bundleRuntime,
+  collectRuntimeFiles,
+} from '../../scripts/bundle-runtime.mjs';
+import { PUBLISHED_MARKER_META as EDITOR_MARKER } from '../../src/core/services/runtimePackage';
 
 describe('bundle-runtime script (TASK-EXP-WEBZIP W3)', () => {
   let root: string;
@@ -110,6 +115,10 @@ describe('bundle-runtime script (TASK-EXP-WEBZIP W3)', () => {
 
       const copied = readFileSync(join(targetDir, 'index.html'), 'utf-8');
       expect(copied.split(MARKER)).toHaveLength(2);
+    });
+
+    it('uses the same marker as the editor export service', () => {
+      expect(SCRIPT_MARKER).toBe(EDITOR_MARKER);
     });
 
     it('fails loudly when index.html has no <head>', () => {
