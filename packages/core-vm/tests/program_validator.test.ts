@@ -102,11 +102,22 @@ describe('TDD: Bytecode Program & Instruction Validator (Zero-Trust Input Bounda
       expect(isValidInstruction({ type: 'BACKGROUND' })).toBe(false);
       expect(isValidInstruction({ type: 'BACKGROUND', assetId: 'bg_room' })).toBe(true);
 
-      expect(isValidInstruction({ type: 'SHOW', character: 'alice' })).toBe(false); // missing sprite
-      expect(isValidInstruction({ type: 'SHOW', character: 'alice', sprite: 'smile' })).toBe(true);
+      expect(isValidInstruction({ type: 'SHOW', targetId: 'alice' })).toBe(true);
+      expect(isValidInstruction({ type: 'SHOW', targetId: 'alice', variant: 'smile' })).toBe(true);
+      expect(isValidInstruction({ type: 'SHOW', variant: 'smile' })).toBe(false); // missing targetId
+      expect(isValidInstruction({ type: 'SHOW', targetId: 'alice', variant: 42 })).toBe(false);
 
       expect(isValidInstruction({ type: 'HIDE' })).toBe(false);
-      expect(isValidInstruction({ type: 'HIDE', character: 'alice' })).toBe(true);
+      expect(isValidInstruction({ type: 'HIDE', targetId: 'alice' })).toBe(true);
+    });
+
+    it('rejects the removed legacy SHOW/HIDE fields character and sprite (TASK-LEGACY-SPRITE)', () => {
+      expect(isValidInstruction({ type: 'SHOW', character: 'alice' })).toBe(false);
+      expect(isValidInstruction({ type: 'SHOW', character: 'alice', sprite: 'smile' })).toBe(false);
+      expect(isValidInstruction({ type: 'SHOW', character: 'alice', variant: 'smile' })).toBe(
+        false,
+      );
+      expect(isValidInstruction({ type: 'HIDE', character: 'alice' })).toBe(false);
     });
 
     it('validates PLAY, STOP, WAIT instruction fields', () => {
