@@ -8,6 +8,10 @@
   <link rel="stylesheet" href="/src/wireframe.css" />
   <script>
     (function () {
+      // Gói xuất bản (Export → Web) luôn chạy standalone, kể cả trong iframe (itch.io)
+      if (document.querySelector('meta[name="taleforge-mode"][content="published"]')) {
+        return;
+      }
       const isEmbedded = (window.self !== window.top) ||
         window.location.search.includes('embedded=true') ||
         window.location.search.includes('popout=true') ||

@@ -7,7 +7,8 @@ import {
   readLaunchContextInput,
   type LaunchContextInput,
 } from '../src/adapters/launchContext';
-import viteConfig from '../vite.config';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 const baseInput: LaunchContextInput = {
   search: '',
@@ -103,6 +104,8 @@ describe('readLaunchContextInput (TASK-EXP-WEBZIP W2)', () => {
 
 describe('runtime player build config (TASK-EXP-WEBZIP W2)', () => {
   it('uses a relative base so the build works from any subfolder', () => {
-    expect(viteConfig.base).toBe('./');
+    // Đọc file cấu hình dạng text: import vite.config.ts vào test sẽ kéo cả kiểu của Vite vào tsc.
+    const configSource = readFileSync(resolve(__dirname, '../vite.config.ts'), 'utf-8');
+    expect(configSource).toMatch(/^\s*base:\s*'\.\/',?\s*$/m);
   });
 });
