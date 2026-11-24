@@ -33,6 +33,7 @@ Implements the core Preact UI component tree for the visual novel player. It coo
 - When `pendingConfirm !== null`, Escape cancels the pending confirmation dialog (`cancelPending()`), while all other keys and clicks in `#bottom-click-zone` are suppressed.
 - `ControlBar` places `#btn-save` directly before `#btn-qsave`, dispatching `openModal('save')`.
 - `SpeakerNameplate` returns `null` when no speaker name is specified or when the string is empty.
+- `SpeakerNameplate` applies `speakerColorHex` inline as `color` and `borderColor`. The kernel's default speaker color is `#ffffff`, so the `.speaker-nameplate` rule in `wireframe.css` must use a dark background (never white) and light default text so the name stays readable with the default color.
 - `#dialogue-text` always carries exactly one `font-*` class (`font-small` 1rem, `font-medium` 1.15rem, `font-large` 1.35rem).
 - Unsatisfied choices in `ChoiceOverlay` are disabled (`aria-disabled="true"`) and cannot be clicked.
 - `TitleScreen` disables `#btn-continue` when `hasSaveData` is false and falls back from broken logo to text heading.
