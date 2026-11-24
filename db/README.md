@@ -6,9 +6,9 @@ The `db` package encapsulates the relational database schema, data integrity pol
 
 ## Interface
 
-- `public.projects`: Core project metadata entity storing configuration (`title`, `default_language`, `version`), published runtime game link (`published_game_id`), global game variables (`variables` JSONB), and defined characters (`characters` JSONB).
+- `public.projects`: Core project metadata entity mirroring `ProjectMetadata`: `title`, `description`, `default_language`, `entry_scene`, `version`, published runtime game link (`published_game_id`), global game variables (`variables` JSONB), and settings JSONB columns `display_settings`, `gameplay_settings`, `editor_settings`, `title_settings` (asset ids for the title logo/background/music).
 - `public.script_files`: Granular script chapter storage storing script source (`content`), execution sequence (`order_index`), last modifying author (`updated_by`), and per-file OCC revision (`version`).
-- `public.assets`: Media asset registry indexing asset files (`storage_url`, `storage_path`, `size_bytes`) categorized by MIME domain (`type` IN `'image'`, `'audio'`, `'video'`, `'font'`).
+- `public.assets`: Media asset registry mirroring `AssetRef`: files (`storage_url`, `storage_path`, `size_bytes`), MIME domain (`type` IN `'image'`, `'audio'`, `'video'`, `'font'`), optional `category` (one of the 7 `AssetCategory` values or NULL), and sprite identity `tag`/`variant`.
 - `public.ui_custom_screens`: UI layout templates binding custom interface layouts to predefined runtime slots (`target_slot` IN `'dialogueBox'`, `'choiceMenu'`, `'backlog'`, `'mainMenu'`, `'settingsMenu'`, `'saveLoadScreen'`).
 - `public.custom_script_screens`: Advanced minigame and custom scripted screen container (`script_content`).
 - `public.resource_snapshots`: Immutable historical snapshot log capturing versioned content deltas for undo/recovery of scripts and UI layouts (`resource_type` IN `'script_file'`, `'ui_screen'`).
@@ -22,7 +22,9 @@ The `db` package encapsulates the relational database schema, data integrity pol
 - **Row Level Security (RLS)**: RLS is strictly enabled across all tables (`projects`, `script_files`, `assets`, `ui_custom_screens`, `custom_script_screens`, `resource_snapshots`), restricting mutations and reads strictly to authenticated project owners (`auth.uid() = owner_id` or owner lookup subqueries).
 - **Unique Constraints**: Unique composite index on `(project_id, name)` in `public.script_files` preventing filename collisions within a project.
 - **Optimistic Concurrency Control (OCC)**: `version` integer counters on `projects`, `script_files`, `assets`, and UI screens enforce ADR-011 conflict detection to prevent concurrent overwrite data loss.
-- **Type Constraints**: Check constraints enforce explicit domain whitelists for media types, target UI slots, and snapshot resource types.
+- **Type Constraints**: Check constraints enforce explicit domain whitelists for media types, asset categories (NULL allowed), target UI slots, and snapshot resource types.
+- **Contract Sync**: Every `AssetRef` field and every `ProjectMetadata` field (plus `Project.variables`) has a matching column. `packages/shared-types/tests/db_schema_sync.test.ts` enforces this: its field-to-column maps are typed `Record<keyof ...>`, so a new contract field without a column mapping fails typecheck, and the test fails when the column is missing from `schema.sql`.
+- **Idempotent Migration**: Section 8 of `schema.sql` adds every column introduced after the first schema with `ADD COLUMN IF NOT EXISTS`, so it can be re-run on older databases. The schema never drops columns automatically; the removed `projects.characters` column must be dropped manually after a backup.
 
 ## Side Effects
 
@@ -32,4 +34,4 @@ The `db` package encapsulates the relational database schema, data integrity pol
 
 ## Verification
 
-- Run: `pnpm test`
+- Run: `pnpm --filter @vn-engine/shared-types test` (schema drift guard) or `pnpm test`.
