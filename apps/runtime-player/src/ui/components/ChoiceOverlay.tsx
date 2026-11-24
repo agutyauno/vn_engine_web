@@ -3,7 +3,10 @@ import { useEffect, useState } from 'preact/hooks';
 import { usePlayerState, usePlayerActions } from '../context/PlayerUIContext';
 
 export function ChoiceOverlay(): JSX.Element | null {
-  const { activeChoices, isControlsHidden } = usePlayerState();
+  const { activeChoices, isControlsHidden, activeModal, pendingConfirm } = usePlayerState();
+  // Khi modal (Save/Load/Settings/Backlog) hoặc hộp xác nhận đang mở, phím không được chọn lựa chọn
+  const isBlockedByOverlay =
+    (activeModal ?? 'none') !== 'none' || (pendingConfirm ?? null) !== null;
   const actions = usePlayerActions();
   const [focusedIndex, setFocusedIndex] = useState<number>(0);
 
@@ -13,6 +16,7 @@ export function ChoiceOverlay(): JSX.Element | null {
 
   useEffect(() => {
     if (!activeChoices || activeChoices.length === 0) return undefined;
+    if (isBlockedByOverlay) return undefined;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
@@ -60,7 +64,7 @@ export function ChoiceOverlay(): JSX.Element | null {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [activeChoices, focusedIndex, actions]);
+  }, [activeChoices, focusedIndex, actions, isBlockedByOverlay]);
 
   if (!activeChoices || activeChoices.length === 0) return null;
   const allUnsatisfied = activeChoices.every(choice => !choice.isSatisfied);
