@@ -356,6 +356,7 @@ export class VNRuntimeKernel {
 
     this.adapters.audio?.stopVoice();
     this.applyCatchUpSync();
+    this.syncChoicesFromVm();
 
     // Chỉ pop backlog khi tương tác bị hoàn tác là thoại
     if (result.poppedInteractionType === 'DIALOGUE' && this.state.backlog.length > 0) {
@@ -487,6 +488,19 @@ export class VNRuntimeKernel {
     this.pendingVoiceAssetId = null;
 
     this.emit();
+  }
+
+  /**
+   * Tính lại menu lựa chọn từ VM sau khi khôi phục (load, rollback, desync): đang dừng ở CHOICE thì
+   * dựng lại `activeChoices` như lúc VM vừa tới đó, ngược lại xoá menu cũ còn sót.
+   */
+  private syncChoicesFromVm(): void {
+    const activeInstr = this.vm.getActiveInstruction();
+    if (activeInstr?.type === 'CHOICE') {
+      this.handleChoice(activeInstr);
+    } else {
+      this.state.activeChoices = null;
+    }
   }
 
   private handleChoice(_instruction: ChoiceInstruction): void {
@@ -901,6 +915,7 @@ export class VNRuntimeKernel {
 
     this.clearTimers();
     this.applyCatchUpSync();
+    this.syncChoicesFromVm();
 
     const activeInstr = this.vm.getActiveInstruction();
     if (activeInstr && activeInstr.type === 'PAUSE') {
@@ -929,6 +944,7 @@ export class VNRuntimeKernel {
       }
       this.clearTimers();
       this.applyCatchUpSync();
+      this.syncChoicesFromVm();
       const activeInstr = this.vm.getActiveInstruction();
       if (activeInstr && activeInstr.type === 'PAUSE') {
         this.state.isAwaitingPauseAdvance = true;
@@ -948,6 +964,7 @@ export class VNRuntimeKernel {
     } else if (choice === 'continue') {
       this.clearTimers();
       this.applyCatchUpSync();
+      this.syncChoicesFromVm();
       const activeInstr = this.vm.getActiveInstruction();
       if (activeInstr && activeInstr.type === 'PAUSE') {
         this.state.isAwaitingPauseAdvance = true;

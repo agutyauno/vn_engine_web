@@ -78,9 +78,16 @@ export function GameplayOverlay(): JSX.Element {
       }
 
       if (choices.length > 0) {
+        // Đang chờ chọn: không tiến thoại, nhưng vẫn lùi, mở Settings và Backlog được
         if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
           e.preventDefault();
           actions.rollback();
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          actions.openModal('settings');
+        } else if (e.key === 'l' || e.key === 'L') {
+          e.preventDefault();
+          actions.openModal('backlog');
         }
         return;
       }

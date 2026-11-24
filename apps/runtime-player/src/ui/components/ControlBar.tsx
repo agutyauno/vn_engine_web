@@ -12,8 +12,17 @@ import {
   SettingsIcon,
 } from './common/Icons';
 
-export function ControlBar(): JSX.Element {
+export interface ControlBarProps {
+  /**
+   * `choice`: bản rút gọn hiện khi đang ở menu lựa chọn (Back, Save, Q.Save, Q.Load, Log, Menu).
+   * Bỏ Auto, Skip, Hide UI vì vô nghĩa khi đang chờ người chơi chọn.
+   */
+  variant?: 'dialogue' | 'choice';
+}
+
+export function ControlBar({ variant = 'dialogue' }: ControlBarProps): JSX.Element {
   const { isControlsHidden, playbackMode } = usePlayerState();
+  const isDialogueVariant = variant === 'dialogue';
   const actions = usePlayerActions();
 
   const isAutoActive = playbackMode === 'AUTO';
@@ -35,26 +44,30 @@ export function ControlBar(): JSX.Element {
       >
         <BackIcon size={16} />
       </button>
-      <button
-        id="btn-auto"
-        className={`control-bar-btn ${isAutoActive ? 'active' : ''}`}
-        aria-pressed={isAutoActive ? 'true' : 'false'}
-        onClick={() => actions.toggleAuto()}
-        aria-label="Toggle Auto-forward mode"
-        title="Auto Forward"
-      >
-        <AutoIcon size={16} />
-      </button>
-      <button
-        id="btn-skip"
-        className={`control-bar-btn ${isSkipActive ? 'active' : ''}`}
-        aria-pressed={isSkipActive ? 'true' : 'false'}
-        onClick={() => actions.toggleSkip()}
-        aria-label="Toggle Skip mode"
-        title="Skip"
-      >
-        <SkipIcon size={16} />
-      </button>
+      {isDialogueVariant && (
+        <button
+          id="btn-auto"
+          className={`control-bar-btn ${isAutoActive ? 'active' : ''}`}
+          aria-pressed={isAutoActive ? 'true' : 'false'}
+          onClick={() => actions.toggleAuto()}
+          aria-label="Toggle Auto-forward mode"
+          title="Auto Forward"
+        >
+          <AutoIcon size={16} />
+        </button>
+      )}
+      {isDialogueVariant && (
+        <button
+          id="btn-skip"
+          className={`control-bar-btn ${isSkipActive ? 'active' : ''}`}
+          aria-pressed={isSkipActive ? 'true' : 'false'}
+          onClick={() => actions.toggleSkip()}
+          aria-label="Toggle Skip mode"
+          title="Skip"
+        >
+          <SkipIcon size={16} />
+        </button>
+      )}
       <button
         id="btn-save"
         className="control-bar-btn"
@@ -91,15 +104,17 @@ export function ControlBar(): JSX.Element {
       >
         <HistoryIcon size={16} />
       </button>
-      <button
-        id="btn-hide-ui"
-        className="control-bar-btn"
-        onClick={() => actions.toggleHideControls()}
-        aria-label="Hide UI Overlay"
-        title="Hide UI"
-      >
-        <EyeOffIcon size={16} />
-      </button>
+      {isDialogueVariant && (
+        <button
+          id="btn-hide-ui"
+          className="control-bar-btn"
+          onClick={() => actions.toggleHideControls()}
+          aria-label="Hide UI Overlay"
+          title="Hide UI"
+        >
+          <EyeOffIcon size={16} />
+        </button>
+      )}
       <button
         id="btn-menu"
         className="control-bar-btn"
