@@ -39,6 +39,7 @@ Implements the core Preact UI component tree for the visual novel player. It coo
 - At the choice menu the player can still save, load, open Settings and the Backlog: `#choice-controls` is shown unless `isControlsHidden`, and `GameplayOverlay` maps Escape to `openModal('settings')` and L to `openModal('backlog')` besides ArrowLeft/PageUp rollback. Advance keys stay ignored. Each control id exists only once in the DOM.
 - `ChoiceOverlay` ignores choice keys (1-9, Enter, arrows) while `activeModal !== 'none'` or `pendingConfirm !== null`, so typing in a modal never picks a choice.
 - `TitleScreen` disables `#btn-continue` when `hasSaveData` is false and falls back from broken logo to text heading.
+- Disabled title buttons (`.title-screen-btn:disabled` in `wireframe.css`) stay readable: no low opacity, transparent background, dashed border and muted text with at least 3:1 contrast against the title box, so a disabled Continue is visible yet clearly different from enabled buttons.
 - `ToastNotification` returns `null` when `activeToast` is `null` or when the active toast id has been dismissed locally.
 - `GameDataErrorScreen` strictly adheres to Clean Monochrome Iconography: contains no inline `<svg>` elements (imports `AlertCircleIcon` with `stroke="currentColor"`), contains zero emoji characters across all error states, and displays error codes inside `.game-data-error-code`.
 
