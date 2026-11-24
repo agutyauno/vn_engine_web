@@ -53,15 +53,15 @@ describe('Core VM Integration Edge Cases', () => {
   it('should handle multiple characters on screen simultaneously with correct catch-up state', () => {
     const program: Instruction[] = [
       { type: 'SCENE', name: 'ensemble' },
-      { type: 'SHOW', character: 'alice', sprite: 'happy', position: 'left' },
-      { type: 'SHOW', character: 'bob', sprite: 'serious', position: 'right' },
-      { type: 'SHOW', character: 'clara', sprite: 'smile', position: 'center' },
+      { type: 'SHOW', targetId: 'alice', variant: 'happy', position: 'left' },
+      { type: 'SHOW', targetId: 'bob', variant: 'serious', position: 'right' },
+      { type: 'SHOW', targetId: 'clara', variant: 'smile', position: 'center' },
       { type: 'DIALOGUE', character: 'alice', text: 'Chào mọi người!' },
 
       // Giấu Bob, đổi sprite của Alice sang ngạc nhiên
-      { type: 'HIDE', character: 'bob' },
-      { type: 'SHOW', character: 'alice', sprite: 'surprised', position: 'left' },
-      { type: 'SHOW', character: 'david', sprite: 'cool', position: 'right' },
+      { type: 'HIDE', targetId: 'bob' },
+      { type: 'SHOW', targetId: 'alice', variant: 'surprised', position: 'left' },
+      { type: 'SHOW', targetId: 'david', variant: 'cool', position: 'right' },
       { type: 'DIALOGUE', character: 'clara', text: 'Bob đi đâu rồi?' },
     ];
 
@@ -71,7 +71,7 @@ describe('Core VM Integration Edge Cases', () => {
     vm.runUntilInteractive();
     let state = vm.getStateCatchUp();
     expect(state.sprites.size).toBe(3);
-    expect(state.sprites.get('alice')?.sprite).toBe('happy');
+    expect(state.sprites.get('alice')?.variant).toBe('happy');
     expect(state.sprites.has('bob')).toBe(true);
     expect(state.sprites.has('clara')).toBe(true);
 
@@ -79,7 +79,7 @@ describe('Core VM Integration Edge Cases', () => {
     vm.runUntilInteractive();
     state = vm.getStateCatchUp();
     expect(state.sprites.size).toBe(3);
-    expect(state.sprites.get('alice')?.sprite).toBe('surprised');
+    expect(state.sprites.get('alice')?.variant).toBe('surprised');
     expect(state.sprites.has('bob')).toBe(false);
     expect(state.sprites.has('david')).toBe(true);
 
@@ -87,7 +87,7 @@ describe('Core VM Integration Edge Cases', () => {
     vm.rollback();
     state = vm.getStateCatchUp();
     expect(state.sprites.size).toBe(3);
-    expect(state.sprites.get('alice')?.sprite).toBe('happy');
+    expect(state.sprites.get('alice')?.variant).toBe('happy');
     expect(state.sprites.has('bob')).toBe(true);
     expect(state.sprites.has('david')).toBe(false);
   });

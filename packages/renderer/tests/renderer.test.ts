@@ -139,8 +139,8 @@ describe('@vn-engine/renderer - Coordinate Resolution & GameRenderer Setup', () 
 
     await renderer.showCharacter({
       type: 'SHOW',
-      character: 'amiya',
-      sprite: 'normal',
+      targetId: 'amiya',
+      variant: 'normal',
       position: 'center',
       transition: 'bounce',
       duration: 0.1,
@@ -149,8 +149,8 @@ describe('@vn-engine/renderer - Coordinate Resolution & GameRenderer Setup', () 
 
     await renderer.showCharacter({
       type: 'SHOW',
-      character: 'amiya',
-      sprite: 'happy',
+      targetId: 'amiya',
+      variant: 'happy',
       position: 'right',
       transition: 'wobble',
       duration: 0.1,
@@ -170,7 +170,7 @@ describe('@vn-engine/renderer - Coordinate Resolution & GameRenderer Setup', () 
 
       // 1. Mặc định không có tham số x/y/position/anchor
       const defaultPlacement = resolveSpritePlacement(
-        { type: 'SHOW', character: 'alice' },
+        { type: 'SHOW', targetId: 'alice' },
         baseW,
         baseH,
       );
@@ -181,7 +181,7 @@ describe('@vn-engine/renderer - Coordinate Resolution & GameRenderer Setup', () 
 
       // 2. Named position 'left'
       const leftPlacement = resolveSpritePlacement(
-        { type: 'SHOW', character: 'alice', position: 'left' },
+        { type: 'SHOW', targetId: 'alice', position: 'left' },
         baseW,
         baseH,
       );
@@ -192,7 +192,7 @@ describe('@vn-engine/renderer - Coordinate Resolution & GameRenderer Setup', () 
 
       // 3. Named position 'right'
       const rightPlacement = resolveSpritePlacement(
-        { type: 'SHOW', character: 'alice', position: 'right' },
+        { type: 'SHOW', targetId: 'alice', position: 'right' },
         baseW,
         baseH,
       );
@@ -210,7 +210,6 @@ describe('@vn-engine/renderer - Coordinate Resolution & GameRenderer Setup', () 
         {
           type: 'SHOW',
           targetId: 'key_gold',
-          character: 'key_gold',
           x: 0.5,
           y: 0.4,
           anchorX: 0.5,
@@ -229,7 +228,7 @@ describe('@vn-engine/renderer - Coordinate Resolution & GameRenderer Setup', () 
 
       // Top-left anchor (0, 0)
       const topLeft = resolveSpritePlacement(
-        { type: 'SHOW', character: 'hud_item', x: 100, y: 100, anchorX: 0, anchorY: 0 },
+        { type: 'SHOW', targetId: 'hud_item', x: 100, y: 100, anchorX: 0, anchorY: 0 },
         baseW,
         baseH,
       );
@@ -254,7 +253,6 @@ describe('@vn-engine/renderer - Coordinate Resolution & GameRenderer Setup', () 
         type: 'SHOW',
         targetId: 'alice',
         variant: 'happy',
-        character: 'alice',
         position: 'center',
         scale: 1.5,
         rotate: 30,
@@ -306,7 +304,6 @@ describe('@vn-engine/renderer - Coordinate Resolution & GameRenderer Setup', () 
         type: 'SHOW',
         targetId: 'mystery_item',
         variant: 'shiny',
-        character: 'mystery_item',
         duration: 0,
       });
 
@@ -337,7 +334,6 @@ describe('@vn-engine/renderer - Coordinate Resolution & GameRenderer Setup', () 
         type: 'SHOW',
         targetId: 'alice',
         variant: 'smile',
-        character: 'alice',
         duration: 0,
       });
       expect(renderer.hasSprite('alice')).toBe(true);
@@ -362,8 +358,8 @@ describe('@vn-engine/renderer - Coordinate Resolution & GameRenderer Setup', () 
 
       await renderer.showCharacter({
         type: 'SHOW',
-        character: 'bob',
-        sprite: 'default',
+        targetId: 'bob',
+        variant: 'default',
         duration: 0,
       });
 
@@ -383,7 +379,7 @@ describe('@vn-engine/renderer - Coordinate Resolution & GameRenderer Setup', () 
 
       // 1. Không còn ép y = baseH * 0.5 cho prop; mọi sprite mặc định y = baseH và anchorY = 1.0
       const propPlacement = resolveSpritePlacement(
-        { type: 'SHOW', targetId: 'key_gold', character: 'key_gold' },
+        { type: 'SHOW', targetId: 'key_gold' },
         baseW,
         baseH,
       );
@@ -394,7 +390,7 @@ describe('@vn-engine/renderer - Coordinate Resolution & GameRenderer Setup', () 
 
       // 2. Nếu script chủ động muốn căn giữa, truyền y: 0.5 và anchorY: 0.5
       const centeredProp = resolveSpritePlacement(
-        { type: 'SHOW', targetId: 'key_gold', character: 'key_gold', y: 0.5, anchorY: 0.5 },
+        { type: 'SHOW', targetId: 'key_gold', y: 0.5, anchorY: 0.5 },
         baseW,
         baseH,
       );
@@ -410,7 +406,6 @@ describe('@vn-engine/renderer - Coordinate Resolution & GameRenderer Setup', () 
             type: 'SHOW',
             targetId: 'key_gold',
             variant: 'default',
-            character: 'key_gold',
             anchorY: 0.5,
           },
         ],
@@ -468,8 +463,8 @@ describe('@vn-engine/renderer - Coordinate Resolution & GameRenderer Setup', () 
       });
       await renderer.showCharacter({
         type: 'SHOW',
-        character: 'bob_ghost',
-        sprite: 'disappeared',
+        targetId: 'bob_ghost',
+        variant: 'disappeared',
       });
       expect(renderer.hasCharacter('bob_ghost')).toBe(true);
 
@@ -493,8 +488,8 @@ describe('@vn-engine/renderer - Coordinate Resolution & GameRenderer Setup', () 
       await renderer.setBackground('legacy_bg');
       await renderer.showCharacter({
         type: 'SHOW',
-        character: 'legacy_hero',
-        sprite: 'normal',
+        targetId: 'legacy_hero',
+        variant: 'normal',
       });
 
       const bgSprite = priv.currentBackgroundSprite;

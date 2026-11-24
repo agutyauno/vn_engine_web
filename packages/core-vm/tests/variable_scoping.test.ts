@@ -143,7 +143,7 @@ describe('Variable Scoping VM Execution & Lifecycle Specification', () => {
     // Biến local của caller_scene không tồn tại trong callee_scene
     expect(vm.getState().localVariables['caller_var']).toBeUndefined();
     expect(vm.getState().callStack).toHaveLength(1);
-    expect(vm.getState().callStack[0]?.savedLocalVariables['caller_var']).toBe('hello_caller');
+    expect(vm.getState().callStack[0]?.savedLocalVariables?.['caller_var']).toBe('hello_caller');
 
     // Điểm dừng 2: Quay lại caller_scene sau khi return
     vm.runUntilInteractive();

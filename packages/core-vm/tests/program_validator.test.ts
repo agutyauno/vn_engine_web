@@ -161,7 +161,7 @@ describe('TDD: Bytecode Program & Instruction Validator (Zero-Trust Input Bounda
       const validProgram: Instruction[] = [
         { type: 'SCENE', name: 'main' },
         { type: 'BACKGROUND', assetId: 'bg_day' },
-        { type: 'SHOW', character: 'alice', sprite: 'smile' },
+        { type: 'SHOW', targetId: 'alice', variant: 'smile' },
         { type: 'DIALOGUE', character: 'alice', text: 'Xin chào người chơi!' },
         {
           type: 'CHOICE',

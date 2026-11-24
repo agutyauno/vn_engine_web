@@ -7,7 +7,20 @@ import {
   VMRuntimeError,
   SceneNotFoundError,
 } from '../src/errors';
-import type { Instruction, DialogueInstruction, StepResult } from '@vn-engine/shared-types';
+import type {
+  Instruction,
+  DialogueInstruction,
+  ShowInstruction,
+  StepResult,
+} from '@vn-engine/shared-types';
+
+/** Thu hẹp một StepResult thành DIALOGUE đang chờ; ném lỗi nếu VM dừng vì lý do khác. */
+function suspendedDialogue(result: StepResult): DialogueInstruction {
+  if (result.type !== 'SUSPEND_DIALOGUE' || result.instruction.type !== 'DIALOGUE') {
+    throw new Error(`Expected SUSPEND_DIALOGUE with a DIALOGUE instruction, got ${result.type}`);
+  }
+  return result.instruction;
+}
 
 function asDialogue(stepResult: StepResult): DialogueInstruction {
   if (stepResult.type !== 'SUSPEND_DIALOGUE') {
@@ -21,7 +34,7 @@ describe('VisualNovelVM Core', () => {
     const program: Instruction[] = [
       { type: 'SCENE', name: 'intro' },
       { type: 'BACKGROUND', assetId: 'bg_classroom' },
-      { type: 'SHOW', targetId: 'alice', variant: 'happy', character: 'alice', position: 'left' },
+      { type: 'SHOW', targetId: 'alice', variant: 'happy', position: 'left' },
       { type: 'PLAY', channel: 'music', assetId: 'bgm.mp3', volume: 0.8, loop: true },
       {
         type: 'DIALOGUE',
@@ -72,9 +85,9 @@ describe('VisualNovelVM Core', () => {
   it('should suspend on WAIT instruction and resume to next interactive step', () => {
     const program: Instruction[] = [
       { type: 'SCENE', name: 'wait_demo' },
-      { type: 'SHOW', character: 'amiya', sprite: 'default', x: 0.1, y: 1 },
+      { type: 'SHOW', targetId: 'amiya', variant: 'default', x: 0.1, y: 1 },
       { type: 'WAIT', duration: 0.5 },
-      { type: 'SHOW', character: 'amiya', sprite: 'default', x: 0.5, y: 1 },
+      { type: 'SHOW', targetId: 'amiya', variant: 'default', x: 0.5, y: 1 },
       { type: 'DIALOGUE', character: 'amiya', text: 'hi doctor' },
     ];
 
@@ -293,14 +306,14 @@ describe('VisualNovelVM Core', () => {
     const program: Instruction[] = [
       { type: 'SCENE', name: 'stage1' },
       { type: 'BACKGROUND', assetId: 'bg_day' },
-      { type: 'SHOW', character: 'alice', sprite: 'happy', position: 'left' },
+      { type: 'SHOW', targetId: 'alice', variant: 'happy', position: 'left' },
       { type: 'PLAY', channel: 'music', assetId: 'theme.mp3', volume: 1.0 },
       { type: 'DIALOGUE', character: 'alice', text: 'Chào buổi sáng.' },
 
       { type: 'SCENE', name: 'stage2' },
       { type: 'BACKGROUND', assetId: 'bg_night' },
-      { type: 'SHOW', character: 'bob', sprite: 'normal', position: 'right' },
-      { type: 'HIDE', character: 'alice' },
+      { type: 'SHOW', targetId: 'bob', variant: 'normal', position: 'right' },
+      { type: 'HIDE', targetId: 'alice' },
       { type: 'STOP', channel: 'music' },
       { type: 'DIALOGUE', character: 'bob', text: 'Chào buổi tối.' },
     ];
@@ -346,8 +359,8 @@ describe('VisualNovelVM Core', () => {
       },
       {
         type: 'SHOW',
-        character: 'alice',
-        sprite: 'happy',
+        targetId: 'alice',
+        variant: 'happy',
         scale: 1.5,
         scaleX: 1.4,
         scaleY: 1.6,
@@ -367,8 +380,8 @@ describe('VisualNovelVM Core', () => {
       { type: 'SCENE', name: 'stage2' },
       {
         type: 'SHOW',
-        character: 'alice',
-        sprite: 'shocked',
+        targetId: 'alice',
+        variant: 'shocked',
         scale: 2.0,
         rotate: 45,
         flipX: false,
@@ -736,22 +749,24 @@ describe('VisualNovelVM Core', () => {
   // =========================================================================
   describe('Unified Sprite Layer & Literal Speaker (Micro-Phase 3)', () => {
     it('[TC-SPRITE-VM-01] vm.step() handles SHOW and stores into state.activeSprites keyed by targetId', () => {
+      // `character` là field cũ đã bỏ khỏi contract; VM vẫn đọc nó làm fallback, nên giữ ở đây
+      // để chứng minh targetId được ưu tiên.
+      const showWithLegacyCharacter: ShowInstruction & { character: string } = {
+        type: 'SHOW',
+        targetId: 'sword_legendary',
+        variant: 'glowing',
+        character: 'sword',
+        position: 'center',
+        anchorX: 0.5,
+        anchorY: 1.0,
+      };
       const program: Instruction[] = [
         { type: 'SCENE', name: 'main' },
-        {
-          type: 'SHOW',
-          targetId: 'sword_legendary',
-          variant: 'glowing',
-          character: 'sword', // deprecated backward-compat field
-          position: 'center',
-          anchorX: 0.5,
-          anchorY: 1.0,
-        },
+        showWithLegacyCharacter,
         {
           type: 'SHOW',
           targetId: 'alice',
           variant: 'happy',
-          character: 'alice',
           position: 'left',
         },
       ];
@@ -780,18 +795,15 @@ describe('VisualNovelVM Core', () => {
           type: 'SHOW',
           targetId: 'sword_legendary',
           variant: 'glowing',
-          character: 'sword',
         },
         {
           type: 'SHOW',
           targetId: 'alice',
           variant: 'happy',
-          character: 'alice',
         },
         {
           type: 'HIDE',
           targetId: 'sword_legendary',
-          character: 'sword',
         },
       ];
 
@@ -834,34 +846,25 @@ describe('VisualNovelVM Core', () => {
       vm.step(); // SCENE
 
       // Dialogue 1: Literal name có khoảng trắng
-      const res1 = vm.step();
-      expect(res1.type).toBe('SUSPEND_DIALOGUE');
-      if (res1.type === 'SUSPEND_DIALOGUE') {
-        expect(res1.instruction.character).toBe('Alice Carroll');
-        expect(res1.instruction.speaker).toBe('Alice Carroll');
-        expect(res1.instruction.displayNameOverride).toBeUndefined();
-        expect(res1.instruction.text).toBe('Xin chào, tôi là Alice Carroll!');
-      }
+      const dlg1 = suspendedDialogue(vm.step());
+      expect(dlg1.character).toBe('Alice Carroll');
+      expect(dlg1.speaker).toBe('Alice Carroll');
+      expect(dlg1.displayNameOverride).toBeUndefined();
+      expect(dlg1.text).toBe('Xin chào, tôi là Alice Carroll!');
       expect(vm.getState().currentDialogue?.character).toBe('Alice Carroll');
       expect(vm.getState().currentDialogue?.speaker).toBe('Alice Carroll');
 
       // Dialogue 2: Literal question marks "???"
-      const res2 = vm.step();
-      expect(res2.type).toBe('SUSPEND_DIALOGUE');
-      if (res2.type === 'SUSPEND_DIALOGUE') {
-        expect(res2.instruction.character).toBe('???');
-        expect(res2.instruction.speaker).toBe('???');
-        expect(res2.instruction.displayNameOverride).toBeUndefined();
-      }
+      const dlg2 = suspendedDialogue(vm.step());
+      expect(dlg2.character).toBe('???');
+      expect(dlg2.speaker).toBe('???');
+      expect(dlg2.displayNameOverride).toBeUndefined();
       expect(vm.getState().currentDialogue?.character).toBe('???');
 
       // Dialogue 3: Narration (người nói null)
-      const res3 = vm.step();
-      expect(res3.type).toBe('SUSPEND_DIALOGUE');
-      if (res3.type === 'SUSPEND_DIALOGUE') {
-        expect(res3.instruction.character).toBeNull();
-        expect(res3.instruction.speaker).toBeNull();
-      }
+      const dlg3 = suspendedDialogue(vm.step());
+      expect(dlg3.character).toBeNull();
+      expect(dlg3.speaker).toBeNull();
       expect(vm.getState().currentDialogue?.character).toBeNull();
     });
 
@@ -872,13 +875,11 @@ describe('VisualNovelVM Core', () => {
           type: 'SHOW',
           targetId: 'alice_hero',
           variant: 'happy',
-          character: 'alice',
         },
         {
           type: 'SHOW',
           targetId: 'key_gold',
           variant: 'default',
-          character: 'prop_key',
         },
         {
           type: 'DIALOGUE',
@@ -912,7 +913,6 @@ describe('VisualNovelVM Core', () => {
           type: 'SHOW',
           targetId: 'alice_hero',
           variant: 'happy',
-          character: 'alice',
         },
         {
           type: 'DIALOGUE',
@@ -925,12 +925,10 @@ describe('VisualNovelVM Core', () => {
           type: 'SHOW',
           targetId: 'sword_prop',
           variant: 'sharp',
-          character: 'sword',
         },
         {
           type: 'HIDE',
           targetId: 'alice_hero',
-          character: 'alice',
         },
         {
           type: 'DIALOGUE',

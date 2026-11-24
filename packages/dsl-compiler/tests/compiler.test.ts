@@ -55,8 +55,8 @@ describe('DSL Compiler Core (5-Stage Pipeline)', () => {
     expect(firstDialogue.uiScreenId).toBe('phone_message_style');
 
     // Kiểm tra câu lệnh REVEAL không còn trong golden scenario
-    const reveals = program.filter(i => i.type === 'REVEAL') as RevealInstruction[];
-    expect(reveals).toHaveLength(0);
+    const instructionTypes: string[] = program.map(i => i.type);
+    expect(instructionTypes).not.toContain('REVEAL');
 
     // Kiểm tra vòng lặp while
     const loopStarts = program.filter(i => i.type === 'LOOP_START');

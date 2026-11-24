@@ -124,6 +124,15 @@ vi.mock('howler', () => {
   };
 });
 
+/** Lấy instance Howl thứ `index` đã được tạo; ném lỗi rõ ràng nếu chưa có. */
+function howlAt(index: number): InstanceType<typeof MockHowl> {
+  const instance = mockHowlInstances[index];
+  if (!instance) {
+    throw new Error(`Expected Howl instance #${index} to have been created`);
+  }
+  return instance;
+}
+
 // ---------------------------------------------------------------------------
 // 2. Unit Test Suite (RED Phase)
 // ---------------------------------------------------------------------------
@@ -156,7 +165,8 @@ describe('AudioManager: Chaining Intro and Loop (TASK-audio-intro-loop)', () => 
 
     // 1. Phải tạo đúng 2 Howl instance: [0] = introHowl, [1] = loopHowl
     expect(mockHowlInstances).toHaveLength(2);
-    const [introHowl, loopHowl] = mockHowlInstances;
+    const introHowl = howlAt(0);
+    const loopHowl = howlAt(1);
 
     // Kiểm tra cấu hình Howl của Intro
     expect(introHowl.options.src).toEqual(['https://cdn.example.com/audio/battle_intro.mp3']);
@@ -207,7 +217,8 @@ describe('AudioManager: Chaining Intro and Loop (TASK-audio-intro-loop)', () => 
     );
 
     expect(mockHowlInstances).toHaveLength(2);
-    const [introHowl, loopHowl] = mockHowlInstances;
+    const introHowl = howlAt(0);
+    const loopHowl = howlAt(1);
 
     // Khi đang phát intro, người dùng gọi stop()
     audioManager.stop('music');
@@ -239,7 +250,8 @@ describe('AudioManager: Chaining Intro and Loop (TASK-audio-intro-loop)', () => 
       introUrl: 'https://cdn.example.com/audio/track1_intro.mp3',
     } as ExtendedAudioPlayOptions as AudioPlayOptions);
 
-    const [intro1, loop1] = mockHowlInstances;
+    const intro1 = howlAt(0);
+    const loop1 = howlAt(1);
     expect(intro1.play).toHaveBeenCalledTimes(1);
 
     // 2. Chuyển ngay sang bài 2 (không có intro) khi bài 1 đang dạo đầu
@@ -254,7 +266,7 @@ describe('AudioManager: Chaining Intro and Loop (TASK-audio-intro-loop)', () => 
 
     // Bài 2 được khởi tạo và phát
     expect(mockHowlInstances).toHaveLength(3);
-    const track2Howl = mockHowlInstances[2];
+    const track2Howl = howlAt(2);
     expect(track2Howl.options.src).toEqual(['https://cdn.example.com/audio/track2.mp3']);
     expect(track2Howl.play).toHaveBeenCalledTimes(1);
 
@@ -274,7 +286,8 @@ describe('AudioManager: Chaining Intro and Loop (TASK-audio-intro-loop)', () => 
       introUrl: 'https://cdn.example.com/audio/battle_intro.mp3',
     } as ExtendedAudioPlayOptions as AudioPlayOptions);
 
-    const [introHowl, loopHowl] = mockHowlInstances;
+    const introHowl = howlAt(0);
+    const loopHowl = howlAt(1);
 
     // 1. Tạm dừng kênh music khi đang ở intro
     audioManager.pause('music');
@@ -302,7 +315,8 @@ describe('AudioManager: Chaining Intro and Loop (TASK-audio-intro-loop)', () => 
       volume: 0.5, // script volume
     } as ExtendedAudioPlayOptions as AudioPlayOptions);
 
-    const [introHowl, loopHowl] = mockHowlInstances;
+    const introHowl = howlAt(0);
+    const loopHowl = howlAt(1);
 
     // Âm lượng ban đầu: channel.volume (1.0) * scriptVolume (0.5) = 0.5
     expect(introHowl.volume()).toBe(0.5);
@@ -344,7 +358,7 @@ describe('AudioManager: Chaining Intro and Loop (TASK-audio-intro-loop)', () => 
 
     // Theo mục 2.4 D đặc tả: State catch-up bỏ qua intro, phát thẳng loop
     expect(mockHowlInstances).toHaveLength(1);
-    const mainHowl = mockHowlInstances[0];
+    const mainHowl = howlAt(0);
 
     expect(mainHowl.options.src).toEqual(['https://cdn.example.com/audio/dungeon_loop.mp3']);
     expect(mainHowl.options.loop).toBe(true);
@@ -366,7 +380,8 @@ describe('AudioManager: Chaining Intro and Loop (TASK-audio-intro-loop)', () => 
       volume: 1.0,
     } as ExtendedAudioPlayOptions as AudioPlayOptions);
 
-    const [introHowl, loopHowl] = mockHowlInstances;
+    const introHowl = howlAt(0);
+    const loopHowl = howlAt(1);
 
     // introHowl phải nhận lệnh fade từ 0 lên 1.0 trong 2000ms
     expect(introHowl.fade).toHaveBeenCalledWith(0, 1.0, 2000);
