@@ -120,7 +120,6 @@ export function resolveSpritePlacement(
   instr: {
     type?: string;
     targetId?: string;
-    character?: string;
     position?: NamedPosition | CoordinatePosition;
     x?: number;
     y?: number;

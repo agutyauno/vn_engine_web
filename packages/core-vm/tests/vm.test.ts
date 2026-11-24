@@ -749,8 +749,8 @@ describe('VisualNovelVM Core', () => {
   // =========================================================================
   describe('Unified Sprite Layer & Literal Speaker (Micro-Phase 3)', () => {
     it('[TC-SPRITE-VM-01] vm.step() handles SHOW and stores into state.activeSprites keyed by targetId', () => {
-      // `character` là field cũ đã bỏ khỏi contract; VM vẫn đọc nó làm fallback, nên giữ ở đây
-      // để chứng minh targetId được ưu tiên.
+      // `character` là field cũ đã bỏ khỏi contract và VM không còn đọc nó (TASK-LEGACY-SPRITE);
+      // giữ ở đây để chứng minh sprite chỉ được lưu theo targetId.
       const showWithLegacyCharacter: ShowInstruction & { character: string } = {
         type: 'SHOW',
         targetId: 'sword_legendary',
