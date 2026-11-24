@@ -364,9 +364,10 @@ body.is-embedded #game-root {
 .speaker-nameplate {
   display: inline-block;
   align-self: flex-start;
-  background: #ffffff;
-  color: #000000;
-  border: var(--vn-border-width) solid #000000;
+  /* Nền tối: SpeakerNameplate gán speakerColorHex inline (mặc định kernel là #ffffff) */
+  background: #000000;
+  color: #ffffff;
+  border: var(--vn-border-width) solid #ffffff;
   border-bottom: none;
   padding: 4px 18px;
   border-radius: var(--vn-radius-base);
