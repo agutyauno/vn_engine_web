@@ -13,6 +13,15 @@ interface MockHowlOptions {
 
 const mockHowlInstances: Array<{ options: MockHowlOptions }> = [];
 
+/** Lấy instance Howl thứ `index` đã được tạo; ném lỗi rõ ràng nếu chưa có. */
+function howlAt(index: number): { options: MockHowlOptions } {
+  const instance = mockHowlInstances[index];
+  if (!instance) {
+    throw new Error(`Expected Howl instance #${index} to have been created`);
+  }
+  return instance;
+}
+
 // Mock howler để test chạy độc lập trong môi trường Node và bắt trọn options truyền vào constructor
 vi.mock('howler', () => {
   class MockHowl {
@@ -102,7 +111,7 @@ describe('@vn-engine/audio - Audio Format Resolution (TASK-audio-format-resoluti
     audio.play('sound', 'sfx_explosion', 'blob:http://localhost:3000/123-abc-456', options);
 
     expect(mockHowlInstances).toHaveLength(1);
-    expect(mockHowlInstances[0].options.format).toEqual(['mp3']);
+    expect(howlAt(0).options.format).toEqual(['mp3']);
   });
 
   it('TC-FMT-02: Truyền options.format tường minh dạng array nhiều định dạng', () => {
@@ -113,28 +122,28 @@ describe('@vn-engine/audio - Audio Format Resolution (TASK-audio-format-resoluti
     audio.play('music', 'bgm_track', 'blob:http://localhost:3000/456-def-789', options);
 
     expect(mockHowlInstances).toHaveLength(1);
-    expect(mockHowlInstances[0].options.format).toEqual(['ogg', 'mp3']);
+    expect(howlAt(0).options.format).toEqual(['ogg', 'mp3']);
   });
 
   it('TC-FMT-03: URL blob không có đuôi và assetId không có đuôi file (Fallback format)', () => {
     audio.play('sound', 'sfx_laser', 'blob:http://localhost:3000/789-ghi-012');
 
     expect(mockHowlInstances).toHaveLength(1);
-    expect(mockHowlInstances[0].options.format).toEqual(['mp3', 'wav', 'ogg', 'webm', 'aac']);
+    expect(howlAt(0).options.format).toEqual(['mp3', 'wav', 'ogg', 'webm', 'aac']);
   });
 
   it('TC-FMT-04: URL blob nhưng assetId có phần mở rộng file (VD: sfx_laser.wav)', () => {
     audio.play('sound', 'sfx_laser.wav', 'blob:http://localhost:3000/abc-123-xyz');
 
     expect(mockHowlInstances).toHaveLength(1);
-    expect(mockHowlInstances[0].options.format).toEqual(['wav']);
+    expect(howlAt(0).options.format).toEqual(['wav']);
 
     // Mở rộng: Đuôi file viết hoa .OGG -> phải chuẩn hóa về chữ thường .ogg
     mockHowlInstances.length = 0;
     audio.play('voice', 'voice_greeting.OGG', 'blob:http://localhost:3000/voice-abc');
 
     expect(mockHowlInstances).toHaveLength(1);
-    expect(mockHowlInstances[0].options.format).toEqual(['ogg']);
+    expect(howlAt(0).options.format).toEqual(['ogg']);
   });
 
   it('TC-FMT-05: Phát intro kèm loop trên URL blob (Chaining intro + loop)', () => {
@@ -145,8 +154,8 @@ describe('@vn-engine/audio - Audio Format Resolution (TASK-audio-format-resoluti
     });
 
     expect(mockHowlInstances).toHaveLength(2);
-    expect(mockHowlInstances[0].options.format).toEqual(['ogg']);
-    expect(mockHowlInstances[1].options.format).toEqual(['mp3']);
+    expect(howlAt(0).options.format).toEqual(['ogg']);
+    expect(howlAt(1).options.format).toEqual(['mp3']);
 
     // Kịch bản 2: Cả intro và loop không có đuôi file -> đều fallback
     mockHowlInstances.length = 0;
@@ -156,14 +165,14 @@ describe('@vn-engine/audio - Audio Format Resolution (TASK-audio-format-resoluti
     });
 
     expect(mockHowlInstances).toHaveLength(2);
-    expect(mockHowlInstances[0].options.format).toEqual(['mp3', 'wav', 'ogg', 'webm', 'aac']);
-    expect(mockHowlInstances[1].options.format).toEqual(['mp3', 'wav', 'ogg', 'webm', 'aac']);
+    expect(howlAt(0).options.format).toEqual(['mp3', 'wav', 'ogg', 'webm', 'aac']);
+    expect(howlAt(1).options.format).toEqual(['mp3', 'wav', 'ogg', 'webm', 'aac']);
   });
 
   it('TC-FMT-06: URL HTTP bình thường có đuôi file rõ ràng và không truyền format', () => {
     audio.play('music', 'bgm_peaceful', 'https://example.com/assets/bgm.mp3');
 
     expect(mockHowlInstances).toHaveLength(1);
-    expect(mockHowlInstances[0].options.format).toBeUndefined();
+    expect(howlAt(0).options.format).toBeUndefined();
   });
 });

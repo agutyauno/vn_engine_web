@@ -647,13 +647,13 @@ describe('Shared Types & Data Contracts', () => {
         customScripts: [],
       };
 
-      expect((unifiedProject as Record<string, unknown>).characters).toBeUndefined();
+      expect('characters' in unifiedProject).toBe(false);
 
       const serialized = JSON.stringify(unifiedProject);
       const parsed = JSON.parse(serialized) as Project;
 
       expect(parsed.id).toBe(unifiedProject.id);
-      expect((parsed as Record<string, unknown>).characters).toBeUndefined();
+      expect(Object.prototype.hasOwnProperty.call(parsed, 'characters')).toBe(false);
       expect(parsed.assets).toHaveLength(1);
       expect(parsed.assets[0]?.tag).toBe('alice');
       expect(parsed.assets[0]?.variant).toBe('happy');

@@ -2,6 +2,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Assets, Texture } from 'pixi.js';
 import { GameRenderer } from '../src/renderer';
 
+/**
+ * `Assets.load` có nhiều overload; `vi.spyOn` lấy overload cuối (trả về `Record<string, T>`),
+ * nên giá trị mock phải thoả cả `Texture` (renderer dùng) lẫn `Record` (kiểu của spy).
+ */
+type LoadedAsset = Texture & Record<string, unknown>;
+
 describe('Renderer Resilience & Asset Fallback (TASK-renderer-null-texture-and-blob-hydration)', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -12,7 +18,7 @@ describe('Renderer Resilience & Asset Fallback (TASK-renderer-null-texture-and-b
   });
 
   it('TC-REND-RESIL-01: setBackground gracefully falls back when Assets.load resolves to null (does not crash on texture.width)', async () => {
-    vi.spyOn(Assets, 'load').mockResolvedValue(null as unknown as Texture);
+    vi.spyOn(Assets, 'load').mockResolvedValue(null as unknown as LoadedAsset);
 
     const renderer = new GameRenderer({
       width: 1280,
@@ -42,7 +48,7 @@ describe('Renderer Resilience & Asset Fallback (TASK-renderer-null-texture-and-b
   });
 
   it('TC-REND-RESIL-02: showCharacter gracefully falls back when Assets.load resolves to null', async () => {
-    vi.spyOn(Assets, 'load').mockResolvedValue(null as unknown as Texture);
+    vi.spyOn(Assets, 'load').mockResolvedValue(null as unknown as LoadedAsset);
 
     const renderer = new GameRenderer({
       width: 1280,
@@ -52,7 +58,7 @@ describe('Renderer Resilience & Asset Fallback (TASK-renderer-null-texture-and-b
 
     await expect(
       renderer.showCharacter(
-        { type: 'SHOW', character: 'alice', sprite: 'smile' },
+        { type: 'SHOW', targetId: 'alice', variant: 'smile' },
         () => 'blob:http://localhost:3001/dead-uuid',
       ),
     ).resolves.not.toThrow();
@@ -76,7 +82,7 @@ describe('Renderer Resilience & Asset Fallback (TASK-renderer-null-texture-and-b
       height: 1080,
       source: Texture.WHITE.source,
       destroy: vi.fn(),
-    } as unknown as Texture;
+    } as unknown as LoadedAsset;
 
     const loadSpy = vi.spyOn(Assets, 'load').mockResolvedValue(fakeTexture);
 
@@ -106,7 +112,7 @@ describe('Renderer Resilience & Asset Fallback (TASK-renderer-null-texture-and-b
       height: 600,
       source: Texture.WHITE.source,
       destroy: vi.fn(),
-    } as unknown as Texture;
+    } as unknown as LoadedAsset;
 
     const loadSpy = vi.spyOn(Assets, 'load').mockResolvedValue(fakeTexture);
 
@@ -117,7 +123,7 @@ describe('Renderer Resilience & Asset Fallback (TASK-renderer-null-texture-and-b
     });
 
     await renderer.showCharacter(
-      { type: 'SHOW', character: 'alice', sprite: 'smile' },
+      { type: 'SHOW', targetId: 'alice', variant: 'smile' },
       () => 'blob:http://localhost:3001/alice-uuid',
     );
 

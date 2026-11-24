@@ -12,7 +12,7 @@ function createMockSnapshot(
     instructionPointer: dialogueIndex,
     callStack: [],
     variables: { affection },
-    characterDisplayOverrides: {},
+    activeSprites: {},
     customScriptState: {},
     localVariables: {},
   };
