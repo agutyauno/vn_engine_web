@@ -506,7 +506,9 @@ describe('parseGameBundle', () => {
       if (result.ok) {
         expect('extra' in result.bundle).toBe(false);
         expect('polluted' in result.bundle).toBe(false);
-        expect('__proto__' in result.bundle).toBe(false);
+        // `'__proto__' in obj` luôn true (accessor kế thừa), nên kiểm tra key riêng và prototype.
+        expect(Object.prototype.hasOwnProperty.call(result.bundle, '__proto__')).toBe(false);
+        expect(Object.getPrototypeOf(result.bundle)).toBe(Object.prototype);
       }
     });
 
@@ -705,6 +707,108 @@ describe('parseGameBundle', () => {
         expect(asset).toBeDefined();
         if (asset) {
           expect('extraField' in asset).toBe(false);
+        }
+      }
+    });
+  });
+
+  describe('storageUrl hardening (review)', () => {
+    const baseUrl = 'https://g.example/play/index.html';
+
+    it('rejects URLs containing control characters (newlines, tabs) with warnings', () => {
+      const inputs = [
+        { id: 'asset_newline', url: 'java\nscript:alert(1)' },
+        { id: 'asset_tab', url: 'jav\tascript:alert(1)' },
+      ];
+
+      for (const item of inputs) {
+        const raw = createValidBundleRaw();
+        raw.assets = [
+          {
+            id: item.id,
+            name: 'test.png',
+            type: 'image',
+            storageUrl: item.url,
+            sizeBytes: 100,
+          },
+        ];
+
+        const resultWithBase = parseGameBundle(raw, baseUrl);
+        expect(resultWithBase.ok).toBe(true);
+        if (resultWithBase.ok) {
+          expect(resultWithBase.bundle.assets).toHaveLength(0);
+          expect(resultWithBase.warnings.some(w => w.includes(item.id))).toBe(true);
+        }
+
+        const resultWithoutBase = parseGameBundle(raw);
+        expect(resultWithoutBase.ok).toBe(true);
+        if (resultWithoutBase.ok) {
+          expect(resultWithoutBase.bundle.assets).toHaveLength(0);
+          expect(resultWithoutBase.warnings.some(w => w.includes(item.id))).toBe(true);
+        }
+      }
+    });
+
+    it('rejects URLs starting with backslashes or slashes that can escape host (\\\\, /\\, \\/)', () => {
+      const inputs = [
+        { id: 'asset_backslash_double', url: '\\\\evil.com/a.png' },
+        { id: 'asset_slash_backslash', url: '/\\evil.com/a.png' },
+        { id: 'asset_backslash_slash', url: '\\/evil.com/a.png' },
+      ];
+
+      for (const item of inputs) {
+        const raw = createValidBundleRaw();
+        raw.assets = [
+          {
+            id: item.id,
+            name: 'test.png',
+            type: 'image',
+            storageUrl: item.url,
+            sizeBytes: 100,
+          },
+        ];
+
+        const resultWithBase = parseGameBundle(raw, baseUrl);
+        expect(resultWithBase.ok).toBe(true);
+        if (resultWithBase.ok) {
+          expect(resultWithBase.bundle.assets).toHaveLength(0);
+          expect(resultWithBase.warnings.some(w => w.includes(item.id))).toBe(true);
+        }
+
+        const resultWithoutBase = parseGameBundle(raw);
+        expect(resultWithoutBase.ok).toBe(true);
+        if (resultWithoutBase.ok) {
+          expect(resultWithoutBase.bundle.assets).toHaveLength(0);
+          expect(resultWithoutBase.warnings.some(w => w.includes(item.id))).toBe(true);
+        }
+      }
+    });
+
+    it('correctly resolves and preserves valid relative URLs against baseUrl', () => {
+      const validCases = [
+        { url: 'assets/a b.png', expected: 'https://g.example/play/assets/a%20b.png' },
+        { url: '../up/a.png', expected: 'https://g.example/up/a.png' },
+        { url: '/abs/a.png', expected: 'https://g.example/abs/a.png' },
+      ];
+
+      for (const item of validCases) {
+        const raw = createValidBundleRaw();
+        raw.assets = [
+          {
+            id: 'asset_valid',
+            name: 'valid.png',
+            type: 'image',
+            storageUrl: item.url,
+            sizeBytes: 100,
+          },
+        ];
+
+        const result = parseGameBundle(raw, baseUrl);
+        expect(result.ok).toBe(true);
+        if (result.ok) {
+          expect(result.bundle.assets).toHaveLength(1);
+          expect(result.bundle.assets[0]?.storageUrl).toBe(item.expected);
+          expect(result.warnings).toEqual([]);
         }
       }
     });
