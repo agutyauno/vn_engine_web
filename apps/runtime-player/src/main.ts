@@ -220,6 +220,7 @@ window.addEventListener('DOMContentLoaded', async () => {
           resolveTitleConfig(opts.title, opts.titleSettings, effectiveAssets ?? []),
         );
       }
+      kernel.setEntryScene(opts?.entryScene);
       const startAtTitle = opts?.startMode === 'title';
       await kernel.loadProgram(newProgram, {
         ...opts,

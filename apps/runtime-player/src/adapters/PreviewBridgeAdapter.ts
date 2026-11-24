@@ -46,6 +46,7 @@ export interface HotReloadOptions {
   title?: string;
   titleSettings?: ProjectTitleSettings;
   startMode?: 'title' | 'scene';
+  entryScene?: string;
 }
 
 export interface PreviewBridgeOptions {
@@ -136,6 +137,10 @@ export class PreviewBridgeAdapter {
           ProjectTitleSettings | undefined;
         const startMode = (payload?.startMode ?? data.startMode) as 'title' | 'scene' | undefined;
 
+        const rawEntryScene = payload?.entryScene ?? data.entryScene;
+        const entryScene =
+          typeof rawEntryScene === 'string' && rawEntryScene !== '' ? rawEntryScene : undefined;
+
         if (program) {
           const opts: HotReloadOptions = {};
           if (scene !== undefined) opts.scene = scene;
@@ -146,6 +151,7 @@ export class PreviewBridgeAdapter {
           if (title !== undefined) opts.title = title;
           if (titleSettings !== undefined) opts.titleSettings = titleSettings;
           if (startMode !== undefined) opts.startMode = startMode;
+          if (entryScene !== undefined) opts.entryScene = entryScene;
           this.options.onHotReload?.(program, Object.keys(opts).length > 0 ? opts : undefined);
         }
         break;

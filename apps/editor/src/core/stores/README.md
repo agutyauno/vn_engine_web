@@ -13,7 +13,7 @@ Centralized state management stores built with Zustand. Manages active project d
 - `useDiagnosticsStore`: Zustand store for compiler, reconciliation, and runtime diagnostics
 - `DiagnosticsStoreState`: State and actions interface for diagnosticsStore
 - `usePreviewStore`, `useLivePreviewStore`: Zustand store for live preview playback and variables
-- `LivePreviewStoreState`, `HotReloadPayload`: State and actions interface for previewStore (with branding `title`, `titleSettings`, and `startMode`)
+- `LivePreviewStoreState`, `HotReloadPayload`: State and actions interface for previewStore (with branding `title`, `titleSettings`, `startMode`, and the resolved `entryScene`)
 
 ## Invariants
 

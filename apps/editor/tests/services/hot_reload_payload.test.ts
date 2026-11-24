@@ -121,4 +121,63 @@ describe('buildHotReloadPayload (TASK-editor-title-branding E5)', () => {
     expect(payload).not.toHaveProperty('preserveState');
     expect(payload).not.toHaveProperty('startMode');
   });
+  describe('entryScene (TASK-PRV-ENTRY)', () => {
+    const multiProgram: Instruction[] = [
+      { type: 'SCENE', name: 'start' },
+      { type: 'HIDE_DIALOGUE' },
+      { type: 'SCENE', name: 'chapter2_intro' },
+      { type: 'SCENE', name: 'chapter2_end' },
+    ];
+    const multiFileProject: Project = {
+      ...baseProject,
+      entryScene: 'chapter2.vns',
+      files: [
+        { id: 'f1', name: 'main.vns', content: 'scene start {\n  "A"\n}\n', order: 0, version: 1 },
+        {
+          id: 'f2',
+          name: 'chapter2.vns',
+          content: 'scene chapter2_intro {\n  "B"\n}\nscene chapter2_end {\n  "C"\n}\n',
+          order: 1,
+          version: 1,
+        },
+      ],
+    };
+
+    it('resolves the entry file to the first scene declared in it', () => {
+      const payload = buildHotReloadPayload(multiFileProject, multiProgram);
+      expect(payload.entryScene).toBe('chapter2_intro');
+    });
+
+    it('passes through an entryScene that is already a scene name', () => {
+      const payload = buildHotReloadPayload(
+        { ...multiFileProject, entryScene: 'chapter2_end' },
+        multiProgram,
+      );
+      expect(payload.entryScene).toBe('chapter2_end');
+    });
+
+    it('omits entryScene when the project has none', () => {
+      const { entryScene: _omit, ...noEntry } = multiFileProject;
+      void _omit;
+      const payload = buildHotReloadPayload(noEntry, multiProgram);
+      expect(payload).not.toHaveProperty('entryScene');
+    });
+
+    it('omits entryScene when it cannot be resolved', () => {
+      const payload = buildHotReloadPayload(
+        { ...multiFileProject, entryScene: 'missing.vns' },
+        multiProgram,
+      );
+      expect(payload).not.toHaveProperty('entryScene');
+    });
+
+    it('keeps entryScene alongside an explicit Run from Cursor target', () => {
+      const payload = buildHotReloadPayload(multiFileProject, multiProgram, {
+        line: 3,
+        startMode: 'scene',
+      });
+      expect(payload.entryScene).toBe('chapter2_intro');
+      expect(payload.line).toBe(3);
+    });
+  });
 });

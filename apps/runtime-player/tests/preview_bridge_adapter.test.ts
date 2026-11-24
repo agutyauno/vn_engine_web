@@ -412,4 +412,49 @@ describe('PreviewBridgeAdapter', () => {
       expect(opts).not.toHaveProperty('startMode');
     });
   });
+  describe('HOT_RELOAD_PROGRAM entryScene forwarding (TASK-PRV-ENTRY)', () => {
+    const sendReload = (adapter: PreviewBridgeAdapter, payload: Record<string, unknown>) => {
+      adapter.handleMessage(
+        new MessageEvent('message', {
+          origin: 'http://localhost:3000',
+          data: { type: 'HOT_RELOAD_PROGRAM', payload },
+        }),
+      );
+    };
+
+    it('forwards entryScene when it is a non-empty string', () => {
+      const onHotReload = vi.fn();
+      const adapter = new PreviewBridgeAdapter({
+        targetWindow: () => mockTargetWindow,
+        editorOrigin: 'http://localhost:3000',
+        onHotReload,
+      });
+      adapter.init();
+      const testProgram: Instruction[] = [{ type: 'SCENE', name: 'chapter2' }];
+
+      sendReload(adapter, { program: testProgram, entryScene: 'chapter2', startMode: 'scene' });
+
+      expect(onHotReload).toHaveBeenCalledWith(testProgram, {
+        entryScene: 'chapter2',
+        startMode: 'scene',
+      });
+    });
+
+    it('drops entryScene when it is missing or not a string', () => {
+      const onHotReload = vi.fn();
+      const adapter = new PreviewBridgeAdapter({
+        targetWindow: () => mockTargetWindow,
+        editorOrigin: 'http://localhost:3000',
+        onHotReload,
+      });
+      adapter.init();
+      const testProgram: Instruction[] = [{ type: 'SCENE', name: 'main' }];
+
+      sendReload(adapter, { program: testProgram, entryScene: 42 });
+      sendReload(adapter, { program: testProgram, entryScene: '' });
+
+      expect(onHotReload).toHaveBeenNthCalledWith(1, testProgram, undefined);
+      expect(onHotReload).toHaveBeenNthCalledWith(2, testProgram, undefined);
+    });
+  });
 });

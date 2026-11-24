@@ -27,6 +27,7 @@ Core application services powering compilation, sandboxed runtime communication,
 - `PreviewBridge` enforces zero-trust origin verification via `isAllowedPreviewOrigin` rejecting untrusted message origins.
 - `checkAssetDeletionSafety` flags any asset referenced by background/audio/inspect AST statements as unsafe to delete.
 - `buildHotReloadPayload` omits `titleSettings` when undefined and omits `startMode` during automatic compilation to avoid resetting runtime player state to Title screen.
+- `buildHotReloadPayload` adds `entryScene` (resolved with `resolveEntrySceneName`: an entry file becomes the first scene declared in it) on every hot reload, and omits it when the project has no entry or it cannot be resolved.
 - `buildPublishedGameZip` preserves remote HTTP/HTTPS assets without fetching blobs; packages local blobs into `assets/<sha256-16>.<ext>` with content-hash deduplication; omits missing blobs with warnings; preserves `data:` URLs.
 - `buildPublishedGameZip` omits `entryScene` if unresolvable and omits `titleSettings` if absent from project.
 
