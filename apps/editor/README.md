@@ -25,7 +25,8 @@ TaleForge Studio web editor application package (`@vn-engine/editor`). Provides 
 ## Side Effects
 
 - Compiles frontend bundle via Vite to `dist/`.
-- `pnpm build` deletes and rewrites `public/runtime/` (git-ignored); it fails if `apps/runtime-player/dist/index.html` is missing.
+- `pnpm build` deletes and rewrites `public/runtime/` (git-ignored); it fails if `apps/runtime-player/dist/index.html` is missing or has no `<head>`.
+- The copied `public/runtime/index.html` gets the published marker (`<meta name="taleforge-mode" content="published">`), so the runtime deployed with the editor at `/runtime/index.html` always runs standalone and never opens the preview bridge, even when another site embeds it. `apps/runtime-player/dist/` itself is not changed, so the editor preview keeps working. The marker constant in the script must equal `PUBLISHED_MARKER_META` in `runtimePackage.ts` (a test checks this).
 - Serves static development assets on port 3001.
 
 ## Verification
