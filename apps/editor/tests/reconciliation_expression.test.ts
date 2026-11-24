@@ -17,11 +17,7 @@ import {
   type EditorDiagnostic,
   type ScriptReference,
 } from '../src/core/services/reconciliation';
-import {
-  resolveQuickFixActions,
-  type QuickFixContext,
-  type QuickFixAction,
-} from '../src/core/services/quickFixService';
+import { resolveQuickFixActions, type QuickFixContext } from '../src/core/services/quickFixService';
 
 // ============================================================================
 // Phase 2.4 Extended Data Contract & Type Bridges
@@ -300,7 +296,7 @@ describe('Phase 2.4: Uncreated Expression Warning & QuickFix Pipeline (TC-EXPR-0
         fileContent: ['scene intro {', '  show alice.smile', '}'].join('\n'),
         cursorLine: 2,
         cursorCol: 14,
-        diagnostics: [diag as any],
+        diagnostics: [diag],
         projectCharacters: ['alice'],
         projectAssets: [],
         projectVariables: [],
@@ -342,7 +338,7 @@ describe('Phase 2.4: Uncreated Expression Warning & QuickFix Pipeline (TC-EXPR-0
         },
       };
 
-      const arrayActions = (resolveQuickFixActions as any)([diag as any]) as QuickFixAction[];
+      const arrayActions = resolveQuickFixActions([diag]);
 
       // In Phase 2.4 GREEN when direct array overload is supported
       if (Array.isArray(arrayActions) && arrayActions.length > 0) {

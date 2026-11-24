@@ -3,7 +3,7 @@ import '@testing-library/jest-dom';
 import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import type { Project, AssetRef, ScriptFile } from '@vn-engine/shared-types';
+import type { Project, AssetRef, AssetCategory, ScriptFile } from '@vn-engine/shared-types';
 import { AssetLibraryPane } from '../../src/components/studio/AssetLibraryPane';
 import { useEditorUIStore } from '../../src/core/stores/uiStore';
 import {
@@ -13,7 +13,14 @@ import {
 } from '../../src/core/services/reconciliation';
 import { normalizeCategoryTab } from '../../src/core/utils/assetCategories';
 
-function createMockProject(options?: { assets?: AssetRef[]; files?: ScriptFile[] }): Project {
+interface LegacyPluralAssetRef extends Omit<AssetRef, 'category'> {
+  category?: AssetCategory | 'backgrounds' | 'sprites';
+}
+
+function createMockProject(options?: {
+  assets?: Array<AssetRef | LegacyPluralAssetRef>;
+  files?: ScriptFile[];
+}): Project {
   return {
     id: 'test-proj-category-filter',
     title: 'Category Filter Test Project',
@@ -32,7 +39,7 @@ function createMockProject(options?: { assets?: AssetRef[]; files?: ScriptFile[]
     variables: [],
     uiScreens: [],
     customScripts: [],
-    assets: options?.assets ?? [],
+    assets: (options?.assets ?? []) as AssetRef[],
   };
 }
 
@@ -183,7 +190,7 @@ describe('Phase 2.1: Asset Category Filter Normalization & Reconciliation Prefil
             id: 'ast-bg-plural',
             name: 'bg_castle_plural.png',
             type: 'image',
-            category: 'backgrounds' as any, // legacy plural
+            category: 'backgrounds', // legacy plural
             storageUrl: 'blob:bg-plural',
             sizeBytes: 153600,
           },
@@ -235,7 +242,7 @@ describe('Phase 2.1: Asset Category Filter Normalization & Reconciliation Prefil
             id: 'ast-sp-plural',
             name: 'char_bob_run.png',
             type: 'image',
-            category: 'sprites' as any, // legacy plural
+            category: 'sprites', // legacy plural
             storageUrl: 'blob:bob-run',
             sizeBytes: 95000,
           },

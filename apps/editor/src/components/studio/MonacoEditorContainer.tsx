@@ -6,6 +6,12 @@ import { useDiagnosticsStore } from '../../core/stores/diagnosticsStore';
 import { syncMonacoMarkers } from '../../core/services/monacoMarkerBridge';
 import { setupMonacoEnvironment } from '../../monacoEnvironment';
 
+declare global {
+  interface Window {
+    monaco?: typeof monacoType;
+  }
+}
+
 export interface MonacoEditorHandle {
   insertSnippet: (snippet: string) => void;
 }
@@ -46,16 +52,21 @@ export function handleContainerDragOver(e: {
   }
 }
 
+export interface DropTargetEditor {
+  executeEdits: (
+    source: string,
+    edits: monacoType.editor.IIdentifiedSingleEditOperation[],
+  ) => void | boolean;
+  focus?: () => void;
+  getPosition?: () => { lineNumber: number; column: number } | null;
+  getTargetAtClientPoint?: (
+    x: number,
+    y: number,
+  ) => { position?: { lineNumber: number; column: number } | null } | null;
+}
+
 export function handleEditorDrop(
-  editor: {
-    executeEdits: (source: string, edits: any[]) => void;
-    focus?: () => void;
-    getPosition?: () => { lineNumber: number; column: number } | null;
-    getTargetAtClientPoint?: (
-      x: number,
-      y: number,
-    ) => { position: { lineNumber: number; column: number } } | null;
-  },
+  editor: DropTargetEditor,
   event: {
     clientX?: number;
     clientY?: number;
@@ -107,8 +118,8 @@ export function insertSnippetAtCursor(
   const lineContent = model.getLineContent(position.lineNumber);
   const textToInsert = lineContent.trim().length > 0 ? `\n${snippet}\n` : `${snippet}\n`;
   const range =
-    typeof window !== 'undefined' && (window as any).monaco?.Range
-      ? new (window as any).monaco.Range(
+    typeof window !== 'undefined' && window.monaco && window.monaco.Range
+      ? new window.monaco.Range(
           position.lineNumber,
           position.column,
           position.lineNumber,
@@ -369,7 +380,7 @@ export const MonacoEditorContainer = React.forwardRef<
 
     const onDrop = (e: DragEvent) => {
       if (editorRef.current) {
-        handleEditorDrop(editorRef.current as any, e);
+        handleEditorDrop(editorRef.current, e);
       }
     };
 
