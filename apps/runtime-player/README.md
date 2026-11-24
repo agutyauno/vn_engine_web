@@ -18,6 +18,8 @@ Standalone web runtime player and sandbox preview container for the Visual Novel
 ## Invariants
 
 - Operates identically as an embedded iframe preview, popout window, or standalone web game player.
+- A page with `<meta name="taleforge-mode" content="published">` (added by Export → Web) always runs standalone, even inside an iframe such as itch.io, ignores preview query hints, and never starts the preview bridge.
+- Builds with `base: './'` so `dist/` works from any subfolder.
 - All untrusted scripts execute strictly via bytecode in `@vn-engine/core-vm`.
 - Zero-trust preview bridge sanitizes all incoming postMessage messages.
 

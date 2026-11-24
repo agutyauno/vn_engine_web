@@ -282,7 +282,7 @@ scene chapter2_climax {
       expect('titleSettings' in parsedJson).toBe(false);
     });
 
-    it('packs assets with blobs into assets/<16-hex-hash>.<ext> and deduplicates identical bytes', async () => {
+    it('packs assets with blobs into game-assets/<16-hex-hash>.<ext> and deduplicates identical bytes', async () => {
       const img1Bytes = new Uint8Array([1, 2, 3, 4, 5]);
       const img2Bytes = new Uint8Array([1, 2, 3, 4, 5]); // identical bytes -> should deduplicate
       const soundBytes = new Uint8Array([9, 8, 7]);
@@ -347,9 +347,9 @@ scene chapter2_climax {
       if (!bundleAsset1 || !bundleAsset2 || !bundleAsset3) throw new Error('Assets expected');
 
       // 16-hex character hash check
-      expect(bundleAsset1.storageUrl).toMatch(/^assets\/[0-9a-f]{16}\.png$/);
-      expect(bundleAsset2.storageUrl).toMatch(/^assets\/[0-9a-f]{16}\.png$/);
-      expect(bundleAsset3.storageUrl).toMatch(/^assets\/[0-9a-f]{16}\.wav$/);
+      expect(bundleAsset1.storageUrl).toMatch(/^game-assets\/[0-9a-f]{16}\.png$/);
+      expect(bundleAsset2.storageUrl).toMatch(/^game-assets\/[0-9a-f]{16}\.png$/);
+      expect(bundleAsset3.storageUrl).toMatch(/^game-assets\/[0-9a-f]{16}\.wav$/);
 
       // Identical bytes must have identical storageUrl
       expect(bundleAsset1.storageUrl).toBe(bundleAsset2.storageUrl);
@@ -367,8 +367,8 @@ scene chapter2_climax {
       expect(Array.from(packedFile1)).toEqual(Array.from(img1Bytes));
       expect(Array.from(packedFile3)).toEqual(Array.from(soundBytes));
 
-      // Check deduplication in zip: only 2 files in assets/ directory
-      const assetKeys = Object.keys(unzipped).filter(k => k.startsWith('assets/'));
+      // Check deduplication in zip: only 2 files in game-assets/ directory
+      const assetKeys = Object.keys(unzipped).filter(k => k.startsWith('game-assets/'));
       expect(assetKeys).toHaveLength(2);
 
       // Verify asset metadata preservation
@@ -429,7 +429,7 @@ scene chapter2_climax {
         expect(publishedAsset).toBeDefined();
         if (!publishedAsset) throw new Error('Published asset missing');
 
-        const regex = new RegExp(`^assets\\/[0-9a-f]{16}\\.${item.expectedExt}$`);
+        const regex = new RegExp(`^game-assets\\/[0-9a-f]{16}\\.${item.expectedExt}$`);
         expect(publishedAsset.storageUrl).toMatch(regex);
       }
     });
@@ -471,7 +471,7 @@ scene chapter2_climax {
       expect(bundle.assets[1]?.storageUrl).toBe(httpsAsset.storageUrl);
 
       const unzipped = unzipSync(zip);
-      const assetKeys = Object.keys(unzipped).filter(k => k.startsWith('assets/'));
+      const assetKeys = Object.keys(unzipped).filter(k => k.startsWith('game-assets/'));
       expect(assetKeys).toHaveLength(0);
     });
 
@@ -516,10 +516,109 @@ scene chapter2_climax {
       expect(preservedDataAsset).toBeDefined();
       expect(preservedDataAsset?.storageUrl).toBe(dataUrlAsset.storageUrl);
 
-      // No files packed into assets/
+      // No files packed into game-assets/
       const unzipped = unzipSync(zip);
-      const assetKeys = Object.keys(unzipped).filter(k => k.startsWith('assets/'));
+      const assetKeys = Object.keys(unzipped).filter(k => k.startsWith('game-assets/'));
       expect(assetKeys).toHaveLength(0);
+    });
+  });
+  describe('runtime player bundling (TASK-EXP-WEBZIP W4)', () => {
+    const encoder = new TextEncoder();
+    const runtimeFiles = () =>
+      new Map<string, Uint8Array>([
+        [
+          'index.html',
+          encoder.encode('<!DOCTYPE html><html><head><meta charset="UTF-8" /></head></html>'),
+        ],
+        ['assets/index-abc.js', encoder.encode('console.log("player")')],
+        ['assets/index-abc.css', encoder.encode('body{}')],
+      ]);
+
+    const imageAsset: AssetRef = {
+      id: 'asset-bg',
+      name: 'bg.png',
+      type: 'image',
+      category: 'background',
+      storageUrl: 'blob:http://localhost/bg',
+      sizeBytes: 3,
+    };
+
+    it('includes the runtime files, the published marker and a README at the ZIP root', async () => {
+      const result = await buildPublishedGameZip({
+        project: createMockProject({ assets: [imageAsset] }),
+        program: [],
+        getAssetBlob: async () => new Blob([new Uint8Array([1, 2, 3])], { type: 'image/png' }),
+        runtimeFiles: runtimeFiles(),
+      });
+
+      expect(result.includesRuntime).toBe(true);
+      const unzipped = unzipSync(result.zip);
+      const keys = Object.keys(unzipped).sort();
+      expect(keys).toContain('index.html');
+      expect(keys).toContain('assets/index-abc.js');
+      expect(keys).toContain('assets/index-abc.css');
+      expect(keys).toContain('project.json');
+      expect(keys).toContain('README.txt');
+      expect(keys.some(k => k.startsWith('game-assets/'))).toBe(true);
+
+      const indexHtml = strFromU8(unzipped['index.html'] ?? new Uint8Array());
+      expect(indexHtml).toContain('<meta name="taleforge-mode" content="published">');
+      expect(strFromU8(unzipped['assets/index-abc.js'] ?? new Uint8Array())).toBe(
+        'console.log("player")',
+      );
+      const readme = strFromU8(unzipped['README.txt'] ?? new Uint8Array());
+      expect(readme).toMatch(/itch\.io/i);
+      expect(readme).toMatch(/file:\/\//);
+    });
+
+    it('builds a game-only package without README when no runtime is given', async () => {
+      const result = await buildPublishedGameZip({
+        project: createMockProject(),
+        program: [],
+        getAssetBlob: async () => null,
+      });
+
+      expect(result.includesRuntime).toBe(false);
+      expect(Object.keys(unzipSync(result.zip))).toEqual(['project.json']);
+    });
+
+    it('rejects runtime files without index.html', async () => {
+      const files = runtimeFiles();
+      files.delete('index.html');
+      await expect(
+        buildPublishedGameZip({
+          project: createMockProject(),
+          program: [],
+          getAssetBlob: async () => null,
+          runtimeFiles: files,
+        }),
+      ).rejects.toThrow(/index\.html/);
+    });
+
+    it.each(['project.json', 'README.txt', 'game-assets/x.png'])(
+      'rejects a runtime file that would overwrite %s',
+      async reserved => {
+        const files = runtimeFiles();
+        files.set(reserved, encoder.encode('evil'));
+        await expect(
+          buildPublishedGameZip({
+            project: createMockProject(),
+            program: [],
+            getAssetBlob: async () => null,
+            runtimeFiles: files,
+          }),
+        ).rejects.toThrow(/reserved/i);
+      },
+    );
+
+    it('reports itch.io limit warnings computed from extracted file sizes', async () => {
+      const result = await buildPublishedGameZip({
+        project: createMockProject(),
+        program: [],
+        getAssetBlob: async () => null,
+        runtimeFiles: runtimeFiles(),
+      });
+      expect(result.limitWarnings).toEqual([]);
     });
   });
 });

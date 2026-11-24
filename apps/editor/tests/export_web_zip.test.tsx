@@ -3,6 +3,7 @@ import '@testing-library/jest-dom';
 import 'fake-indexeddb/auto';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { unzipSync, strFromU8 } from 'fflate';
 import type { Project } from '@vn-engine/shared-types';
 import { StudioWorkspacePage } from '../src/components/studio/StudioWorkspacePage';
 import { IndexedDBProjectRepository } from '../src/core/repositories/IndexedDBProjectRepository';
@@ -45,8 +46,44 @@ describe('L3 Integration Tests: StudioWorkspacePage Export Flow', () => {
   let capturedDownloads: CapturedDownload[] = [];
   let blobStorage: Map<string, Blob> = new Map();
   let repo: IndexedDBProjectRepository;
+  let fetchMock: ReturnType<typeof vi.fn<(input: RequestInfo | URL) => Promise<Response>>>;
+
+  const urlOf = (input: RequestInfo | URL): string =>
+    typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+
+  /** Giả lập public/runtime/ của editor: manifest + các file của runtime player. */
+  const serveRuntime = (manifest: unknown, files: Record<string, string>) => {
+    fetchMock.mockImplementation(async input => {
+      const url = urlOf(input);
+      if (url.endsWith('/runtime/manifest.json')) {
+        return new Response(JSON.stringify(manifest), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      for (const [path, body] of Object.entries(files)) {
+        if (url.endsWith(`/runtime/${path}`)) return new Response(body, { status: 200 });
+      }
+      return new Response('not found', { status: 404 });
+    });
+  };
+
+  const exportWeb = () => {
+    render(
+      <StudioWorkspacePage
+        projectId={sampleProject.id}
+        repository={repo}
+        initialProject={sampleProject}
+      />,
+    );
+    fireEvent.click(screen.getByTestId('btn-header-export'));
+    fireEvent.click(screen.getByTestId('export-target-web'));
+    fireEvent.click(screen.getByTestId('btn-export-download'));
+  };
 
   beforeEach(async () => {
+    fetchMock = vi.fn(async () => new Response('not found', { status: 404 }));
+    vi.stubGlobal('fetch', fetchMock);
     capturedDownloads = [];
     blobStorage = new Map();
 
@@ -85,6 +122,7 @@ describe('L3 Integration Tests: StudioWorkspacePage Export Flow', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it('downloads a ZIP package ending with _web.zip with type application/zip when target is web', async () => {
@@ -188,5 +226,60 @@ describe('L3 Integration Tests: StudioWorkspacePage Export Flow', () => {
     expect(capturedDownloads[capturedDownloads.length - 1]?.download.endsWith('_web.zip')).toBe(
       true,
     );
+  });
+  describe('runnable web package (TASK-EXP-WEBZIP W4)', () => {
+    it('bundles the runtime player with the published marker and closes the wizard', async () => {
+      serveRuntime(
+        { formatVersion: 1, files: ['index.html', 'assets/index-abc.js'] },
+        {
+          'index.html': '<!DOCTYPE html><html><head><title>Player</title></head></html>',
+          'assets/index-abc.js': 'console.log("player")',
+        },
+      );
+
+      exportWeb();
+
+      await waitFor(() => {
+        expect(capturedDownloads.length).toBeGreaterThan(0);
+      });
+      const blob = capturedDownloads[capturedDownloads.length - 1]?.blob;
+      if (!blob) throw new Error('ZIP blob missing');
+      const unzipped = unzipSync(new Uint8Array(await blob.arrayBuffer()));
+      expect(Object.keys(unzipped)).toEqual(
+        expect.arrayContaining(['index.html', 'assets/index-abc.js', 'project.json', 'README.txt']),
+      );
+      expect(strFromU8(unzipped['index.html'] ?? new Uint8Array())).toContain(
+        '<meta name="taleforge-mode" content="published">',
+      );
+      await waitFor(() => {
+        expect(screen.queryByTestId('modal-export-wizard')).toBeNull();
+      });
+    });
+
+    it('still downloads a game-only ZIP and explains it when no runtime is bundled', async () => {
+      exportWeb();
+
+      await waitFor(() => {
+        expect(capturedDownloads.length).toBeGreaterThan(0);
+      });
+      const blob = capturedDownloads[capturedDownloads.length - 1]?.blob;
+      if (!blob) throw new Error('ZIP blob missing');
+      expect(Object.keys(unzipSync(new Uint8Array(await blob.arrayBuffer())))).toEqual([
+        'project.json',
+      ]);
+      const notice = await screen.findByTestId('export-notice');
+      expect(notice).toHaveTextContent(/runtime not bundled/i);
+      expect(notice).toHaveTextContent(/pnpm build/);
+    });
+
+    it('shows an error and downloads nothing when the runtime manifest is unsafe', async () => {
+      serveRuntime({ formatVersion: 1, files: ['index.html', '../evil.js'] }, {});
+
+      exportWeb();
+
+      const alert = await screen.findByRole('alert');
+      expect(alert).toHaveTextContent(/runtime/i);
+      expect(capturedDownloads).toHaveLength(0);
+    });
   });
 });

@@ -1,18 +1,37 @@
 import { zipSync, strToU8, type Zippable } from 'fflate';
 import type { Project, Instruction, PublishedGameBundle, AssetRef } from '@vn-engine/shared-types';
 import { PUBLISHED_BUNDLE_FORMAT_VERSION } from '@vn-engine/shared-types';
+import {
+  GAME_ASSETS_DIR,
+  PUBLISHED_PACKAGE_README,
+  checkPublishedPackageLimits,
+  injectPublishedMarker,
+  isReservedPackagePath,
+  type PackageLimitWarning,
+} from './runtimePackage';
+
+export { GAME_ASSETS_DIR };
 
 export interface BuildPublishedGameZipOptions {
   project: Project;
   program: Instruction[];
   getAssetBlob: (assetId: string) => Promise<Blob | null>;
   now?: number;
+  /**
+   * File của runtime player (đường dẫn tương đối → nội dung), từ `loadRuntimeFiles`.
+   * Có thì gói chạy được ngay: `index.html` được chèn thẻ meta published và thêm `README.txt`.
+   */
+  runtimeFiles?: Map<string, Uint8Array>;
 }
 
 export interface BuildPublishedGameZipResult {
   zip: Uint8Array;
   bundle: PublishedGameBundle;
   warnings: string[];
+  /** Gói có kèm runtime player hay chỉ có `project.json` + `game-assets/`. */
+  includesRuntime: boolean;
+  /** Cảnh báo theo giới hạn HTML5 của itch.io (không chặn việc xuất). */
+  limitWarnings: PackageLimitWarning[];
 }
 
 const MIME_EXTENSION_MAP: Record<string, string> = {
@@ -108,7 +127,19 @@ export async function buildPublishedGameZip({
   program,
   getAssetBlob,
   now = Date.now(),
+  runtimeFiles,
 }: BuildPublishedGameZipOptions): Promise<BuildPublishedGameZipResult> {
+  if (runtimeFiles) {
+    if (!runtimeFiles.has('index.html')) {
+      throw new Error('Runtime files must include index.html.');
+    }
+    for (const path of runtimeFiles.keys()) {
+      if (isReservedPackagePath(path)) {
+        throw new Error(`Runtime file "${path}" uses a reserved package path.`);
+      }
+    }
+  }
+
   const warnings: string[] = [];
   const bundleAssets: AssetRef[] = [];
   const assetFiles = new Map<string, Uint8Array>();
@@ -130,7 +161,7 @@ export async function buildPublishedGameZip({
       const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
       const hash16 = hashHex.slice(0, 16);
       const ext = resolveAssetExtension(asset.name, blob.type);
-      const relativePath = `assets/${hash16}.${ext}`;
+      const relativePath = `${GAME_ASSETS_DIR}/${hash16}.${ext}`;
 
       if (!assetFiles.has(relativePath)) {
         assetFiles.set(relativePath, bytes);
@@ -182,11 +213,32 @@ export async function buildPublishedGameZip({
     zipEntries[path] = [bytes, { level: 0 }];
   }
 
+  if (runtimeFiles) {
+    for (const [path, bytes] of runtimeFiles) {
+      const content =
+        path === 'index.html'
+          ? strToU8(injectPublishedMarker(new TextDecoder().decode(bytes)))
+          : bytes;
+      zipEntries[path] = [content, { level: 6 }];
+    }
+    zipEntries['README.txt'] = [strToU8(PUBLISHED_PACKAGE_README), { level: 6 }];
+  }
+
+  const fileSizes = new Map<string, number>();
+  for (const [path, entry] of Object.entries(zipEntries)) {
+    const data = Array.isArray(entry) ? entry[0] : entry;
+    if (data instanceof Uint8Array) {
+      fileSizes.set(path, data.byteLength);
+    }
+  }
+
   const zip = zipSync(zipEntries);
 
   return {
     zip,
     bundle,
     warnings,
+    includesRuntime: runtimeFiles !== undefined,
+    limitWarnings: checkPublishedPackageLimits(fileSizes),
   };
 }

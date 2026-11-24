@@ -26,6 +26,7 @@ import {
 } from './adapters/PreviewBridgeAdapter';
 import { resolveTitleConfig } from './adapters/titleConfigResolver';
 import { loadGameBundle } from './adapters/gameBundleLoader';
+import { detectLaunchContext, readLaunchContextInput } from './adapters/launchContext';
 import { GameDataErrorScreen } from './ui/components/GameDataErrorScreen';
 import { PlayerUIProvider } from './ui/context/PlayerUIContext';
 import { PlayerApp } from './ui/components/PlayerApp';
@@ -57,13 +58,8 @@ const defaultStandaloneAssets: AssetRef[] = [
 
 window.addEventListener('DOMContentLoaded', async () => {
   const urlParams = new URLSearchParams(window.location.search);
-  const isPopout = urlParams.get('popout') === 'true' || window.name === 'VN_Preview_Popout';
-  const isModePreview = urlParams.get('mode') === 'preview';
-  const isEmbedded =
-    (window.parent && window.parent !== window) ||
-    isPopout ||
-    urlParams.get('embedded') === 'true' ||
-    isModePreview;
+  const launch = detectLaunchContext(readLaunchContextInput(document, window));
+  const { isModePreview, isEmbedded } = launch;
 
   let projectId = urlParams.get('projectId') || urlParams.get('project') || undefined;
 
@@ -138,13 +134,11 @@ window.addEventListener('DOMContentLoaded', async () => {
   }
 
   // 3. Khởi tạo Platform Adapters (chỉ khi nạp thành công hoặc preview/embedded)
-  let bridge: PreviewBridgeAdapter;
+  let bridge: PreviewBridgeAdapter | null = null;
 
   const assetResolver = new AssetResolverAdapter(() => currentProjectData, {
     report: diag => {
-      if (bridge && typeof bridge.sendDiagnostic === 'function') {
-        bridge.sendDiagnostic(diag as EngineDiagnostic);
-      }
+      bridge?.sendDiagnostic(diag as EngineDiagnostic);
     },
   });
 
@@ -186,57 +180,60 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   (window as unknown as { vnKernel: VNRuntimeKernel }).vnKernel = kernel;
 
-  // 5. Kết nối PreviewBridgeAdapter với Web Studio Editor
-  let targetEditorOrigin = '*';
-  const editorOriginParam = urlParams.get('editorOrigin');
-  if (editorOriginParam && isAllowedEditorOrigin(editorOriginParam)) {
-    targetEditorOrigin = editorOriginParam;
-  } else if (document.referrer) {
-    try {
-      const refUrl = new URL(document.referrer);
-      if (isAllowedEditorOrigin(refUrl.origin)) {
-        targetEditorOrigin = refUrl.origin;
+  // 5. Kết nối PreviewBridgeAdapter với Web Studio Editor (gói published không mở kênh preview)
+  if (launch.enablePreviewBridge) {
+    let targetEditorOrigin = '*';
+    const editorOriginParam = urlParams.get('editorOrigin');
+    if (editorOriginParam && isAllowedEditorOrigin(editorOriginParam)) {
+      targetEditorOrigin = editorOriginParam;
+    } else if (document.referrer) {
+      try {
+        const refUrl = new URL(document.referrer);
+        if (isAllowedEditorOrigin(refUrl.origin)) {
+          targetEditorOrigin = refUrl.origin;
+        }
+      } catch {
+        // ignore
       }
-    } catch {
-      // ignore
     }
-  }
 
-  bridge = new PreviewBridgeAdapter({
-    editorOrigin: targetEditorOrigin,
-    onHotReload: async (newProgram, opts) => {
-      let effectiveAssets = opts?.assets;
-      if (opts?.assets && opts.assets.length > 0) {
-        effectiveAssets = await hydrateForeignAssetBlobs(opts.assets, bridge);
-      }
-      if (effectiveAssets) {
-        currentProjectData.id = opts?.projectId || currentProjectData.id;
-        currentProjectData.assets =
-          (effectiveAssets as unknown as ProjectDataAsset[]) || currentProjectData.assets;
-        assetResolver.resetWarnedAssets();
-      }
-      if (opts?.title !== undefined || opts?.titleSettings !== undefined) {
-        kernel.setTitleConfig(
-          resolveTitleConfig(opts.title, opts.titleSettings, effectiveAssets ?? []),
-        );
-      }
-      kernel.setEntryScene(opts?.entryScene);
-      const startAtTitle = opts?.startMode === 'title';
-      await kernel.loadProgram(newProgram, {
-        ...opts,
-        assets: effectiveAssets,
-        startAtTitle,
-        startGameplay: opts?.startMode === 'scene',
-      });
-      if (kernel.getState().mode === 'STANDBY' && !startAtTitle) {
-        await kernel.startNewGame();
-      }
-    },
-    onSetVariable: (name, value) => {
-      kernel.setVariable(name, value);
-    },
-  });
-  bridge.init();
+    const previewBridge = new PreviewBridgeAdapter({
+      editorOrigin: targetEditorOrigin,
+      onHotReload: async (newProgram, opts) => {
+        let effectiveAssets = opts?.assets;
+        if (opts?.assets && opts.assets.length > 0) {
+          effectiveAssets = await hydrateForeignAssetBlobs(opts.assets, previewBridge);
+        }
+        if (effectiveAssets) {
+          currentProjectData.id = opts?.projectId || currentProjectData.id;
+          currentProjectData.assets =
+            (effectiveAssets as unknown as ProjectDataAsset[]) || currentProjectData.assets;
+          assetResolver.resetWarnedAssets();
+        }
+        if (opts?.title !== undefined || opts?.titleSettings !== undefined) {
+          kernel.setTitleConfig(
+            resolveTitleConfig(opts.title, opts.titleSettings, effectiveAssets ?? []),
+          );
+        }
+        kernel.setEntryScene(opts?.entryScene);
+        const startAtTitle = opts?.startMode === 'title';
+        await kernel.loadProgram(newProgram, {
+          ...opts,
+          assets: effectiveAssets,
+          startAtTitle,
+          startGameplay: opts?.startMode === 'scene',
+        });
+        if (kernel.getState().mode === 'STANDBY' && !startAtTitle) {
+          await kernel.startNewGame();
+        }
+      },
+      onSetVariable: (name, value) => {
+        kernel.setVariable(name, value);
+      },
+    });
+    previewBridge.init();
+    bridge = previewBridge;
+  }
 
   // 6. Gắn canvas PixiJS khi chuyển sang GAMEPLAY mode
   const attachCanvasToStage = () => {
@@ -252,7 +249,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     if (state.mode === 'GAMEPLAY') {
       requestAnimationFrame(attachCanvasToStage);
     }
-    bridge.sendStateUpdate(kernel.getVariables());
+    bridge?.sendStateUpdate(kernel.getVariables());
   });
 
   // 7. Mount Preact UI Root vào #ui-root

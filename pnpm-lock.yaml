@@ -239,6 +239,9 @@ importers:
       '@vitejs/plugin-react':
         specifier: ^4.7.0
         version: 4.7.0(supports-color@7.2.0)(vite@6.4.3(@types/node@26.6.1)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.13))
+      '@vn-engine/runtime-player':
+        specifier: workspace:*
+        version: link:../runtime-player
       fake-indexeddb:
         specifier: ^6.2.6
         version: 6.2.6

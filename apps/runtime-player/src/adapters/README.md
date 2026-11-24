@@ -19,6 +19,7 @@ Provides decoupled integration adapters connecting the engine kernel to browser 
   - `getSettings(): PlayerSettingsData`, `saveSettings(partial: Partial<PlayerSettingsData>): void`, `flushSettings(): void`: Read, debounce-write, and immediately write player settings under `${prefix}_settings`.
   - `deleteSlot(slotIndex: number): Promise<void>`: Deletes slot 0 (quicksave) or 1..6.
   - `getMostRecentSave(): SaveSlotData | null`: Returns the save with the greatest `timestamp` across the quicksave and slots 1..6, or `null` when there is none.
+- `detectLaunchContext(input)`, `readLaunchContextInput(document, window)`, `PUBLISHED_MODE_META_NAME`/`PUBLISHED_MODE_META_CONTENT`: Decide published / popout / preview / embedded mode and whether to start `PreviewBridgeAdapter`. Only the exact value `published` counts.
 - `GameBundleError`, `GameBundleParseResult`, `parseGameBundle(raw: unknown, baseUrl?: string): GameBundleParseResult`: Zero-Trust parser and validator for published game bundles.
 - `GameBundleLoadResult`, `LoadGameBundleOptions`, `loadGameBundle({ document, fetchFn, baseUrl }): Promise<GameBundleLoadResult>`: Asynchronously loads a published game bundle by checking embedded HTML script first, then falling back to fetching `./project.json`.
 
