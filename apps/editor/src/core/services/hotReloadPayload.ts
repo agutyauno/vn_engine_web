@@ -1,5 +1,6 @@
 import type { Project, Instruction } from '@vn-engine/shared-types';
 import type { HotReloadPayload } from '../stores/livePreviewStore';
+import { resolveEntrySceneName } from './publishedBundle';
 
 export interface HotReloadPayloadExtra {
   scene?: string;
@@ -22,6 +23,11 @@ export function buildHotReloadPayload(
 
   if (project.titleSettings !== undefined) {
     payload.titleSettings = project.titleSettings;
+  }
+
+  const entryScene = resolveEntrySceneName(project, program);
+  if (entryScene !== undefined) {
+    payload.entryScene = entryScene;
   }
 
   if (extra?.scene !== undefined) {

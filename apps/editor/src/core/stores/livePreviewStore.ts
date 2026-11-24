@@ -11,6 +11,8 @@ export interface HotReloadPayload {
   title?: string;
   titleSettings?: ProjectTitleSettings;
   startMode?: 'title' | 'scene';
+  /** Tên scene bắt đầu New Game (đã phân giải từ project.entryScene). */
+  entryScene?: string;
 }
 
 export interface LivePreviewStoreState {
