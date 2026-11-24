@@ -362,4 +362,90 @@ describe('loadGameBundle (Phase L2b RED)', () => {
       }
     });
   });
+
+  describe('SPA fallback (review)', () => {
+    it('returns kind "none" when fetch returns 200 with content-type containing text/html (SPA fallback)', async () => {
+      const fetchFn = vi.fn((_url: string) =>
+        Promise.resolve(
+          new Response('<!doctype html><html><body>SPA fallback</body></html>', {
+            status: 200,
+            headers: { 'content-type': 'text/html; charset=utf-8' },
+          }),
+        ),
+      );
+
+      const result = await loadGameBundle({
+        document,
+        fetchFn,
+        baseUrl,
+      });
+
+      expect(fetchFn).toHaveBeenCalledTimes(1);
+      expect(fetchFn).toHaveBeenCalledWith(expectedProjectUrl);
+      expect(result).toEqual({ kind: 'none' });
+    });
+
+    it('returns kind "none" when fetch returns 200 with uppercase TEXT/HTML content-type', async () => {
+      const fetchFn = vi.fn((_url: string) =>
+        Promise.resolve(
+          new Response('<!DOCTYPE HTML><html>SPA fallback</html>', {
+            status: 200,
+            headers: { 'content-type': 'TEXT/HTML' },
+          }),
+        ),
+      );
+
+      const result = await loadGameBundle({
+        document,
+        fetchFn,
+        baseUrl,
+      });
+
+      expect(fetchFn).toHaveBeenCalledTimes(1);
+      expect(fetchFn).toHaveBeenCalledWith(expectedProjectUrl);
+      expect(result).toEqual({ kind: 'none' });
+    });
+
+    it('returns error "invalid_json" when fetch returns 200 with application/json but corrupted body', async () => {
+      const fetchFn = vi.fn((_url: string) =>
+        Promise.resolve(
+          new Response('{ corrupted json', {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          }),
+        ),
+      );
+
+      const result = await loadGameBundle({
+        document,
+        fetchFn,
+        baseUrl,
+      });
+
+      expect(fetchFn).toHaveBeenCalledTimes(1);
+      expect(fetchFn).toHaveBeenCalledWith(expectedProjectUrl);
+      expect(result).toEqual({ kind: 'error', error: 'invalid_json' });
+    });
+
+    it('returns bundle when fetch returns 200 with no content-type and valid bundle', async () => {
+      const validBundle = createValidBundle();
+      const res = new Response(JSON.stringify(validBundle), { status: 200 });
+      res.headers.delete('content-type');
+      const fetchFn = vi.fn((_url: string) => Promise.resolve(res));
+
+      const result = await loadGameBundle({
+        document,
+        fetchFn,
+        baseUrl,
+      });
+
+      expect(fetchFn).toHaveBeenCalledTimes(1);
+      expect(fetchFn).toHaveBeenCalledWith(expectedProjectUrl);
+      expect(result.kind).toBe('bundle');
+      if (result.kind === 'bundle') {
+        expect(result.source).toBe('file');
+        expect(result.bundle.projectId).toBe('demo-project-id');
+      }
+    });
+  });
 });
