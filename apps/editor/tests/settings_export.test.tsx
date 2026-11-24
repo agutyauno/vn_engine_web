@@ -238,6 +238,51 @@ describe('Milestone 9: Project Settings & Export Wizard', () => {
       expect(handleExport).toHaveBeenCalledWith('backup');
     });
 
+    describe('Runnable web package copy and notices (TASK-EXP-WEBZIP W4)', () => {
+      it('describes the web target as a self-contained package', () => {
+        render(
+          <ExportWizardModal
+            isOpen={true}
+            project={sampleProject}
+            onClose={vi.fn()}
+            onExport={vi.fn()}
+          />,
+        );
+        const card = screen.getByTestId('export-target-web');
+        expect(card).toHaveTextContent(/game-assets\//);
+        expect(card).toHaveTextContent(/itch\.io/i);
+        expect(card).not.toHaveTextContent(/next to a runtime player build/i);
+      });
+
+      it('shows a non-error notice with role status when noticeMessage is set', () => {
+        render(
+          <ExportWizardModal
+            isOpen={true}
+            project={sampleProject}
+            noticeMessage="Runtime not bundled."
+            onClose={vi.fn()}
+            onExport={vi.fn()}
+          />,
+        );
+        const notice = screen.getByTestId('export-notice');
+        expect(notice).toHaveAttribute('role', 'status');
+        expect(notice).toHaveTextContent('Runtime not bundled.');
+        expect(screen.queryByRole('alert')).toBeNull();
+      });
+
+      it('renders no notice by default', () => {
+        render(
+          <ExportWizardModal
+            isOpen={true}
+            project={sampleProject}
+            onClose={vi.fn()}
+            onExport={vi.fn()}
+          />,
+        );
+        expect(screen.queryByTestId('export-notice')).toBeNull();
+      });
+    });
+
     describe('Desktop target is not available yet (TASK-EXP-DESKTOP)', () => {
       const renderWizard = (onExport = vi.fn()) => {
         render(
