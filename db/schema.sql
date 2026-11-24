@@ -10,11 +10,16 @@ CREATE TABLE IF NOT EXISTS public.projects (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     owner_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     title TEXT NOT NULL,
+    description TEXT NULL,
     default_language VARCHAR(10) DEFAULT 'en',
+    entry_scene TEXT NULL,
     version INTEGER NOT NULL DEFAULT 1, -- Project metadata version only (ADR-011)
     published_game_id TEXT NULL,
     variables JSONB DEFAULT '[]'::jsonb,
-    characters JSONB DEFAULT '[]'::jsonb,
+    display_settings JSONB NULL, -- ProjectDisplaySettings
+    gameplay_settings JSONB NULL, -- ProjectGameplaySettings
+    editor_settings JSONB NULL, -- ProjectEditorSettings
+    title_settings JSONB NULL, -- ProjectTitleSettings (asset id cho logo/nền/nhạc Title)
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now()
 );
@@ -61,6 +66,9 @@ CREATE TABLE IF NOT EXISTS public.assets (
     project_id UUID NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     type VARCHAR(20) NOT NULL CHECK (type IN ('image', 'audio', 'video', 'font')),
+    category VARCHAR(20) NULL CHECK (category IS NULL OR category IN ('background', 'sprite', 'bgm', 'sfx', 'voice', 'ui', 'other')),
+    tag TEXT NULL, -- Nhóm sprite (category = 'sprite'), ví dụ 'alice'
+    variant TEXT NULL, -- Biến thể sprite, ví dụ 'happy'
     storage_url TEXT NOT NULL,
     storage_path TEXT NOT NULL,
     size_bytes BIGINT NOT NULL DEFAULT 0,
@@ -175,3 +183,20 @@ CREATE POLICY "Users can view snapshots of their projects"
 --     invited_at TIMESTAMPTZ DEFAULT now(),
 --     PRIMARY KEY (project_id, user_id)
 -- );
+
+-- 8. MIGRATION IDEMPOTENT CHO DATABASE TẠO TỪ BẢN SCHEMA CŨ (TASK-DB-SYNC, 2026-11-24)
+-- Chạy lại an toàn nhiều lần. Đồng bộ các cột với AssetRef và ProjectMetadata.
+ALTER TABLE public.assets ADD COLUMN IF NOT EXISTS category VARCHAR(20) NULL
+    CHECK (category IS NULL OR category IN ('background', 'sprite', 'bgm', 'sfx', 'voice', 'ui', 'other'));
+ALTER TABLE public.assets ADD COLUMN IF NOT EXISTS tag TEXT NULL;
+ALTER TABLE public.assets ADD COLUMN IF NOT EXISTS variant TEXT NULL;
+
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS description TEXT NULL;
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS entry_scene TEXT NULL;
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS display_settings JSONB NULL;
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS gameplay_settings JSONB NULL;
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS editor_settings JSONB NULL;
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS title_settings JSONB NULL;
+
+-- Cột projects.characters đã bỏ khỏi contract (bảng characters gỡ ở refactor Unified Sprite).
+-- Không tự xoá để tránh mất dữ liệu; nếu database cũ còn cột này, người vận hành tự xoá sau khi sao lưu.
