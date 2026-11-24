@@ -144,3 +144,6 @@ AGENTS.md
 .claude/
 CLAUDE.md
 docs/tasks/
+
+# Runtime player build copied into the editor by apps/editor/scripts/bundle-runtime.mjs
+apps/editor/public/runtime/
