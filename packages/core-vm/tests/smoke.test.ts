@@ -118,7 +118,7 @@ describe('Headless Smoke Test (Golden Scenario P0 End-to-End)', () => {
     // -------------------------------------------------------------
     expect(vm.canRollback()).toBe(true);
     // Tua lùi 1 câu thoại: quay về câu "Ôi, cảm ơn cậu!" (lúc này điểm chưa cộng 20 nên là 80)
-    expect((vm.rollback() as any).success).toBe(true);
+    expect(vm.rollback().success).toBe(true);
     expect(vm.getState().variables['affection']).toBe(80);
 
     // Tua tiến lại về câu "Hẹn gặp lại nhé." (điểm trở lại 100)

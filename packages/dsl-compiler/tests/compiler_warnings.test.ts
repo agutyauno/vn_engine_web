@@ -16,8 +16,8 @@ scene intro {
 `;
     const result = compileString(code, 'main.vns');
     expect(result.success).toBe(true);
-    expect((result as any).warnings).toBeDefined();
-    expect(Array.isArray((result as any).warnings)).toBe(true);
+    expect(result.warnings).toBeDefined();
+    expect(Array.isArray(result.warnings)).toBe(true);
   });
 
   // TC-CMP-ASSET-01: Missing audio asset does not trigger ERR_SEMANTIC_MISSING_AUDIO and generates PLAY instruction
@@ -81,7 +81,7 @@ scene intro {
     const builder = new VNSAstBuilder('test.vns');
     const ast = builder.visit(cst) as ProgramAST;
 
-    const validationResult = validateSemantics(ast) as any;
+    const validationResult = validateSemantics(ast);
     expect(validationResult).toBeDefined();
     expect(typeof validationResult).toBe('object');
     expect(validationResult.warnings).toBeDefined();

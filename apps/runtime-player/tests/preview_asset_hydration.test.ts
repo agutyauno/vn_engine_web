@@ -27,14 +27,21 @@ function getHydrateForeignAssetBlobs(): HydrateForeignAssetBlobsFn {
   return fn as HydrateForeignAssetBlobsFn;
 }
 
+interface MockPostedMessage {
+  type?: string;
+  requestId?: string;
+  assetId?: string;
+  [key: string]: unknown;
+}
+
 describe('Cross-Origin Asset Blob Hydration & Preview Bridge', () => {
   let mockTargetWindow: { postMessage: ReturnType<typeof vi.fn> };
-  let postedMessages: Array<{ message: any; targetOrigin: string }>;
+  let postedMessages: Array<{ message: MockPostedMessage; targetOrigin: string }>;
 
   beforeEach(() => {
     postedMessages = [];
     mockTargetWindow = {
-      postMessage: vi.fn((message: unknown, targetOrigin: string) => {
+      postMessage: vi.fn((message: MockPostedMessage, targetOrigin: string) => {
         postedMessages.push({ message, targetOrigin });
       }),
     };
@@ -69,7 +76,7 @@ describe('Cross-Origin Asset Blob Hydration & Preview Bridge', () => {
         assetId: 'asset-classroom-bg',
       });
       expect(typeof dispatched!.message.requestId).toBe('string');
-      expect(dispatched!.message.requestId.length).toBeGreaterThan(0);
+      expect(dispatched!.message.requestId?.length).toBeGreaterThan(0);
     });
 
     it('resolves Promise with Blob when ASSET_BLOB_RESPONSE arrives from Editor', async () => {

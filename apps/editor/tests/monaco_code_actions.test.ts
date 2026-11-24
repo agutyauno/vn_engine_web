@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type MockInstance } from 'vitest';
 import * as monaco from 'monaco-editor';
 import { registerVnsLanguageFeatures, type VnsProjectContext } from '../src/vnsLanguageFeatures';
 import { useDiagnosticsStore } from '../src/core/stores/diagnosticsStore';
@@ -9,7 +9,7 @@ import type { EngineDiagnostic } from '@vn-engine/shared-types';
 describe('Integration Tests: Monaco CodeActionProvider (QuickFix Lightbulb & Ctrl+.)', () => {
   let mockContext: VnsProjectContext;
   let codeActionProvider: monaco.languages.CodeActionProvider | null = null;
-  let registerCodeActionSpy: any;
+  let registerCodeActionSpy: MockInstance<typeof monaco.languages.registerCodeActionProvider>;
 
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -19,12 +19,12 @@ describe('Integration Tests: Monaco CodeActionProvider (QuickFix Lightbulb & Ctr
     codeActionProvider = null;
     registerCodeActionSpy = vi
       .spyOn(monaco.languages, 'registerCodeActionProvider')
-      .mockImplementation(((languageId: string, provider: monaco.languages.CodeActionProvider) => {
-        if (languageId === 'vns') {
+      .mockImplementation((languageSelector, provider) => {
+        if (languageSelector === 'vns') {
           codeActionProvider = provider;
         }
         return { dispose: vi.fn() };
-      }) as any);
+      });
 
     mockContext = {
       getFiles: () => ({

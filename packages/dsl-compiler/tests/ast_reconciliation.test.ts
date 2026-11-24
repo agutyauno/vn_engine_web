@@ -1,5 +1,6 @@
 /// <reference types="node" />
 import { describe, it, expect } from 'vitest';
+import type { IToken } from 'chevrotain';
 import {
   compileString,
   extractScriptReferences,
@@ -264,13 +265,16 @@ scene next_scene {
   // ==========================================
 
   it('TC-AST-SPAN-01: extractLocation should populate precise endLine and endCol matching token span', () => {
-    const mockTokenWithChevrotainEnd = {
+    const mockTokenWithChevrotainEnd: IToken = {
       image: 'bg_room',
       startLine: 3,
       startColumn: 5,
       endLine: 3,
       endColumn: 11, // Chevrotain endColumn is inclusive
-    } as any;
+      startOffset: 0,
+      tokenTypeIdx: 0,
+      tokenType: { name: 'Mock' },
+    };
 
     const loc1 = extractLocation(mockTokenWithChevrotainEnd, 'scene1.vns');
     expect(loc1).toBeDefined();
@@ -282,11 +286,14 @@ scene next_scene {
       endCol: 12, // endColumn + 1
     });
 
-    const mockTokenWithoutEndColumn = {
+    const mockTokenWithoutEndColumn: IToken = {
       image: 'alice',
       startLine: 1,
       startColumn: 10,
-    } as any;
+      startOffset: 0,
+      tokenTypeIdx: 0,
+      tokenType: { name: 'Mock' },
+    };
 
     const loc2 = extractLocation(mockTokenWithoutEndColumn, 'scene1.vns');
     expect(loc2).toBeDefined();

@@ -18,7 +18,7 @@ export interface RendererOptions {
   placeholderMode?: 'procedural' | 'transparent';
 }
 
-export type AssetGraphicResolver = (assetIdOrTag: string, variant?: string) => any;
+export type AssetGraphicResolver = (assetIdOrTag: string, variant?: string) => string | undefined;
 
 export interface CatchUpVisualState {
   background?: BackgroundInstruction;

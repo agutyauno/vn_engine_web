@@ -4,7 +4,9 @@ import type { EngineDiagnostic } from '@vn-engine/shared-types';
 import { syncMonacoMarkers } from '../../src/core/services/monacoMarkerBridge';
 
 describe('monacoMarkerBridge', () => {
-  let mockModel: monaco.editor.ITextModel;
+  let mockModel: monaco.editor.ITextModel & {
+    getLineContent?: (line: number) => string;
+  };
   let mockMonaco: typeof monaco & {
     editor: {
       setModelMarkers: ReturnType<typeof vi.fn>;
@@ -296,7 +298,7 @@ describe('monacoMarkerBridge', () => {
   // ==========================================
 
   it('TC-BRIDGE-SPAN-01: should locate precise token span using quickFix.targetId when endCol is missing', () => {
-    (mockModel as any).getLineContent = vi.fn((line: number) => {
+    mockModel.getLineContent = vi.fn((line: number) => {
       if (line === 1) return '  background bg_sunset transition: "dissolve"';
       return '';
     });
@@ -336,7 +338,7 @@ describe('monacoMarkerBridge', () => {
   });
 
   it('TC-BRIDGE-SPAN-02: should locate word span at startColumn when endCol is missing and col > 1', () => {
-    (mockModel as any).getLineContent = vi.fn((line: number) => {
+    mockModel.getLineContent = vi.fn((line: number) => {
       if (line === 1) return '  jump invalid_label';
       return '';
     });
@@ -370,7 +372,7 @@ describe('monacoMarkerBridge', () => {
   });
 
   it('TC-BRIDGE-SPAN-03: should skip leading indentation when col is 1 on indented lines', () => {
-    (mockModel as any).getLineContent = vi.fn((line: number) => {
+    mockModel.getLineContent = vi.fn((line: number) => {
       if (line === 1) return '    show alice.happy';
       return '';
     });

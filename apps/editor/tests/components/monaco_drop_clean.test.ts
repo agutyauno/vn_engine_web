@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import type * as monaco from 'monaco-editor';
 import * as monacoContainerModule from '../../src/components/studio/MonacoEditorContainer';
 
 // ============================================================================
@@ -10,13 +11,13 @@ interface MonacoEditorContainerPhase23Exports {
   cleanDropText?: (text: string) => string;
   handleEditorDrop?: (
     editor: {
-      executeEdits: (source: string, edits: any[]) => void;
+      executeEdits: (source: string, edits: monaco.editor.IIdentifiedSingleEditOperation[]) => void;
       focus?: () => void;
       getPosition?: () => { lineNumber: number; column: number } | null;
       getTargetAtClientPoint?: (
         x: number,
         y: number,
-      ) => { position: { lineNumber: number; column: number } } | null;
+      ) => { position?: { lineNumber: number; column: number } | null } | null;
     },
     event: {
       clientX?: number;
@@ -33,8 +34,10 @@ interface MonacoEditorContainerPhase23Exports {
     preventDefault: () => void;
     dataTransfer?: { dropEffect: string } | null;
   }) => void;
-  getMonacoEditorOptions?: (readOnly?: boolean) => Record<string, any>;
-  DEFAULT_MONACO_OPTIONS?: Record<string, any>;
+  getMonacoEditorOptions?: (
+    readOnly?: boolean,
+  ) => monaco.editor.IStandaloneEditorConstructionOptions;
+  DEFAULT_MONACO_OPTIONS?: monaco.editor.IStandaloneEditorConstructionOptions;
 }
 
 const typedModule = monacoContainerModule as unknown as MonacoEditorContainerPhase23Exports;

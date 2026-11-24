@@ -74,7 +74,7 @@ describe('Renderer Resilience & Asset Fallback (TASK-renderer-null-texture-and-b
     const fakeTexture = {
       width: 1920,
       height: 1080,
-      source: {} as any,
+      source: Texture.WHITE.source,
       destroy: vi.fn(),
     } as unknown as Texture;
 
@@ -104,7 +104,7 @@ describe('Renderer Resilience & Asset Fallback (TASK-renderer-null-texture-and-b
     const fakeTexture = {
       width: 360,
       height: 600,
-      source: {} as any,
+      source: Texture.WHITE.source,
       destroy: vi.fn(),
     } as unknown as Texture;
 
