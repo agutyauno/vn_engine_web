@@ -336,10 +336,12 @@ body.is-embedded #game-root {
   transform: translateY(0);
 }
 
+/* Nút bị vô hiệu (ví dụ Continue khi chưa có save): vẫn đọc được, nhưng nền trong suốt và viền
+   nét đứt để khác rõ nút đang dùng được mà không chỉ dựa vào màu. Không dùng opacity thấp. */
 .title-screen-btn:disabled {
-  opacity: 0.35;
-  border-color: var(--vn-border, #334155);
-  color: var(--vn-text-muted, #94a3b8);
+  background: transparent;
+  border: 1px dashed #6b7280;
+  color: #9ca3af;
   cursor: not-allowed;
   box-shadow: none;
   transform: none;
