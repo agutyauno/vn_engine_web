@@ -9,7 +9,7 @@ TaleForge Studio web editor application package (`@vn-engine/editor`). Provides 
 - Package: `@vn-engine/editor` (version `0.1.0`)
 - Scripts:
   - `pnpm dev`: Start Vite development server on port 3001
-  - `pnpm build`: Build production web bundle with ESNext target
+  - `pnpm build`: Copy the runtime player build into `public/runtime/` (`scripts/bundle-runtime.mjs`, writes `manifest.json`), then build the production web bundle with ESNext target. `@vn-engine/runtime-player` is a devDependency only so `pnpm -r run build` builds the player first; the editor never imports player code.
   - `pnpm preview`: Preview production build
   - `pnpm typecheck`: Run TypeScript type checking (`tsc --noEmit`)
   - `pnpm test`: Run test suite (`vitest run`)
@@ -25,6 +25,7 @@ TaleForge Studio web editor application package (`@vn-engine/editor`). Provides 
 ## Side Effects
 
 - Compiles frontend bundle via Vite to `dist/`.
+- `pnpm build` deletes and rewrites `public/runtime/` (git-ignored); it fails if `apps/runtime-player/dist/index.html` is missing.
 - Serves static development assets on port 3001.
 
 ## Verification

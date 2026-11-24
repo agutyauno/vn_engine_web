@@ -6,6 +6,8 @@ export interface ExportWizardModalProps {
   isOpen: boolean;
   project: Project;
   errorMessage?: string;
+  /** Thông báo không phải lỗi (ví dụ thiếu runtime, cảnh báo kích thước); mỗi dòng một ý. */
+  noticeMessage?: string;
   isExporting?: boolean;
   onClose: () => void;
   onExport: (target: ExportTarget) => void | Promise<void>;
@@ -18,6 +20,7 @@ export const ExportWizardModal: React.FC<ExportWizardModalProps> = ({
   isOpen,
   project,
   errorMessage,
+  noticeMessage,
   isExporting = false,
   onClose,
   onExport,
@@ -65,6 +68,16 @@ export const ExportWizardModal: React.FC<ExportWizardModalProps> = ({
             </div>
           )}
 
+          {noticeMessage && (
+            <div
+              data-testid="export-notice"
+              role="status"
+              className="whitespace-pre-line rounded border border-amber-800/60 bg-amber-950/30 p-2.5 text-xs text-amber-200"
+            >
+              {noticeMessage}
+            </div>
+          )}
+
           <p className="text-neutral-400">
             Select the release format for{' '}
             <strong className="text-white font-medium">{project.title}</strong>:
@@ -91,8 +104,8 @@ export const ExportWizardModal: React.FC<ExportWizardModalProps> = ({
               <div>
                 <span className="block font-semibold text-white">Web Release ZIP Package</span>
                 <span className="text-[11px] text-neutral-400">
-                  ZIP with project.json and an assets/ folder. Unzip it next to a runtime player
-                  build to play.
+                  Ready-to-play ZIP with the player, project.json and a game-assets/ folder. Upload
+                  it to itch.io or any static web host.
                 </span>
               </div>
             </div>

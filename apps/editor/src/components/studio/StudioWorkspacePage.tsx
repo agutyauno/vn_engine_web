@@ -27,6 +27,7 @@ import { PreviewBridge, buildPreviewUrl } from '../../core/services/previewBridg
 import { buildHotReloadPayload } from '../../core/services/hotReloadPayload';
 import { type EditorDiagnostic } from '../../core/services/reconciliation';
 import { buildPublishedGameZip } from '../../core/services/publishedBundle';
+import { loadRuntimeFiles } from '../../core/services/runtimePackage';
 
 export interface StudioWorkspacePageProps {
   projectId: string;
@@ -121,6 +122,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
   const [isExportOpen, setIsExportOpen] = useState<boolean>(false);
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const [exportErrorMessage, setExportErrorMessage] = useState<string | undefined>(undefined);
+  const [exportNoticeMessage, setExportNoticeMessage] = useState<string | undefined>(undefined);
   const [pendingQuickFixAsset, setPendingQuickFixAsset] = useState<{
     id?: string;
     category?: AssetCategory;
@@ -650,6 +652,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
 
   const handleOpenExportModal = useCallback(() => {
     setExportErrorMessage(undefined);
+    setExportNoticeMessage(undefined);
     setIsExporting(false);
     setIsExportOpen(true);
     onExport?.();
@@ -657,6 +660,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
 
   const handleCloseExportModal = useCallback(() => {
     setExportErrorMessage(undefined);
+    setExportNoticeMessage(undefined);
     setIsExporting(false);
     setIsExportOpen(false);
   }, []);
@@ -671,6 +675,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
       if (target === 'web') {
         setIsExporting(true);
         setExportErrorMessage(undefined);
+        setExportNoticeMessage(undefined);
         try {
           const compileResult = await compilerService.compile(activeProject.files, {
             assets: activeProject.assets,
@@ -686,10 +691,20 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
             return;
           }
 
-          const { zip, warnings } = await buildPublishedGameZip({
+          const runtime = await loadRuntimeFiles({
+            fetchFn: url => fetch(url, { cache: 'no-cache' }),
+            baseUrl: new URL(`${import.meta.env.BASE_URL}runtime/`, window.location.href).href,
+          });
+          if (runtime.kind === 'error') {
+            setExportErrorMessage(runtime.message);
+            return;
+          }
+
+          const { zip, warnings, includesRuntime, limitWarnings } = await buildPublishedGameZip({
             project: activeProject,
             program: compileResult.bytecode,
             getAssetBlob: id => repository.getAssetBlob(id),
+            runtimeFiles: runtime.kind === 'ok' ? runtime.files : undefined,
           });
 
           for (const warning of warnings) {
@@ -699,7 +714,22 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
           const zipBlob = new Blob([new Uint8Array(zip)], { type: 'application/zip' });
           triggerFileDownload(zipBlob, `${slug}_web.zip`);
           setExportErrorMessage(undefined);
-          setIsExportOpen(false);
+
+          const notices: string[] = [];
+          if (!includesRuntime) {
+            notices.push(
+              'Runtime not bundled. Run `pnpm build` to include the player. This ZIP only contains project.json and game-assets/.',
+            );
+          }
+          for (const limitWarning of limitWarnings) {
+            notices.push(limitWarning.message);
+          }
+          if (notices.length > 0) {
+            // Giữ wizard mở để người dùng đọc thông báo; file ZIP vẫn đã được tải về
+            setExportNoticeMessage(notices.join('\n'));
+          } else {
+            setIsExportOpen(false);
+          }
         } catch (err) {
           console.error('Failed to export web package:', err);
           setExportErrorMessage(
@@ -950,6 +980,7 @@ export const StudioWorkspacePage: React.FC<StudioWorkspacePageProps> = ({
           isOpen={isExportOpen}
           project={currentProject}
           errorMessage={exportErrorMessage}
+          noticeMessage={exportNoticeMessage}
           isExporting={isExporting}
           onClose={handleCloseExportModal}
           onExport={handlePerformExport}
