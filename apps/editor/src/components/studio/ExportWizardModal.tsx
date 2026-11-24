@@ -5,8 +5,10 @@ import { XIcon, DownloadIcon } from '../common/Icons';
 export interface ExportWizardModalProps {
   isOpen: boolean;
   project: Project;
+  errorMessage?: string;
+  isExporting?: boolean;
   onClose: () => void;
-  onExport: (target: 'web' | 'desktop' | 'backup') => void;
+  onExport: (target: 'web' | 'desktop' | 'backup') => void | Promise<void>;
 }
 
 export type ExportTarget = 'web' | 'desktop' | 'backup';
@@ -14,6 +16,8 @@ export type ExportTarget = 'web' | 'desktop' | 'backup';
 export const ExportWizardModal: React.FC<ExportWizardModalProps> = ({
   isOpen,
   project,
+  errorMessage,
+  isExporting = false,
   onClose,
   onExport,
 }) => {
@@ -50,6 +54,15 @@ export const ExportWizardModal: React.FC<ExportWizardModalProps> = ({
 
         {/* Modal Body */}
         <div className="flex-1 overflow-auto p-5 text-xs text-neutral-300 space-y-4">
+          {errorMessage && (
+            <div
+              role="alert"
+              className="rounded border border-red-800/60 bg-red-950/40 p-2.5 text-xs text-red-300"
+            >
+              {errorMessage}
+            </div>
+          )}
+
           <p className="text-neutral-400">
             Select the release format for{' '}
             <strong className="text-white font-medium">{project.title}</strong>:
@@ -76,7 +89,8 @@ export const ExportWizardModal: React.FC<ExportWizardModalProps> = ({
               <div>
                 <span className="block font-semibold text-white">Web Release ZIP Package</span>
                 <span className="text-[11px] text-neutral-400">
-                  Ready-to-upload ZIP for itch.io, Game Jolt, or hosting on static Web servers.
+                  ZIP with project.json and an assets/ folder. Unzip it next to a runtime player
+                  build to play.
                 </span>
               </div>
             </div>
@@ -147,10 +161,11 @@ export const ExportWizardModal: React.FC<ExportWizardModalProps> = ({
             type="button"
             data-testid="btn-export-download"
             onClick={handleDownload}
-            className="flex items-center gap-1.5 rounded bg-white px-4 py-1.5 text-xs font-semibold text-neutral-950 hover:bg-neutral-200 transition"
+            disabled={isExporting}
+            className="flex items-center gap-1.5 rounded bg-white px-4 py-1.5 text-xs font-semibold text-neutral-950 hover:bg-neutral-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <DownloadIcon size={12} />
-            <span>Generate & Download</span>
+            <span>{isExporting ? 'Exporting...' : 'Generate & Download'}</span>
           </button>
         </div>
       </div>
