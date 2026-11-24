@@ -12,6 +12,8 @@ Core monorepo shared contract library defining TypeScript types, interfaces, con
 - `BaseInstruction`, `DialogueInstruction`, `RevealInstruction`, `BackgroundInstruction`, `ShowInstruction`, `HideInstruction`, `HideDialogueInstruction`, `InspectBeginInstruction`, `InspectEndInstruction`, `PlayInstruction`, `StopInstruction`, `ChoiceInstruction`, `GotoInstruction`, `ConditionalGotoInstruction`, `LoopStartInstruction`, `LoopEndInstruction`, `CallInstruction`, `ReturnInstruction`, `HaltInstruction`, `SceneEndInstruction`, `AssignInstruction`, `LabelInstruction`, `RunScriptInstruction`, `SpawnScriptInstruction`, `SceneInstruction`, `WaitInstruction`, `Instruction`
 - `CallFrame`, `VMState`, `StepResult`, `VMSnapshot`, `CURRENT_SAVE_VERSION`, `SaveFileData`, `LogChannel`, `LogLevel`, `LogEntry`, `PlayerLogMessage`, `DiagnosticCategory`, `DiagnosticSeverity`, `EngineDiagnostic`, `EngineDiagnosticMessage`, `DiagnosticsClearMessage`
 - `ProjectDisplaySettings`, `DisplaySettings`, `ProjectGameplaySettings`, `GameplaySettings`, `ProjectEditorSettings`, `EditorSettings`, `ProjectTitleSettings` (`backgroundAssetId?`, `logoAssetId?`, `bgmAssetId?`, each an `AssetRef.id`), `ProjectMetadata` (optional `titleSettings`, so older projects need no migration), `Project`, `ScriptFile`, `Character`, `VariableDeclaration`, `AssetCategory`, `AssetRef`, `UICustomScreen`, `CustomScriptScreen`
+- `PUBLISHED_BUNDLE_FORMAT_VERSION`: Hằng số phiên bản định dạng bundle đã xuất bản (hiện tại là 1).
+- `PublishedGameBundle`: Hợp đồng gói game đã xuất bản chạy độc lập trên Web/Desktop player (`formatVersion: 1`, `projectId`, `title`, `titleSettings?`, `entryScene?`, `program`, `assets`, `publishedAt`).
 
 ## Invariants
 
