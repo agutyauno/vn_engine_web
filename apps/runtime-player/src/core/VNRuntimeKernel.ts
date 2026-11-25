@@ -403,7 +403,7 @@ export class VNRuntimeKernel {
       } else if (sideEffect.type === 'INSPECT_BEGIN') {
         const inspect = sideEffect as { assetId: string; title?: string };
         this.state.activeInspectModal = {
-          assetUrl: inspect.assetId,
+          assetUrl: this.resolveInspectAssetUrl(inspect.assetId),
           title: inspect.title,
         };
         this.state.activeModal = 'inspect';
@@ -544,6 +544,11 @@ export class VNRuntimeKernel {
     this.emit();
   }
 
+  /** Asset id -> URL hiển thị cho inspect; không có resolver/không khớp thì giữ nguyên id. */
+  private resolveInspectAssetUrl(assetId: string): string {
+    return this.options?.assetGraphicResolver?.(assetId) ?? assetId;
+  }
+
   private applyCatchUpSync(): void {
     const catchUp = this.vm.getStateCatchUp();
     if (this.adapters.renderer?.syncStateCatchUp) {
@@ -572,7 +577,7 @@ export class VNRuntimeKernel {
 
     if (catchUp.activeInspect) {
       this.state.activeInspectModal = {
-        assetUrl: catchUp.activeInspect.assetId,
+        assetUrl: this.resolveInspectAssetUrl(catchUp.activeInspect.assetId),
         title: catchUp.activeInspect.title,
       };
     } else {

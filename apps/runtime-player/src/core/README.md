@@ -12,7 +12,7 @@ Houses the runtime player orchestration kernel (`VNRuntimeKernel`), typewriter p
   - `StepResult`: Discriminated union of VM step suspension types.
   - `DialogueFontSize` (`small` | `medium` | `large`), `PlayerSettingsData`, `DEFAULT_PLAYER_SETTINGS`: Persisted player settings (volumes, `isMuted`, `textSpeed`, `autoDelayMs`, `fontSize`, `boxOpacity`, `stageScaleMode`) and their defaults. `KernelAdapters.storage` optionally exposes `getSettings`/`saveSettings`.
   - `AudioChannelState`, `SaveSlotData`, `BacklogEntry`, `TypewriterSegment`, `DesyncModalData`.
-  - `PlayerViewState`, `KernelAdapters`, `PlayerUIActions`, `PlayerUIContract`, `VNRuntimeKernelOptions` (`initialMode?`, `projectId?`, `titleConfig?`, `entryScene?`).
+  - `PlayerViewState`, `KernelAdapters`, `PlayerUIActions`, `PlayerUIContract`, `VNRuntimeKernelOptions` (`initialMode?`, `projectId?`, `titleConfig?`, `entryScene?`, `assetGraphicResolver?: (key, variant?) => string | undefined`). The kernel resolves the `INSPECT_BEGIN` / catch-up inspect `assetId` through `assetGraphicResolver` into `activeInspectModal.assetUrl`, falling back to the raw id.
   - `TitleScreenConfig` (`title`, `version?`, `backgroundUrl?`, `logoUrl?`, `bgmTrack?`): Title data already resolved to URLs/keys (the kernel never sees `AssetRef`). `VNRuntimeKernelOptions.titleConfig?: Partial<TitleScreenConfig>`.
   - `LoadProgramOptions`: Supports `scene?`, `line?`, `preserveState?`, `projectId?`, `assets?`, `startAtTitle?: boolean`, and `startGameplay?: boolean`.
   - `ToastTone` (`success` | `info` | `error`).

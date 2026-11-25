@@ -242,6 +242,8 @@ export interface VNRuntimeKernelOptions {
   projectId?: string;
   titleConfig?: Partial<TitleScreenConfig>;
   entryScene?: string;
+  /** Resolve an asset key (e.g. an inspect image) to a displayable URL. */
+  assetGraphicResolver?: (key: string, variant?: string) => string | undefined;
 }
 
 export interface LoadProgramOptions {
