@@ -5,7 +5,9 @@ import {
   scanActiveReconciliation,
   generateDiagnostics,
   checkAssetDeletionSafety,
+  computeReconciliationDiagnostics,
 } from '../src/core/services/reconciliation';
+import type { ScriptReferences } from '../src/core/services/reconciliation';
 
 function createMockProject(options?: {
   files?: ScriptFile[];
@@ -712,5 +714,146 @@ describe('Reconciliation Service (DSL 1.1.0 Syntax & Accurate Diagnostics)', () 
     expect(charlieDiag?.line).toBe(2);
     expect(charlieDiag?.col).not.toBe(1);
     expect(charlieDiag?.col).toBe(8);
+  });
+});
+
+// TASK-SPRITE-RECON-INSPECT: sprite reconciliation must match by tag + variant (ADR-028)
+describe('Sprite reconciliation by tag/variant (TASK-SPRITE-RECON-INSPECT)', () => {
+  function spriteAsset(overrides: Partial<AssetRef> & { id: string; name: string }): AssetRef {
+    return {
+      type: 'image',
+      category: 'sprite',
+      storageUrl: `/assets/${overrides.name}`,
+      sizeBytes: 1024,
+      ...overrides,
+    } as AssetRef;
+  }
+
+  function bgAsset(id: string, name: string): AssetRef {
+    return {
+      id,
+      name,
+      type: 'image',
+      category: 'background',
+      storageUrl: `/assets/${name}`,
+      sizeBytes: 1024,
+    } as AssetRef;
+  }
+
+  function scriptFile(content: string[]): ScriptFile {
+    return {
+      id: 'file-1',
+      name: 'main.vns',
+      content: content.join('\n'),
+      order: 0,
+      version: 1,
+    };
+  }
+
+  function runDiagnostics(files: ScriptFile[], assets: AssetRef[]) {
+    const cache = new Map<string, ScriptReferences>();
+    const options = { assets: assets as unknown as Array<{ id: string; name?: string }> };
+    return computeReconciliationDiagnostics(files, options, cache);
+  }
+
+  const happy = spriteAsset({
+    id: 'corettons_happy',
+    name: 'corettons_happy.png',
+    tag: 'corettons',
+    variant: 'happy',
+  });
+
+  // Spec §3 editor #1
+  it('TC-SPR-REC-01: show tag.variant matches sprite asset by tag/variant (no missing, no unused)', () => {
+    const files = [
+      scriptFile(['scene intro {', '  show corettons.happy(position: "center")', '}']),
+    ];
+    const diags = runDiagnostics(files, [happy]);
+
+    const missing = diags.filter(d => /Missing sprite asset/.test(d.message));
+    expect(missing).toEqual([]);
+    const unused = diags.filter(d => d.message.includes("Unused asset 'corettons_happy.png'"));
+    expect(unused).toEqual([]);
+  });
+
+  // Spec §3 editor #2
+  it('TC-SPR-REC-02: show of an unknown variant reports missing tag.variant and the unused happy asset', () => {
+    const files = [scriptFile(['scene intro {', '  show corettons.sad', '}'])];
+    const diags = runDiagnostics(files, [happy]);
+
+    const missing = diags.filter(d => /Missing sprite asset/.test(d.message));
+    expect(missing.map(d => d.message)).toContain(
+      "Missing sprite asset 'corettons.sad' referenced in script",
+    );
+    const sad = missing.find(d => d.message.includes("'corettons.sad'"));
+    expect(sad?.quickFix?.type).toBe('create_asset');
+
+    const unused = diags.filter(d => d.message.includes("Unused asset 'corettons_happy.png'"));
+    expect(unused).toHaveLength(1);
+  });
+
+  // Spec §3 editor #3
+  it('TC-SPR-REC-03: sprite asset without variant (default) satisfies show tag', () => {
+    const base = spriteAsset({
+      id: 'corettons_base',
+      name: 'corettons_base.png',
+      tag: 'corettons',
+    });
+    const files = [scriptFile(['scene intro {', '  show corettons', '}'])];
+    const diags = runDiagnostics(files, [base]);
+
+    expect(diags.filter(d => /Missing sprite asset/.test(d.message))).toEqual([]);
+    expect(diags.filter(d => d.message.includes("Unused asset 'corettons_base.png'"))).toEqual([]);
+  });
+
+  // Spec §3 editor #4
+  it('TC-SPR-REC-04: tag matching is case-insensitive', () => {
+    const upper = spriteAsset({
+      id: 'corettons_happy',
+      name: 'corettons_happy.png',
+      tag: 'Corettons',
+      variant: 'happy',
+    });
+    const files = [scriptFile(['scene intro {', '  show corettons.happy', '}'])];
+    const diags = runDiagnostics(files, [upper]);
+
+    expect(diags.filter(d => /Missing sprite asset/.test(d.message))).toEqual([]);
+    expect(diags.filter(d => d.message.includes("Unused asset 'corettons_happy.png'"))).toEqual([]);
+  });
+
+  // Spec §3 editor #5
+  it('TC-SPR-REC-05: scanActiveReconciliation excludes referenced sprite variants from unusedAssets', () => {
+    const stun = spriteAsset({
+      id: 'corettons_stun',
+      name: 'corettons_stun.png',
+      tag: 'corettons',
+      variant: 'stun',
+    });
+    const project = createMockProject({
+      files: [scriptFile(['scene intro {', '  show corettons.happy', '}'])],
+      assets: [happy, stun],
+    });
+
+    const report = scanActiveReconciliation(project);
+    expect(report.unusedAssets).not.toContain('corettons_happy.png');
+    expect(report.unusedAssets).toContain('corettons_stun.png');
+    expect(report.uncreatedSprites ?? []).toEqual([]);
+  });
+
+  // Spec §3 editor #6 (regression)
+  it('TC-SPR-REC-06: background asset used via background stays valid; unreferenced asset still unused', () => {
+    const bgX = bgAsset('bg_x', 'bg_x.png');
+    const bgUnused = bgAsset('bg_unused', 'bg_unused.png');
+    const files = [scriptFile(['scene intro {', '  background bg_x', '}'])];
+
+    const diags = runDiagnostics(files, [bgX, bgUnused]);
+    expect(diags.filter(d => d.assetKey === 'bg_x' && d.severity === 'warning')).toEqual([]);
+    expect(diags.filter(d => d.message.includes("Unused asset 'bg_x.png'"))).toEqual([]);
+    expect(diags.filter(d => d.message.includes("Unused asset 'bg_unused.png'"))).toHaveLength(1);
+
+    const report = scanActiveReconciliation(createMockProject({ files, assets: [bgX, bgUnused] }));
+    expect(report.uncreatedAssets).not.toContain('bg_x');
+    expect(report.unusedAssets).not.toContain('bg_x.png');
+    expect(report.unusedAssets).toContain('bg_unused.png');
   });
 });
