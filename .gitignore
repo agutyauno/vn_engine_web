@@ -150,3 +150,6 @@ apps/editor/public/runtime/
 
 # Local media for manual export checks (never committed)
 test-assets/
+
+# Graduation report drafts and template (local only)
+baocao/
