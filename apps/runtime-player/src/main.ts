@@ -175,6 +175,7 @@ window.addEventListener('DOMContentLoaded', async () => {
       projectId,
       titleConfig,
       entryScene,
+      assetGraphicResolver: assetResolver.getAssetGraphicResolver(),
     },
   );
 

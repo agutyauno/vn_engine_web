@@ -117,6 +117,22 @@ function resolveExpressionSpan(
   return { col: 1, endLine: fallbackLine, endCol: 1 };
 }
 
+/** Khóa `tag.variant` (lowercase, variant mặc định 'default') của một sprite. */
+function spriteCompositeKey(tag: string, variant: string | undefined): string {
+  return `${tag.trim().toLowerCase()}.${(variant || 'default').trim().toLowerCase()}`;
+}
+
+/** Khóa sprite của asset (category 'sprite' hoặc có tag); undefined nếu không phải sprite có tag. */
+function spriteAssetKey(asset: {
+  category?: string;
+  tag?: string;
+  variant?: string;
+}): string | undefined {
+  if (asset.category !== 'sprite' && !asset.tag) return undefined;
+  const tag = (asset.tag || '').trim();
+  return tag ? spriteCompositeKey(tag, asset.variant) : undefined;
+}
+
 export function scanActiveReconciliation(project: Project): ReconciliationReport {
   const assetRefMap: Record<string, ScriptReference[]> = {};
   const charRefMap: Record<string, ScriptReference[]> = {};
@@ -365,7 +381,13 @@ export function scanActiveReconciliation(project: Project): ReconciliationReport
       assetRefMap[asset.name.toLowerCase()] ||
       (cleanName ? assetRefMap[cleanName] : undefined);
     const idMatches = assetRefMap[asset.id] || assetRefMap[asset.id.toLowerCase()];
-    if ((!nameMatches || nameMatches.length === 0) && (!idMatches || idMatches.length === 0)) {
+    const spriteKey = spriteAssetKey(asset);
+    const spriteMatches = spriteKey ? spriteRefMap[spriteKey] : undefined;
+    if (
+      (!nameMatches || nameMatches.length === 0) &&
+      (!idMatches || idMatches.length === 0) &&
+      (!spriteMatches || spriteMatches.length === 0)
+    ) {
       unusedAssets.push(asset.name);
     }
   }
@@ -837,7 +859,14 @@ export function computeReconciliationDiagnostics(
   options:
     | {
         characters?: Array<{ id: string; name?: string; sprites?: Record<string, string> }>;
-        assets?: Array<{ id: string; name?: string; type?: string; category?: string }>;
+        assets?: Array<{
+          id: string;
+          name?: string;
+          type?: string;
+          category?: string;
+          tag?: string;
+          variant?: string;
+        }>;
       }
     | undefined,
   cache: Map<string, ScriptReferences>,
@@ -889,7 +918,14 @@ export function computeReconciliationDiagnostics(
     }
   }
 
+  // assetRefMap: mọi ref theo assetKey (khớp id/name cũ). refGroups: nhóm ref để báo thiếu,
+  // sprite tách theo tag.variant. usedSpriteKeys: khóa tag.variant của các ref sprite.
   const assetRefMap: Record<string, ScriptReference[]> = {};
+  const refGroups = new Map<
+    string,
+    { assetKey: string; variant?: string; isSprite: boolean; refs: ScriptReference[] }
+  >();
+  const usedSpriteKeys = new Set<string>();
 
   for (const [fileKey, fileRefs] of cache.entries()) {
     const fileName = fileNameMap.get(fileKey) || fileKey;
@@ -897,21 +933,31 @@ export function computeReconciliationDiagnostics(
     for (const assetRef of fileRefs.assets) {
       const cleanKey = (assetRef.assetKey || '').trim();
       if (!cleanKey) continue;
-      if (!assetRefMap[cleanKey]) {
-        assetRefMap[cleanKey] = [];
-      }
-      assetRefMap[cleanKey]!.push({
+      const ref: ScriptReference = {
         file: fileName,
         line: assetRef.loc?.line ?? 1,
         col: assetRef.loc?.col,
         endLine: assetRef.loc?.endLine,
         endCol: assetRef.loc?.endCol,
         type: assetRef.category ?? 'background',
-      });
+      };
+      (assetRefMap[cleanKey] ??= []).push(ref);
+
+      const isSprite = ref.type === 'sprite';
+      const variant = isSprite ? assetRef.variant?.trim() || undefined : undefined;
+      if (isSprite) usedSpriteKeys.add(spriteCompositeKey(cleanKey, variant));
+      const groupKey = isSprite ? `sprite:${cleanKey}.${variant ?? ''}` : `asset:${cleanKey}`;
+      let group = refGroups.get(groupKey);
+      if (!group) {
+        group = { assetKey: cleanKey, variant, isSprite, refs: [] };
+        refGroups.set(groupKey, group);
+      }
+      group.refs.push(ref);
     }
   }
 
   const knownAssetKeys = new Set<string>();
+  const knownSpriteKeys = new Set<string>();
   for (const asset of options?.assets || []) {
     if (asset.id) {
       knownAssetKeys.add(asset.id.trim());
@@ -926,46 +972,52 @@ export function computeReconciliationDiagnostics(
         knownAssetKeys.add(cleanName.toLowerCase());
       }
     }
+    const spriteKey = spriteAssetKey(asset);
+    if (spriteKey) knownSpriteKeys.add(spriteKey);
   }
 
   const diagnostics: GeneratedEditorDiagnostic[] = [];
 
   // Uncreated Assets
-  for (const assetRef of Object.keys(assetRefMap)) {
-    if (!knownAssetKeys.has(assetRef) && !knownAssetKeys.has(assetRef.toLowerCase())) {
-      const refs = assetRefMap[assetRef] || [];
-      const seenLocs = new Set<string>();
-      for (const ref of refs) {
-        const locKey = `${ref.file}:${ref.line}`;
-        if (seenLocs.has(locKey)) continue;
-        seenLocs.add(locKey);
+  for (const group of refGroups.values()) {
+    const { assetKey, variant, isSprite } = group;
+    const known =
+      knownAssetKeys.has(assetKey) ||
+      knownAssetKeys.has(assetKey.toLowerCase()) ||
+      (isSprite && knownSpriteKeys.has(spriteCompositeKey(assetKey, variant)));
+    if (known) continue;
 
-        const isSprite = ref.type === 'sprite';
-        diagnostics.push({
-          id: `diag-asset-${assetRef}-${ref.file}-${ref.line}`,
-          timestamp: Date.now(),
-          category: 'asset',
-          severity: 'warning',
-          message: isSprite
-            ? `Missing sprite asset '${assetRef}' referenced in script`
-            : `Uncreated asset '${assetRef}' referenced in script`,
-          assetKey: assetRef,
-          fileName: ref.file,
-          fileId: fileMap.get(ref.file),
-          line: ref.line,
-          col: typeof ref.col === 'number' && ref.col > 0 ? ref.col : 1,
-          endLine: typeof ref.endLine === 'number' && ref.endLine > 0 ? ref.endLine : ref.line,
-          endCol: typeof ref.endCol === 'number' && ref.endCol > 0 ? ref.endCol : undefined,
-          quickFix: {
-            type: 'create_asset',
-            targetId: assetRef,
-            prefillData: {
-              name: assetRef,
-              category: isSprite ? 'sprite' : ref.type === 'audio' ? 'audio' : 'background',
-            },
+    const displayKey = variant ? `${assetKey}.${variant}` : assetKey;
+    const seenLocs = new Set<string>();
+    for (const ref of group.refs) {
+      const locKey = `${ref.file}:${ref.line}`;
+      if (seenLocs.has(locKey)) continue;
+      seenLocs.add(locKey);
+
+      diagnostics.push({
+        id: `diag-asset-${displayKey}-${ref.file}-${ref.line}`,
+        timestamp: Date.now(),
+        category: 'asset',
+        severity: 'warning',
+        message: isSprite
+          ? `Missing sprite asset '${displayKey}' referenced in script`
+          : `Uncreated asset '${displayKey}' referenced in script`,
+        assetKey: displayKey,
+        fileName: ref.file,
+        fileId: fileMap.get(ref.file),
+        line: ref.line,
+        col: typeof ref.col === 'number' && ref.col > 0 ? ref.col : 1,
+        endLine: typeof ref.endLine === 'number' && ref.endLine > 0 ? ref.endLine : ref.line,
+        endCol: typeof ref.endCol === 'number' && ref.endCol > 0 ? ref.endCol : undefined,
+        quickFix: {
+          type: 'create_asset',
+          targetId: displayKey,
+          prefillData: {
+            name: displayKey,
+            category: isSprite ? 'sprite' : ref.type === 'audio' ? 'audio' : 'background',
           },
-        });
-      }
+        },
+      });
     }
   }
 
@@ -978,8 +1030,14 @@ export function computeReconciliationDiagnostics(
     const idMatches = asset.id
       ? assetRefMap[asset.id] || assetRefMap[asset.id.toLowerCase()]
       : undefined;
+    const spriteKey = spriteAssetKey(asset);
+    const spriteUsed = spriteKey !== undefined && usedSpriteKeys.has(spriteKey);
 
-    if ((!nameMatches || nameMatches.length === 0) && (!idMatches || idMatches.length === 0)) {
+    if (
+      (!nameMatches || nameMatches.length === 0) &&
+      (!idMatches || idMatches.length === 0) &&
+      !spriteUsed
+    ) {
       diagnostics.push({
         id: `diag-unused-asset-${assetName}`,
         timestamp: Date.now(),

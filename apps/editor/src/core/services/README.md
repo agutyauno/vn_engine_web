@@ -10,7 +10,8 @@ Core application services powering compilation, sandboxed runtime communication,
 - `CompilerWorkerRequest`, `CompilerWorkerResponse`: Message contracts for worker compilation
 - `CompileExecutionOptions`, `CompileOutput`: Public compilation interfaces
 - `PreviewBridge`: Bidirectional `postMessage` bridge between Editor and sandbox player iframe/popout (`probeReady`, `hotReload`, `sendVariable`, `handleMessage`, `dispose`, `buildPreviewUrl`, `isAllowedPreviewOrigin`)
-- `scanActiveReconciliation(project: Project): ReconciliationReport`: Scans scripts for uncreated/unused assets and characters
+- `scanActiveReconciliation(project: Project): ReconciliationReport`: Scans scripts for uncreated/unused assets and characters. Sprite assets (`category: 'sprite'` or with `tag`) count as used when a `show tag[.variant]` ref matches `tag` (case-insensitive) and `variant || 'default'`
+- `computeReconciliationDiagnostics(files, options?: { characters?, assets?: Array<{ id; name?; type?; category?; tag?; variant? }> }, cache): GeneratedEditorDiagnostic[]`: Cached AST reconciliation. A sprite ref is satisfied by id/name/stem or by a sprite asset with matching `tag` + `variant || 'default'`; missing ones report `Missing sprite asset '<tag>[.<variant>]'`
 - `checkAssetDeletionSafety(assetIdOrName: string, project: Project): DeletionSafetyResult`: Assesses safety of asset deletion
 - `generateDiagnostics(project: Project): GeneratedEditorDiagnostic[]`: Produces editor diagnostics from reconciliation scan
 - `syncMonacoMarkers(options: MonacoMarkerSyncOptions): void`: Synchronizes diagnostics into Monaco editor markers
